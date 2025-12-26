@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>管理画面 - 建設土木ナレッジシステム</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .admin-container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 28px;
+    }
+
+    .admin-panel {
+      background: var(--surface-strong);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .admin-panel h2 {
+      font-family: "Shippori Mincho B1", serif;
+      margin: 0 0 24px;
+      font-size: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--steel);
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .tag-input-container {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      min-height: 48px;
+    }
+
+    .tag-input-item {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--moss);
+      color: #fff;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tag-input-item button {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .tag-input-field {
+      border: none;
+      outline: none;
+      flex: 1;
+      min-width: 120px;
+      font-family: inherit;
+    }
+
+    .admin-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .data-table th {
+      background: rgba(47, 75, 82, 0.08);
+      font-weight: 600;
+      color: var(--steel);
+    }
+
+    .data-table tr:hover {
+      background: rgba(155, 181, 176, 0.08);
+    }
+
+    .action-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      font-size: 12px;
+      margin-right: 6px;
+    }
+
+    .action-btn.danger {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      display: inline-block;
+    }
+
+    .status-badge.active {
+      background: rgba(79, 108, 91, 0.16);
+      color: var(--moss);
+    }
+
+    .status-badge.draft {
+      background: rgba(155, 181, 176, 0.2);
+      color: var(--steel);
+    }
+
+    .message {
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .message.success {
+      background: rgba(79, 108, 91, 0.16);
+      color: var(--moss);
+      border: 1px solid rgba(79, 108, 91, 0.3);
+    }
+
+    .message.error {
+      background: rgba(197, 83, 58, 0.16);
+      color: var(--danger);
+      border: 1px solid rgba(197, 83, 58, 0.3);
+    }
+
+    .message.show {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="brand-mark">MK</div>
+      <div>
+        <h1>Mirai Construction Knowledge</h1>
+        <span>管理画面</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a href="index.html" class="cta ghost">ダッシュボードへ戻る</a>
+    </div>
+  </header>
+
+  <div class="admin-container">
+    <!-- メッセージエリア -->
+    <div id="message" class="message"></div>
+
+    <!-- 新規ナレッジ登録 -->
+    <div class="admin-panel">
+      <h2>新規ナレッジ登録</h2>
+      <form id="knowledgeForm">
+        <div class="form-group">
+          <label for="title">タイトル *</label>
+          <input type="text" id="title" name="title" required />
+        </div>
+
+        <div class="form-group">
+          <label for="summary">概要 *</label>
+          <textarea id="summary" name="summary" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="content">詳細内容</label>
+          <textarea id="content" name="content"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="category">カテゴリ *</label>
+          <select id="category" name="category" required>
+            <option value="">選択してください</option>
+            <option value="施工計画">施工計画</option>
+            <option value="品質">品質</option>
+            <option value="安全衛生">安全衛生</option>
+            <option value="施工管理">施工管理</option>
+            <option value="原価管理">原価管理</option>
+            <option value="出来形管理">出来形管理</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="project">プロジェクト/工区</label>
+          <input type="text" id="project" name="project" placeholder="例: B-03-3-2" />
+        </div>
+
+        <div class="form-group">
+          <label for="owner">担当者/部門 *</label>
+          <input type="text" id="owner" name="owner" required placeholder="例: 工事技術部" />
+        </div>
+
+        <div class="form-group">
+          <label for="priority">優先度</label>
+          <select id="priority" name="priority">
+            <option value="low">低</option>
+            <option value="medium" selected>中</option>
+            <option value="high">高</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>タグ</label>
+          <div class="tag-input-container" id="tagContainer">
+            <input type="text" class="tag-input-field" id="tagInput" placeholder="タグを入力してEnter" />
+          </div>
+        </div>
+
+        <div class="admin-actions">
+          <button type="submit" class="cta">登録する</button>
+          <button type="reset" class="cta ghost">クリア</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ナレッジ一覧 -->
+    <div class="admin-panel">
+      <h2>ナレッジ一覧</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>タイトル</th>
+            <th>カテゴリ</th>
+            <th>ステータス</th>
+            <th>更新日</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="knowledgeList">
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--muted);">読み込み中...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 承認待ちアイテム -->
+    <div class="admin-panel">
+      <h2>承認待ちアイテム</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>タイトル</th>
+            <th>種別</th>
+            <th>申請者</th>
+            <th>ステータス</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="approvalList">
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--muted);">読み込み中...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // 動的にAPIベースURLを設定（localhost、IPアドレス、ホスト名に対応）
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5000'}/api`;
+    let selectedTags = [];
+
+    // ============================================================
+    // ユーティリティ関数
+    // ============================================================
+
+    function showMessage(text, type = 'success') {
+      const messageEl = document.getElementById('message');
+      messageEl.textContent = text;
+      messageEl.className = `message ${type} show`;
+
+      setTimeout(() => {
+        messageEl.classList.remove('show');
+      }, 5000);
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    // ============================================================
+    // タグ入力機能
+    // ============================================================
+
+    function renderTags() {
+      const container = document.getElementById('tagContainer');
+      const input = document.getElementById('tagInput');
+
+      container.innerHTML = selectedTags.map((tag, index) => `
+          <span class="tag-input-item">
+            ${tag}
+            <button type="button" onclick="removeTag(${index})">×</button>
+          </span>
+        `).join('') + container.querySelector('.tag-input-field').outerHTML;
+
+      // 入力フィールドを再取得してイベントリスナーを再設定
+      const newInput = container.querySelector('.tag-input-field');
+      newInput.addEventListener('keypress', handleTagInput);
+    }
+
+    function addTag(tag) {
+      const trimmedTag = tag.trim();
+      if (trimmedTag && !selectedTags.includes(trimmedTag)) {
+        selectedTags.push(trimmedTag);
+        renderTags();
+      }
+    }
+
+    function removeTag(index) {
+      selectedTags.splice(index, 1);
+      renderTags();
+    }
+
+    function handleTagInput(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addTag(e.target.value);
+        e.target.value = '';
+      }
+    }
+
+    // 初期化
+    document.getElementById('tagInput').addEventListener('keypress', handleTagInput);
+
+    // ============================================================
+    // ナレッジ登録
+    // ============================================================
+
+    document.getElementById('knowledgeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const data = {
+        title: formData.get('title'),
+        summary: formData.get('summary'),
+        content: formData.get('content') || formData.get('summary'),
+        category: formData.get('category'),
+        project: formData.get('project'),
+        owner: formData.get('owner'),
+        priority: formData.get('priority'),
+        tags: selectedTags
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}/knowledge`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('ナレッジを登録しました！', 'success');
+          e.target.reset();
+          selectedTags = [];
+          renderTags();
+          loadKnowledge();
+        } else {
+          showMessage('登録に失敗しました: ' + result.error, 'error');
+        }
+      } catch (error) {
+        showMessage('エラーが発生しました: ' + error.message, 'error');
+      }
+    });
+
+    // ============================================================
+    // データ読み込み
+    // ============================================================
+
+    async function loadKnowledge() {
+      try {
+        const response = await fetch(`${API_BASE}/knowledge`);
+        const result = await response.json();
+
+        if (result.success) {
+          const tbody = document.getElementById('knowledgeList');
+
+          if (result.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted);">データがありません</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = result.data.map(k => `
+              <tr>
+                <td>${k.id}</td>
+                <td>${k.title}</td>
+                <td>${k.category}</td>
+                <td><span class="status-badge ${k.status}">${k.status === 'approved' ? '承認済み' : '下書き'}</span></td>
+                <td>${formatDate(k.updated_at)}</td>
+                <td>
+                  <button class="action-btn" onclick="viewKnowledge(${k.id})">詳細</button>
+                  <button class="action-btn danger" onclick="deleteKnowledge(${k.id})">削除</button>
+                </td>
+              </tr>
+            `).join('');
+        }
+      } catch (error) {
+        console.error('Failed to load knowledge:', error);
+      }
+    }
+
+    async function loadApprovals() {
+      try {
+        const response = await fetch(`${API_BASE}/approvals`);
+        const result = await response.json();
+
+        if (result.success) {
+          const tbody = document.getElementById('approvalList');
+
+          if (result.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted);">データがありません</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = result.data.map(a => `
+              <tr>
+                <td>${a.id}</td>
+                <td>${a.title}</td>
+                <td>${a.type}</td>
+                <td>${a.requester}</td>
+                <td><span class="status-badge ${a.status}">${a.status === 'pending' ? '承認待ち' : a.status === 'reviewing' ? '確認中' : a.status}</span></td>
+                <td>
+                  ${a.status === 'pending' || a.status === 'reviewing' ? `
+                    <button class="action-btn" onclick="approveItem(${a.id})">承認</button>
+                    <button class="action-btn danger" onclick="rejectItem(${a.id})">却下</button>
+                  ` : '完了'}
+                </td>
+              </tr>
+            `).join('');
+        }
+      } catch (error) {
+        console.error('Failed to load approvals:', error);
+      }
+    }
+
+    // ============================================================
+    // アクション関数
+    // ============================================================
+
+    function viewKnowledge(id) {
+      // 詳細画面への遷移（実装は省略）
+      alert(`ナレッジID ${id} の詳細を表示（未実装）`);
+    }
+
+    async function deleteKnowledge(id) {
+      if (!confirm('このナレッジを削除しますか？')) {
+        return;
+      }
+
+      showMessage('削除機能は未実装です', 'error');
+    }
+
+    async function approveItem(id) {
+      if (!confirm('このアイテムを承認しますか？')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/approvals/${id}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            approver: '管理者',
+            comment: 'Web管理画面から承認'
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('承認しました', 'success');
+          loadApprovals();
+        } else {
+          showMessage('承認に失敗しました', 'error');
+        }
+      } catch (error) {
+        showMessage('エラーが発生しました: ' + error.message, 'error');
+      }
+    }
+
+    async function rejectItem(id) {
+      const reason = prompt('却下理由を入力してください:');
+      if (!reason) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/approvals/${id}/reject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            approver: '管理者',
+            reason: reason
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('却下しました', 'success');
+          loadApprovals();
+        } else {
+          showMessage('却下に失敗しました', 'error');
+        }
+      } catch (error) {
+        showMessage('エラーが発生しました: ' + error.message, 'error');
+      }
+    }
+
+    // ============================================================
+    // 初期化
+    // ============================================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadKnowledge();
+      loadApprovals();
+    });
+  </script>
+</body>
+
+</html>

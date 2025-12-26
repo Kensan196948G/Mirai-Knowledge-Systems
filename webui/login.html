@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - 建設土木ナレッジシステム</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ログイン画面専用スタイル */
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 48px 40px;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .login-logo {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .login-logo svg {
+            width: 32px;
+            height: 32px;
+            color: white;
+        }
+
+        .login-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0 0 8px;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-input.error {
+            border-color: #ef4444;
+        }
+
+        .error-message {
+            display: none;
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .login-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        .login-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .demo-accounts {
+            margin-top: 32px;
+            padding-top: 32px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .demo-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .demo-account {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .demo-account:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .demo-account-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .demo-account-role {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        .login-button.loading .button-text {
+            display: none;
+        }
+
+        .login-button.loading .loading-spinner {
+            display: block;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <h1 class="login-title">建設土木ナレッジシステム</h1>
+                <p class="login-subtitle">アカウント情報を入力してログインしてください</p>
+            </div>
+
+            <div id="loginAlert" class="alert alert-error">
+                <span id="alertMessage"></span>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="username">ユーザー名</label>
+                    <input type="text" id="username" name="username" class="form-input" placeholder="yamada" required
+                        autocomplete="username">
+                    <div class="error-message" id="usernameError">ユーザー名を入力してください</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">パスワード</label>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••"
+                        required autocomplete="current-password">
+                    <div class="error-message" id="passwordError">パスワードを入力してください</div>
+                </div>
+
+                <button type="submit" class="login-button" id="loginButton">
+                    <span class="button-text">ログイン</span>
+                    <div class="loading-spinner"></div>
+                </button>
+            </form>
+
+            <div class="demo-accounts">
+                <div class="demo-title">デモアカウント（クリックで入力）</div>
+                <div class="demo-account" data-username="admin" data-password="admin123">
+                    <div class="demo-account-name">👑 管理者</div>
+                    <div class="demo-account-role">admin / admin123 - 全権限</div>
+                </div>
+                <div class="demo-account" data-username="yamada" data-password="yamada123">
+                    <div class="demo-account-name">👷 施工管理</div>
+                    <div class="demo-account-role">yamada / yamada123 - ナレッジ作成・閲覧</div>
+                </div>
+                <div class="demo-account" data-username="partner" data-password="partner123">
+                    <div class="demo-account-name">🏢 協力会社</div>
+                    <div class="demo-account-role">partner / partner123 - 閲覧のみ</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api/v1';
+
+        // デモアカウントクリック
+        document.querySelectorAll('.demo-account').forEach(account => {
+            account.addEventListener('click', () => {
+                const username = account.dataset.username;
+                const password = account.dataset.password;
+                document.getElementById('username').value = username;
+                document.getElementById('password').value = password;
+                hideAlert();
+            });
+        });
+
+        // ログインフォーム送信
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const loginButton = document.getElementById('loginButton');
+
+            // バリデーション
+            let hasError = false;
+
+            if (!username) {
+                showFieldError('username');
+                hasError = true;
+            }
+
+            if (!password) {
+                showFieldError('password');
+                hasError = true;
+            }
+
+            if (hasError) return;
+
+            // ローディング開始
+            loginButton.classList.add('loading');
+            loginButton.disabled = true;
+            hideAlert();
+
+            try {
+                console.log('[LOGIN] Sending login request...');
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                console.log('[LOGIN] Response status:', response.status);
+                const result = await response.json();
+                console.log('[LOGIN] Response data:', result);
+
+                if (result.success) {
+                    // トークンとユーザー情報を保存
+                    console.log('[LOGIN] Saving tokens to localStorage...');
+                    localStorage.setItem('access_token', result.data.access_token);
+                    localStorage.setItem('refresh_token', result.data.refresh_token);
+                    localStorage.setItem('user', JSON.stringify(result.data.user));
+
+                    // 保存確認
+                    console.log('[LOGIN] Token saved:', localStorage.getItem('access_token') ? 'YES' : 'NO');
+                    console.log('[LOGIN] User saved:', localStorage.getItem('user') ? 'YES' : 'NO');
+
+                    // 少し待ってからリダイレクト（localStorageの保存を確実にするため）
+                    console.log('[LOGIN] Redirecting to dashboard...');
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 100);
+                } else {
+                    // エラー表示
+                    console.error('[LOGIN] Login failed:', result.error);
+                    showAlert(result.error.message || 'ログインに失敗しました');
+                    loginButton.classList.remove('loading');
+                    loginButton.disabled = false;
+                }
+            } catch (error) {
+                console.error('[LOGIN] Login error:', error);
+                showAlert('サーバーに接続できませんでした。バックエンドが起動しているか確認してください。');
+                loginButton.classList.remove('loading');
+                loginButton.disabled = false;
+            }
+        });
+
+        // フィールドエラー表示
+        function showFieldError(fieldName) {
+            const field = document.getElementById(fieldName);
+            const error = document.getElementById(`${fieldName}Error`);
+
+            field.classList.add('error');
+            error.classList.add('show');
+
+            field.addEventListener('input', () => {
+                field.classList.remove('error');
+                error.classList.remove('show');
+            }, { once: true });
+        }
+
+        // アラート表示
+        function showAlert(message) {
+            const alert = document.getElementById('loginAlert');
+            const alertMessage = document.getElementById('alertMessage');
+
+            alertMessage.textContent = message;
+            alert.classList.add('show');
+        }
+
+        // アラート非表示
+        function hideAlert() {
+            const alert = document.getElementById('loginAlert');
+            alert.classList.remove('show');
+        }
+
+        // 入力フィールドのエラークリア
+        document.getElementById('username').addEventListener('input', () => {
+            hideAlert();
+        });
+
+        document.getElementById('password').addEventListener('input', () => {
+            hideAlert();
+        });
+    </script>
+</body>
+
+</html>

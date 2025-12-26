@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@example.com",
+    "password_hash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "full_name": "管理者",
+    "department": "システム管理部",
+    "roles": [
+      "admin"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 2,
+    "username": "yamada",
+    "email": "yamada@example.com",
+    "password_hash": "ff3f9de78974ea9263dc2e7047867076ae476a5d43696c29b5120540df5b389f",
+    "full_name": "山田太郎",
+    "department": "施工管理",
+    "roles": [
+      "construction_manager"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 3,
+    "username": "partner",
+    "email": "partner@example.com",
+    "password_hash": "d4e870198339c045e84f416cc6a1f15c30f010f68e14c637a9d35366f2e35ba6",
+    "full_name": "協力会社ユーザー",
+    "department": "協力会社",
+    "roles": [
+      "partner_company"
+    ],
+    "is_active": true
+  }
+]

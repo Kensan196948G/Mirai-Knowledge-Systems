@@ -1,0 +1,35 @@
+[
+    {
+        "id": 1,
+        "title": "施工計画変更 砂防堰堤B-03 (工区3-2)",
+        "type": "施工計画",
+        "requester": "現場所長 鈴木",
+        "status": "pending",
+        "priority": "high",
+        "description": "温度管理手順の追加と養生期間の延長",
+        "created_at": "2024-06-24T08:40:00",
+        "updated_at": "2024-06-24T08:40:00"
+    },
+    {
+        "id": 2,
+        "title": "SOP改訂 高所作業車 点検SOP-0421",
+        "type": "SOP改訂",
+        "requester": "安全衛生室",
+        "status": "reviewing",
+        "priority": "medium",
+        "description": "点検項目の追加と記録様式の変更",
+        "created_at": "2024-06-23T14:00:00",
+        "updated_at": "2024-06-24T10:15:00"
+    },
+    {
+        "id": 3,
+        "title": "事故レポート 吊り荷接触未遂 (K-12)",
+        "type": "事故レポート",
+        "requester": "現場監督 佐藤",
+        "status": "reviewing",
+        "priority": "high",
+        "description": "再発防止策のレビューと承認",
+        "created_at": "2024-06-23T17:00:00",
+        "updated_at": "2024-06-24T09:30:00"
+    }
+]

@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:19:10.184080"
+  },
+  {
+    "id": 2,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:19:21.076632"
+  },
+  {
+    "id": 3,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:19:34.136130"
+  },
+  {
+    "id": 4,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:19:41.482611"
+  },
+  {
+    "id": 5,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "timestamp": "2025-12-26T20:20:03.886464"
+  },
+  {
+    "id": 6,
+    "user_id": 2,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "timestamp": "2025-12-26T20:20:54.009308"
+  },
+  {
+    "id": 7,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "timestamp": "2025-12-26T20:21:52.502735"
+  },
+  {
+    "id": 8,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:23:47.586732"
+  },
+  {
+    "id": 9,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:24:16.424482"
+  },
+  {
+    "id": 10,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:27:40.018794"
+  },
+  {
+    "id": 11,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:30:28.871888"
+  },
+  {
+    "id": 12,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:35:21.468366"
+  },
+  {
+    "id": 13,
+    "user_id": 2,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:36:47.978822"
+  },
+  {
+    "id": 14,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:37:47.460449"
+  },
+  {
+    "id": 15,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T20:38:58.140482"
+  },
+  {
+    "id": 16,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "timestamp": "2025-12-26T20:39:19.106017"
+  },
+  {
+    "id": 17,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "timestamp": "2025-12-26T20:44:25.336764"
+  },
+  {
+    "id": 18,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "timestamp": "2025-12-26T20:44:45.254132"
+  },
+  {
+    "id": 19,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T21:05:13.156904"
+  },
+  {
+    "id": 20,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T21:05:41.880615"
+  },
+  {
+    "id": 21,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T21:06:44.861921"
+  },
+  {
+    "id": 22,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T21:07:15.838404"
+  },
+  {
+    "id": 23,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T21:09:09.195871"
+  },
+  {
+    "id": 24,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "timestamp": "2025-12-26T21:12:47.839160"
+  }
+]

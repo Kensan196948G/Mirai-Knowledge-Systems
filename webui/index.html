@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>建設土木ナレッジシステム - 現場ダッシュボード</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <header class="header">
+    <div class="brand reveal">
+      <div class="brand-mark">MK</div>
+      <div>
+        <h1>Mirai Construction Knowledge</h1>
+        <span>総合建設 土木本部 / 東北支店・施工12現場</span>
+      </div>
+    </div>
+    <nav class="top-nav reveal delay-1">
+      <a class="is-active" href="index.html" aria-current="page">現場ダッシュボード</a>
+      <a href="search-detail.html">検索結果詳細</a>
+      <a href="sop-detail.html">SOP詳細</a>
+      <a href="law-detail.html">法令詳細</a>
+      <a href="incident-detail.html">事故レポート</a>
+      <a href="expert-consult.html">専門家相談</a>
+    </nav>
+    <div class="header-actions reveal delay-2">
+      <span class="chip">最新同期 12:24</span>
+      <span class="chip">稼働 24 / 28 (夜間 4)</span>
+      <span class="chip">承認待ち 7件</span>
+      <div class="user-info"></div>
+      <button class="cta">新規ナレッジ登録</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <aside class="sidebar reveal delay-1">
+      <div class="nav-section">
+        <div class="nav-title">KNOWLEDGE HUB</div>
+        <div class="nav-item">
+          <strong>ナレッジマップ</strong>
+          <span>128項目</span>
+        </div>
+        <div class="nav-item">
+          <strong>標準施工SOP</strong>
+          <span>56件</span>
+        </div>
+        <div class="nav-item">
+          <strong>法令・規格</strong>
+          <span>24更新</span>
+        </div>
+        <div class="nav-item">
+          <strong>事故・ヒヤリ</strong>
+          <span>新規5</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-title">PROJECTS</div>
+        <div class="nav-item">
+          <strong>東北橋梁補修 (B-03)</strong>
+          <span>進捗 64%</span>
+        </div>
+        <div class="nav-item">
+          <strong>首都高速更新 (K-12)</strong>
+          <span>進捗 38%</span>
+        </div>
+        <div class="nav-item">
+          <strong>河川護岸整備 (R-07)</strong>
+          <span>進捗 81%</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-title">EXPERTS</div>
+        <div class="nav-item">
+          <strong>技術本部 構造設計</strong>
+          <span>相談 12件</span>
+        </div>
+        <div class="nav-item">
+          <strong>安全衛生室</strong>
+          <span>緊急 2件</span>
+        </div>
+      </div>
+    </aside>
+
+    <section class="main">
+      <section class="hero reveal">
+        <div class="hero-row">
+          <div>
+            <h2>現場の知見を一つに集約し、次の施工判断を速く。</h2>
+            <p>施工計画・品質・安全・原価・出来形を横断検索し、協力会社も含めたナレッジの標準化を推進します。</p>
+          </div>
+          <div class="hero-actions">
+            <button class="cta ghost">ダッシュボード共有</button>
+            <button class="cta secondary">承認箱へ</button>
+            <button class="cta">朝礼用サマリ生成</button>
+          </div>
+        </div>
+        <div class="search">
+          <input type="search" placeholder="例: 砂防堰堤 温度管理 / 鋼橋 塗膜剥離 / 施工計画書の承認手順" />
+          <button class="cta">検索</button>
+        </div>
+        <div class="filters" data-toggle-group="multi">
+          <button class="filter is-active" type="button" data-toggle aria-pressed="true">工種: 道路・橋梁</button>
+          <button class="filter is-active" type="button" data-toggle aria-pressed="true">工区: B-03 / 3-2</button>
+          <button class="filter" type="button" data-toggle aria-pressed="false">発注者: 国土交通省</button>
+          <button class="filter" type="button" data-toggle aria-pressed="false">更新日: 30日以内</button>
+        </div>
+      </section>
+
+      <section class="metrics reveal delay-1">
+        <div class="metric-card">
+          <h3>ナレッジ再利用率</h3>
+          <strong>71%</strong>
+        </div>
+        <div class="metric-card">
+          <h3>事故ゼロ継続日数</h3>
+          <strong>184日</strong>
+        </div>
+        <div class="metric-card">
+          <h3>品質監査 実施中</h3>
+          <strong>6現場</strong>
+        </div>
+        <div class="metric-card">
+          <h3>是正期限 遅延</h3>
+          <strong>3件</strong>
+        </div>
+      </section>
+
+      <section class="grid-two reveal delay-2">
+        <div class="panel">
+          <h3>承認フロー / ナレッジ配信</h3>
+          <div class="flow">
+            <div class="flow-step">
+              <div>施工計画変更 砂防堰堤B-03 (工区3-2)</div>
+              <span class="badge is-wait">所長承認待ち</span>
+            </div>
+            <div class="flow-step">
+              <div>SOP改訂 高所作業車 点検SOP-0421</div>
+              <span class="badge is-info">品質確認中</span>
+            </div>
+            <div class="flow-step">
+              <div>事故レポート 吊り荷接触未遂 (K-12)</div>
+              <span class="badge is-hold">安全衛生室レビュー</span>
+            </div>
+          </div>
+          <div class="cta-group">
+            <button class="cta ghost">承認箱を開く</button>
+            <button class="cta secondary">差戻しメモ</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>今週のアクション</h3>
+          <div class="list-dense">
+            <div>品質監査 6現場の是正期限を7日以内に統一</div>
+            <div>夜間舗装の安全パトロールを全現場で実施</div>
+            <div>ICT出来形の再測定基準を通達</div>
+          </div>
+          <div class="note">要件定義前提: 承認フローと通知先は現場/本社の権限設計に合わせて調整。</div>
+        </div>
+      </section>
+
+      <section class="grid-two reveal delay-3">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>稼働モニタリング</h3>
+            <div class="panel-actions" data-toggle-group="single">
+              <button class="chip-button is-active" type="button" data-toggle>今日</button>
+              <button class="chip-button" type="button" data-toggle>今週</button>
+              <button class="chip-button" type="button" data-toggle>今月</button>
+            </div>
+          </div>
+          <div class="progress-list">
+            <div class="progress-item" data-progress="64">
+              <div class="progress-title">東北橋梁補修 B-03</div>
+              <div class="progress-track"><span class="progress-fill"></span></div>
+              <div class="progress-meta"><span>工程 64%</span><span>予定 67%</span></div>
+            </div>
+            <div class="progress-item" data-progress="38">
+              <div class="progress-title">首都高速更新 K-12</div>
+              <div class="progress-track"><span class="progress-fill"></span></div>
+              <div class="progress-meta"><span>工程 38%</span><span>予定 41%</span></div>
+            </div>
+            <div class="progress-item" data-progress="81">
+              <div class="progress-title">河川護岸整備 R-07</div>
+              <div class="progress-track"><span class="progress-fill"></span></div>
+              <div class="progress-meta"><span>工程 81%</span><span>予定 79%</span></div>
+            </div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div>労務稼働</div>
+              <strong>24/28</strong>
+              <small>夜間 4 / 応援 2</small>
+            </div>
+            <div class="stat-card">
+              <div>重機稼働</div>
+              <strong>18/22</strong>
+              <small>点検予定 3</small>
+            </div>
+            <div class="stat-card">
+              <div>来週の集中作業</div>
+              <strong>5班</strong>
+              <small>舗装 / 橋梁補修</small>
+            </div>
+          </div>
+          <div>
+            <div class="alert-meta">日別出来高 (直近7日)</div>
+            <div class="sparkline" aria-hidden="true">
+              <span style="height: 40%"></span>
+              <span style="height: 52%"></span>
+              <span style="height: 33%"></span>
+              <span class="is-high" style="height: 78%"></span>
+              <span style="height: 46%"></span>
+              <span style="height: 62%"></span>
+              <span class="is-high" style="height: 85%"></span>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3>品質・原価リスク</h3>
+            <div class="panel-actions">
+              <span class="chip">今週 9件</span>
+              <span class="chip">対応中 4件</span>
+            </div>
+          </div>
+          <div class="alert-list">
+            <div class="alert-item">
+              <div class="status-row">
+                <span class="status-dot is-warn"></span>
+                <strong>夜間舗装の原価超過兆候 (K-12)</strong>
+              </div>
+              <div class="alert-meta">原価 +6% / 材料費 / 直近2日</div>
+            </div>
+            <div class="alert-item">
+              <div class="status-row">
+                <span class="status-dot is-danger"></span>
+                <strong>品質監査 是正遅延 (B-03)</strong>
+              </div>
+              <div class="alert-meta">是正期限 6/28 / 指摘 2件</div>
+            </div>
+            <div class="alert-item">
+              <div class="status-row">
+                <span class="status-dot is-ok"></span>
+                <strong>出来形確認 合格率向上 (R-07)</strong>
+              </div>
+              <div class="alert-meta">合格率 96% / 先週比 +4%</div>
+            </div>
+          </div>
+          <div class="note">現場別リスクは毎朝6時に更新、原価は週次で再集計。</div>
+        </div>
+      </section>
+
+      <section class="panel reveal delay-2">
+        <div class="tabs" role="tablist" aria-label="ナレッジ切替">
+          <button class="tab-btn is-active" id="tab-search" role="tab" aria-selected="true" aria-controls="panel-search"
+            data-tab="search">検索結果</button>
+          <button class="tab-btn" id="tab-sop" role="tab" aria-selected="false" aria-controls="panel-sop"
+            data-tab="sop">標準施工</button>
+          <button class="tab-btn" id="tab-incident" role="tab" aria-selected="false" aria-controls="panel-incident"
+            data-tab="incident">事故・ヒヤリ</button>
+        </div>
+        <div class="tab-panel is-active" id="panel-search" role="tabpanel" aria-labelledby="tab-search"
+          data-panel="search">
+          <div class="knowledge-card">
+            <h4>砂防堰堤 コンクリート打設の温度管理フロー</h4>
+            <div class="knowledge-meta">最終更新: 2024/06/19 · 施工計画 · 工区: B-03-3-2 · 担当: 工事技術部</div>
+            <div class="knowledge-tags">
+              <span class="tag">品質確保</span>
+              <span class="tag">寒冷地施工</span>
+              <span class="tag">温度センサー</span>
+            </div>
+            <div>打設量180m3 / 連続8時間想定。5℃未満時は加熱養生と温度ログの自動通知を必須化。</div>
+          </div>
+          <div class="knowledge-card">
+            <h4>橋梁補修 塗膜剥離の選定基準と試験手順</h4>
+            <div class="knowledge-meta">最終更新: 2024/06/11 · 品質 · 対象: 鋼橋上部工 · 担当: 構造設計</div>
+            <div class="knowledge-tags">
+              <span class="tag">鋼橋</span>
+              <span class="tag">塗装規格</span>
+              <span class="tag">安全衛生</span>
+            </div>
+            <div>剥離材の選定表と試験片評価に加え、塩害環境での再塗装適合を整理。</div>
+          </div>
+          <div class="knowledge-card">
+            <h4>大口径管 路面下空洞検知の現場手順</h4>
+            <div class="knowledge-meta">最終更新: 2024/05/28 · 施工管理 · 管径: 1.8m · 担当: 地盤技術</div>
+            <div class="knowledge-tags">
+              <span class="tag">地中レーダー</span>
+              <span class="tag">点検</span>
+            </div>
+            <div>GPR走査と3Dモデル連携でリスクエリアを即時共有。既設管の埋設深度誤差を補正。</div>
+          </div>
+        </div>
+        <div class="tab-panel" id="panel-sop" role="tabpanel" aria-labelledby="tab-sop" data-panel="sop">
+          <div class="knowledge-card">
+            <h4>高所作業車 乗車前点検SOP</h4>
+            <div class="knowledge-meta">改訂: 2024/06/02 · 安全管理 · 対象: 20m級 / 日次</div>
+            <div class="knowledge-tags">
+              <span class="tag">安全確認</span>
+              <span class="tag">動画あり</span>
+            </div>
+            <div>点検チェックリストと現場別のリスク補正係数、是正報告の提出先を明確化。</div>
+          </div>
+          <div class="knowledge-card">
+            <h4>降雨時の地盤改良 施工制限手順</h4>
+            <div class="knowledge-meta">改訂: 2024/05/17 · 施工計画 · 雨量閾値 20mm/h</div>
+            <div class="knowledge-tags">
+              <span class="tag">地盤</span>
+              <span class="tag">気象</span>
+              <span class="tag">品質確保</span>
+            </div>
+            <div>雨量判定と代替施工ルートの優先順位、施工再開の判定指標。</div>
+          </div>
+        </div>
+        <div class="tab-panel" id="panel-incident" role="tabpanel" aria-labelledby="tab-incident" data-panel="incident">
+          <div class="knowledge-card">
+            <h4>クレーン吊り荷回転による接触事故未遂</h4>
+            <div class="knowledge-meta">報告日: 2024/06/23 · 現場: 東北橋梁補修 B-03</div>
+            <div class="knowledge-tags">
+              <span class="tag">注意喚起</span>
+              <span class="tag">吊り荷</span>
+            </div>
+            <div>風速変化時の合図連携が遅延。合図者追加配置と無線帯域の固定化で再発防止。</div>
+          </div>
+          <div class="knowledge-card">
+            <h4>夜間舗装の標識配置不足</h4>
+            <div class="knowledge-meta">報告日: 2024/06/15 · 現場: 首都高速更新 K-12</div>
+            <div class="knowledge-tags">
+              <span class="tag">交通規制</span>
+              <span class="tag">夜間</span>
+            </div>
+            <div>標識設置テンプレートの再教育と、事前配置確認のWチェックを必須化。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-two reveal delay-2">
+        <div class="panel">
+          <h3>現場ナレッジフロー</h3>
+          <div class="timeline">
+            <div class="timeline-item">
+              <strong>06/24 08:40</strong>
+              <div>河川護岸整備 R-07 - 施工計画変更の承認待ち</div>
+              <small>関連: 河川法改定 / 施工区画 3-2 / 施工数量 1,200m</small>
+            </div>
+            <div class="timeline-item">
+              <strong>06/23 16:05</strong>
+              <div>首都高速更新 K-12 - 夜間点検ルートの最適化案</div>
+              <small>関連: ドローン点検 / バッテリ管理 / 走査延長 6.2km</small>
+            </div>
+            <div class="timeline-item">
+              <strong>06/22 11:20</strong>
+              <div>東北橋梁補修 B-03 - 塗装規格の改訂通知</div>
+              <small>関連: 旧規格との比較表 / 下地処理 SA2.5</small>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>法令・規格の即時チェック</h3>
+          <div class="document">
+            <strong>道路土工指針 2024改訂 (国総研)</strong>
+            <small>該当範囲: 盛土 / 切土 / 斜面安定</small>
+            <div>設計含水比の改定点を自動マーキング。</div>
+          </div>
+          <div class="document">
+            <strong>建設副産物適正処理ガイド 2024</strong>
+            <small>該当範囲: 産廃マニフェスト / 電子化</small>
+            <div>電子マニフェスト運用の追加手順と提出期限。</div>
+          </div>
+          <div class="document">
+            <strong>労働安全衛生規則 2024改正</strong>
+            <small>該当範囲: 高所作業 / 足場</small>
+            <div>点検頻度と記録様式の統一。</div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="rail reveal delay-1">
+      <div class="alert">
+        <strong>要対応:</strong> 河川護岸整備 R-07 の変更申請 (No.24-031) に追加資料が必要です。
+      </div>
+      <div>
+        <h3>現場ステータス</h3>
+        <div class="status-list">
+          <div class="status-item">
+            <div>東北橋梁補修</div>
+            <span>安全評価 A / 原価 92%</span>
+          </div>
+          <div class="status-item">
+            <div>首都高速更新</div>
+            <span>品質監査中 / 是正 2件</span>
+          </div>
+          <div class="status-item">
+            <div>河川護岸整備</div>
+            <span>変更申請 / 工期延伸</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>マップスナップ</h3>
+        <div class="map">現場分布 / 地盤リスク重ね合わせ</div>
+      </div>
+      <div>
+        <h3>現場通知フィード</h3>
+        <div class="activity-list">
+          <div class="activity-item">
+            <strong>R-07 施工計画変更が差戻し</strong>
+            <small>提出資料に水位計測結果が不足。</small>
+          </div>
+          <div class="activity-item">
+            <strong>B-03 打設前安全会議が完了</strong>
+            <small>参加 18名 / 重点項目 3件。</small>
+          </div>
+          <div class="activity-item">
+            <strong>K-12 夜間規制の許可更新</strong>
+            <small>許可番号: K12-2024-06。</small>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>当番エキスパート</h3>
+        <div class="document">
+          <strong>安全管理: 斎藤</strong>
+          <small>対応可能 10:00-17:00 / 東北エリア</small>
+          <div>夜間規制と高所作業の相談が集中。</div>
+        </div>
+        <div class="document">
+          <strong>地盤技術: 吉岡</strong>
+          <small>対応可能 13:00-19:00 / 河川・砂防</small>
+          <div>地中空洞検知 / 地盤改良の支援。</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <button class="floating">現場に共有申請</button>
+  <script src="app.js"></script>
+</body>
+
+</html>

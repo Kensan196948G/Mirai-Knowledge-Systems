@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # PostgreSQL データベース
+  postgres:
+    image: postgres:15-alpine
+    container_name: mirai-knowledge-db
+    environment:
+      POSTGRES_DB: mirai_knowledge_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=ja_JP.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - mirai-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (キャッシュ・セッション管理) - 将来対応
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: mirai-knowledge-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - mirai-network
+
+  # Meilisearch (検索エンジン) - 将来対応
+  # meilisearch:
+  #   image: getmeili/meilisearch:v1.5
+  #   container_name: mirai-knowledge-search
+  #   environment:
+  #     MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-masterKey}
+  #     MEILI_ENV: development
+  #   ports:
+  #     - "7700:7700"
+  #   volumes:
+  #     - meilisearch_data:/meili_data
+  #   networks:
+  #     - mirai-network
+
+volumes:
+  postgres_data:
+    driver: local
+  # redis_data:
+  #   driver: local
+  # meilisearch_data:
+  #   driver: local
+
+networks:
+  mirai-network:
+    driver: bridge

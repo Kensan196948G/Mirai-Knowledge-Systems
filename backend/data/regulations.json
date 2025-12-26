@@ -1,0 +1,51 @@
+[
+    {
+        "id": 1,
+        "title": "道路土工指針 2024改訂",
+        "issuer": "国総研",
+        "category": "道路・土工",
+        "revision_date": "2024-04-01",
+        "applicable_scope": [
+            "盛土",
+            "切土",
+            "斜面安定"
+        ],
+        "summary": "設計含水比の改定点を自動マーキング。",
+        "content": "詳細な改訂内容...",
+        "status": "active",
+        "created_at": "2024-04-01T00:00:00",
+        "updated_at": "2024-04-01T00:00:00"
+    },
+    {
+        "id": 2,
+        "title": "建設副産物適正処理ガイド 2024",
+        "issuer": "環境省",
+        "category": "環境・廃棄物",
+        "revision_date": "2024-03-15",
+        "applicable_scope": [
+            "産廃マニフェスト",
+            "電子化"
+        ],
+        "summary": "電子マニフェスト運用の追加手順と提出期限。",
+        "content": "電子化に関する詳細ガイドライン...",
+        "status": "active",
+        "created_at": "2024-03-15T00:00:00",
+        "updated_at": "2024-03-15T00:00:00"
+    },
+    {
+        "id": 3,
+        "title": "労働安全衛生規則 2024改正",
+        "issuer": "厚生労働省",
+        "category": "安全衛生",
+        "revision_date": "2024-02-01",
+        "applicable_scope": [
+            "高所作業",
+            "足場"
+        ],
+        "summary": "点検頻度と記録様式の統一。",
+        "content": "安全衛生規則の改正内容...",
+        "status": "active",
+        "created_at": "2024-02-01T00:00:00",
+        "updated_at": "2024-02-01T00:00:00"
+    }
+]
