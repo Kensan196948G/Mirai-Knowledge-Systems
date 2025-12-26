@@ -26,8 +26,15 @@ MANIFEST
 # Virtual Environment
 .venv/
 venv/
+venv_linux/
 ENV/
 env/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
 
 # IDE
 .vscode/

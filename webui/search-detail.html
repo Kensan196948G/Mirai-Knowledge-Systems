@@ -26,7 +26,7 @@
       <div class="header-actions reveal delay-2">
         <span class="chip">検索一致 12件 / 関連 3現場</span>
         <span class="chip">最終同期 12:24</span>
-        <button class="cta">差分を比較</button>
+        <button class="cta" onclick="compareVersions()">差分を比較</button>
       </div>
     </header>
 
@@ -103,9 +103,9 @@
             <span class="tag">打設計画</span>
           </div>
           <div class="cta-group">
-            <button class="cta ghost">関連SOPへ移動</button>
-            <button class="cta secondary">改訂を提案</button>
-            <button class="cta">配信申請</button>
+            <button class="cta ghost" onclick="window.location.href='sop-detail.html'">関連SOPへ移動</button>
+            <button class="cta secondary" onclick="proposeRevision('knowledge')">改訂を提案</button>
+            <button class="cta" onclick="submitDistribution('knowledge', {})">配信申請</button>
           </div>
         </section>
 
@@ -352,7 +352,9 @@
       </aside>
     </main>
 
-    <button class="floating">このナレッジを配信申請</button>
+    <button class="floating" onclick="submitDistribution('knowledge', {})">このナレッジを配信申請</button>
     <script src="app.js"></script>
-  </body>
+    <script src="detail-loader.js"></script>
+  <script src="actions.js"></script>
+</body>
 </html>

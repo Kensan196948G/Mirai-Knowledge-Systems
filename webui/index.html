@@ -26,11 +26,20 @@
       <a href="expert-consult.html">専門家相談</a>
     </nav>
     <div class="header-actions reveal delay-2">
+      <button class="notification-bell" onclick="toggleNotificationPanel()" title="通知">
+        🔔
+        <span class="notification-badge" style="display: none;">0</span>
+      </button>
       <span class="chip">最新同期 12:24</span>
       <span class="chip">稼働 24 / 28 (夜間 4)</span>
       <span class="chip">承認待ち 7件</span>
       <div class="user-info"></div>
-      <button class="cta">新規ナレッジ登録</button>
+      <button class="cta" data-permission="knowledge.create">新規ナレッジ登録</button>
+    </div>
+
+    <!-- 通知パネル（ドロップダウン） -->
+    <div class="notifications-panel" id="notificationsPanel" style="display: none; position: absolute; top: 60px; right: 20px; background: white; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000;">
+      <!-- 通知アイテムが動的に表示される -->
     </div>
   </header>
 
@@ -91,9 +100,9 @@
             <p>施工計画・品質・安全・原価・出来形を横断検索し、協力会社も含めたナレッジの標準化を推進します。</p>
           </div>
           <div class="hero-actions">
-            <button class="cta ghost">ダッシュボード共有</button>
-            <button class="cta secondary">承認箱へ</button>
-            <button class="cta">朝礼用サマリ生成</button>
+            <button class="cta ghost" onclick="shareDashboard()">ダッシュボード共有</button>
+            <button class="cta secondary" onclick="openApprovalBox()">承認箱へ</button>
+            <button class="cta" onclick="generateMorningSummary()">朝礼用サマリ生成</button>
           </div>
         </div>
         <div class="search">
@@ -145,8 +154,8 @@
             </div>
           </div>
           <div class="cta-group">
-            <button class="cta ghost">承認箱を開く</button>
-            <button class="cta secondary">差戻しメモ</button>
+            <button class="cta ghost" onclick="openApprovalBox()">承認箱を開く</button>
+            <button class="cta secondary" onclick="alert('差戻しメモ機能は今後実装予定です。')">差戻しメモ</button>
           </div>
         </div>
         <div class="panel">
@@ -436,8 +445,10 @@
     </aside>
   </main>
 
-  <button class="floating">現場に共有申請</button>
+  <button class="floating" onclick="submitDistribution('dashboard', {})">現場に共有申請</button>
   <script src="app.js"></script>
+  <script src="notifications.js"></script>
+  <script src="actions.js"></script>
 </body>
 
 </html>

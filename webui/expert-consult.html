@@ -26,7 +26,7 @@
       <div class="header-actions reveal delay-2">
         <span class="chip">受付中 6件</span>
         <span class="chip">平均回答 6時間</span>
-        <button class="cta">相談を起案</button>
+        <button class="cta" onclick="submitConsultation()">相談を起案</button>
       </div>
     </header>
 
@@ -84,9 +84,9 @@
             <span class="tag">安全確認</span>
           </div>
           <div class="cta-group">
-            <button class="cta ghost">既存相談を参照</button>
-            <button class="cta secondary">資料を添付</button>
-            <button class="cta">相談を起案</button>
+            <button class="cta ghost" onclick="viewPastConsultations()">既存相談を参照</button>
+            <button class="cta secondary" onclick="attachDocument()">資料を添付</button>
+            <button class="cta" onclick="submitConsultation()">相談を起案</button>
           </div>
         </section>
 
@@ -256,7 +256,8 @@
       </aside>
     </main>
 
-    <button class="floating">相談を起案</button>
+    <button class="floating" onclick="submitConsultation()">相談を起案</button>
     <script src="app.js"></script>
-  </body>
+    <script src="actions.js"></script>
+</body>
 </html>

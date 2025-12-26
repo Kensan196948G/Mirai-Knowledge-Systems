@@ -26,7 +26,7 @@
       <div class="header-actions reveal delay-2">
         <span class="chip">SOP番号 SOP-0421</span>
         <span class="chip">有効: 2024/06/02</span>
-        <button class="cta">改訂を提案</button>
+        <button class="cta" onclick="proposeRevision('sop')">改訂を提案</button>
       </div>
     </header>
 
@@ -85,8 +85,8 @@
             <span class="tag">チェックリスト</span>
           </div>
           <div class="cta-group">
-            <button class="cta ghost">手順書をダウンロード</button>
-            <button class="cta secondary">点検表を開始</button>
+            <button class="cta ghost" onclick="downloadPDF('sop', '手順書')">手順書をダウンロード</button>
+            <button class="cta secondary" onclick="startInspection(1)">点検表を開始</button>
             <button class="cta">配信申請</button>
           </div>
         </section>
@@ -297,7 +297,9 @@
       </aside>
     </main>
 
-    <button class="floating">手順を現場へ配信申請</button>
+    <button class="floating" onclick="submitDistribution('sop', {})">手順を現場へ配信申請</button>
     <script src="app.js"></script>
-  </body>
+    <script src="detail-loader.js"></script>
+  <script src="actions.js"></script>
+</body>
 </html>

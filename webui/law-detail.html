@@ -26,7 +26,7 @@
       <div class="header-actions reveal delay-2">
         <span class="chip">改訂版 2024</span>
         <span class="chip">影響現場 8</span>
-        <button class="cta">影響評価を記録</button>
+        <button class="cta" onclick="recordImpactAssessment()">影響評価を記録</button>
       </div>
     </header>
 
@@ -85,8 +85,8 @@
             <span class="tag">施工計画</span>
           </div>
           <div class="cta-group">
-            <button class="cta ghost">改訂差分を確認</button>
-            <button class="cta secondary">現場周知を作成</button>
+            <button class="cta ghost" onclick="viewDiff()">改訂差分を確認</button>
+            <button class="cta secondary" onclick="createNotice()">現場周知を作成</button>
             <button class="cta">周知申請</button>
           </div>
         </section>
@@ -266,7 +266,8 @@
       </aside>
     </main>
 
-    <button class="floating">周知申請</button>
+    <button class="floating" onclick="submitDistribution('law', {})">周知申請</button>
     <script src="app.js"></script>
-  </body>
+    <script src="actions.js"></script>
+</body>
 </html>

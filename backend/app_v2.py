@@ -8,14 +8,37 @@ from flask_jwt_extended import (
     JWTManager, create_access_token, create_refresh_token,
     jwt_required, get_jwt_identity, get_jwt
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from datetime import datetime, timedelta
 from functools import wraps
 import json
 import os
 import hashlib
+import bcrypt
+from dotenv import load_dotenv
+from marshmallow import ValidationError
+from schemas import LoginSchema, KnowledgeCreateSchema
+
+# 環境変数をロード
+load_dotenv()
 
 app = Flask(__name__, static_folder='../webui')
-CORS(app)
+
+# CORS設定（環境変数ベース）
+allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5000').split(',')
+CORS(app,
+     resources={
+         r"/api/*": {
+             "origins": allowed_origins,
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization"],
+             "expose_headers": ["Content-Type", "Authorization"],
+             "supports_credentials": True,
+             "max_age": 3600
+         }
+     })
+print(f'[INIT] CORS configured for origins: {allowed_origins}')
 
 # 設定
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
@@ -33,6 +56,28 @@ app.config['WTF_CSRF_ENABLED'] = False
 print(f'[INIT] JWT Secret Key configured: {app.config["JWT_SECRET_KEY"][:20]}...')
 jwt = JWTManager(app)
 
+# レート制限設定
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
+
+# 静的ファイルをレート制限から除外
+@limiter.request_filter
+def exempt_static():
+    """静的ファイル（HTML、JS、CSS）をレート制限から除外"""
+    return (request.path.startswith('/static/') or
+            request.path.startswith('/webui/') or
+            request.path.endswith('.html') or
+            request.path.endswith('.js') or
+            request.path.endswith('.css') or
+            request.path == '/')
+
+print('[INIT] Rate limiting configured (memory storage)')
+
 # データストレージディレクトリ
 def get_data_dir():
     """データ保存先ディレクトリを取得"""
@@ -43,6 +88,7 @@ def get_data_dir():
 # セキュリティヘッダー
 @app.after_request
 def add_security_headers(response):
+    """セキュリティヘッダーを追加"""
     response.headers.setdefault('X-Content-Type-Options', 'nosniff')
     response.headers.setdefault('X-Frame-Options', 'DENY')
     response.headers.setdefault('Referrer-Policy', 'no-referrer')
@@ -50,6 +96,21 @@ def add_security_headers(response):
         'Permissions-Policy',
         'geolocation=(), microphone=(), camera=()'
     )
+
+    # Content Security Policy
+    csp_policy = "; ".join([
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline'",  # 開発環境用にunsafe-inline許可
+        "style-src 'self' 'unsafe-inline'",   # インラインスタイル許可
+        "img-src 'self' data: https:",
+        "font-src 'self' data:",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'"
+    ])
+    response.headers.setdefault('Content-Security-Policy', csp_policy)
+
     return response
 
 # ============================================================
@@ -71,12 +132,40 @@ def save_users(users):
         json.dump(users, f, ensure_ascii=False, indent=2)
 
 def hash_password(password):
-    """パスワードをハッシュ化"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """
+    パスワードをbcryptでハッシュ化
+
+    Args:
+        password: 平文パスワード
+
+    Returns:
+        str: bcryptハッシュ文字列
+    """
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(password, password_hash):
-    """パスワード検証"""
-    return hash_password(password) == password_hash
+    """
+    パスワードを検証（bcryptとレガシーSHA256の両方をサポート）
+
+    Args:
+        password: 平文パスワード
+        password_hash: ハッシュ化されたパスワード
+
+    Returns:
+        bool: 検証成功時True
+    """
+    # bcrypt hash detection (starts with $2)
+    if password_hash.startswith('$2'):
+        try:
+            return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+        except Exception as e:
+            print(f'[ERROR] bcrypt verification failed: {e}')
+            return False
+    else:
+        # レガシーSHA256サポート（後方互換性）
+        print(f'[WARNING] Using legacy SHA256 verification for password. Please update user password.')
+        legacy_hash = hashlib.sha256(password.encode()).hexdigest()
+        return legacy_hash == password_hash
 
 def get_user_permissions(user):
     """ユーザーの権限を取得"""
@@ -155,6 +244,37 @@ def check_permission(required_permission):
         return wrapper
     return decorator
 
+def validate_request(schema_class):
+    """
+    リクエストデータを検証するデコレータ
+
+    Usage:
+        @validate_request(KnowledgeCreateSchema)
+        def create_knowledge():
+            validated_data = request.validated_data
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                schema = schema_class()
+                validated_data = schema.load(request.json or {})
+                # 検証済みデータをrequestに追加
+                request.validated_data = validated_data
+                return fn(*args, **kwargs)
+            except ValidationError as err:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'VALIDATION_ERROR',
+                        'message': '入力データが不正です',
+                        'details': err.messages
+                    }
+                }), 400
+
+        return wrapper
+    return decorator
+
 # ============================================================
 # 監査ログ
 # ============================================================
@@ -200,11 +320,14 @@ def save_data(filename, data):
 # ============================================================
 
 @app.route('/api/v1/auth/login', methods=['POST'])
+@limiter.limit("5 per minute")
+@limiter.limit("20 per hour")
+@validate_request(LoginSchema)
 def login():
-    """ログイン"""
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
+    """ログイン（レート制限: 5回/分、20回/時、入力検証付き）"""
+    data = request.validated_data  # 検証済みデータを使用
+    username = data['username']
+    password = data['password']
     
     if not username or not password:
         return jsonify({
@@ -286,6 +409,57 @@ def get_current_user():
     })
 
 # ============================================================
+# 検索ヘルパー関数
+# ============================================================
+
+def search_in_fields(item, query, fields):
+    """
+    複数フィールドから検索し、マッチ情報とスコアを返す
+
+    Args:
+        item: 検索対象アイテム
+        query: 検索クエリ
+        fields: 検索対象フィールドのリスト
+
+    Returns:
+        tuple: (matched_fields, relevance_score)
+    """
+    query_lower = query.lower()
+    matched_fields = []
+    relevance_score = 0.0
+
+    for field in fields:
+        value = str(item.get(field, '')).lower()
+        if query_lower in value:
+            matched_fields.append(field)
+            # フィールドごとに重み付けスコアリング
+            if field == 'title':
+                relevance_score += 1.0
+            elif field == 'summary':
+                relevance_score += 0.7
+            elif field == 'content':
+                relevance_score += 0.5
+
+    return matched_fields, relevance_score
+
+def highlight_text(text, query):
+    """
+    検索語をハイライトマークで囲む
+
+    Args:
+        text: 対象テキスト
+        query: ハイライト対象のクエリ
+
+    Returns:
+        str: ハイライト適用後のテキスト
+    """
+    if not text or not query:
+        return text
+    import re
+    pattern = re.compile(re.escape(query), re.IGNORECASE)
+    return pattern.sub(lambda m: f'<mark>{m.group()}</mark>', text)
+
+# ============================================================
 # ナレッジ管理API（権限チェック付き）
 # ============================================================
 
@@ -308,17 +482,40 @@ def get_knowledge():
     if category:
         filtered = [k for k in filtered if k.get('category') == category]
     
+    # 全文検索（title, summary, contentフィールド対応）
     if search:
-        search_lower = search.lower()
-        filtered = [k for k in filtered if 
-                   search_lower in k.get('title', '').lower() or 
-                   search_lower in k.get('summary', '').lower()]
-    
+        highlight = request.args.get('highlight', 'false') == 'true'
+        filtered_with_score = []
+
+        for k in filtered:
+            # title, summary, contentから検索
+            matched_fields, score = search_in_fields(
+                k, search, ['title', 'summary', 'content']
+            )
+
+            if matched_fields:
+                k_copy = k.copy()
+                k_copy['matched_fields'] = matched_fields
+                k_copy['relevance_score'] = score
+
+                # ハイライト処理（オプション）
+                if highlight:
+                    for field in ['title', 'summary', 'content']:
+                        if field in k_copy and k_copy[field]:
+                            k_copy[field] = highlight_text(k_copy[field], search)
+
+                filtered_with_score.append(k_copy)
+
+        # スコア順にソート
+        filtered = sorted(filtered_with_score,
+                         key=lambda x: x['relevance_score'],
+                         reverse=True)
+
     if tags:
         tag_list = tags.split(',')
-        filtered = [k for k in filtered if 
+        filtered = [k for k in filtered if
                    any(tag in k.get('tags', []) for tag in tag_list)]
-    
+
     return jsonify({
         'success': True,
         'data': filtered,
@@ -347,10 +544,11 @@ def get_knowledge_detail(knowledge_id):
 
 @app.route('/api/v1/knowledge', methods=['POST'])
 @check_permission('knowledge.create')
+@validate_request(KnowledgeCreateSchema)
 def create_knowledge():
-    """新規ナレッジ登録"""
+    """新規ナレッジ登録（入力検証付き）"""
     current_user_id = get_jwt_identity()
-    data = request.json
+    data = request.validated_data  # 検証済みデータを使用
     knowledge_list = load_data('knowledge.json')
     
     # ID自動採番
@@ -374,13 +572,248 @@ def create_knowledge():
     
     knowledge_list.append(new_knowledge)
     save_data('knowledge.json', knowledge_list)
-    
+
     log_access(current_user_id, 'knowledge.create', 'knowledge', new_id)
-    
+
+    # 通知作成（承認者に通知）
+    create_notification(
+        title='新規ナレッジが承認待ちです',
+        message=f'{new_knowledge["owner"]}さんが「{new_knowledge["title"]}」を登録しました。承認をお願いします。',
+        type='approval_required',
+        target_roles=['admin', 'quality_assurance'],
+        priority='high',
+        related_entity_type='knowledge',
+        related_entity_id=new_id
+    )
+
     return jsonify({
         'success': True,
         'data': new_knowledge
     }), 201
+
+# ============================================================
+# 横断検索API
+# ============================================================
+
+@app.route('/api/v1/search/unified', methods=['GET'])
+@jwt_required()
+def unified_search():
+    """
+    複数エンティティの横断検索
+
+    クエリパラメータ:
+        q: 検索クエリ（必須）
+        types: 検索対象タイプ（カンマ区切り）
+               knowledge,sop,incidents,consultations,regulations
+        highlight: ハイライト有効化（デフォルト: true）
+    """
+    current_user_id = get_jwt_identity()
+    query = request.args.get('q', '')
+    types = request.args.get('types', 'knowledge,sop,incidents').split(',')
+    highlight = request.args.get('highlight', 'true') == 'true'
+
+    if not query:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'MISSING_QUERY', 'message': 'Query parameter "q" is required'}
+        }), 400
+
+    results = {}
+    total_count = 0
+
+    # 各エンティティを検索
+    if 'knowledge' in types:
+        knowledge_list = load_data('knowledge.json')
+        matched = []
+
+        for item in knowledge_list:
+            matched_fields, score = search_in_fields(
+                item, query, ['title', 'summary', 'content']
+            )
+            if matched_fields:
+                item_copy = item.copy()
+                item_copy['relevance_score'] = score
+                if highlight:
+                    for field in ['title', 'summary']:
+                        if field in item_copy and item_copy[field]:
+                            item_copy[field] = highlight_text(item_copy[field], query)
+                matched.append(item_copy)
+
+        matched = sorted(matched, key=lambda x: x['relevance_score'], reverse=True)
+        results['knowledge'] = {'items': matched[:10], 'count': len(matched)}
+        total_count += len(matched)
+
+    if 'sop' in types:
+        sop_list = load_data('sop.json')
+        matched = []
+
+        for item in sop_list:
+            matched_fields, score = search_in_fields(
+                item, query, ['title', 'content']
+            )
+            if matched_fields:
+                item_copy = item.copy()
+                item_copy['relevance_score'] = score
+                matched.append(item_copy)
+
+        matched = sorted(matched, key=lambda x: x['relevance_score'], reverse=True)
+        results['sop'] = {'items': matched[:10], 'count': len(matched)}
+        total_count += len(matched)
+
+    if 'incidents' in types:
+        incidents_list = load_data('incidents.json')
+        matched = []
+
+        for item in incidents_list:
+            matched_fields, score = search_in_fields(
+                item, query, ['title', 'description']
+            )
+            if matched_fields:
+                item_copy = item.copy()
+                item_copy['relevance_score'] = score
+                matched.append(item_copy)
+
+        matched = sorted(matched, key=lambda x: x['relevance_score'], reverse=True)
+        results['incidents'] = {'items': matched[:10], 'count': len(matched)}
+        total_count += len(matched)
+
+    log_access(current_user_id, 'search.unified', 'search', query)
+
+    return jsonify({
+        'success': True,
+        'data': results,
+        'total_results': total_count,
+        'query': query
+    })
+
+# ============================================================
+# 通知機能
+# ============================================================
+
+def create_notification(title, message, type, target_users=None,
+                       target_roles=None, priority='medium',
+                       related_entity_type=None, related_entity_id=None):
+    """
+    通知を作成してJSONに保存
+
+    Args:
+        title: 通知タイトル
+        message: 通知メッセージ
+        type: 通知タイプ（approval_required, approval_completed等）
+        target_users: ターゲットユーザーIDリスト
+        target_roles: ターゲットロールリスト
+        priority: 優先度（low, medium, high）
+        related_entity_type: 関連エンティティタイプ
+        related_entity_id: 関連エンティティID
+
+    Returns:
+        dict: 作成された通知オブジェクト
+    """
+    notifications = load_data('notifications.json')
+
+    new_notification = {
+        'id': max([n['id'] for n in notifications], default=0) + 1,
+        'title': title,
+        'message': message,
+        'type': type,
+        'target_users': target_users or [],
+        'target_roles': target_roles or [],
+        'priority': priority,
+        'related_entity_type': related_entity_type,
+        'related_entity_id': related_entity_id,
+        'created_at': datetime.now().isoformat(),
+        'status': 'sent',
+        'read_by': []
+    }
+
+    notifications.append(new_notification)
+    save_data('notifications.json', notifications)
+    return new_notification
+
+@app.route('/api/v1/notifications', methods=['GET'])
+@jwt_required()
+def get_notifications():
+    """ユーザーの通知一覧取得"""
+    current_user_id = int(get_jwt_identity())
+    users = load_users()
+    user = next((u for u in users if u['id'] == current_user_id), None)
+
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    notifications = load_data('notifications.json')
+    user_notifications = []
+
+    for n in notifications:
+        # ターゲットユーザーまたはターゲットロールに該当するか
+        if current_user_id in n.get('target_users', []) or \
+           any(role in n.get('target_roles', []) for role in user.get('roles', [])):
+            n_copy = n.copy()
+            n_copy['is_read'] = current_user_id in n.get('read_by', [])
+            user_notifications.append(n_copy)
+
+    # 新しい順にソート
+    user_notifications = sorted(user_notifications,
+                                key=lambda x: x['created_at'],
+                                reverse=True)
+
+    # 未読数カウント
+    unread_count = sum(1 for n in user_notifications if not n['is_read'])
+
+    return jsonify({
+        'success': True,
+        'data': user_notifications,
+        'pagination': {
+            'total_items': len(user_notifications),
+            'unread_count': unread_count
+        }
+    })
+
+@app.route('/api/v1/notifications/<int:notification_id>/read', methods=['PUT'])
+@jwt_required()
+def mark_notification_read(notification_id):
+    """通知を既読にする"""
+    current_user_id = int(get_jwt_identity())
+    notifications = load_data('notifications.json')
+
+    notification = next((n for n in notifications if n['id'] == notification_id), None)
+    if not notification:
+        return jsonify({'success': False, 'error': 'Notification not found'}), 404
+
+    # 既読リストに追加
+    if current_user_id not in notification.get('read_by', []):
+        notification.setdefault('read_by', []).append(current_user_id)
+        save_data('notifications.json', notifications)
+
+    return jsonify({
+        'success': True,
+        'data': {'id': notification_id, 'is_read': True}
+    })
+
+@app.route('/api/v1/notifications/unread/count', methods=['GET'])
+@jwt_required()
+def get_unread_count():
+    """未読通知数取得"""
+    current_user_id = int(get_jwt_identity())
+    users = load_users()
+    user = next((u for u in users if u['id'] == current_user_id), None)
+
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    notifications = load_data('notifications.json')
+    unread_count = 0
+
+    for n in notifications:
+        if (current_user_id in n.get('target_users', []) or \
+            any(role in n.get('target_roles', []) for role in user.get('roles', []))) and \
+           current_user_id not in n.get('read_by', []):
+            unread_count += 1
+
+    return jsonify({
+        'success': True,
+        'data': {'unread_count': unread_count}
+    })
 
 # 他のエンドポイントも同様に権限チェックを追加...
 # （簡潔にするため、主要なものの定義）
@@ -483,6 +916,18 @@ def internal_error(error):
             'message': 'Internal server error'
         }
     }), 500
+
+@app.errorhandler(429)
+def ratelimit_handler(error):
+    """レート制限エラーハンドラ"""
+    return jsonify({
+        'success': False,
+        'error': {
+            'code': 'RATE_LIMIT_EXCEEDED',
+            'message': 'リクエストが多すぎます。しばらく待ってから再試行してください。',
+            'retry_after': str(error.description) if hasattr(error, 'description') else '60 seconds'
+        }
+    }), 429
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):

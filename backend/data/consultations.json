@@ -1,28 +1,167 @@
 [
-    {
-        "id": 1,
-        "title": "寒冷地でのコンクリート養生方法について",
-        "question": "気温が5℃を下回る環境でのコンクリート打設後の養生方法について、具体的な手順をご教示ください。",
-        "category": "技術本部 構造設計",
-        "priority": "high",
-        "status": "answered",
-        "requester": "現場所長 鈴木",
-        "expert": "技術本部 山田",
-        "answer": "5℃未満の環境では、加熱養生が必須です。温度センサーで常時監視し、48時間は最低10℃を維持してください。詳細はSOP-0312を参照してください。",
-        "created_at": "2024-06-20T10:30:00",
-        "updated_at": "2024-06-21T14:20:00"
-    },
-    {
-        "id": 2,
-        "title": "夜間作業時の安全対策について",
-        "question": "夜間の高所作業における照明基準と安全対策についてアドバイスをお願いします。",
-        "category": "安全衛生室",
-        "priority": "high",
-        "status": "pending",
-        "requester": "現場主任 伊藤",
-        "expert": "安全衛生室 斎藤",
-        "answer": null,
-        "created_at": "2024-06-24T16:45:00",
-        "updated_at": "2024-06-24T16:45:00"
-    }
+  {
+    "id": 1,
+    "title": "環境基準値の解釈 (相談1)",
+    "content": "騒音規制法の基準値について、測定方法を確認したいです。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "安全衛生室",
+    "status": "answered",
+    "priority": "medium",
+    "created_at": "2025-12-24T23:33:23.214324",
+    "requester": "山田花子"
+  },
+  {
+    "id": 2,
+    "title": "地盤改良の工法選定 (相談2)",
+    "content": "軟弱地盤（N値2-3）における最適な地盤改良工法を相談したいです。",
+    "project": "河川護岸整備 (R-07)",
+    "expert": "技術本部 地盤工学",
+    "status": "pending",
+    "priority": "medium",
+    "created_at": "2025-11-23T23:33:23.214333",
+    "requester": "山田花子"
+  },
+  {
+    "id": 3,
+    "title": "環境基準値の解釈 (相談3)",
+    "content": "騒音規制法の基準値について、測定方法を確認したいです。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "安全衛生室",
+    "status": "answered",
+    "priority": "high",
+    "created_at": "2025-11-02T23:33:23.214338",
+    "requester": "田中太郎"
+  },
+  {
+    "id": 4,
+    "title": "鉄筋配筋の施工方法について (相談4)",
+    "content": "D29鉄筋の配筋間隔が狭く、コンクリート充填が困難です。推奨する施工方法をご教示ください。",
+    "project": "河川護岸整備 (R-07)",
+    "expert": "技術本部 構造設計",
+    "status": "answered",
+    "priority": "high",
+    "created_at": "2025-12-18T23:33:23.214342",
+    "requester": "田中太郎"
+  },
+  {
+    "id": 5,
+    "title": "環境基準値の解釈 (相談5)",
+    "content": "騒音規制法の基準値について、測定方法を確認したいです。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "安全衛生室",
+    "status": "answered",
+    "priority": "high",
+    "created_at": "2025-11-16T23:33:23.214345",
+    "requester": "田中太郎"
+  },
+  {
+    "id": 6,
+    "title": "地盤改良の工法選定 (相談6)",
+    "content": "軟弱地盤（N値2-3）における最適な地盤改良工法を相談したいです。",
+    "project": "河川護岸整備 (R-07)",
+    "expert": "技術本部 地盤工学",
+    "status": "pending",
+    "priority": "medium",
+    "created_at": "2025-12-20T23:33:23.214349",
+    "requester": "山田花子"
+  },
+  {
+    "id": 7,
+    "title": "環境基準値の解釈 (相談7)",
+    "content": "騒音規制法の基準値について、測定方法を確認したいです。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "安全衛生室",
+    "status": "answered",
+    "priority": "medium",
+    "created_at": "2025-10-27T23:33:23.214352",
+    "requester": "田中太郎"
+  },
+  {
+    "id": 8,
+    "title": "鉄筋配筋の施工方法について (相談8)",
+    "content": "D29鉄筋の配筋間隔が狭く、コンクリート充填が困難です。推奨する施工方法をご教示ください。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "技術本部 構造設計",
+    "status": "answered",
+    "priority": "high",
+    "created_at": "2025-10-30T23:33:23.214355",
+    "requester": "田中太郎"
+  },
+  {
+    "id": 9,
+    "title": "環境基準値の解釈 (相談9)",
+    "content": "騒音規制法の基準値について、測定方法を確認したいです。",
+    "project": "河川護岸整備 (R-07)",
+    "expert": "安全衛生室",
+    "status": "answered",
+    "priority": "medium",
+    "created_at": "2025-11-27T23:33:23.214358",
+    "requester": "山田花子"
+  },
+  {
+    "id": 10,
+    "title": "環境基準値の解釈 (相談10)",
+    "content": "騒音規制法の基準値について、測定方法を確認したいです。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "安全衛生室",
+    "status": "answered",
+    "priority": "high",
+    "created_at": "2025-11-28T23:33:23.214362",
+    "requester": "山田花子"
+  },
+  {
+    "id": 11,
+    "title": "鉄筋配筋の施工方法について (相談11)",
+    "content": "D29鉄筋の配筋間隔が狭く、コンクリート充填が困難です。推奨する施工方法をご教示ください。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "技術本部 構造設計",
+    "status": "answered",
+    "priority": "medium",
+    "created_at": "2025-12-22T23:33:23.214365",
+    "requester": "田中太郎"
+  },
+  {
+    "id": 12,
+    "title": "地盤改良の工法選定 (相談12)",
+    "content": "軟弱地盤（N値2-3）における最適な地盤改良工法を相談したいです。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "技術本部 地盤工学",
+    "status": "pending",
+    "priority": "medium",
+    "created_at": "2025-10-28T23:33:23.214368",
+    "requester": "山田花子"
+  },
+  {
+    "id": 13,
+    "title": "地盤改良の工法選定 (相談13)",
+    "content": "軟弱地盤（N値2-3）における最適な地盤改良工法を相談したいです。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "技術本部 地盤工学",
+    "status": "pending",
+    "priority": "high",
+    "created_at": "2025-11-07T23:33:23.214371",
+    "requester": "田中太郎"
+  },
+  {
+    "id": 14,
+    "title": "鉄筋配筋の施工方法について (相談14)",
+    "content": "D29鉄筋の配筋間隔が狭く、コンクリート充填が困難です。推奨する施工方法をご教示ください。",
+    "project": "東北橋梁補修 (B-03)",
+    "expert": "技術本部 構造設計",
+    "status": "answered",
+    "priority": "medium",
+    "created_at": "2025-12-10T23:33:23.214378",
+    "requester": "山田花子"
+  },
+  {
+    "id": 15,
+    "title": "鉄筋配筋の施工方法について (相談15)",
+    "content": "D29鉄筋の配筋間隔が狭く、コンクリート充填が困難です。推奨する施工方法をご教示ください。",
+    "project": "河川護岸整備 (R-07)",
+    "expert": "技術本部 構造設計",
+    "status": "answered",
+    "priority": "medium",
+    "created_at": "2025-12-04T23:33:23.214381",
+    "requester": "山田花子"
+  }
 ]

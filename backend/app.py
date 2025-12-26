@@ -424,9 +424,17 @@ def serve_static(path):
 # ============================================================
 
 if __name__ == '__main__':
+    import os
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
+
     print('=' * 60)
     print('建設土木ナレッジシステム - サーバー起動中')
     print('=' * 60)
     print(f'アクセスURL: http://localhost:5000')
+    if debug_mode:
+        print('[WARNING] Debug mode is ENABLED. This should NEVER be used in production!')
+    else:
+        print('[INFO] Debug mode is disabled (production mode)')
     print('=' * 60)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)

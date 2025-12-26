@@ -1,0 +1,16 @@
+# Bandit セキュリティスキャン設定
+tests:
+  - B201  # Flask debug mode
+  - B301  # Pickle usage
+  - B501  # Request with verify=False
+  - B601  # SQL injection
+  - B602  # Shell injection
+  - B608  # SQL string injection
+
+exclude_dirs:
+  - /tests/
+  - /.venv/
+  - /venv_linux/
+
+skips:
+  - B101  # assert文（テストで使用）

@@ -26,7 +26,7 @@
       <div class="header-actions reveal delay-2">
         <span class="chip">報告No. INC-2024-0615</span>
         <span class="chip">重大度: 中</span>
-        <button class="cta">是正措置登録</button>
+        <button class="cta" onclick="registerCorrectiveAction()">是正措置登録</button>
       </div>
     </header>
 
@@ -85,8 +85,8 @@
             <span class="tag">風速</span>
           </div>
           <div class="cta-group">
-            <button class="cta ghost">報告書PDF</button>
-            <button class="cta secondary">再発防止を作成</button>
+            <button class="cta ghost" onclick="downloadPDF('incident', '事故報告書')">報告書PDF</button>
+            <button class="cta secondary" onclick="createPreventionPlan()">再発防止を作成</button>
             <button class="cta">再発防止を配信申請</button>
           </div>
         </section>
@@ -316,7 +316,9 @@
       </aside>
     </main>
 
-    <button class="floating">是正措置を配信申請</button>
+    <button class="floating" onclick="submitDistribution('incident', {})">是正措置を配信申請</button>
     <script src="app.js"></script>
-  </body>
+    <script src="detail-loader.js"></script>
+  <script src="actions.js"></script>
+</body>
 </html>

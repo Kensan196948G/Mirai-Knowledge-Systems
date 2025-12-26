@@ -38,20 +38,121 @@ function getCurrentUser() {
   return null;
 }
 
+/**
+ * 権限チェック関数
+ * ユーザーが指定された権限を持っているか確認
+ */
+function hasPermission(permission) {
+  const user = getCurrentUser();
+  if (!user) return false;
+
+  const permissions = user.permissions || [];
+
+  // 管理者は全権限
+  if (permissions.includes('*')) return true;
+
+  // 指定された権限を持っているか
+  return permissions.includes(permission);
+}
+
+/**
+ * RBAC UI制御を適用
+ * data-permission属性とdata-role属性を持つ要素の表示/非表示を制御
+ */
+function applyRBACUI() {
+  const user = getCurrentUser();
+  if (!user) return;
+
+  console.log('[RBAC] Applying UI controls for user:', user.username);
+
+  // data-permission属性を持つ要素を制御
+  document.querySelectorAll('[data-permission]').forEach(element => {
+    const requiredPermission = element.dataset.permission;
+    const hasAccess = hasPermission(requiredPermission);
+
+    if (!hasAccess) {
+      // 権限がない場合は非表示または無効化
+      if (element.tagName === 'BUTTON') {
+        element.disabled = true;
+        element.style.opacity = '0.5';
+        element.title = '権限がありません';
+      } else {
+        element.style.display = 'none';
+      }
+      console.log('[RBAC] Access denied to element:', requiredPermission);
+    }
+  });
+
+  // data-role属性を持つ要素を制御
+  document.querySelectorAll('[data-role]').forEach(element => {
+    const allowedRoles = element.dataset.role.split(',');
+    const userRoles = user.roles || [];
+    const hasRole = allowedRoles.some(role => userRoles.includes(role.trim()));
+
+    if (!hasRole) {
+      element.style.display = 'none';
+      console.log('[RBAC] Role access denied:', allowedRoles);
+    }
+  });
+}
+
+// ============================================================
+// XSS対策ヘルパー関数
+// ============================================================
+
+/**
+ * DOM要素を安全に作成
+ */
+function createElement(tag, attrs = {}, children = []) {
+  const element = document.createElement(tag);
+
+  Object.entries(attrs).forEach(([key, value]) => {
+    if (key === 'className') {
+      element.className = value;
+    } else if (key === 'onclick') {
+      element.onclick = value;
+    } else {
+      element.setAttribute(key, value);
+    }
+  });
+
+  children.forEach(child => {
+    if (typeof child === 'string') {
+      element.appendChild(document.createTextNode(child));
+    } else if (child instanceof Node) {
+      element.appendChild(child);
+    }
+  });
+
+  return element;
+}
+
 // ユーザー情報表示
 function displayUserInfo() {
   const user = getCurrentUser();
   console.log('[AUTH] Displaying user info:', user);
   if (!user) return;
 
-  // ヘッダーにユーザー情報を表示
+  // ヘッダーにユーザー情報を表示（XSS対策: DOM APIを使用）
   const userInfoElement = document.querySelector('.user-info');
   if (userInfoElement) {
-    userInfoElement.innerHTML = `
-      <span class="user-name">${user.full_name || user.username}</span>
-      <span class="user-dept">${user.department || ''}</span>
-      <button class="logout-btn" onclick="logout()">ログアウト</button>
-    `;
+    // 既存の内容をクリア
+    userInfoElement.textContent = '';
+
+    // 安全にDOM要素を作成
+    const userName = createElement('span', {className: 'user-name'}, [
+      user.full_name || user.username
+    ]);
+    const userDept = createElement('span', {className: 'user-dept'}, [
+      user.department || ''
+    ]);
+    const logoutBtn = createElement('button', {className: 'logout-btn', onclick: logout}, [
+      'ログアウト'
+    ]);
+
+    userInfoElement.appendChild(userName);
+    userInfoElement.appendChild(userDept);
+    userInfoElement.appendChild(logoutBtn);
   }
 }
 
@@ -61,6 +162,46 @@ function displayUserInfo() {
 
 // 動的にAPIベースURLを設定（localhost、IPアドレス、ホスト名に対応）
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5000'}/api/v1`;
+
+/**
+ * トークンリフレッシュ関数
+ * リフレッシュトークンを使用して新しいアクセストークンを取得
+ */
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('refresh_token');
+
+  if (!refreshToken) {
+    console.log('[AUTH] No refresh token available');
+    return false;
+  }
+
+  try {
+    console.log('[AUTH] Refreshing access token...');
+    const response = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${refreshToken}`
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
+        // 新しいアクセストークンを保存
+        localStorage.setItem('access_token', result.data.access_token);
+        console.log('[AUTH] Access token refreshed successfully');
+        return true;
+      }
+    }
+
+    console.log('[AUTH] Token refresh failed');
+    return false;
+  } catch (error) {
+    console.error('[AUTH] Token refresh error:', error);
+    return false;
+  }
+}
 
 async function fetchAPI(endpoint, options = {}) {
   const token = localStorage.getItem('access_token');
@@ -85,18 +226,37 @@ async function fetchAPI(endpoint, options = {}) {
       console.log('[API] Authorization header added');
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    let response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers
     });
 
     console.log('[API] Response status:', response.status);
 
-    // 認証エラー（401）の場合はログイン画面へ
-    if (response.status === 401) {
-      console.log('[API] 401 Unauthorized. Token expired or invalid, redirecting to login...');
-      logout();
-      throw new Error('Authentication failed');
+    // 認証エラー（401）の場合、トークンリフレッシュを試行
+    if (response.status === 401 && !endpoint.includes('/auth/')) {
+      console.log('[API] 401 Unauthorized. Attempting token refresh...');
+
+      const refreshed = await refreshAccessToken();
+
+      if (refreshed) {
+        // リフレッシュ成功 → リクエストをリトライ
+        console.log('[API] Retrying request with new token...');
+        const newToken = localStorage.getItem('access_token');
+        headers['Authorization'] = `Bearer ${newToken}`;
+
+        response = await fetch(`${API_BASE}${endpoint}`, {
+          ...options,
+          headers
+        });
+
+        console.log('[API] Retry response status:', response.status);
+      } else {
+        // リフレッシュ失敗 → ログアウト
+        console.log('[API] Token refresh failed. Logging out...');
+        logout();
+        throw new Error('Authentication failed');
+      }
     }
 
     // 権限エラー（403）
@@ -197,54 +357,131 @@ function displayKnowledge(knowledgeList) {
   const panel = document.querySelector('[data-panel="search"]');
   if (!panel) return;
 
-  panel.innerHTML = knowledgeList.map(k => `
-    <div class="knowledge-card">
-      <h4>${k.title}</h4>
-      <div class="knowledge-meta">
-        最終更新: ${formatDate(k.updated_at)} · ${k.category} · 工区: ${k.project || 'N/A'} · 担当: ${k.owner}
-      </div>
-      <div class="knowledge-tags">
-        ${k.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
-      </div>
-      <div>${k.summary}</div>
-    </div>
-  `).join('');
+  // パネルをクリア（XSS対策）
+  panel.textContent = '';
+
+  // 各ナレッジカードを安全に作成
+  knowledgeList.forEach(k => {
+    const card = createElement('div', {className: 'knowledge-card'}, []);
+
+    // カードクリックで詳細画面へ遷移
+    card.style.cursor = 'pointer';
+    card.onclick = () => {
+      // 詳細データをlocalStorageに保存
+      localStorage.setItem('knowledge_detail', JSON.stringify(k));
+      window.location.href = 'search-detail.html';
+    };
+
+    // タイトル
+    const title = createElement('h4', {}, [k.title || '']);
+    card.appendChild(title);
+
+    // メタ情報
+    const meta = createElement('div', {className: 'knowledge-meta'}, [
+      `最終更新: ${formatDate(k.updated_at)} · ${k.category} · 工区: ${k.project || 'N/A'} · 担当: ${k.owner}`
+    ]);
+    card.appendChild(meta);
+
+    // タグ
+    if (k.tags && k.tags.length > 0) {
+      const tagsContainer = createElement('div', {className: 'knowledge-tags'}, []);
+      k.tags.forEach(tag => {
+        const tagSpan = createElement('span', {className: 'tag'}, [tag]);
+        tagsContainer.appendChild(tagSpan);
+      });
+      card.appendChild(tagsContainer);
+    }
+
+    // サマリー
+    const summary = createElement('div', {}, [k.summary || '']);
+    card.appendChild(summary);
+
+    panel.appendChild(card);
+  });
 }
 
 function displaySOPs(sopList) {
   const panel = document.querySelector('[data-panel="sop"]');
   if (!panel) return;
 
-  panel.innerHTML = sopList.map(sop => `
-    <div class="knowledge-card">
-      <h4>${sop.title}</h4>
-      <div class="knowledge-meta">
-        改訂: ${formatDate(sop.revision_date)} · ${sop.category} · ${sop.target}
-      </div>
-      <div class="knowledge-tags">
-        ${sop.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
-      </div>
-      <div>${sop.content}</div>
-    </div>
-  `).join('');
+  // パネルをクリア（XSS対策）
+  panel.textContent = '';
+
+  // 各SOPカードを安全に作成
+  sopList.forEach(sop => {
+    const card = createElement('div', {className: 'knowledge-card'}, []);
+
+    // カードクリックでSOP詳細画面へ遷移
+    card.style.cursor = 'pointer';
+    card.onclick = () => {
+      localStorage.setItem('sop_detail', JSON.stringify(sop));
+      window.location.href = 'sop-detail.html';
+    };
+
+    const title = createElement('h4', {}, [sop.title || '']);
+    card.appendChild(title);
+
+    const meta = createElement('div', {className: 'knowledge-meta'}, [
+      `改訂: ${formatDate(sop.revision_date)} · ${sop.category} · ${sop.target}`
+    ]);
+    card.appendChild(meta);
+
+    if (sop.tags && sop.tags.length > 0) {
+      const tagsContainer = createElement('div', {className: 'knowledge-tags'}, []);
+      sop.tags.forEach(tag => {
+        const tagSpan = createElement('span', {className: 'tag'}, [tag]);
+        tagsContainer.appendChild(tagSpan);
+      });
+      card.appendChild(tagsContainer);
+    }
+
+    const content = createElement('div', {}, [sop.content || '']);
+    card.appendChild(content);
+
+    panel.appendChild(card);
+  });
 }
 
 function displayIncidents(incidentList) {
   const panel = document.querySelector('[data-panel="incident"]');
   if (!panel) return;
 
-  panel.innerHTML = incidentList.map(incident => `
-    <div class="knowledge-card">
-      <h4>${incident.title}</h4>
-      <div class="knowledge-meta">
-        報告日: ${formatDate(incident.date)} · 現場: ${incident.project}
-      </div>
-      <div class="knowledge-tags">
-        ${incident.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
-      </div>
-      <div>${incident.description}</div>
-    </div>
-  `).join('');
+  // パネルをクリア（XSS対策）
+  panel.textContent = '';
+
+  // 各事故レポートカードを安全に作成
+  incidentList.forEach(incident => {
+    const card = createElement('div', {className: 'knowledge-card'}, []);
+
+    // カードクリックで事故レポート詳細画面へ遷移
+    card.style.cursor = 'pointer';
+    card.onclick = () => {
+      localStorage.setItem('incident_detail', JSON.stringify(incident));
+      window.location.href = 'incident-detail.html';
+    };
+
+    const title = createElement('h4', {}, [incident.title || '']);
+    card.appendChild(title);
+
+    const meta = createElement('div', {className: 'knowledge-meta'}, [
+      `報告日: ${formatDate(incident.date)} · 現場: ${incident.project}`
+    ]);
+    card.appendChild(meta);
+
+    if (incident.tags && incident.tags.length > 0) {
+      const tagsContainer = createElement('div', {className: 'knowledge-tags'}, []);
+      incident.tags.forEach(tag => {
+        const tagSpan = createElement('span', {className: 'tag'}, [tag]);
+        tagsContainer.appendChild(tagSpan);
+      });
+      card.appendChild(tagsContainer);
+    }
+
+    const description = createElement('div', {}, [incident.description || '']);
+    card.appendChild(description);
+
+    panel.appendChild(card);
+  });
 }
 
 function displayApprovals(approvalList) {
@@ -265,14 +502,24 @@ function displayApprovals(approvalList) {
     'rejected': '差戻し'
   };
 
-  flowContainer.innerHTML = approvalList.slice(0, 3).map(approval => `
-    <div class="flow-step">
-      <div>${approval.title}</div>
-      <span class="badge ${statusBadgeClass[approval.status] || 'is-info'}">
-        ${statusText[approval.status] || approval.status}
-      </span>
-    </div>
-  `).join('');
+  // コンテナをクリア（XSS対策）
+  flowContainer.textContent = '';
+
+  // 最初の3件を安全に表示
+  approvalList.slice(0, 3).forEach(approval => {
+    const flowStep = createElement('div', {className: 'flow-step'}, []);
+
+    const titleDiv = createElement('div', {}, [approval.title || '']);
+    flowStep.appendChild(titleDiv);
+
+    const badgeClass = statusBadgeClass[approval.status] || 'is-info';
+    const badge = createElement('span', {className: `badge ${badgeClass}`}, [
+      statusText[approval.status] || approval.status
+    ]);
+    flowStep.appendChild(badge);
+
+    flowContainer.appendChild(flowStep);
+  });
 }
 
 // ============================================================
@@ -462,6 +709,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ユーザー情報表示
   displayUserInfo();
+
+  // RBAC UI制御を適用
+  applyRBACUI();
 
   // 検索機能のセットアップ
   setupSearch();
