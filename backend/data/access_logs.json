@@ -238,5 +238,115 @@
     "ip_address": "127.0.0.1",
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
     "timestamp": "2025-12-26T21:12:47.839160"
+  },
+  {
+    "id": 25,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "curl/8.5.0",
+    "timestamp": "2025-12-26T21:32:59.120794"
+  },
+  {
+    "id": 26,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "curl/8.5.0",
+    "timestamp": "2025-12-26T21:33:30.304421"
+  },
+  {
+    "id": 27,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "python-requests/2.32.3",
+    "timestamp": "2025-12-26T21:34:04.032025"
+  },
+  {
+    "id": 28,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "python-requests/2.32.3",
+    "timestamp": "2025-12-26T21:36:22.825832"
+  },
+  {
+    "id": 29,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "python-requests/2.32.3",
+    "timestamp": "2025-12-26T21:39:18.976641"
+  },
+  {
+    "id": 30,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "python-requests/2.32.3",
+    "timestamp": "2025-12-26T21:41:50.798898"
+  },
+  {
+    "id": 31,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "python-requests/2.32.3",
+    "timestamp": "2025-12-26T21:44:12.558227"
+  },
+  {
+    "id": 32,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "python-requests/2.32.3",
+    "timestamp": "2025-12-26T21:47:13.750930"
+  },
+  {
+    "id": 33,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "python-requests/2.32.3",
+    "timestamp": "2025-12-26T21:49:44.107710"
+  },
+  {
+    "id": 34,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "curl/8.5.0",
+    "timestamp": "2025-12-26T21:52:18.674245"
+  },
+  {
+    "id": 35,
+    "user_id": 1,
+    "action": "login",
+    "resource": null,
+    "resource_id": null,
+    "ip_address": "127.0.0.1",
+    "user_agent": "curl/8.5.0",
+    "timestamp": "2025-12-26T21:54:02.059138"
   }
 ]

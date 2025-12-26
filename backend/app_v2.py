@@ -22,9 +22,12 @@ DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 app.config['DATA_DIR'] = os.environ.get('MKS_DATA_DIR', DEFAULT_DATA_DIR)
 
 # JWT設定
-app.config['JWT_SECRET_KEY'] = os.environ.get('MKS_JWT_SECRET_KEY', 'change-me')
+app.config['JWT_SECRET_KEY'] = os.environ.get('MKS_JWT_SECRET_KEY', 'change-me-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
+# 完全なCSRF無効化（API専用）
+app.config['JWT_COOKIE_CSRF_PROTECT'] = False
+app.config['WTF_CSRF_ENABLED'] = False
 jwt = JWTManager(app)
 
 # データストレージディレクトリ
@@ -270,7 +273,6 @@ def get_current_user():
 # ============================================================
 
 @app.route('/api/v1/knowledge', methods=['GET'])
-@jwt_required()
 @check_permission('knowledge.read')
 def get_knowledge():
     """ナレッジ一覧取得"""
@@ -309,7 +311,6 @@ def get_knowledge():
     })
 
 @app.route('/api/v1/knowledge/<int:knowledge_id>', methods=['GET'])
-@jwt_required()
 @check_permission('knowledge.read')
 def get_knowledge_detail(knowledge_id):
     """ナレッジ詳細取得"""
@@ -328,7 +329,6 @@ def get_knowledge_detail(knowledge_id):
     })
 
 @app.route('/api/v1/knowledge', methods=['POST'])
-@jwt_required()
 @check_permission('knowledge.create')
 def create_knowledge():
     """新規ナレッジ登録"""
@@ -369,7 +369,6 @@ def create_knowledge():
 # （簡潔にするため、主要なものの定義）
 
 @app.route('/api/v1/sop', methods=['GET'])
-@jwt_required()
 @check_permission('sop.read')
 def get_sop():
     """SOP一覧取得"""
@@ -555,5 +554,5 @@ if __name__ == '__main__':
     print(f'アクセスURL: http://localhost:5000')
     print('=' * 60)
     
-    debug = os.environ.get('MKS_DEBUG', 'true').lower() in ('1', 'true', 'yes')
+    debug = os.environ.get('MKS_DEBUG', 'false').lower() in ('1', 'true', 'yes')
     app.run(host='0.0.0.0', port=5000, debug=debug)
