@@ -22,12 +22,15 @@ DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 app.config['DATA_DIR'] = os.environ.get('MKS_DATA_DIR', DEFAULT_DATA_DIR)
 
 # JWT設定
-app.config['JWT_SECRET_KEY'] = os.environ.get('MKS_JWT_SECRET_KEY', 'change-me-in-production')
+# 開発環境用の固定秘密鍵（本番環境では環境変数を使用してください）
+JWT_SECRET = 'mirai-knowledge-system-jwt-secret-key-2025'
+app.config['JWT_SECRET_KEY'] = os.environ.get('MKS_JWT_SECRET_KEY', JWT_SECRET)
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 # 完全なCSRF無効化（API専用）
 app.config['JWT_COOKIE_CSRF_PROTECT'] = False
 app.config['WTF_CSRF_ENABLED'] = False
+print(f'[INIT] JWT Secret Key configured: {app.config["JWT_SECRET_KEY"][:20]}...')
 jwt = JWTManager(app)
 
 # データストレージディレクトリ
@@ -114,27 +117,41 @@ def check_permission(required_permission):
         @wraps(fn)
         @jwt_required()
         def wrapper(*args, **kwargs):
-            current_user_id = get_jwt_identity()
-            users = load_users()
-            user = next((u for u in users if u['id'] == current_user_id), None)
-            
-            if not user:
-                return jsonify({'success': False, 'error': 'User not found'}), 404
-            
-            permissions = get_user_permissions(user)
-            
-            # 管理者または必要な権限を持っている
-            if '*' in permissions or required_permission in permissions:
-                return fn(*args, **kwargs)
-            
-            return jsonify({
-                'success': False,
-                'error': {
-                    'code': 'FORBIDDEN',
-                    'message': 'Insufficient permissions'
-                }
-            }), 403
-        
+            try:
+                current_user_id = get_jwt_identity()
+                # IDを整数に変換（JWTでは文字列として保存）
+                user_id_int = int(current_user_id) if isinstance(current_user_id, str) else current_user_id
+                print(f'[DEBUG] check_permission: user_id={user_id_int}, required={required_permission}')
+
+                users = load_users()
+                user = next((u for u in users if u['id'] == user_id_int), None)
+
+                if not user:
+                    print(f'[DEBUG] User not found: {current_user_id}')
+                    return jsonify({'success': False, 'error': 'User not found'}), 404
+
+                permissions = get_user_permissions(user)
+                print(f'[DEBUG] User permissions: {permissions}')
+
+                # 管理者または必要な権限を持っている
+                if '*' in permissions or required_permission in permissions:
+                    print(f'[DEBUG] Permission granted')
+                    return fn(*args, **kwargs)
+
+                print(f'[DEBUG] Permission denied')
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'FORBIDDEN',
+                        'message': 'Insufficient permissions'
+                    }
+                }), 403
+            except Exception as e:
+                print(f'[DEBUG] Exception in check_permission: {e}')
+                import traceback
+                traceback.print_exc()
+                raise
+
         return wrapper
     return decorator
 
@@ -210,12 +227,12 @@ def login():
             }
         }), 401
     
-    # トークン生成
+    # トークン生成（identityを文字列に変換）
     access_token = create_access_token(
-        identity=user['id'],
+        identity=str(user['id']),
         additional_claims={'roles': user.get('roles', [])}
     )
-    refresh_token = create_refresh_token(identity=user['id'])
+    refresh_token = create_refresh_token(identity=str(user['id']))
     
     # ログイン記録
     log_access(user['id'], 'login')
