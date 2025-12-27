@@ -2,7 +2,7 @@
 建設土木ナレッジシステム - 認証機能付きFlaskバックエンド
 JSONベース + JWT認証 + RBAC
 """
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, redirect
 from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager, create_access_token, create_refresh_token,
@@ -22,6 +22,70 @@ from schemas import LoginSchema, KnowledgeCreateSchema
 
 # 環境変数をロード
 load_dotenv()
+
+
+# ============================================================
+# HTTPS強制リダイレクトミドルウェア
+# ============================================================
+
+class HTTPSRedirectMiddleware:
+    """
+    HTTP リクエストを HTTPS にリダイレクトするミドルウェア
+
+    リバースプロキシ（Nginx等）経由の場合は X-Forwarded-Proto ヘッダーを使用。
+    環境変数 MKS_FORCE_HTTPS=true で有効化。
+    環境変数 MKS_TRUST_PROXY_HEADERS=true でプロキシヘッダーを信頼。
+
+    使用例:
+        app.wsgi_app = HTTPSRedirectMiddleware(app.wsgi_app)
+    """
+
+    def __init__(self, app, force_https=None, trust_proxy=None):
+        self.app = app
+        self.force_https = force_https if force_https is not None else \
+            os.environ.get('MKS_FORCE_HTTPS', 'false').lower() in ('true', '1', 'yes')
+        self.trust_proxy = trust_proxy if trust_proxy is not None else \
+            os.environ.get('MKS_TRUST_PROXY_HEADERS', 'false').lower() in ('true', '1', 'yes')
+
+    def __call__(self, environ, start_response):
+        if not self.force_https:
+            return self.app(environ, start_response)
+
+        # プロトコルの判定
+        if self.trust_proxy:
+            # リバースプロキシからのヘッダーを信頼
+            proto = environ.get('HTTP_X_FORWARDED_PROTO', 'http')
+        else:
+            # 直接接続の場合
+            proto = environ.get('wsgi.url_scheme', 'http')
+
+        if proto == 'https':
+            # 既にHTTPS
+            return self.app(environ, start_response)
+
+        # HTTPからHTTPSへリダイレクト
+        host = environ.get('HTTP_HOST', environ.get('SERVER_NAME', 'localhost'))
+
+        # X-Forwarded-Host がある場合はそれを使用
+        if self.trust_proxy and 'HTTP_X_FORWARDED_HOST' in environ:
+            host = environ['HTTP_X_FORWARDED_HOST']
+
+        path = environ.get('PATH_INFO', '/')
+        query = environ.get('QUERY_STRING', '')
+
+        https_url = f"https://{host}{path}"
+        if query:
+            https_url = f"{https_url}?{query}"
+
+        # 301 Permanent Redirect
+        status = '301 Moved Permanently'
+        response_headers = [
+            ('Location', https_url),
+            ('Content-Type', 'text/html'),
+            ('Content-Length', '0')
+        ]
+        start_response(status, response_headers)
+        return [b'']
 
 app = Flask(__name__, static_folder='../webui')
 
@@ -86,29 +150,69 @@ def get_data_dir():
     return data_dir
 
 # セキュリティヘッダー
+# 本番環境判定
+IS_PRODUCTION = os.environ.get('MKS_ENV', 'development').lower() == 'production'
+HSTS_ENABLED = os.environ.get('MKS_HSTS_ENABLED', 'false').lower() in ('true', '1', 'yes')
+HSTS_MAX_AGE = int(os.environ.get('MKS_HSTS_MAX_AGE', '31536000'))  # デフォルト1年
+HSTS_INCLUDE_SUBDOMAINS = os.environ.get('MKS_HSTS_INCLUDE_SUBDOMAINS', 'true').lower() in ('true', '1', 'yes')
+
 @app.after_request
 def add_security_headers(response):
-    """セキュリティヘッダーを追加"""
+    """セキュリティヘッダーを追加（本番/開発環境で設定を切り替え）"""
     response.headers.setdefault('X-Content-Type-Options', 'nosniff')
     response.headers.setdefault('X-Frame-Options', 'DENY')
-    response.headers.setdefault('Referrer-Policy', 'no-referrer')
+    response.headers.setdefault('X-XSS-Protection', '1; mode=block')
     response.headers.setdefault(
         'Permissions-Policy',
-        'geolocation=(), microphone=(), camera=()'
+        'geolocation=(), microphone=(), camera=(), payment=()'
     )
 
-    # Content Security Policy
-    csp_policy = "; ".join([
-        "default-src 'self'",
-        "script-src 'self' 'unsafe-inline'",  # 開発環境用にunsafe-inline許可
-        "style-src 'self' 'unsafe-inline'",   # インラインスタイル許可
-        "img-src 'self' data: https:",
-        "font-src 'self' data:",
-        "connect-src 'self'",
-        "frame-ancestors 'none'",
-        "base-uri 'self'",
-        "form-action 'self'"
-    ])
+    # 本番環境: 強化されたセキュリティ設定
+    if IS_PRODUCTION:
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+
+        # HSTS (HTTP Strict Transport Security)
+        if HSTS_ENABLED:
+            hsts_value = f"max-age={HSTS_MAX_AGE}"
+            if HSTS_INCLUDE_SUBDOMAINS:
+                hsts_value += "; includeSubDomains"
+            response.headers.setdefault('Strict-Transport-Security', hsts_value)
+
+        # Content Security Policy（本番用: unsafe-inline を削除）
+        csp_policy = "; ".join([
+            "default-src 'self'",
+            "script-src 'self'",  # 本番: unsafe-inlineを削除
+            "style-src 'self'",   # 本番: unsafe-inlineを削除
+            "img-src 'self' data: https:",
+            "font-src 'self' data:",
+            "connect-src 'self'",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "upgrade-insecure-requests"  # HTTPリクエストを自動的にHTTPSに変換
+        ])
+
+        # APIレスポンスはキャッシュしない
+        if request.path.startswith('/api/'):
+            response.headers.setdefault('Cache-Control', 'no-store, no-cache, must-revalidate')
+            response.headers.setdefault('Pragma', 'no-cache')
+    else:
+        # 開発環境: 緩和されたセキュリティ設定
+        response.headers.setdefault('Referrer-Policy', 'no-referrer')
+
+        # Content Security Policy（開発用: unsafe-inline許可）
+        csp_policy = "; ".join([
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",  # 開発環境用にunsafe-inline許可
+            "style-src 'self' 'unsafe-inline'",   # インラインスタイル許可
+            "img-src 'self' data: https:",
+            "font-src 'self' data:",
+            "connect-src 'self'",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'"
+        ])
+
     response.headers.setdefault('Content-Security-Policy', csp_policy)
 
     return response
@@ -1005,16 +1109,34 @@ def init_demo_users():
         print("   - yamada / yamada123 (施工管理)")
         print("   - partner / partner123 (協力会社)")
 
+# HTTPS強制リダイレクトミドルウェアを適用（本番環境用）
+# 環境変数 MKS_FORCE_HTTPS=true で有効化
+if os.environ.get('MKS_FORCE_HTTPS', 'false').lower() in ('true', '1', 'yes'):
+    app.wsgi_app = HTTPSRedirectMiddleware(app.wsgi_app)
+    print('[INIT] HTTPS強制リダイレクトを有効化しました')
+
 if __name__ == '__main__':
     print('=' * 60)
     print('建設土木ナレッジシステム - サーバー起動中')
     print('=' * 60)
-    
+
+    # 環境情報表示
+    env_mode = os.environ.get('MKS_ENV', 'development')
+    print(f'環境モード: {env_mode}')
+
+    if IS_PRODUCTION:
+        print('[PRODUCTION] 本番環境設定が有効です')
+        if HSTS_ENABLED:
+            print(f'[SECURITY] HSTS有効 (max-age={HSTS_MAX_AGE})')
+    else:
+        print('[DEVELOPMENT] 開発環境設定が有効です')
+
     # デモユーザー初期化
     init_demo_users()
-    
-    print(f'アクセスURL: http://localhost:5000')
+
+    protocol = 'https' if os.environ.get('MKS_FORCE_HTTPS', 'false').lower() in ('true', '1', 'yes') else 'http'
+    print(f'アクセスURL: {protocol}://localhost:5000')
     print('=' * 60)
-    
+
     debug = os.environ.get('MKS_DEBUG', 'false').lower() in ('1', 'true', 'yes')
     app.run(host='0.0.0.0', port=5000, debug=debug)

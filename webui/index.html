@@ -34,7 +34,10 @@
       <span class="chip">稼働 24 / 28 (夜間 4)</span>
       <span class="chip">承認待ち 7件</span>
       <div class="user-info"></div>
-      <button class="cta" data-permission="knowledge.create">新規ナレッジ登録</button>
+      <!-- 新規登録ボタン: construction_manager以上のみ表示 -->
+      <button class="cta" data-required-role="construction_manager">新規ナレッジ登録</button>
+      <!-- 管理画面リンク: adminのみ表示 -->
+      <a href="admin.html" class="cta secondary" data-required-role="admin">管理画面</a>
     </div>
 
     <!-- 通知パネル（ドロップダウン） -->
@@ -155,6 +158,9 @@
           </div>
           <div class="cta-group">
             <button class="cta ghost" onclick="openApprovalBox()">承認箱を開く</button>
+            <!-- 承認/却下ボタン: quality_assurance以上のみ表示 -->
+            <button class="cta" data-required-role="quality_assurance" onclick="approveSelected()">承認</button>
+            <button class="cta secondary" data-required-role="quality_assurance" onclick="rejectSelected()">却下</button>
             <button class="cta secondary" onclick="alert('差戻しメモ機能は今後実装予定です。')">差戻しメモ</button>
           </div>
         </div>

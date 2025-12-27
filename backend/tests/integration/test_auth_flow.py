@@ -1,21 +1,10 @@
 """
 認証フローの統合テスト
+
+Note: This module uses the 'client' fixture from conftest.py
 """
 import pytest
-import sys
-import os
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
-from app_v2 import app
-
-@pytest.fixture
-def client():
-    """テストクライアント"""
-    app.config['TESTING'] = True
-    app.config['JWT_SECRET_KEY'] = 'test-secret-key'
-    with app.test_client() as client:
-        yield client
 
 class TestAuthFlow:
     """認証フロー統合テスト"""

@@ -16,7 +16,7 @@ def test_login_success(client):
 
 
 def test_login_failure(client):
-    response = _login(client, password='wrong')
+    response = _login(client, password='wrongpassword')
     assert response.status_code == 401
 
 

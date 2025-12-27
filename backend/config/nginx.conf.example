@@ -1,0 +1,292 @@
+# ==========================================================
+# 建設土木ナレッジシステム - Nginx設定例
+# ==========================================================
+#
+# 使用方法:
+#   1. このファイルを /etc/nginx/sites-available/mirai-knowledge-system にコピー
+#   2. 必要に応じてドメイン名とパスを編集
+#   3. シンボリックリンクを作成:
+#      sudo ln -s /etc/nginx/sites-available/mirai-knowledge-system /etc/nginx/sites-enabled/
+#   4. 設定テスト: sudo nginx -t
+#   5. Nginx再起動: sudo systemctl reload nginx
+#
+# SSL証明書:
+#   Let's Encryptを使用する場合は certbot --nginx を実行
+#
+# ==========================================================
+
+# アップストリーム定義（Gunicornバックエンド）
+upstream mirai_knowledge_backend {
+    # Gunicornが127.0.0.1:8000でリスニング
+    server 127.0.0.1:8000;
+
+    # 複数ワーカーの場合のロードバランシング
+    # server 127.0.0.1:8001;
+    # server 127.0.0.1:8002;
+
+    # ヘルスチェック用設定（商用版Nginx Plus）
+    # health_check interval=10s fails=3 passes=2;
+
+    # 接続キープアライブ
+    keepalive 32;
+}
+
+# HTTP -> HTTPS リダイレクト
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.example.com;
+
+    # Let's Encrypt認証用（certbot使用時）
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # その他全てのリクエストをHTTPSにリダイレクト
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS設定
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name api.example.com;
+
+    # ==========================================================
+    # SSL証明書設定
+    # ==========================================================
+
+    # Let's Encrypt証明書
+    ssl_certificate /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+
+    # DHパラメータ（事前に生成が必要: openssl dhparam -out /etc/nginx/dhparam.pem 4096）
+    ssl_dhparam /etc/nginx/dhparam.pem;
+
+    # ==========================================================
+    # SSL/TLSセキュリティ設定
+    # ==========================================================
+
+    # TLSバージョン（TLS 1.2以上のみ許可）
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # 暗号スイート（Mozilla推奨の中間設定）
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+
+    # SSLセッション設定
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    # OCSP Stapling
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 8.8.8.8 8.8.4.4 valid=300s;
+    resolver_timeout 5s;
+
+    # ==========================================================
+    # セキュリティヘッダー
+    # ==========================================================
+
+    # HSTS（HTTP Strict Transport Security）
+    # max-age=63072000 は約2年
+    # preload を有効にする場合は https://hstspreload.org/ で登録が必要
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+
+    # クリックジャッキング対策
+    add_header X-Frame-Options "DENY" always;
+
+    # XSS対策
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # MIMEタイプスニッフィング対策
+    add_header X-Content-Type-Options "nosniff" always;
+
+    # リファラーポリシー
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # 機能ポリシー
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()" always;
+
+    # Content Security Policy（アプリケーションに合わせて調整）
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" always;
+
+    # ==========================================================
+    # 基本設定
+    # ==========================================================
+
+    # サーバートークンを隠す
+    server_tokens off;
+
+    # クライアントリクエストボディサイズ制限
+    client_max_body_size 10M;
+
+    # タイムアウト設定
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 60s;
+
+    # バッファ設定
+    proxy_buffer_size 4k;
+    proxy_buffers 4 32k;
+    proxy_busy_buffers_size 64k;
+
+    # ログ設定
+    access_log /var/log/nginx/mirai-knowledge-access.log combined;
+    error_log /var/log/nginx/mirai-knowledge-error.log warn;
+
+    # ==========================================================
+    # 静的ファイル配信（オプション）
+    # ==========================================================
+
+    # 静的ファイルをNginxから直接配信
+    location /static/ {
+        alias /var/www/mirai-knowledge-system/webui/static/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+
+        # GZip圧縮
+        gzip on;
+        gzip_types text/css application/javascript application/json;
+        gzip_min_length 1000;
+    }
+
+    # favicon
+    location /favicon.ico {
+        alias /var/www/mirai-knowledge-system/webui/favicon.ico;
+        expires 7d;
+        log_not_found off;
+    }
+
+    # robots.txt
+    location /robots.txt {
+        alias /var/www/mirai-knowledge-system/webui/robots.txt;
+        expires 1d;
+        log_not_found off;
+    }
+
+    # ==========================================================
+    # APIプロキシ設定
+    # ==========================================================
+
+    # APIエンドポイント
+    location /api/ {
+        proxy_pass http://mirai_knowledge_backend;
+
+        # プロキシヘッダー
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+
+        # WebSocket対応（必要な場合）
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # HTTP Keep-Alive
+        proxy_set_header Connection "";
+
+        # キャッシュ無効化（APIレスポンス）
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate" always;
+        add_header Pragma "no-cache" always;
+        expires off;
+    }
+
+    # ==========================================================
+    # フロントエンド（SPA対応）
+    # ==========================================================
+
+    location / {
+        # フロントエンドアプリケーションの配信
+        # オプション1: Gunicornでフロントエンドも配信
+        proxy_pass http://mirai_knowledge_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # オプション2: Nginxから直接配信（コメントアウト解除して使用）
+        # root /var/www/mirai-knowledge-system/webui;
+        # index index.html;
+        # try_files $uri $uri/ /index.html;
+    }
+
+    # ==========================================================
+    # レート制限
+    # ==========================================================
+
+    # ログインエンドポイントのレート制限
+    location /api/v1/auth/login {
+        limit_req zone=login_limit burst=5 nodelay;
+
+        proxy_pass http://mirai_knowledge_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ==========================================================
+    # ヘルスチェック
+    # ==========================================================
+
+    location /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+
+    # ==========================================================
+    # セキュリティ: 不要なリクエストを拒否
+    # ==========================================================
+
+    # 隠しファイルへのアクセス拒否
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # 設定ファイルへのアクセス拒否
+    location ~* \.(env|ini|conf|config|yml|yaml)$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # バックアップファイルへのアクセス拒否
+    location ~* \.(bak|backup|old|orig|tmp|swp)$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+
+# ==========================================================
+# httpブロック内で設定が必要な項目（nginx.confに追加）
+# ==========================================================
+#
+# # レート制限ゾーン定義
+# limit_req_zone $binary_remote_addr zone=login_limit:10m rate=5r/m;
+# limit_req_zone $binary_remote_addr zone=api_limit:10m rate=100r/m;
+#
+# # GZip圧縮（グローバル設定）
+# gzip on;
+# gzip_vary on;
+# gzip_proxied any;
+# gzip_comp_level 6;
+# gzip_types text/plain text/css text/xml application/json application/javascript application/xml;
+#
+# # 接続タイムアウト
+# keepalive_timeout 65;
+#
+# # リクエストボディサイズ
+# client_max_body_size 10M;
+#
+# ==========================================================

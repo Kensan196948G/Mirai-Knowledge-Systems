@@ -38,6 +38,47 @@ function getCurrentUser() {
   return null;
 }
 
+// ============================================================
+// RBAC（ロールベースアクセス制御）
+// ============================================================
+
+/**
+ * ロール階層定義
+ * 数値が大きいほど高い権限を持つ
+ */
+const ROLE_HIERARCHY = {
+  'partner': 1,           // 閲覧のみ
+  'quality_assurance': 2, // 承認可
+  'construction_manager': 3, // ナレッジ作成・承認可
+  'admin': 4              // 全機能アクセス可
+};
+
+/**
+ * ロールベースの権限チェック関数
+ * ユーザーが指定されたロール以上の権限を持っているか確認
+ * @param {string} requiredRole - 必要なロール
+ * @returns {boolean} - 権限があるかどうか
+ */
+function checkPermission(requiredRole) {
+  const user = getCurrentUser();
+  if (!user) return false;
+
+  const userRoles = user.roles || [];
+  const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0;
+
+  // ユーザーの最高権限レベルを取得
+  let userMaxLevel = 0;
+  userRoles.forEach(role => {
+    const level = ROLE_HIERARCHY[role] || 0;
+    if (level > userMaxLevel) {
+      userMaxLevel = level;
+    }
+  });
+
+  console.log(`[RBAC] checkPermission: required=${requiredRole}(${requiredLevel}), userMax=${userMaxLevel}`);
+  return userMaxLevel >= requiredLevel;
+}
+
 /**
  * 権限チェック関数
  * ユーザーが指定された権限を持っているか確認
@@ -56,14 +97,31 @@ function hasPermission(permission) {
 }
 
 /**
+ * 作成者または管理者かどうかチェック
+ * @param {string} creatorId - 作成者のID
+ * @returns {boolean} - 編集権限があるかどうか
+ */
+function canEdit(creatorId) {
+  const user = getCurrentUser();
+  if (!user) return false;
+
+  // 管理者は常に編集可
+  if (checkPermission('admin')) return true;
+
+  // 作成者本人も編集可
+  return user.id === creatorId || user.username === creatorId;
+}
+
+/**
  * RBAC UI制御を適用
- * data-permission属性とdata-role属性を持つ要素の表示/非表示を制御
+ * data-permission属性、data-role属性、data-required-role属性を持つ要素の表示/非表示を制御
  */
 function applyRBACUI() {
   const user = getCurrentUser();
   if (!user) return;
 
   console.log('[RBAC] Applying UI controls for user:', user.username);
+  console.log('[RBAC] User roles:', user.roles);
 
   // data-permission属性を持つ要素を制御
   document.querySelectorAll('[data-permission]').forEach(element => {
@@ -71,27 +129,43 @@ function applyRBACUI() {
     const hasAccess = hasPermission(requiredPermission);
 
     if (!hasAccess) {
-      // 権限がない場合は非表示または無効化
-      if (element.tagName === 'BUTTON') {
-        element.disabled = true;
-        element.style.opacity = '0.5';
-        element.title = '権限がありません';
-      } else {
-        element.style.display = 'none';
-      }
-      console.log('[RBAC] Access denied to element:', requiredPermission);
+      // 権限がない場合は非表示
+      element.classList.add('permission-hidden');
+      console.log('[RBAC] Permission denied to element:', requiredPermission);
     }
   });
 
-  // data-role属性を持つ要素を制御
+  // data-role属性を持つ要素を制御（完全一致）
   document.querySelectorAll('[data-role]').forEach(element => {
     const allowedRoles = element.dataset.role.split(',');
     const userRoles = user.roles || [];
     const hasRole = allowedRoles.some(role => userRoles.includes(role.trim()));
 
     if (!hasRole) {
-      element.style.display = 'none';
+      element.classList.add('permission-hidden');
       console.log('[RBAC] Role access denied:', allowedRoles);
+    }
+  });
+
+  // data-required-role属性を持つ要素を制御（階層ベース）
+  document.querySelectorAll('[data-required-role]').forEach(element => {
+    const requiredRole = element.dataset.requiredRole;
+    const hasAccess = checkPermission(requiredRole);
+
+    if (!hasAccess) {
+      element.classList.add('permission-hidden');
+      console.log('[RBAC] Required role denied:', requiredRole);
+    }
+  });
+
+  // data-creator属性を持つ要素を制御（作成者または管理者のみ編集可）
+  document.querySelectorAll('[data-creator]').forEach(element => {
+    const creatorId = element.dataset.creator;
+    const canEditItem = canEdit(creatorId);
+
+    if (!canEditItem) {
+      element.classList.add('permission-hidden');
+      console.log('[RBAC] Edit permission denied for creator:', creatorId);
     }
   });
 }
@@ -364,17 +438,44 @@ function displayKnowledge(knowledgeList) {
   knowledgeList.forEach(k => {
     const card = createElement('div', {className: 'knowledge-card'}, []);
 
-    // カードクリックで詳細画面へ遷移
-    card.style.cursor = 'pointer';
-    card.onclick = () => {
+    // ヘッダー部分（タイトルとアクションボタン）
+    const cardHeader = createElement('div', {className: 'knowledge-card-header'}, []);
+    cardHeader.style.display = 'flex';
+    cardHeader.style.justifyContent = 'space-between';
+    cardHeader.style.alignItems = 'flex-start';
+
+    // タイトル（クリックで詳細画面へ遷移）
+    const title = createElement('h4', {}, [k.title || '']);
+    title.style.cursor = 'pointer';
+    title.style.flex = '1';
+    title.onclick = (e) => {
+      e.stopPropagation();
       // 詳細データをlocalStorageに保存
       localStorage.setItem('knowledge_detail', JSON.stringify(k));
       window.location.href = 'search-detail.html';
     };
+    cardHeader.appendChild(title);
 
-    // タイトル
-    const title = createElement('h4', {}, [k.title || '']);
-    card.appendChild(title);
+    // アクションボタンコンテナ
+    const actionButtons = createElement('div', {className: 'knowledge-actions'}, []);
+    actionButtons.style.display = 'flex';
+    actionButtons.style.gap = '8px';
+
+    // 編集ボタン（作成者または管理者のみ表示）
+    const creatorId = k.owner_id || k.owner || k.created_by;
+    if (canEdit(creatorId)) {
+      const editBtn = createElement('button', {className: 'cta ghost small'}, ['編集']);
+      editBtn.style.fontSize = '12px';
+      editBtn.style.padding = '4px 8px';
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        editKnowledge(k.id, creatorId);
+      };
+      actionButtons.appendChild(editBtn);
+    }
+
+    cardHeader.appendChild(actionButtons);
+    card.appendChild(cardHeader);
 
     // メタ情報
     const meta = createElement('div', {className: 'knowledge-meta'}, [
@@ -647,10 +748,70 @@ progressItems.forEach((item) => {
 });
 
 // ============================================================
+// 承認・却下機能
+// ============================================================
+
+/**
+ * 選択されたアイテムを承認
+ * quality_assurance以上の権限が必要
+ */
+async function approveSelected() {
+  if (!checkPermission('quality_assurance')) {
+    alert('承認権限がありません。');
+    return;
+  }
+
+  // TODO: 実際の承認処理をAPIで実行
+  alert('承認処理を実行しました。');
+  console.log('[APPROVAL] Approved selected items');
+  loadApprovals();
+}
+
+/**
+ * 選択されたアイテムを却下
+ * quality_assurance以上の権限が必要
+ */
+async function rejectSelected() {
+  if (!checkPermission('quality_assurance')) {
+    alert('却下権限がありません。');
+    return;
+  }
+
+  const reason = prompt('却下理由を入力してください:');
+  if (!reason) return;
+
+  // TODO: 実際の却下処理をAPIで実行
+  alert('却下処理を実行しました。');
+  console.log('[APPROVAL] Rejected selected items. Reason:', reason);
+  loadApprovals();
+}
+
+/**
+ * ナレッジを編集
+ * 作成者または管理者のみ編集可
+ */
+async function editKnowledge(knowledgeId, creatorId) {
+  if (!canEdit(creatorId)) {
+    alert('編集権限がありません。作成者または管理者のみ編集できます。');
+    return;
+  }
+
+  // TODO: 編集モーダルを表示するか、編集画面へ遷移
+  alert('編集画面へ遷移します: ' + knowledgeId);
+  console.log('[KNOWLEDGE] Editing knowledge:', knowledgeId);
+}
+
+// ============================================================
 // 新規ナレッジ登録モーダル
 // ============================================================
 
 async function showNewKnowledgeModal() {
+  // 権限チェック
+  if (!checkPermission('construction_manager')) {
+    alert('ナレッジ登録権限がありません。');
+    return;
+  }
+
   const title = prompt('ナレッジタイトルを入力してください:');
   if (!title) return;
 

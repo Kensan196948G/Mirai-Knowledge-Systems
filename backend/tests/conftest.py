@@ -24,6 +24,9 @@ def client(tmp_path):
     app.config['DATA_DIR'] = str(tmp_path)
     app.config['JWT_SECRET_KEY'] = 'test-secret'
 
+    # テスト時はレート制限を無効化
+    app_v2.limiter.enabled = False
+
     users = [
         {
             'id': 1,
