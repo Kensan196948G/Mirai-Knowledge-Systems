@@ -115,11 +115,24 @@ async function loadKnowledgeDetail() {
   hideError();
 
   try {
-    const data = await apiCall(`/knowledge/${id}`);
+    let data = null;
+
+    // まずlocalStorageから取得を試みる
+    const knowledgeData = JSON.parse(localStorage.getItem('knowledge_details') || '[]');
+    data = knowledgeData.find(k => k.id === parseInt(id));
+
+    // localStorageにない場合はAPIから取得
+    if (!data) {
+      console.log('[DETAIL] Loading from API...');
+      data = await apiCall(`/knowledge/${id}`);
+    } else {
+      console.log('[DETAIL] Loading from localStorage...');
+    }
+
     displayKnowledgeDetail(data);
-    await loadRelatedKnowledge(data.tags || []);
-    await loadKnowledgeComments(id);
-    await loadKnowledgeHistory(id);
+    await loadRelatedKnowledge(data.tags || [], id);
+    loadKnowledgeCommentsFromData(data);
+    loadKnowledgeHistoryFromData(data);
     incrementViewCount(id);
   } catch (error) {
     showError(`データの読み込みに失敗しました: ${error.message}`);
@@ -139,8 +152,8 @@ function displayKnowledgeDetail(data) {
     metaEl.innerHTML = `
       <span>カテゴリ: ${data.category || 'N/A'}</span>
       <span>最終更新: ${formatDate(data.updated_at)}</span>
-      <span>作成者: ${data.created_by_name || 'N/A'}</span>
-      <span>優先度: ${data.priority || '通常'}</span>
+      <span>作成者: ${data.created_by || data.created_by_name || 'N/A'}</span>
+      <span>プロジェクト: ${data.project || 'N/A'}</span>
     `;
   }
 
@@ -170,18 +183,18 @@ function displayKnowledgeDetail(data) {
     metadataTable.innerHTML = `
       <tr><th>作成日</th><td>${formatDate(data.created_at)}</td></tr>
       <tr><th>最終更新</th><td>${formatDate(data.updated_at)}</td></tr>
-      <tr><th>作成者</th><td>${data.created_by_name || 'N/A'}</td></tr>
+      <tr><th>作成者</th><td>${data.created_by || data.created_by_name || 'N/A'}</td></tr>
       <tr><th>カテゴリ</th><td>${data.category || 'N/A'}</td></tr>
-      <tr><th>優先度</th><td>${data.priority || '通常'}</td></tr>
+      <tr><th>プロジェクト</th><td>${data.project || 'N/A'}</td></tr>
       <tr><th>ステータス</th><td>${data.status || '公開'}</td></tr>
     `;
   }
 
   // 統計情報
-  updateElement('totalLikes', data.likes_count || 0);
+  updateElement('totalLikes', data.likes || data.likes_count || 0);
   updateElement('totalBookmarks', data.bookmarks_count || 0);
-  updateElement('totalViews', data.views_count || 0);
-  updateElement('viewCount', `閲覧数 ${data.views_count || 0}`);
+  updateElement('totalViews', data.views || data.views_count || 0);
+  updateElement('viewCount', `閲覧数 ${data.views || data.views_count || 0}`);
 
   // 承認フロー
   displayApprovalFlow(data.approval_status);
@@ -190,15 +203,34 @@ function displayKnowledgeDetail(data) {
   updateBreadcrumb(data.category, data.title);
 }
 
-async function loadRelatedKnowledge(tags) {
+async function loadRelatedKnowledge(tags, currentId) {
   const relatedListEl = document.getElementById('relatedKnowledgeList');
   if (!relatedListEl) return;
 
   try {
-    const data = await apiCall(`/knowledge/search?tags=${tags.join(',')}&limit=5`);
-    if (data && data.results && data.results.length > 0) {
-      relatedListEl.innerHTML = data.results.map(item => `
-        <div class="document">
+    // まずlocalStorageから関連ナレッジを取得
+    const knowledgeData = JSON.parse(localStorage.getItem('knowledge_details') || '[]');
+    const currentKnowledge = knowledgeData.find(k => k.id === parseInt(currentId));
+
+    let relatedItems = [];
+
+    if (currentKnowledge && currentKnowledge.related_knowledge_ids) {
+      // related_knowledge_idsを使用
+      relatedItems = currentKnowledge.related_knowledge_ids
+        .map(relatedId => knowledgeData.find(k => k.id === relatedId))
+        .filter(item => item)
+        .slice(0, 5);
+    } else if (tags && tags.length > 0) {
+      // タグベースで検索
+      relatedItems = knowledgeData
+        .filter(k => k.id !== parseInt(currentId))
+        .filter(k => k.tags && k.tags.some(tag => tags.includes(tag)))
+        .slice(0, 5);
+    }
+
+    if (relatedItems.length > 0) {
+      relatedListEl.innerHTML = relatedItems.map(item => `
+        <div class="document" style="cursor: pointer;" onclick="window.location.href='search-detail.html?id=${item.id}'">
           <strong><a href="search-detail.html?id=${item.id}">${item.title}</a></strong>
           <small>${formatDateShort(item.updated_at)}</small>
           <div>${item.summary || ''}</div>
@@ -210,6 +242,57 @@ async function loadRelatedKnowledge(tags) {
   } catch (error) {
     console.error('Failed to load related knowledge:', error);
     relatedListEl.innerHTML = '<p>関連ナレッジの読み込みに失敗しました</p>';
+  }
+}
+
+/**
+ * コメントをlocalStorageのデータから読み込む
+ */
+function loadKnowledgeCommentsFromData(data) {
+  const commentListEl = document.getElementById('commentList');
+  const commentCountEl = document.getElementById('commentCount');
+  if (!commentListEl) return;
+
+  const comments = data.comments || [];
+  if (commentCountEl) commentCountEl.textContent = comments.length;
+
+  if (comments.length > 0) {
+    commentListEl.innerHTML = comments.map(comment => `
+      <div class="comment-item" style="padding: 15px; border-bottom: 1px solid #eee;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+          <strong>${comment.user || comment.author_name || 'Unknown'}</strong>
+          <small>${formatDate(comment.created_at)}</small>
+        </div>
+        <div>${comment.content}</div>
+        ${comment.likes ? `<div style="margin-top: 8px; font-size: 12px; color: #888;">👍 ${comment.likes}</div>` : ''}
+      </div>
+    `).join('');
+  } else {
+    commentListEl.innerHTML = '<p>コメントがありません</p>';
+  }
+}
+
+/**
+ * 編集履歴をlocalStorageのデータから読み込む
+ */
+function loadKnowledgeHistoryFromData(data) {
+  const historyTableEl = document.getElementById('historyTable');
+  if (!historyTableEl) return;
+
+  const history = data.edit_history || [];
+
+  if (history.length > 0) {
+    historyTableEl.innerHTML = history.map((item, index) => `
+      <tr>
+        <td>v${item.version || (history.length - index)}</td>
+        <td>${formatDate(item.edited_at || item.updated_at)}</td>
+        <td>${item.edited_by || item.updated_by_name || 'N/A'}</td>
+        <td>${item.changes || item.change_summary || '更新'}</td>
+        <td><button class="cta ghost" onclick="alert('バージョン表示機能は準備中です')">表示</button></td>
+      </tr>
+    `).join('');
+  } else {
+    historyTableEl.innerHTML = '<tr><td colspan="5">履歴がありません</td></tr>';
   }
 }
 
@@ -384,9 +467,22 @@ async function loadSOPDetail() {
   hideError();
 
   try {
-    const data = await apiCall(`/sop/${id}`);
+    let data = null;
+
+    // まずlocalStorageから取得を試みる
+    const sopData = JSON.parse(localStorage.getItem('sop_details') || '[]');
+    data = sopData.find(s => s.id === parseInt(id));
+
+    // localStorageにない場合はAPIから取得
+    if (!data) {
+      console.log('[DETAIL] Loading SOP from API...');
+      data = await apiCall(`/sop/${id}`);
+    } else {
+      console.log('[DETAIL] Loading SOP from localStorage...');
+    }
+
     displaySOPDetail(data);
-    await loadRelatedSOP(data.category);
+    await loadRelatedSOP(data.category, id);
   } catch (error) {
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
@@ -399,7 +495,8 @@ function displaySOPDetail(data) {
   updateElement('sopTitle', data.title || 'SOPタイトル');
 
   // ヘッダー情報
-  updateElement('sopNumber', `SOP番号 ${data.sop_number || 'N/A'}`);
+  const sopNumber = data.sop_number || data.title.match(/SOP-(\d+)/)?.[1] || 'N/A';
+  updateElement('sopNumber', `SOP番号 ${sopNumber}`);
   updateElement('sopVersion', `バージョン ${data.version || 'v1.0'}`);
 
   // メタ情報
@@ -407,9 +504,8 @@ function displaySOPDetail(data) {
   if (metaEl) {
     metaEl.innerHTML = `
       <span>改訂日: ${formatDateShort(data.revision_date || data.updated_at)}</span>
-      <span>作成: ${data.department || 'N/A'}</span>
-      <span>対象: ${data.target || 'N/A'}</span>
-      <span>所要時間: ${data.duration || '--'}分</span>
+      <span>カテゴリ: ${data.category || 'N/A'}</span>
+      <span>対象: ${data.target || data.scope || 'N/A'}</span>
     `;
   }
 
@@ -437,18 +533,22 @@ function displaySOPDetail(data) {
     `;
   }
 
-  // 手順
+  // 手順（localStorageデータはsteps配列を持つ）
   const procedureEl = document.getElementById('sopProcedure');
-  if (procedureEl && data.procedure) {
-    if (Array.isArray(data.procedure)) {
-      procedureEl.innerHTML = data.procedure.map((step, i) => `
-        <div class="step-item">
-          <strong>Step ${i + 1}: ${step.title || ''}</strong>
-          <div>${step.description || step}</div>
+  if (procedureEl) {
+    const steps = data.steps || data.procedure || [];
+    if (Array.isArray(steps) && steps.length > 0) {
+      procedureEl.innerHTML = steps.map((step, i) => `
+        <div class="step-item" style="padding: 15px; margin-bottom: 10px; border-left: 3px solid var(--accent); background: rgba(241, 236, 228, 0.3);">
+          <strong>Step ${step.step_number || (i + 1)}: ${step.title || ''}</strong>
+          <div style="margin-top: 8px;">${step.description || step}</div>
+          ${step.responsible ? `<small style="color: var(--muted); margin-top: 5px; display: block;">担当: ${step.responsible} · 所要時間: ${step.estimated_time || 'N/A'}</small>` : ''}
         </div>
       `).join('');
+    } else if (typeof steps === 'string') {
+      procedureEl.innerHTML = `<div>${steps}</div>`;
     } else {
-      procedureEl.innerHTML = `<div>${data.procedure}</div>`;
+      procedureEl.innerHTML = '<p>手順データがありません</p>';
     }
   }
 
@@ -456,23 +556,44 @@ function displaySOPDetail(data) {
   const checklistEl = document.getElementById('sopChecklist');
   if (checklistEl && data.checklist) {
     if (Array.isArray(data.checklist)) {
-      checklistEl.innerHTML = data.checklist.map(item =>
-        `<div><input type="checkbox"> ${item}</div>`
-      ).join('');
+      checklistEl.innerHTML = data.checklist.map(item => {
+        const itemText = typeof item === 'object' ? item.item : item;
+        const isRequired = typeof item === 'object' ? item.required : false;
+        return `<div style="padding: 8px;"><input type="checkbox"> ${itemText}${isRequired ? ' <span style="color: var(--danger);">*</span>' : ''}</div>`;
+      }).join('');
     } else {
       checklistEl.innerHTML = `<div>${data.checklist}</div>`;
     }
   }
 
-  // 注意事項
+  // 注意事項（localStorageデータはprecautions配列を持つ）
   const warningsEl = document.getElementById('sopWarnings');
-  if (warningsEl && data.warnings) {
-    if (Array.isArray(data.warnings)) {
-      warningsEl.innerHTML = data.warnings.map(warning =>
-        `<div>⚠️ ${warning}</div>`
+  if (warningsEl) {
+    const warnings = data.precautions || data.warnings || [];
+    if (Array.isArray(warnings) && warnings.length > 0) {
+      warningsEl.innerHTML = warnings.map(warning =>
+        `<div style="padding: 10px; margin-bottom: 8px; border-left: 3px solid var(--warning); background: rgba(255, 193, 7, 0.1);">⚠️ ${warning}</div>`
       ).join('');
+    } else if (typeof warnings === 'string') {
+      warningsEl.innerHTML = `<div>⚠️ ${warnings}</div>`;
     } else {
-      warningsEl.innerHTML = `<div>⚠️ ${data.warnings}</div>`;
+      warningsEl.innerHTML = '<p>注意事項がありません</p>';
+    }
+  }
+
+  // 改訂履歴（localStorageデータはrevision_history配列を持つ）
+  const revisionHistoryEl = document.getElementById('revisionHistory');
+  if (revisionHistoryEl && data.revision_history) {
+    if (Array.isArray(data.revision_history)) {
+      revisionHistoryEl.innerHTML = data.revision_history.map(rev => `
+        <tr>
+          <td>${rev.version || 'N/A'}</td>
+          <td>${rev.date || formatDateShort(rev.updated_at)}</td>
+          <td>${rev.changes || 'N/A'}</td>
+          <td>${rev.author || 'N/A'}</td>
+          <td><button class="cta ghost" onclick="alert('バージョン表示機能は準備中です')">表示</button></td>
+        </tr>
+      `).join('');
     }
   }
 
@@ -504,17 +625,36 @@ function displaySOPDetail(data) {
   updateBreadcrumb('SOP', data.title);
 }
 
-async function loadRelatedSOP(category) {
+async function loadRelatedSOP(category, currentId) {
   const relatedListEl = document.getElementById('relatedSOPList');
   if (!relatedListEl) return;
 
   try {
-    const data = await apiCall(`/sop/search?category=${category}&limit=5`);
-    if (data && data.results && data.results.length > 0) {
-      relatedListEl.innerHTML = data.results.map(item => `
-        <div class="document">
+    // まずlocalStorageから関連SOPを取得
+    const sopData = JSON.parse(localStorage.getItem('sop_details') || '[]');
+    const currentSOP = sopData.find(s => s.id === parseInt(currentId));
+
+    let relatedItems = [];
+
+    if (currentSOP && currentSOP.related_sops) {
+      // related_sopsを使用
+      relatedItems = currentSOP.related_sops
+        .map(relatedId => sopData.find(s => s.id === relatedId))
+        .filter(item => item)
+        .slice(0, 5);
+    } else if (category) {
+      // カテゴリベースで検索
+      relatedItems = sopData
+        .filter(s => s.id !== parseInt(currentId))
+        .filter(s => s.category === category)
+        .slice(0, 5);
+    }
+
+    if (relatedItems.length > 0) {
+      relatedListEl.innerHTML = relatedItems.map(item => `
+        <div class="document" style="cursor: pointer;" onclick="window.location.href='sop-detail.html?id=${item.id}'">
           <strong><a href="sop-detail.html?id=${item.id}">${item.title}</a></strong>
-          <small>${item.sop_number || ''}</small>
+          <small>${item.version || 'v1.0'}</small>
           <div>${item.purpose || ''}</div>
         </div>
       `).join('');
@@ -579,9 +719,22 @@ async function loadIncidentDetail() {
   hideError();
 
   try {
-    const data = await apiCall(`/incident/${id}`);
+    let data = null;
+
+    // まずlocalStorageから取得を試みる
+    const incidentData = JSON.parse(localStorage.getItem('incidents_details') || '[]');
+    data = incidentData.find(i => i.id === parseInt(id));
+
+    // localStorageにない場合はAPIから取得
+    if (!data) {
+      console.log('[DETAIL] Loading incident from API...');
+      data = await apiCall(`/incident/${id}`);
+    } else {
+      console.log('[DETAIL] Loading incident from localStorage...');
+    }
+
     displayIncidentDetail(data);
-    await loadCorrectiveActions(id);
+    loadCorrectiveActionsFromData(data);
   } catch (error) {
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
@@ -594,17 +747,18 @@ function displayIncidentDetail(data) {
   updateElement('incidentTitle', data.title || '事故レポートタイトル');
 
   // ヘッダー情報
-  updateElement('incidentNumber', `報告No. ${data.incident_number || 'N/A'}`);
+  const incidentNumber = data.incident_number || `INC-${data.id}`;
+  updateElement('incidentNumber', `報告No. ${incidentNumber}`);
   updateElement('incidentSeverity', `重大度 ${data.severity || 'N/A'}`);
 
   // メタ情報
   const metaEl = document.getElementById('incidentMeta');
   if (metaEl) {
     metaEl.innerHTML = `
-      <span>発生日: ${formatDate(data.incident_date)}</span>
-      <span>現場: ${data.site || 'N/A'}</span>
-      <span>報告者: ${data.reporter_name || 'N/A'}</span>
-      <span>天候: ${data.weather || 'N/A'}</span>
+      <span>発生日: ${formatDate(data.occurred_at || data.incident_date)}</span>
+      <span>場所: ${data.location || 'N/A'}</span>
+      <span>報告者: ${data.reporter || data.reporter_name || 'N/A'}</span>
+      <span>種類: ${data.type || 'N/A'}</span>
     `;
   }
 
@@ -617,29 +771,29 @@ function displayIncidentDetail(data) {
   }
 
   // 概要
-  updateElement('incidentSummary', data.summary || '概要がありません');
+  updateElement('incidentSummary', data.description || data.summary || '概要がありません');
 
   // 発生情報
   const incidentInfoEl = document.getElementById('incidentInfo');
   if (incidentInfoEl) {
     incidentInfoEl.innerHTML = `
-      <tr><th>発生日時</th><td>${formatDate(data.incident_date)}</td></tr>
+      <tr><th>発生日時</th><td>${formatDate(data.occurred_at || data.incident_date)}</td></tr>
       <tr><th>発生場所</th><td>${data.location || 'N/A'}</td></tr>
-      <tr><th>天候</th><td>${data.weather || 'N/A'}</td></tr>
-      <tr><th>温度</th><td>${data.temperature || 'N/A'}℃</td></tr>
-      <tr><th>作業内容</th><td>${data.work_description || 'N/A'}</td></tr>
+      <tr><th>種類</th><td>${data.type || 'N/A'}</td></tr>
+      <tr><th>重大度</th><td>${data.severity || 'N/A'}</td></tr>
+      <tr><th>ステータス</th><td>${data.status || 'N/A'}</td></tr>
     `;
   }
 
-  // タイムライン
+  // タイムライン（localStorageデータはtimeline配列を持つ）
   const timelineEl = document.getElementById('incidentTimeline');
   if (timelineEl && data.timeline) {
     if (Array.isArray(data.timeline)) {
       timelineEl.innerHTML = data.timeline.map(event => `
-        <div class="timeline-item">
-          <strong>${event.time || 'N/A'}</strong>
-          <div>${event.description || ''}</div>
-          <small>${event.note || ''}</small>
+        <div class="timeline-item" style="padding: 15px; margin-bottom: 10px; border-left: 3px solid var(--steel); background: rgba(47, 75, 82, 0.05);">
+          <strong>${formatDate(event.time)}</strong>
+          <div style="margin-top: 5px; font-weight: 600;">${event.event || ''}</div>
+          <small style="color: var(--muted);">${event.details || ''}</small>
         </div>
       `).join('');
     } else {
@@ -647,35 +801,28 @@ function displayIncidentDetail(data) {
     }
   }
 
-  // 4M分析
-  if (data.cause_analysis) {
-    updateElement('causeMan', data.cause_analysis.man || '分析なし');
-    updateElement('causeMachine', data.cause_analysis.machine || '分析なし');
-    updateElement('causeMedia', data.cause_analysis.media || '分析なし');
-    updateElement('causeManagement', data.cause_analysis.management || '分析なし');
-  }
+  // 原因分析（localStorageデータはroot_causes配列を持つ）
+  if (data.root_causes && Array.isArray(data.root_causes)) {
+    const causeAnalysisEl = document.getElementById('causeAnalysis');
+    if (causeAnalysisEl) {
+      const causesByCategory = {
+        man: [],
+        machine: [],
+        media: [],
+        management: []
+      };
 
-  // 即時対応
-  const immediateActionsEl = document.getElementById('immediateActions');
-  if (immediateActionsEl && data.immediate_actions) {
-    if (Array.isArray(data.immediate_actions)) {
-      immediateActionsEl.innerHTML = data.immediate_actions.map(action =>
-        `<div>✓ ${action}</div>`
-      ).join('');
-    } else {
-      immediateActionsEl.innerHTML = `<div>${data.immediate_actions}</div>`;
-    }
-  }
+      // ランダムに4Mに振り分け（簡易実装）
+      data.root_causes.forEach((cause, i) => {
+        const categories = ['man', 'machine', 'media', 'management'];
+        const category = categories[i % categories.length];
+        causesByCategory[category].push(cause);
+      });
 
-  // 再発防止策
-  const preventionEl = document.getElementById('preventionMeasures');
-  if (preventionEl && data.prevention_measures) {
-    if (Array.isArray(data.prevention_measures)) {
-      preventionEl.innerHTML = data.prevention_measures.map(measure =>
-        `<div>• ${measure}</div>`
-      ).join('');
-    } else {
-      preventionEl.innerHTML = `<div>${data.prevention_measures}</div>`;
+      updateElement('causeMan', causesByCategory.man.length > 0 ? causesByCategory.man.join('<br>') : '分析なし');
+      updateElement('causeMachine', causesByCategory.machine.length > 0 ? causesByCategory.machine.join('<br>') : '分析なし');
+      updateElement('causeMedia', causesByCategory.media.length > 0 ? causesByCategory.media.join('<br>') : '分析なし');
+      updateElement('causeManagement', causesByCategory.management.length > 0 ? causesByCategory.management.join('<br>') : '分析なし');
     }
   }
 
@@ -689,6 +836,48 @@ function displayIncidentDetail(data) {
 
   // パンくずリスト更新
   updateBreadcrumb('事故レポート', data.title);
+}
+
+/**
+ * 是正措置をlocalStorageのデータから読み込む
+ */
+function loadCorrectiveActionsFromData(data) {
+  const tableEl = document.getElementById('correctiveActionTable');
+  if (!tableEl) return;
+
+  const actions = data.corrective_actions || [];
+
+  if (actions.length > 0) {
+    tableEl.innerHTML = actions.map(action => {
+      const statusClass = action.status === 'completed' ? 'is-ok' : action.status === 'in_progress' ? 'is-warn' : 'is-hold';
+      const statusText = action.status === 'completed' ? '完了' : action.status === 'in_progress' ? '進行中' : '未着手';
+      return `
+        <tr>
+          <td><span class="status-dot ${statusClass}"></span> ${statusText}</td>
+          <td>${action.action || action.content}</td>
+          <td>${action.responsible || action.assignee_name || 'N/A'}</td>
+          <td>${formatDateShort(action.deadline)}</td>
+          <td>${action.progress || (action.status === 'completed' ? 100 : action.status === 'in_progress' ? 50 : 0)}%</td>
+          <td>
+            <button class="cta ghost" onclick="alert('是正措置更新機能は準備中です')">更新</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // KPI更新
+    const completedCount = actions.filter(a => a.status === 'completed').length;
+    const completionRate = Math.round((completedCount / actions.length) * 100);
+    const onTimeCount = actions.filter(a => a.status === 'completed' && new Date(a.deadline) >= new Date()).length;
+    const deadlineRate = actions.length > 0 ? Math.round((onTimeCount / actions.length) * 100) : 0;
+    const remainingTasks = actions.filter(a => a.status !== 'completed').length;
+
+    updateElement('completionRate', completionRate);
+    updateElement('deadlineRate', deadlineRate);
+    updateElement('remainingTasks', remainingTasks);
+  } else {
+    tableEl.innerHTML = '<tr><td colspan="6">是正措置がありません</td></tr>';
+  }
 }
 
 async function loadCorrectiveActions(incidentId) {
@@ -708,7 +897,7 @@ async function loadCorrectiveActions(incidentId) {
             <td>${formatDateShort(action.deadline)}</td>
             <td>${action.progress || 0}%</td>
             <td>
-              <button class="cta ghost" onclick="updateCorrectiveAction(${action.id})">更新</button>
+              <button class="cta ghost" onclick="alert('是正措置更新機能は準備中です')">更新</button>
             </td>
           </tr>
         `;
@@ -753,10 +942,23 @@ async function loadConsultDetail() {
   hideError();
 
   try {
-    const data = await apiCall(`/consultation/${id}`);
+    let data = null;
+
+    // まずlocalStorageから取得を試みる
+    const consultData = JSON.parse(localStorage.getItem('consultations_details') || '[]');
+    data = consultData.find(c => c.id === parseInt(id));
+
+    // localStorageにない場合はAPIから取得
+    if (!data) {
+      console.log('[DETAIL] Loading consultation from API...');
+      data = await apiCall(`/consultation/${id}`);
+    } else {
+      console.log('[DETAIL] Loading consultation from localStorage...');
+    }
+
     displayConsultDetail(data);
-    await loadAnswers(id);
-    await loadRelatedQuestions(data.tags || []);
+    loadAnswersFromData(data);
+    await loadRelatedQuestions(data.tags || [], id);
   } catch (error) {
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
@@ -769,17 +971,23 @@ function displayConsultDetail(data) {
   updateElement('consultTitle', data.title || '相談タイトル');
 
   // ヘッダー情報
-  updateElement('consultStatus', `ステータス ${data.status || '受付中'}`);
-  updateElement('responseTime', `回答時間 ${data.response_time || '--'}時間`);
+  const statusText = data.status === 'answered' ? '回答済み' : data.status === 'pending' ? '受付中' : data.status;
+  updateElement('consultStatus', `ステータス ${statusText}`);
+
+  // 回答時間計算
+  const responseTime = data.answers && data.answers.length > 0
+    ? calculateResponseTime(data.created_at, data.answers[0].created_at)
+    : '--';
+  updateElement('responseTime', `回答時間 ${responseTime}時間`);
 
   // メタ情報
   const metaEl = document.getElementById('consultMeta');
   if (metaEl) {
     metaEl.innerHTML = `
       <span>投稿日: ${formatDate(data.created_at)}</span>
-      <span>投稿者: ${data.author_name || 'N/A'}</span>
+      <span>投稿者: ${data.requester || data.author_name || 'N/A'}</span>
       <span>カテゴリ: ${data.category || 'N/A'}</span>
-      <span>現場: ${data.site || 'N/A'}</span>
+      <span>プロジェクト: ${data.project || 'N/A'}</span>
     `;
   }
 
@@ -799,10 +1007,10 @@ function displayConsultDetail(data) {
   if (consultInfoEl) {
     consultInfoEl.innerHTML = `
       <tr><th>投稿日</th><td>${formatDate(data.created_at)}</td></tr>
-      <tr><th>投稿者</th><td>${data.author_name || 'N/A'}</td></tr>
+      <tr><th>投稿者</th><td>${data.requester || data.author_name || 'N/A'}</td></tr>
       <tr><th>カテゴリ</th><td>${data.category || 'N/A'}</td></tr>
-      <tr><th>現場</th><td>${data.site || 'N/A'}</td></tr>
-      <tr><th>ステータス</th><td>${data.status || '受付中'}</td></tr>
+      <tr><th>プロジェクト</th><td>${data.project || 'N/A'}</td></tr>
+      <tr><th>ステータス</th><td>${statusText}</td></tr>
     `;
   }
 
@@ -812,12 +1020,65 @@ function displayConsultDetail(data) {
   updateElement('elapsedTime', calculateElapsedTime(data.created_at));
 
   // 統計
-  updateElement('totalAnswers', data.answer_count || 0);
-  updateElement('viewCount', data.view_count || 0);
+  const answerCount = data.answers ? data.answers.length : data.answer_count || 0;
+  updateElement('totalAnswers', answerCount);
+  updateElement('answerCount', answerCount);
+  updateElement('viewCount', data.views || data.view_count || 0);
   updateElement('followerCount', data.follower_count || 0);
 
   // パンくずリスト更新
   updateBreadcrumb('専門家相談', data.title);
+}
+
+/**
+ * 回答時間を計算
+ */
+function calculateResponseTime(createdAt, firstAnswerAt) {
+  if (!createdAt || !firstAnswerAt) return '--';
+  const created = new Date(createdAt);
+  const answered = new Date(firstAnswerAt);
+  const diffMs = answered - created;
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  return hours;
+}
+
+/**
+ * 回答をlocalStorageのデータから読み込む
+ */
+function loadAnswersFromData(data) {
+  const answerListEl = document.getElementById('answerList');
+  const answerCountEl = document.getElementById('answerCount');
+  if (!answerListEl) return;
+
+  const answers = data.answers || [];
+  if (answerCountEl) answerCountEl.textContent = answers.length;
+
+  if (answers.length > 0) {
+    answerListEl.innerHTML = answers.map(answer => `
+      <div class="answer-item" style="padding: 20px; border: 1px solid ${answer.is_best_answer ? '#ffa500' : 'var(--line)'}; border-radius: 8px; margin-bottom: 15px; background: ${answer.is_best_answer ? '#fffbf0' : 'white'};">
+        ${answer.is_best_answer ? '<div style="color: #ffa500; font-weight: bold; margin-bottom: 10px;">✓ ベストアンサー</div>' : ''}
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+          <div>
+            <strong>${answer.expert || answer.author_name || 'Unknown'}</strong>
+            <small style="color: var(--muted); margin-left: 10px;">${answer.expert_title || ''}</small>
+          </div>
+          <small>${formatDate(answer.created_at)}</small>
+        </div>
+        <div style="margin-bottom: 10px; white-space: pre-wrap;">${answer.content}</div>
+        ${answer.attachments && answer.attachments.length > 0 ? `
+          <div style="padding: 10px; background: #f5f5f5; border-radius: 4px; margin-top: 10px;">
+            <strong>添付ファイル:</strong>
+            ${answer.attachments.map(att => `<div>📎 ${att.name}</div>`).join('')}
+          </div>
+        ` : ''}
+        <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">
+          👍 役に立った: ${answer.helpful_count || 0}人
+        </div>
+      </div>
+    `).join('');
+  } else {
+    answerListEl.innerHTML = '<p>まだ回答がありません</p>';
+  }
 }
 
 async function loadAnswers(consultId) {
@@ -850,18 +1111,39 @@ async function loadAnswers(consultId) {
   }
 }
 
-async function loadRelatedQuestions(tags) {
+async function loadRelatedQuestions(tags, currentId) {
   const relatedEl = document.getElementById('relatedQuestions');
   if (!relatedEl) return;
 
   try {
-    const data = await apiCall(`/consultation/search?tags=${tags.join(',')}&limit=5`);
-    if (data && data.results && data.results.length > 0) {
-      relatedEl.innerHTML = data.results.map(item => `
-        <div class="document">
+    // まずlocalStorageから関連質問を取得
+    const consultData = JSON.parse(localStorage.getItem('consultations_details') || '[]');
+
+    let relatedItems = [];
+
+    if (tags && tags.length > 0) {
+      // タグベースで検索
+      relatedItems = consultData
+        .filter(c => c.id !== parseInt(currentId))
+        .filter(c => c.tags && c.tags.some(tag => tags.includes(tag)))
+        .slice(0, 5);
+    } else {
+      // タグがない場合はカテゴリベース
+      const current = consultData.find(c => c.id === parseInt(currentId));
+      if (current) {
+        relatedItems = consultData
+          .filter(c => c.id !== parseInt(currentId))
+          .filter(c => c.category === current.category)
+          .slice(0, 5);
+      }
+    }
+
+    if (relatedItems.length > 0) {
+      relatedEl.innerHTML = relatedItems.map(item => `
+        <div class="document" style="cursor: pointer;" onclick="window.location.href='expert-consult.html?id=${item.id}'">
           <strong><a href="expert-consult.html?id=${item.id}">${item.title}</a></strong>
-          <small>${item.answer_count || 0}件の回答</small>
-          <div>${item.summary || ''}</div>
+          <small>${item.answers ? item.answers.length : 0}件の回答</small>
+          <div>${item.content ? item.content.substring(0, 100) + '...' : ''}</div>
         </div>
       `).join('');
     } else {

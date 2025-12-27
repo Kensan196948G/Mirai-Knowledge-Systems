@@ -1621,6 +1621,117 @@ function startPeriodicUpdates() {
 }
 
 // ============================================================
+// ダミーデータのロードとlocalStorage保存
+// ============================================================
+
+/**
+ * バックエンドの生成済みダミーデータをlocalStorageに保存
+ */
+async function loadDummyDataToStorage() {
+  console.log('[DATA] Loading dummy data to localStorage...');
+
+  const dataFiles = [
+    { key: 'knowledge_details', file: '/backend/data/knowledge_details.json' },
+    { key: 'sop_details', file: '/backend/data/sop_details.json' },
+    { key: 'incidents_details', file: '/backend/data/incidents_details.json' },
+    { key: 'consultations_details', file: '/backend/data/consultations_details.json' },
+    { key: 'projects', file: '/backend/data/projects.json' },
+    { key: 'experts', file: '/backend/data/experts.json' }
+  ];
+
+  for (const {key, file} of dataFiles) {
+    try {
+      // localStorageに既に存在する場合はスキップ
+      if (localStorage.getItem(key)) {
+        console.log(`[DATA] ${key} already exists in localStorage`);
+        continue;
+      }
+
+      const response = await fetch(file);
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem(key, JSON.stringify(data));
+        console.log(`[DATA] Loaded ${key}: ${data.length} items`);
+      } else {
+        console.warn(`[DATA] Failed to load ${file}: ${response.status}`);
+      }
+    } catch (error) {
+      console.error(`[DATA] Error loading ${file}:`, error);
+    }
+  }
+}
+
+/**
+ * 詳細ページへ遷移（ナレッジ）
+ */
+function viewKnowledgeDetail(knowledgeId) {
+  console.log('[NAVIGATION] Viewing knowledge detail:', knowledgeId);
+
+  // localStorageからナレッジデータを取得
+  const knowledgeData = JSON.parse(localStorage.getItem('knowledge_details') || '[]');
+  const knowledge = knowledgeData.find(k => k.id === knowledgeId);
+
+  if (knowledge) {
+    // 選択されたナレッジをlocalStorageに保存
+    localStorage.setItem('current_knowledge', JSON.stringify(knowledge));
+    window.location.href = `search-detail.html?id=${knowledgeId}`;
+  } else {
+    showNotification(`ナレッジID ${knowledgeId} が見つかりません`, 'error');
+  }
+}
+
+/**
+ * 詳細ページへ遷移（SOP）
+ */
+function viewSOPDetail(sopId) {
+  console.log('[NAVIGATION] Viewing SOP detail:', sopId);
+
+  const sopData = JSON.parse(localStorage.getItem('sop_details') || '[]');
+  const sop = sopData.find(s => s.id === sopId);
+
+  if (sop) {
+    localStorage.setItem('current_sop', JSON.stringify(sop));
+    window.location.href = `sop-detail.html?id=${sopId}`;
+  } else {
+    showNotification(`SOP ID ${sopId} が見つかりません`, 'error');
+  }
+}
+
+/**
+ * 詳細ページへ遷移（事故レポート）
+ */
+function viewIncidentDetail(incidentId) {
+  console.log('[NAVIGATION] Viewing incident detail:', incidentId);
+
+  const incidentData = JSON.parse(localStorage.getItem('incidents_details') || '[]');
+  const incident = incidentData.find(i => i.id === incidentId);
+
+  if (incident) {
+    localStorage.setItem('current_incident', JSON.stringify(incident));
+    window.location.href = `incident-detail.html?id=${incidentId}`;
+  } else {
+    showNotification(`事故レポートID ${incidentId} が見つかりません`, 'error');
+  }
+}
+
+/**
+ * 詳細ページへ遷移（専門家相談）
+ */
+function viewConsultationDetail(consultId) {
+  console.log('[NAVIGATION] Viewing consultation detail:', consultId);
+
+  const consultData = JSON.parse(localStorage.getItem('consultations_details') || '[]');
+  const consultation = consultData.find(c => c.id === consultId);
+
+  if (consultation) {
+    localStorage.setItem('current_consultation', JSON.stringify(consultation));
+    window.location.href = `expert-consult.html?id=${consultId}`;
+  } else {
+    showNotification(`相談ID ${consultId} が見つかりません`, 'error');
+  }
+}
+
+// ============================================================
 // サイドバー機能
 // ============================================================
 
@@ -2054,22 +2165,116 @@ function consultExpert(expertId) {
   if (expert) {
     console.log('[SIDEBAR] Consulting expert:', expert.name);
     showNotification(`${expert.name}さんへ相談画面を開きます`, 'info');
-    // TODO: 専門家相談画面へ遷移
-    window.location.href = 'expert-consult.html';
+
+    // 専門家相談の最初のアイテムを表示（デモ用）
+    const consultData = JSON.parse(localStorage.getItem('consultations_details') || '[]');
+    if (consultData.length > 0) {
+      viewConsultationDetail(1); // 最初の相談を表示
+    } else {
+      window.location.href = 'expert-consult.html';
+    }
   }
+}
+
+/**
+ * メインコンテンツのカードにクリックイベントを追加
+ */
+function setupCardClickHandlers() {
+  console.log('[SETUP] Setting up card click handlers...');
+
+  // 各タブパネル内のknowledge-cardを取得
+  const panels = {
+    'panel-search': 'knowledge',
+    'panel-sop': 'sop',
+    'panel-incident': 'incident'
+  };
+
+  Object.entries(panels).forEach(([panelId, type]) => {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    const cards = panel.querySelectorAll('.knowledge-card');
+    cards.forEach((card, index) => {
+      // カードをクリック可能にする
+      card.style.cursor = 'pointer';
+      card.style.transition = 'all 0.2s';
+
+      // ホバーエフェクト
+      card.addEventListener('mouseenter', () => {
+        card.style.transform = 'translateY(-2px)';
+        card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = '';
+      });
+
+      // クリックイベント
+      card.addEventListener('click', () => {
+        // ダミーデータから該当するIDを計算（サンプルとして1-3を使用）
+        const itemId = index + 1;
+
+        if (type === 'knowledge') {
+          viewKnowledgeDetail(itemId);
+        } else if (type === 'sop') {
+          viewSOPDetail(itemId);
+        } else if (type === 'incident') {
+          viewIncidentDetail(itemId);
+        }
+      });
+    });
+
+    console.log(`[SETUP] Added click handlers to ${cards.length} cards in ${panelId}`);
+  });
+
+  // 当番エキスパート（右サイドバー）にクリックイベントを追加
+  setupExpertClickHandlers();
+}
+
+/**
+ * 当番エキスパートクリック機能
+ */
+function setupExpertClickHandlers() {
+  const expertDocuments = document.querySelectorAll('aside.rail .document');
+
+  expertDocuments.forEach((doc, index) => {
+    const strongEl = doc.querySelector('strong');
+    if (strongEl && strongEl.textContent.includes('エキスパート')) {
+      doc.style.cursor = 'pointer';
+      doc.style.transition = 'all 0.2s';
+
+      doc.addEventListener('mouseenter', () => {
+        doc.style.background = 'rgba(212, 102, 47, 0.08)';
+      });
+
+      doc.addEventListener('mouseleave', () => {
+        doc.style.background = '';
+      });
+
+      doc.addEventListener('click', () => {
+        // 専門家相談の最初の数件を表示（サンプル）
+        const consultId = index + 1;
+        viewConsultationDetail(consultId);
+      });
+    }
+  });
 }
 
 // ============================================================
 // 初期化
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   console.log('建設土木ナレッジシステム - 初期化中...');
 
   // 認証チェック
   if (!checkAuth()) {
     return; // 認証失敗時は処理を中断
   }
+
+  // ダミーデータをlocalStorageに保存
+  await loadDummyDataToStorage();
 
   // ユーザー情報表示
   displayUserInfo();
@@ -2104,6 +2309,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof Chart !== 'undefined') {
     initDashboardCharts();
   }
+
+  // メインコンテンツのカードにクリックイベントを追加
+  setupCardClickHandlers();
 
   // 定期更新を開始
   startPeriodicUpdates();
