@@ -131,12 +131,20 @@ print(f'[INIT] JWT Secret Key configured: {app.config["JWT_SECRET_KEY"][:20]}...
 jwt = JWTManager(app)
 
 # レート制限設定
+# 開発環境では無効化、本番環境では緩和された制限を適用
+if IS_PRODUCTION:
+    default_limits_config = ["1000 per minute", "10000 per hour", "100000 per day"]
+else:
+    # 開発環境: レート制限を無効化
+    default_limits_config = []
+
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=default_limits_config,
     storage_uri="memory://",
-    strategy="fixed-window"
+    strategy="fixed-window",
+    in_memory_fallback_enabled=True
 )
 
 # 静的ファイルをレート制限から除外
@@ -191,10 +199,10 @@ def add_security_headers(response):
         # Content Security Policy（本番用: unsafe-inline を削除）
         csp_policy = "; ".join([
             "default-src 'self'",
-            "script-src 'self'",  # 本番: unsafe-inlineを削除
-            "style-src 'self'",   # 本番: unsafe-inlineを削除
+            "script-src 'self' https://cdn.jsdelivr.net",  # Chart.js CDN許可
+            "style-src 'self' https://fonts.googleapis.com",   # Google Fonts許可
             "img-src 'self' data: https:",
-            "font-src 'self' data:",
+            "font-src 'self' data: https://fonts.gstatic.com",  # Google Fonts許可
             "connect-src 'self'",
             "frame-ancestors 'none'",
             "base-uri 'self'",
@@ -213,10 +221,10 @@ def add_security_headers(response):
         # Content Security Policy（開発用: unsafe-inline許可）
         csp_policy = "; ".join([
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",  # 開発環境用にunsafe-inline許可
-            "style-src 'self' 'unsafe-inline'",   # インラインスタイル許可
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",  # 開発環境用にunsafe-inline許可 + Chart.js CDN
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",   # インラインスタイル許可 + Google Fonts
             "img-src 'self' data: https:",
-            "font-src 'self' data:",
+            "font-src 'self' data: https://fonts.gstatic.com",  # Google Fonts許可
             "connect-src 'self'",
             "frame-ancestors 'none'",
             "base-uri 'self'",

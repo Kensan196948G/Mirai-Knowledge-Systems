@@ -2,7 +2,8 @@
 // 詳細ページ共通機能
 // ============================================================
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5010'}/api/v1`;
+// API_BASEはapp.jsで定義されているため、ここでは定義しない
+// const API_BASE = app.jsで定義済み
 
 // ============================================================
 // ユーティリティ関数
