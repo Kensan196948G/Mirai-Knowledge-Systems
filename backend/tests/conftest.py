@@ -35,6 +35,14 @@ def client(tmp_path):
             'full_name': 'Admin User',
             'department': 'Admin',
             'roles': ['admin']
+        },
+        {
+            'id': 2,
+            'username': 'partner',
+            'password_hash': app_v2.hash_password('partner123'),
+            'full_name': 'Partner User',
+            'department': 'Partner',
+            'roles': ['partner_company']
         }
     ]
     knowledge = [
@@ -42,6 +50,7 @@ def client(tmp_path):
             'id': 1,
             'title': 'Test Knowledge',
             'summary': 'Test summary',
+            'content': 'Test content',
             'category': 'safety',
             'tags': ['test']
         }
@@ -50,6 +59,54 @@ def client(tmp_path):
     _write_json(tmp_path / 'users.json', users)
     _write_json(tmp_path / 'knowledge.json', knowledge)
     _write_json(tmp_path / 'access_logs.json', [])
+    _write_json(tmp_path / 'sop.json', [])
+    _write_json(tmp_path / 'notifications.json', [])
 
     with app.test_client() as test_client:
         yield test_client
+
+
+@pytest.fixture()
+def auth_headers(client):
+    """管理者ユーザーの認証ヘッダーを提供"""
+    response = client.post('/api/auth/login', json={
+        'username': 'admin',
+        'password': 'admin123'
+    })
+    token = response.get_json()['access_token']
+    return {'Authorization': f'Bearer {token}'}
+
+
+@pytest.fixture()
+def partner_auth_headers(client):
+    """協力会社ユーザーの認証ヘッダーを提供"""
+    response = client.post('/api/auth/login', json={
+        'username': 'partner',
+        'password': 'partner123'
+    })
+    token = response.get_json()['access_token']
+    return {'Authorization': f'Bearer {token}'}
+
+
+@pytest.fixture()
+def mock_access_logs(tmp_path):
+    """アクセスログをモックするフィクスチャ"""
+    def _mock_logs(logs):
+        _write_json(tmp_path / 'access_logs.json', logs)
+    return _mock_logs
+
+
+@pytest.fixture()
+def create_knowledge(client, auth_headers):
+    """ナレッジを作成するヘルパーフィクスチャ"""
+    def _create(title='Test', summary='Test', content='Test', category='technical', **kwargs):
+        data = {
+            'title': title,
+            'summary': summary,
+            'content': content,
+            'category': category,
+            **kwargs
+        }
+        response = client.post('/api/knowledge', json=data, headers=auth_headers)
+        return response.get_json()
+    return _create

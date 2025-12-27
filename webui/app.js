@@ -336,7 +336,7 @@ async function fetchAPI(endpoint, options = {}) {
     // 権限エラー（403）
     if (response.status === 403) {
       console.error('[API] 403 Forbidden.');
-      alert('この操作を実行する権限がありません。');
+      showNotification('この操作を実行する権限がありません。', 'error');
       throw new Error('Permission denied');
     }
 
@@ -349,6 +349,47 @@ async function fetchAPI(endpoint, options = {}) {
     console.error('[API] Error:', error);
     throw error;
   }
+}
+
+// ============================================================
+// 通知システム
+// ============================================================
+
+/**
+ * トースト通知を表示
+ */
+function showNotification(message, type = 'info') {
+  const container = document.getElementById('toastContainer') || createToastContainer();
+
+  const toast = createElement('div', {className: `toast toast-${type}`}, []);
+  const icon = {
+    'success': '✓',
+    'error': '✕',
+    'warning': '⚠',
+    'info': 'ℹ'
+  }[type] || 'ℹ';
+
+  const iconSpan = createElement('span', {className: 'toast-icon'}, [icon]);
+  const messageSpan = createElement('span', {className: 'toast-message'}, [message]);
+
+  toast.appendChild(iconSpan);
+  toast.appendChild(messageSpan);
+  container.appendChild(toast);
+
+  // アニメーション
+  setTimeout(() => toast.classList.add('show'), 10);
+
+  // 自動削除
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+function createToastContainer() {
+  const container = createElement('div', {id: 'toastContainer', className: 'toast-container'}, []);
+  document.body.appendChild(container);
+  return container;
 }
 
 // ============================================================
@@ -413,17 +454,58 @@ async function loadApprovals() {
   }
 }
 
+async function loadNotifications() {
+  try {
+    const result = await fetchAPI('/notifications');
+    if (result.success) {
+      updateNotificationBadge(result.data);
+      return result.data;
+    }
+  } catch (error) {
+    console.error('Failed to load notifications:', error);
+    return [];
+  }
+}
+
 // ============================================================
 // データ表示関数
 // ============================================================
 
 function updateDashboardStats(stats) {
+  // ヘッダー統計情報の更新
+  const lastSyncTime = document.getElementById('lastSyncTime');
+  const activeWorkers = document.getElementById('activeWorkers');
+  const totalWorkers = document.getElementById('totalWorkers');
+  const pendingApprovals = document.getElementById('pendingApprovals');
+
+  if (lastSyncTime && stats.last_sync_time) {
+    lastSyncTime.textContent = formatTime(stats.last_sync_time);
+  }
+  if (activeWorkers && stats.active_workers !== undefined) {
+    activeWorkers.textContent = stats.active_workers;
+  }
+  if (totalWorkers && stats.total_workers !== undefined) {
+    totalWorkers.textContent = stats.total_workers;
+  }
+  if (pendingApprovals && stats.pending_approvals !== undefined) {
+    pendingApprovals.textContent = stats.pending_approvals;
+  }
+
+  // メトリクスカードの更新
   const metricCards = document.querySelectorAll('.metric-card');
-  if (metricCards.length >= 4) {
-    metricCards[0].querySelector('strong').textContent = `${stats.knowledge_reuse_rate}%`;
-    metricCards[1].querySelector('strong').textContent = `${stats.accident_free_days}日`;
-    metricCards[2].querySelector('strong').textContent = `${stats.active_audits}現場`;
-    metricCards[3].querySelector('strong').textContent = `${stats.delayed_corrections}件`;
+  if (metricCards.length >= 4 && stats) {
+    if (stats.knowledge_reuse_rate !== undefined) {
+      metricCards[0].querySelector('strong').textContent = `${stats.knowledge_reuse_rate}%`;
+    }
+    if (stats.accident_free_days !== undefined) {
+      metricCards[1].querySelector('strong').textContent = `${stats.accident_free_days}日`;
+    }
+    if (stats.active_audits !== undefined) {
+      metricCards[2].querySelector('strong').textContent = `${stats.active_audits}現場`;
+    }
+    if (stats.delayed_corrections !== undefined) {
+      metricCards[3].querySelector('strong').textContent = `${stats.delayed_corrections}件`;
+    }
   }
 }
 
@@ -623,6 +705,20 @@ function displayApprovals(approvalList) {
   });
 }
 
+function updateNotificationBadge(notifications) {
+  const badge = document.getElementById('notificationBadge');
+  if (!badge) return;
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  if (unreadCount > 0) {
+    badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 // ============================================================
 // ユーティリティ関数
 // ============================================================
@@ -631,6 +727,12 @@ function formatDate(dateString) {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
   return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatTime(dateString) {
+  if (!dateString) return '--:--';
+  const date = new Date(dateString);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 // ============================================================
@@ -663,7 +765,405 @@ function setupSearch() {
 }
 
 // ============================================================
-// タブ切替機能（既存のコードと統合）
+// モーダル管理
+// ============================================================
+
+/**
+ * 新規ナレッジ登録モーダルを開く
+ */
+function openNewKnowledgeModal() {
+  if (!checkPermission('construction_manager')) {
+    showNotification('ナレッジ登録権限がありません。', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('newKnowledgeModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+/**
+ * 新規ナレッジ登録モーダルを閉じる
+ */
+function closeNewKnowledgeModal() {
+  const modal = document.getElementById('newKnowledgeModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    // フォームをリセット
+    const form = document.getElementById('newKnowledgeForm');
+    if (form) form.reset();
+  }
+}
+
+/**
+ * 検索モーダルを開く
+ */
+function openSearchModal() {
+  const modal = document.getElementById('searchModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+/**
+ * 検索モーダルを閉じる
+ */
+function closeSearchModal() {
+  const modal = document.getElementById('searchModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * 検索フォームをリセット
+ */
+function resetSearchForm() {
+  const form = document.getElementById('advancedSearchForm');
+  if (form) {
+    form.reset();
+    const resultsDiv = document.getElementById('searchResults');
+    if (resultsDiv) resultsDiv.textContent = '';
+  }
+}
+
+/**
+ * 通知パネルを開く
+ */
+async function openNotificationPanel() {
+  const panel = document.getElementById('notificationSidePanel');
+  if (panel) {
+    panel.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // 通知データを読み込み
+    const notifications = await loadNotifications();
+    displayNotifications(notifications);
+  }
+}
+
+/**
+ * 通知パネルを閉じる
+ */
+function closeNotificationPanel() {
+  const panel = document.getElementById('notificationSidePanel');
+  if (panel) {
+    panel.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * 設定パネルを開く
+ */
+function openSettingsPanel() {
+  const panel = document.getElementById('settingsPanel');
+  if (panel) {
+    panel.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    loadUserSettings();
+  }
+}
+
+/**
+ * 設定パネルを閉じる
+ */
+function closeSettingsPanel() {
+  const panel = document.getElementById('settingsPanel');
+  if (panel) {
+    panel.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * 通知を表示
+ */
+function displayNotifications(notifications) {
+  const listContainer = document.getElementById('notificationList');
+  if (!listContainer) return;
+
+  listContainer.textContent = '';
+
+  if (!notifications || notifications.length === 0) {
+    const emptyMsg = createElement('div', {className: 'empty-message'}, ['通知はありません']);
+    listContainer.appendChild(emptyMsg);
+    return;
+  }
+
+  notifications.forEach(notif => {
+    const item = createElement('div', {className: `notification-item ${notif.read ? 'read' : 'unread'}`}, []);
+
+    const header = createElement('div', {className: 'notification-header'}, []);
+    const title = createElement('strong', {}, [notif.title || '通知']);
+    const time = createElement('span', {className: 'notification-time'}, [formatTime(notif.created_at)]);
+    header.appendChild(title);
+    header.appendChild(time);
+
+    const message = createElement('div', {className: 'notification-message'}, [notif.message || '']);
+
+    const actions = createElement('div', {className: 'notification-actions'}, []);
+    if (!notif.read) {
+      const markReadBtn = createElement('button', {className: 'notification-btn'}, ['既読にする']);
+      markReadBtn.onclick = () => markNotificationAsRead(notif.id);
+      actions.appendChild(markReadBtn);
+    }
+
+    item.appendChild(header);
+    item.appendChild(message);
+    item.appendChild(actions);
+
+    listContainer.appendChild(item);
+  });
+}
+
+/**
+ * 通知を既読にする
+ */
+async function markNotificationAsRead(notificationId) {
+  try {
+    const result = await fetchAPI(`/notifications/${notificationId}/read`, {
+      method: 'PUT'
+    });
+
+    if (result.success) {
+      showNotification('通知を既読にしました', 'success');
+      const notifications = await loadNotifications();
+      displayNotifications(notifications);
+    }
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error);
+    showNotification('通知の更新に失敗しました', 'error');
+  }
+}
+
+/**
+ * ユーザー設定を読み込み
+ */
+function loadUserSettings() {
+  const user = getCurrentUser();
+  if (!user) return;
+
+  // ユーザー設定
+  const fullNameInput = document.getElementById('userFullName');
+  const departmentInput = document.getElementById('userDepartment');
+  const emailInput = document.getElementById('userEmail');
+
+  if (fullNameInput) fullNameInput.value = user.full_name || '';
+  if (departmentInput) departmentInput.value = user.department || '';
+  if (emailInput) emailInput.value = user.email || '';
+
+  // 通知設定（localStorageから読み込み）
+  const notifyApproval = document.getElementById('notifyApproval');
+  const notifyKnowledge = document.getElementById('notifyKnowledge');
+  const notifyIncident = document.getElementById('notifyIncident');
+  const notifyEmail = document.getElementById('notifyEmail');
+
+  if (notifyApproval) notifyApproval.checked = localStorage.getItem('notify_approval') !== 'false';
+  if (notifyKnowledge) notifyKnowledge.checked = localStorage.getItem('notify_knowledge') !== 'false';
+  if (notifyIncident) notifyIncident.checked = localStorage.getItem('notify_incident') !== 'false';
+  if (notifyEmail) notifyEmail.checked = localStorage.getItem('notify_email') === 'true';
+
+  // 表示設定
+  const itemsPerPage = document.getElementById('itemsPerPage');
+  const enableAnimations = document.getElementById('enableAnimations');
+  const compactMode = document.getElementById('compactMode');
+
+  if (itemsPerPage) itemsPerPage.value = localStorage.getItem('items_per_page') || '20';
+  if (enableAnimations) enableAnimations.checked = localStorage.getItem('enable_animations') !== 'false';
+  if (compactMode) compactMode.checked = localStorage.getItem('compact_mode') === 'true';
+}
+
+// ============================================================
+// フォーム送信処理
+// ============================================================
+
+/**
+ * 新規ナレッジ登録フォームの送信
+ */
+async function submitNewKnowledge(event) {
+  event.preventDefault();
+
+  const form = event.target;
+  const formData = new FormData(form);
+
+  const data = {
+    title: formData.get('title'),
+    category: formData.get('category'),
+    priority: formData.get('priority'),
+    project: formData.get('project') || null,
+    summary: formData.get('summary'),
+    content: formData.get('content'),
+    tags: formData.get('tags') ? formData.get('tags').split(',').map(t => t.trim()).filter(t => t) : []
+  };
+
+  try {
+    const result = await fetchAPI('/knowledge', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+
+    if (result.success) {
+      showNotification('ナレッジを登録しました！', 'success');
+      closeNewKnowledgeModal();
+      loadKnowledge(); // リロード
+    }
+  } catch (error) {
+    console.error('Failed to create knowledge:', error);
+    showNotification('登録に失敗しました: ' + error.message, 'error');
+  }
+}
+
+/**
+ * 高度な検索フォームの送信
+ */
+async function submitAdvancedSearch(event) {
+  event.preventDefault();
+
+  const form = event.target;
+  const formData = new FormData(form);
+
+  const params = {
+    keyword: formData.get('keyword'),
+    category: formData.get('category'),
+    date_from: formData.get('dateFrom'),
+    date_to: formData.get('dateTo'),
+    tags: formData.get('tags'),
+    project: formData.get('project')
+  };
+
+  // 空のパラメータを削除
+  Object.keys(params).forEach(key => {
+    if (!params[key]) delete params[key];
+  });
+
+  try {
+    const queryParams = new URLSearchParams(params).toString();
+    const result = await fetchAPI(`/knowledge/search?${queryParams}`);
+
+    if (result.success) {
+      displaySearchResults(result.data);
+      showNotification(`${result.data.length}件の結果が見つかりました`, 'success');
+    }
+  } catch (error) {
+    console.error('Search failed:', error);
+    showNotification('検索に失敗しました', 'error');
+  }
+}
+
+/**
+ * 検索結果を表示
+ */
+function displaySearchResults(results) {
+  const resultsDiv = document.getElementById('searchResults');
+  if (!resultsDiv) return;
+
+  resultsDiv.textContent = '';
+
+  if (results.length === 0) {
+    const emptyMsg = createElement('div', {className: 'empty-message'}, ['検索結果がありません']);
+    resultsDiv.appendChild(emptyMsg);
+    return;
+  }
+
+  results.forEach(item => {
+    const card = createElement('div', {className: 'knowledge-card'}, []);
+    card.style.cursor = 'pointer';
+    card.onclick = () => {
+      localStorage.setItem('knowledge_detail', JSON.stringify(item));
+      window.location.href = 'search-detail.html';
+    };
+
+    const title = createElement('h4', {}, [item.title || '']);
+    const meta = createElement('div', {className: 'knowledge-meta'}, [
+      `${item.category} · ${formatDate(item.updated_at)}`
+    ]);
+    const summary = createElement('div', {}, [item.summary || '']);
+
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(summary);
+
+    resultsDiv.appendChild(card);
+  });
+}
+
+/**
+ * ユーザー設定フォームの送信
+ */
+async function submitUserSettings(event) {
+  event.preventDefault();
+
+  const form = event.target;
+  const formData = new FormData(form);
+
+  const data = {
+    full_name: formData.get('fullName'),
+    department: formData.get('department'),
+    email: formData.get('email')
+  };
+
+  try {
+    const result = await fetchAPI('/users/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+
+    if (result.success) {
+      // ローカルストレージのユーザー情報を更新
+      const user = getCurrentUser();
+      Object.assign(user, data);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      showNotification('設定を保存しました', 'success');
+      displayUserInfo(); // ヘッダーの表示を更新
+    }
+  } catch (error) {
+    console.error('Failed to update settings:', error);
+    showNotification('設定の保存に失敗しました', 'error');
+  }
+}
+
+/**
+ * 通知設定フォームの送信
+ */
+function submitNotificationSettings(event) {
+  event.preventDefault();
+
+  const form = event.target;
+  const formData = new FormData(form);
+
+  localStorage.setItem('notify_approval', formData.get('notifyApproval') === 'on');
+  localStorage.setItem('notify_knowledge', formData.get('notifyKnowledge') === 'on');
+  localStorage.setItem('notify_incident', formData.get('notifyIncident') === 'on');
+  localStorage.setItem('notify_email', formData.get('notifyEmail') === 'on');
+
+  showNotification('通知設定を保存しました', 'success');
+}
+
+/**
+ * 表示設定フォームの送信
+ */
+function submitDisplaySettings(event) {
+  event.preventDefault();
+
+  const form = event.target;
+  const formData = new FormData(form);
+
+  localStorage.setItem('items_per_page', formData.get('itemsPerPage'));
+  localStorage.setItem('enable_animations', formData.get('enableAnimations') === 'on');
+  localStorage.setItem('compact_mode', formData.get('compactMode') === 'on');
+
+  showNotification('表示設定を保存しました', 'success');
+}
+
+// ============================================================
+// タブ切替機能
 // ============================================================
 
 const tabs = document.querySelectorAll(".tab-btn");
@@ -696,7 +1196,50 @@ if (tabs.length && panels.length) {
 }
 
 // ============================================================
-// トグルボタン機能（既存のコードと統合）
+// サイドパネルタブ切替
+// ============================================================
+
+function setupSidePanelTabs() {
+  document.querySelectorAll('.side-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panel = btn.closest('.side-panel');
+      if (!panel) return;
+
+      const tabName = btn.dataset.tab;
+
+      // タブボタンの状態を更新
+      panel.querySelectorAll('.side-tab-btn').forEach(b => {
+        b.classList.toggle('is-active', b === btn);
+      });
+
+      // 設定パネルの場合、セクションを切り替え
+      if (panel.id === 'settingsPanel') {
+        panel.querySelectorAll('.settings-section').forEach(section => {
+          section.classList.remove('is-active');
+        });
+
+        const sectionMap = {
+          'user': 'userSettings',
+          'notification': 'notificationSettings',
+          'display': 'displaySettings'
+        };
+
+        const targetSection = document.getElementById(sectionMap[tabName]);
+        if (targetSection) {
+          targetSection.classList.add('is-active');
+        }
+      }
+
+      // 通知パネルの場合、フィルタリング
+      if (panel.id === 'notificationSidePanel') {
+        // TODO: 通知のフィルタリング実装
+      }
+    });
+  });
+}
+
+// ============================================================
+// トグルボタン機能
 // ============================================================
 
 const toggleGroups = document.querySelectorAll("[data-toggle-group]");
@@ -730,7 +1273,7 @@ toggleGroups.forEach((group) => {
 });
 
 // ============================================================
-// プログレスバーアニメーション（既存のコードと統合）
+// プログレスバーアニメーション
 // ============================================================
 
 const progressItems = document.querySelectorAll("[data-progress]");
@@ -757,12 +1300,12 @@ progressItems.forEach((item) => {
  */
 async function approveSelected() {
   if (!checkPermission('quality_assurance')) {
-    alert('承認権限がありません。');
+    showNotification('承認権限がありません。', 'error');
     return;
   }
 
   // TODO: 実際の承認処理をAPIで実行
-  alert('承認処理を実行しました。');
+  showNotification('承認処理を実行しました。', 'success');
   console.log('[APPROVAL] Approved selected items');
   loadApprovals();
 }
@@ -773,7 +1316,7 @@ async function approveSelected() {
  */
 async function rejectSelected() {
   if (!checkPermission('quality_assurance')) {
-    alert('却下権限がありません。');
+    showNotification('却下権限がありません。', 'error');
     return;
   }
 
@@ -781,7 +1324,7 @@ async function rejectSelected() {
   if (!reason) return;
 
   // TODO: 実際の却下処理をAPIで実行
-  alert('却下処理を実行しました。');
+  showNotification('却下処理を実行しました。', 'success');
   console.log('[APPROVAL] Rejected selected items. Reason:', reason);
   loadApprovals();
 }
@@ -792,68 +1335,728 @@ async function rejectSelected() {
  */
 async function editKnowledge(knowledgeId, creatorId) {
   if (!canEdit(creatorId)) {
-    alert('編集権限がありません。作成者または管理者のみ編集できます。');
+    showNotification('編集権限がありません。作成者または管理者のみ編集できます。', 'error');
     return;
   }
 
   // TODO: 編集モーダルを表示するか、編集画面へ遷移
-  alert('編集画面へ遷移します: ' + knowledgeId);
+  showNotification('編集画面へ遷移します: ' + knowledgeId, 'info');
   console.log('[KNOWLEDGE] Editing knowledge:', knowledgeId);
 }
 
 // ============================================================
-// 新規ナレッジ登録モーダル
+// その他のアクション（プレースホルダー削除済み）
 // ============================================================
 
-async function showNewKnowledgeModal() {
-  // 権限チェック
-  if (!checkPermission('construction_manager')) {
-    alert('ナレッジ登録権限がありません。');
-    return;
-  }
+function shareDashboard() {
+  showNotification('ダッシュボード共有リンクを生成しています...', 'info');
+  // TODO: 実装
+}
 
-  const title = prompt('ナレッジタイトルを入力してください:');
-  if (!title) return;
+function openApprovalBox() {
+  window.location.href = '#approvals';
+  showNotification('承認箱へスクロールしました', 'info');
+}
 
-  const summary = prompt('概要を入力してください:');
-  if (!summary) return;
+function generateMorningSummary() {
+  showNotification('朝礼用サマリを生成しています...', 'info');
+  // TODO: 実装
+}
 
-  const category = prompt('カテゴリを入力してください（施工計画/品質/安全衛生など）:');
-  if (!category) return;
-
-  try {
-    const result = await fetchAPI('/knowledge', {
-      method: 'POST',
-      body: JSON.stringify({
-        title,
-        summary,
-        content: summary,
-        category,
-        tags: [],
-        owner: 'ユーザー'
-      })
-    });
-
-    if (result.success) {
-      alert('ナレッジを登録しました！');
-      loadKnowledge();
-    }
-  } catch (error) {
-    alert('登録に失敗しました: ' + error.message);
-  }
+function submitDistribution(type, data) {
+  showNotification('配信申請を送信しています...', 'info');
+  // TODO: 実装
 }
 
 // ============================================================
-// 新規登録ボタンのセットアップ
+// Chart.js ダッシュボードグラフ
 // ============================================================
 
-function setupNewKnowledgeButton() {
-  const newKnowledgeButtons = document.querySelectorAll('.cta');
-  newKnowledgeButtons.forEach(btn => {
-    if (btn.textContent.includes('新規ナレッジ登録')) {
-      btn.addEventListener('click', showNewKnowledgeModal);
-    }
+let dashboardCharts = {};
+
+/**
+ * ダッシュボードグラフを初期化
+ */
+function initDashboardCharts() {
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js is not loaded');
+    return;
+  }
+
+  // デフォルトフォント設定
+  Chart.defaults.font.family = '"Zen Kaku Gothic New", sans-serif';
+
+  // 日別出来高チャート
+  const dailyProgressCanvas = document.getElementById('dailyProgressChart');
+  if (dailyProgressCanvas) {
+    dashboardCharts.dailyProgress = new Chart(dailyProgressCanvas, {
+      type: 'line',
+      data: {
+        labels: ['月', '火', '水', '木', '金', '土', '日'],
+        datasets: [{
+          label: '日別出来高',
+          data: [40, 52, 33, 78, 46, 62, 85],
+          borderColor: '#d4662f',
+          backgroundColor: 'rgba(212, 102, 47, 0.2)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(27, 38, 37, 0.9)',
+            padding: 12,
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: '#d4662f',
+            borderWidth: 1,
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y + '%';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
+              },
+              color: '#4b5b58'
+            },
+            grid: {
+              color: 'rgba(216, 210, 200, 0.5)'
+            }
+          },
+          x: {
+            ticks: {
+              color: '#4b5b58'
+            },
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // リスクトレンドチャート
+  const riskTrendCanvas = document.getElementById('riskTrendChart');
+  if (riskTrendCanvas) {
+    dashboardCharts.riskTrend = new Chart(riskTrendCanvas, {
+      type: 'bar',
+      data: {
+        labels: ['1週前', '6日前', '5日前', '4日前', '3日前', '2日前', '昨日', '今日'],
+        datasets: [
+          {
+            label: '品質リスク',
+            data: [3, 2, 4, 3, 2, 3, 4, 3],
+            backgroundColor: 'rgba(224, 139, 62, 0.7)',
+            borderColor: '#e08b3e',
+            borderWidth: 1
+          },
+          {
+            label: '原価リスク',
+            data: [2, 3, 2, 2, 3, 2, 3, 4],
+            backgroundColor: 'rgba(197, 83, 58, 0.7)',
+            borderColor: '#c5533a',
+            borderWidth: 1
+          },
+          {
+            label: '安全リスク',
+            data: [1, 1, 0, 1, 1, 2, 1, 2],
+            backgroundColor: 'rgba(47, 75, 82, 0.7)',
+            borderColor: '#2f4b52',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              boxWidth: 12,
+              boxHeight: 12,
+              padding: 10,
+              font: {
+                size: 11
+              },
+              color: '#4b5b58'
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(27, 38, 37, 0.9)',
+            padding: 12,
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: '#d4662f',
+            borderWidth: 1
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            ticks: {
+              font: {
+                size: 10
+              },
+              color: '#4b5b58'
+            },
+            grid: {
+              display: false
+            }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
+              color: '#4b5b58'
+            },
+            grid: {
+              color: 'rgba(216, 210, 200, 0.5)'
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+/**
+ * グラフデータを更新
+ */
+function updateChartData(chartName, newData) {
+  const chart = dashboardCharts[chartName];
+  if (!chart) return;
+
+  if (newData.labels) {
+    chart.data.labels = newData.labels;
+  }
+
+  if (newData.datasets) {
+    chart.data.datasets.forEach((dataset, i) => {
+      if (newData.datasets[i]) {
+        dataset.data = newData.datasets[i].data;
+      }
+    });
+  }
+
+  chart.update();
+}
+
+// ============================================================
+// イベントリスナーの設定
+// ============================================================
+
+function setupEventListeners() {
+  // 新規ナレッジ登録フォーム
+  const newKnowledgeForm = document.getElementById('newKnowledgeForm');
+  if (newKnowledgeForm) {
+    newKnowledgeForm.addEventListener('submit', submitNewKnowledge);
+  }
+
+  // 高度な検索フォーム
+  const advancedSearchForm = document.getElementById('advancedSearchForm');
+  if (advancedSearchForm) {
+    advancedSearchForm.addEventListener('submit', submitAdvancedSearch);
+  }
+
+  // ユーザー設定フォーム
+  const userSettingsForm = document.getElementById('userSettingsForm');
+  if (userSettingsForm) {
+    userSettingsForm.addEventListener('submit', submitUserSettings);
+  }
+
+  // 通知設定フォーム
+  const notificationSettingsForm = document.getElementById('notificationSettingsForm');
+  if (notificationSettingsForm) {
+    notificationSettingsForm.addEventListener('submit', submitNotificationSettings);
+  }
+
+  // 表示設定フォーム
+  const displaySettingsForm = document.getElementById('displaySettingsForm');
+  if (displaySettingsForm) {
+    displaySettingsForm.addEventListener('submit', submitDisplaySettings);
+  }
+
+  // モーダルの外側クリックで閉じる
+  document.querySelectorAll('.modal, .side-panel').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+    });
   });
+}
+
+// ============================================================
+// 定期更新
+// ============================================================
+
+function startPeriodicUpdates() {
+  // 5分ごとにダッシュボード統計を更新
+  setInterval(() => {
+    loadDashboardStats();
+    loadNotifications();
+  }, 5 * 60 * 1000);
+}
+
+// ============================================================
+// サイドバー機能
+// ============================================================
+
+/**
+ * サイドバーの折りたたみ切替（モバイル用）
+ */
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    sidebar.classList.toggle('collapsed');
+  }
+}
+
+/**
+ * セクションの折りたたみ切替
+ */
+function toggleSection(titleElement) {
+  const section = titleElement.closest('.nav-section');
+  if (section) {
+    section.classList.toggle('collapsed');
+    const chevron = titleElement.querySelector('.chevron');
+    if (chevron) {
+      chevron.textContent = section.classList.contains('collapsed') ? '▶' : '▼';
+    }
+  }
+}
+
+/**
+ * ダミーデータ: 人気ナレッジ
+ */
+const DUMMY_POPULAR_KNOWLEDGE = [
+  { id: 1, title: '砂防堰堤 温度管理フロー', views: 342, category: '施工計画' },
+  { id: 2, title: '橋梁補修 塗膜剥離基準', views: 298, category: '品質管理' },
+  { id: 3, title: '高所作業車 点検SOP', views: 276, category: '安全衛生' },
+  { id: 4, title: '路面下空洞検知手順', views: 254, category: '施工管理' },
+  { id: 5, title: '降雨時施工制限手順', views: 231, category: '施工計画' },
+  { id: 6, title: 'ICT出来形測定基準', views: 218, category: '品質管理' },
+  { id: 7, title: '夜間舗装の安全管理', views: 205, category: '安全衛生' },
+  { id: 8, title: '地盤改良品質確認', views: 192, category: '品質管理' },
+  { id: 9, title: 'トンネル換気計画', views: 178, category: '環境対策' },
+  { id: 10, title: '鋼橋塗装規格改定', views: 165, category: '技術基準' }
+];
+
+/**
+ * ダミーデータ: 最近追加されたナレッジ
+ */
+const DUMMY_RECENT_KNOWLEDGE = [
+  { id: 11, title: 'RC橋脚の耐震補強工法', daysAgo: 1, category: '構造設計' },
+  { id: 12, title: '土石流対策工の配置基準', daysAgo: 2, category: '砂防' },
+  { id: 13, title: '鋼材溶接部の検査手順', daysAgo: 3, category: '品質管理' },
+  { id: 14, title: '法面緑化の施工時期', daysAgo: 4, category: '環境対策' },
+  { id: 15, title: '建設機械の燃費管理', daysAgo: 5, category: '原価管理' }
+];
+
+/**
+ * ダミーデータ: お気に入りナレッジ
+ */
+const DUMMY_FAVORITE_KNOWLEDGE = [
+  { id: 16, title: 'コンクリート配合設計', category: '品質管理' },
+  { id: 17, title: '足場組立安全基準', category: '安全衛生' },
+  { id: 18, title: '道路標識設置基準', category: '施工計画' }
+];
+
+/**
+ * ダミーデータ: 人気タグ
+ */
+const DUMMY_TAGS = [
+  { name: '品質確保', count: 45, size: 'large' },
+  { name: '安全管理', count: 38, size: 'large' },
+  { name: '寒冷地施工', count: 32, size: 'medium' },
+  { name: '温度センサー', count: 28, size: 'medium' },
+  { name: '鋼橋', count: 25, size: 'medium' },
+  { name: '塗装規格', count: 22, size: 'small' },
+  { name: '地中レーダー', count: 19, size: 'small' },
+  { name: '点検', count: 17, size: 'small' },
+  { name: '交通規制', count: 15, size: 'small' },
+  { name: '夜間', count: 12, size: 'small' }
+];
+
+/**
+ * ダミーデータ: プロジェクト一覧
+ */
+const DUMMY_PROJECTS = [
+  { id: 'B-03', name: '東北橋梁補修', type: '橋梁', progress: 64, phase: '3-2', manager: '田中', milestone: '主桁塗装完了' },
+  { id: 'K-12', name: '首都高速更新', type: '道路', progress: 38, phase: '2-1', manager: '佐藤', milestone: '夜間舗装開始' },
+  { id: 'R-07', name: '河川護岸整備', type: '河川', progress: 81, phase: '4-3', manager: '鈴木', milestone: '護岸工完了' },
+  { id: 'S-05', name: '砂防堰堤新設', type: '砂防', progress: 52, phase: '2-3', manager: '高橋', milestone: 'コンクリート打設中' },
+  { id: 'T-09', name: '山岳トンネル掘削', type: 'トンネル', progress: 28, phase: '1-2', manager: '渡辺', milestone: '掘削進捗120m' },
+  { id: 'D-14', name: '国道拡幅工事', type: '道路', progress: 75, phase: '3-4', manager: '伊藤', milestone: '路盤工完了' },
+  { id: 'H-21', name: '橋梁架替工事', type: '橋梁', progress: 43, phase: '2-2', manager: '山本', milestone: '下部工施工中' },
+  { id: 'R-18', name: '河川浚渫工事', type: '河川', progress: 67, phase: '3-1', manager: '中村', milestone: '浚渫進捗65%' },
+  { id: 'S-22', name: '地すべり対策', type: '砂防', progress: 35, phase: '1-3', manager: '小林', milestone: '集水井設置中' },
+  { id: 'T-16', name: 'シールド工事', type: 'トンネル', progress: 58, phase: '2-4', manager: '加藤', milestone: '推進延長340m' },
+  { id: 'B-11', name: '鋼橋耐震補強', type: '橋梁', progress: 91, phase: '4-2', manager: '吉田', milestone: '最終検査待ち' },
+  { id: 'D-08', name: '橋梁床版取替', type: '橋梁', progress: 22, phase: '1-1', manager: '山田', milestone: '交通規制準備中' }
+];
+
+/**
+ * ダミーデータ: 専門家一覧
+ */
+const DUMMY_EXPERTS = [
+  { id: 1, name: '斎藤 健一', field: '安全管理', status: 'online', answers: 47, rating: 4.8, available: '10:00-17:00' },
+  { id: 2, name: '吉岡 美咲', field: '地盤技術', status: 'online', answers: 38, rating: 4.9, available: '13:00-19:00' },
+  { id: 3, name: '藤田 隆', field: '構造設計', status: 'offline', answers: 52, rating: 4.7, available: '09:00-18:00' },
+  { id: 4, name: '森本 由紀', field: '品質管理', status: 'online', answers: 41, rating: 4.6, available: '08:00-16:00' },
+  { id: 5, name: '松井 剛', field: '施工管理', status: 'online', answers: 35, rating: 4.5, available: '10:00-18:00' },
+  { id: 6, name: '岡田 春子', field: '環境対策', status: 'offline', answers: 29, rating: 4.7, available: '09:00-17:00' },
+  { id: 7, name: '清水 大輔', field: '構造設計', status: 'online', answers: 44, rating: 4.8, available: '08:30-17:30' },
+  { id: 8, name: '野口 真理', field: '安全管理', status: 'offline', answers: 33, rating: 4.6, available: '10:00-16:00' },
+  { id: 9, name: '前田 啓介', field: '地盤技術', status: 'online', answers: 39, rating: 4.9, available: '09:00-18:00' },
+  { id: 10, name: '西村 由美', field: '品質管理', status: 'online', answers: 37, rating: 4.7, available: '08:00-17:00' },
+  { id: 11, name: '石井 雅彦', field: '施工管理', status: 'offline', answers: 31, rating: 4.5, available: '10:00-19:00' },
+  { id: 12, name: '村田 千尋', field: '環境対策', status: 'online', answers: 26, rating: 4.8, available: '09:00-16:00' },
+  { id: 13, name: '橋本 誠', field: '構造設計', status: 'offline', answers: 48, rating: 4.9, available: '08:00-18:00' },
+  { id: 14, name: '内田 佳奈', field: '安全管理', status: 'online', answers: 34, rating: 4.6, available: '09:00-17:00' },
+  { id: 15, name: '木村 拓也', field: '地盤技術', status: 'online', answers: 42, rating: 4.8, available: '10:00-18:00' },
+  { id: 16, name: '長谷川 美紀', field: '品質管理', status: 'offline', answers: 28, rating: 4.5, available: '08:30-16:30' },
+  { id: 17, name: '井上 健太', field: '施工管理', status: 'online', answers: 36, rating: 4.7, available: '09:00-18:00' },
+  { id: 18, name: '坂本 彩', field: '環境対策', status: 'online', answers: 25, rating: 4.6, available: '10:00-17:00' },
+  { id: 19, name: '中島 信也', field: '構造設計', status: 'offline', answers: 45, rating: 4.8, available: '08:00-17:00' },
+  { id: 20, name: '福田 恵子', field: '地盤技術', status: 'online', answers: 40, rating: 4.9, available: '09:30-18:30' }
+];
+
+/**
+ * 人気ナレッジを表示
+ */
+function loadPopularKnowledge(category = '') {
+  const container = document.getElementById('popularKnowledgeList');
+  if (!container) return;
+
+  container.textContent = '';
+
+  let filteredData = DUMMY_POPULAR_KNOWLEDGE;
+  if (category) {
+    filteredData = filteredData.filter(k => k.category === category);
+  }
+
+  filteredData.forEach((item, index) => {
+    const navItem = createElement('div', { className: 'nav-item clickable' }, []);
+    navItem.onclick = () => viewKnowledgeDetail(item.id);
+
+    const rank = createElement('span', { className: 'rank' }, [`${index + 1}`]);
+    const title = createElement('strong', {}, [item.title]);
+    const views = createElement('span', { className: 'meta' }, [`${item.views} views`]);
+
+    navItem.appendChild(rank);
+    navItem.appendChild(title);
+    navItem.appendChild(views);
+
+    container.appendChild(navItem);
+  });
+}
+
+/**
+ * 最近追加されたナレッジを表示
+ */
+function loadRecentKnowledge(category = '') {
+  const container = document.getElementById('recentKnowledgeList');
+  if (!container) return;
+
+  container.textContent = '';
+
+  let filteredData = DUMMY_RECENT_KNOWLEDGE;
+  if (category) {
+    filteredData = filteredData.filter(k => k.category === category);
+  }
+
+  filteredData.forEach(item => {
+    const navItem = createElement('div', { className: 'nav-item clickable' }, []);
+    navItem.onclick = () => viewKnowledgeDetail(item.id);
+
+    const title = createElement('strong', {}, [item.title]);
+    const meta = createElement('span', { className: 'meta' }, [`${item.daysAgo}日前`]);
+
+    navItem.appendChild(title);
+    navItem.appendChild(meta);
+
+    container.appendChild(navItem);
+  });
+}
+
+/**
+ * お気に入りナレッジを表示
+ */
+function loadFavoriteKnowledge() {
+  const container = document.getElementById('favoriteKnowledgeList');
+  if (!container) return;
+
+  container.textContent = '';
+
+  if (DUMMY_FAVORITE_KNOWLEDGE.length === 0) {
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['お気に入りはありません']);
+    container.appendChild(emptyMsg);
+    return;
+  }
+
+  DUMMY_FAVORITE_KNOWLEDGE.forEach(item => {
+    const navItem = createElement('div', { className: 'nav-item clickable' }, []);
+    navItem.onclick = () => viewKnowledgeDetail(item.id);
+
+    const title = createElement('strong', {}, [item.title]);
+    const removeFav = createElement('button', { className: 'icon-btn-small' }, ['★']);
+    removeFav.onclick = (e) => {
+      e.stopPropagation();
+      removeFavorite(item.id);
+    };
+
+    navItem.appendChild(title);
+    navItem.appendChild(removeFav);
+
+    container.appendChild(navItem);
+  });
+}
+
+/**
+ * タグクラウドを表示
+ */
+function loadTagCloud() {
+  const container = document.getElementById('tagCloud');
+  if (!container) return;
+
+  container.textContent = '';
+
+  DUMMY_TAGS.forEach(tag => {
+    const tagBtn = createElement('button', {
+      className: `tag-btn tag-${tag.size}`,
+      onclick: () => filterByTag(tag.name)
+    }, [tag.name]);
+
+    container.appendChild(tagBtn);
+  });
+}
+
+/**
+ * プロジェクト一覧を表示
+ */
+function loadProjects(type = '') {
+  const container = document.getElementById('projectsList');
+  if (!container) return;
+
+  container.textContent = '';
+
+  let filteredData = DUMMY_PROJECTS;
+  if (type) {
+    filteredData = filteredData.filter(p => p.type === type);
+  }
+
+  filteredData.forEach(project => {
+    const projectItem = createElement('div', { className: 'project-item' }, []);
+
+    // プロジェクトヘッダー
+    const header = createElement('div', { className: 'project-header clickable' }, []);
+    header.onclick = () => toggleProjectDetail(project.id);
+
+    const name = createElement('strong', {}, [`${project.name} (${project.id})`]);
+    const chevron = createElement('span', { className: 'chevron-small', id: `chevron-${project.id}` }, ['▼']);
+
+    header.appendChild(name);
+    header.appendChild(chevron);
+    projectItem.appendChild(header);
+
+    // プログレスバー
+    const progressBar = createElement('div', { className: 'mini-progress' }, []);
+    const progressFill = createElement('div', {
+      className: 'mini-progress-fill',
+      style: `width: ${project.progress}%`
+    }, []);
+    progressBar.appendChild(progressFill);
+    projectItem.appendChild(progressBar);
+
+    const progressText = createElement('div', { className: 'progress-text' }, [`進捗 ${project.progress}%`]);
+    projectItem.appendChild(progressText);
+
+    // プロジェクト詳細（初期状態は非表示）
+    const details = createElement('div', {
+      className: 'project-details',
+      id: `details-${project.id}`,
+      style: 'display: none;'
+    }, []);
+
+    const phase = createElement('div', { className: 'detail-row' }, [
+      createElement('span', { className: 'detail-label' }, ['工区:']),
+      createElement('span', {}, [project.phase])
+    ]);
+    const manager = createElement('div', { className: 'detail-row' }, [
+      createElement('span', { className: 'detail-label' }, ['担当:']),
+      createElement('span', {}, [project.manager])
+    ]);
+    const milestone = createElement('div', { className: 'detail-row' }, [
+      createElement('span', { className: 'detail-label' }, ['マイルストーン:']),
+      createElement('span', {}, [project.milestone])
+    ]);
+
+    details.appendChild(phase);
+    details.appendChild(manager);
+    details.appendChild(milestone);
+    projectItem.appendChild(details);
+
+    container.appendChild(projectItem);
+  });
+}
+
+/**
+ * プロジェクト詳細の表示切替
+ */
+function toggleProjectDetail(projectId) {
+  const details = document.getElementById(`details-${projectId}`);
+  const chevron = document.getElementById(`chevron-${projectId}`);
+
+  if (details && chevron) {
+    const isVisible = details.style.display === 'block';
+    details.style.display = isVisible ? 'none' : 'block';
+    chevron.textContent = isVisible ? '▼' : '▲';
+  }
+}
+
+/**
+ * 専門家一覧を表示
+ */
+function loadExperts(field = '') {
+  const container = document.getElementById('expertsList');
+  if (!container) return;
+
+  container.textContent = '';
+
+  let filteredData = DUMMY_EXPERTS;
+  if (field) {
+    filteredData = filteredData.filter(e => e.field === field);
+  }
+
+  filteredData.forEach(expert => {
+    const expertItem = createElement('div', { className: 'expert-item' }, []);
+
+    // 専門家ヘッダー
+    const header = createElement('div', { className: 'expert-header' }, []);
+
+    const statusDot = createElement('span', {
+      className: `status-dot ${expert.status === 'online' ? 'is-ok' : 'is-muted'}`
+    }, []);
+
+    const name = createElement('strong', {}, [expert.name]);
+    const field = createElement('span', { className: 'meta' }, [expert.field]);
+
+    header.appendChild(statusDot);
+    header.appendChild(name);
+    header.appendChild(field);
+    expertItem.appendChild(header);
+
+    // 専門家情報
+    const info = createElement('div', { className: 'expert-info' }, []);
+
+    const answers = createElement('div', { className: 'info-row' }, [
+      `回答数: ${expert.answers}件 · 評価: ⭐${expert.rating}`
+    ]);
+    const available = createElement('div', { className: 'info-row small' }, [
+      `対応可能: ${expert.available}`
+    ]);
+
+    info.appendChild(answers);
+    info.appendChild(available);
+    expertItem.appendChild(info);
+
+    // 相談ボタン
+    const consultBtn = createElement('button', {
+      className: 'cta ghost small',
+      onclick: () => consultExpert(expert.id)
+    }, ['相談する']);
+    consultBtn.style.marginTop = '8px';
+    consultBtn.style.width = '100%';
+
+    expertItem.appendChild(consultBtn);
+    container.appendChild(expertItem);
+  });
+}
+
+/**
+ * カテゴリフィルター
+ */
+function filterKnowledgeByCategory(category) {
+  loadPopularKnowledge(category);
+  loadRecentKnowledge(category);
+}
+
+/**
+ * プロジェクトタイプフィルター
+ */
+function filterProjectsByType(type) {
+  loadProjects(type);
+}
+
+/**
+ * 専門分野フィルター
+ */
+function filterExpertsByField(field) {
+  loadExperts(field);
+}
+
+/**
+ * ナレッジ詳細を表示
+ */
+function viewKnowledgeDetail(knowledgeId) {
+  console.log('[SIDEBAR] Viewing knowledge:', knowledgeId);
+  showNotification(`ナレッジ詳細 ID:${knowledgeId} を表示します`, 'info');
+  // TODO: 実際の詳細画面へ遷移
+}
+
+/**
+ * お気に入りから削除
+ */
+function removeFavorite(knowledgeId) {
+  console.log('[SIDEBAR] Removing favorite:', knowledgeId);
+  showNotification('お気に入りから削除しました', 'success');
+  // TODO: 実際の削除処理
+  loadFavoriteKnowledge();
+}
+
+/**
+ * タグでフィルター
+ */
+function filterByTag(tagName) {
+  console.log('[SIDEBAR] Filtering by tag:', tagName);
+  showNotification(`タグ「${tagName}」で検索します`, 'info');
+  // TODO: タグ検索を実行
+}
+
+/**
+ * 専門家に相談
+ */
+function consultExpert(expertId) {
+  const expert = DUMMY_EXPERTS.find(e => e.id === expertId);
+  if (expert) {
+    console.log('[SIDEBAR] Consulting expert:', expert.name);
+    showNotification(`${expert.name}さんへ相談画面を開きます`, 'info');
+    // TODO: 専門家相談画面へ遷移
+    window.location.href = 'expert-consult.html';
+  }
 }
 
 // ============================================================
@@ -877,13 +2080,33 @@ document.addEventListener('DOMContentLoaded', () => {
   // 検索機能のセットアップ
   setupSearch();
 
-  // 新規登録ボタンのセットアップ
-  setupNewKnowledgeButton();
+  // イベントリスナーの設定
+  setupEventListeners();
+
+  // サイドパネルタブの設定
+  setupSidePanelTabs();
 
   // 初期データのロード
   loadDashboardStats();
   loadKnowledge();
   loadApprovals();
+  loadNotifications();
+
+  // サイドバーデータのロード
+  loadPopularKnowledge();
+  loadRecentKnowledge();
+  loadFavoriteKnowledge();
+  loadTagCloud();
+  loadProjects();
+  loadExperts();
+
+  // Chart.js グラフの初期化
+  if (typeof Chart !== 'undefined') {
+    initDashboardCharts();
+  }
+
+  // 定期更新を開始
+  startPeriodicUpdates();
 
   console.log('初期化完了！');
 });

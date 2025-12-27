@@ -1,0 +1,35 @@
+[Unit]
+Description=Mirai Knowledge System - Auto Fix Daemon
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/scripts
+Environment="PATH=/usr/bin:/usr/local/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# 仮想環境のPythonを使用（必要に応じて調整）
+ExecStart=/usr/bin/python3 /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/scripts/auto_fix_daemon.py --continuous --loop-count 15 --wait-minutes 5
+
+# 再起動設定
+Restart=always
+RestartSec=10
+
+# リソース制限
+MemoryLimit=512M
+CPUQuota=50%
+
+# セキュリティ設定
+NoNewPrivileges=true
+PrivateTmp=true
+
+# ログ設定
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=auto-fix-daemon
+
+[Install]
+WantedBy=multi-user.target

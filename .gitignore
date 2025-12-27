@@ -75,3 +75,5 @@ Thumbs.db
 # Project specific
 backend/data/*.json.backup
 backend/data/*.json.old
+.backend.pid
+.frontend.pid

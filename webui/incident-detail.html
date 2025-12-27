@@ -24,301 +24,313 @@
         <a href="expert-consult.html">専門家相談</a>
       </nav>
       <div class="header-actions reveal delay-2">
-        <span class="chip">報告No. INC-2024-0615</span>
-        <span class="chip">重大度: 中</span>
-        <button class="cta" onclick="registerCorrectiveAction()">是正措置登録</button>
+        <button class="icon-button" onclick="window.history.back()" title="戻る">
+          ←
+        </button>
+        <span class="chip" id="incidentNumber">報告No. --</span>
+        <span class="chip" id="incidentSeverity">重大度 --</span>
+        <button class="cta" onclick="updateIncidentStatus()" data-required-role="quality_assurance">ステータス更新</button>
       </div>
     </header>
 
     <main class="page">
+      <!-- パンくずリスト -->
+      <nav class="breadcrumb-nav reveal" aria-label="パンくずリスト">
+        <ol class="breadcrumb" id="breadcrumbList">
+          <li><a href="index.html">ホーム</a></li>
+          <li><a href="index.html#incident">事故レポート一覧</a></li>
+          <li aria-current="page">詳細</li>
+        </ol>
+      </nav>
+
       <aside class="sidebar reveal delay-1">
         <div class="nav-section">
-          <div class="nav-title">INCIDENT HUB</div>
+          <div class="nav-title">ナビゲーション</div>
           <div class="nav-item">
-            <strong>事故</strong>
-            <span>3件</span>
+            <a href="#overview"><strong>概要</strong></a>
           </div>
           <div class="nav-item">
-            <strong>ヒヤリハット</strong>
-            <span>12件</span>
+            <a href="#timeline"><strong>タイムライン</strong></a>
           </div>
           <div class="nav-item">
-            <strong>是正措置</strong>
-            <span>9件</span>
+            <a href="#cause-analysis"><strong>原因分析</strong></a>
           </div>
           <div class="nav-item">
-            <strong>未完了</strong>
-            <span>4件</span>
+            <a href="#corrective-actions"><strong>是正措置</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#attachments"><strong>添付資料</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#approval"><strong>承認フロー</strong></a>
           </div>
         </div>
         <div class="nav-section">
-          <div class="nav-title">RELATED</div>
-          <div class="nav-item">
-            <strong>吊り荷作業 SOP-0182</strong>
-            <span>参照</span>
-          </div>
-          <div class="nav-item">
-            <strong>風速判断基準</strong>
-            <span>更新</span>
-          </div>
-          <div class="nav-item">
-            <strong>夜間作業の照度基準</strong>
-            <span>参照</span>
-          </div>
+          <div class="nav-title">アクション</div>
+          <button class="cta ghost" onclick="addCorrectiveAction()">
+            ✏️ 是正措置追加
+          </button>
+          <button class="cta ghost" onclick="downloadPDF('incident')">
+            📥 PDF保存
+          </button>
+          <button class="cta ghost" onclick="shareIncident()">
+            🔗 共有
+          </button>
         </div>
       </aside>
 
       <section class="main">
-        <section class="detail-hero reveal">
-          <div class="breadcrumb">事故・ヒヤリ / K-12 / 吊り荷接触未遂</div>
-          <h2 class="detail-title">クレーン吊り荷回転による接触事故未遂</h2>
-          <div class="meta-row">
-            <span>発生日: 2024/06/15 21:40</span>
-            <span>現場: 首都高速更新 K-12</span>
-            <span>天候: 曇 / 風速 6.5m/s</span>
-            <span>機材: 55tクレーン</span>
-            <span>協力会社: 東北重機</span>
+        <!-- ローディング表示 -->
+        <div id="loadingIndicator" class="loading-overlay">
+          <div class="loading-spinner"></div>
+          <p>読み込み中...</p>
+        </div>
+
+        <!-- エラー表示 -->
+        <div id="errorMessage" class="error-message" style="display: none;">
+          <strong>エラー:</strong> <span id="errorText"></span>
+          <button onclick="retryLoadIncident()">再試行</button>
+        </div>
+
+        <!-- 詳細ヒーロー -->
+        <section class="detail-hero reveal" id="overview">
+          <h2 class="detail-title" id="incidentTitle">事故レポート タイトル</h2>
+          <div class="meta-row" id="incidentMeta">
+            <!-- 動的に挿入 -->
           </div>
-          <div class="knowledge-tags">
-            <span class="tag">吊り荷</span>
-            <span class="tag">夜間</span>
-            <span class="tag">風速</span>
+          <div class="knowledge-tags" id="incidentTags">
+            <!-- 動的に挿入 -->
           </div>
           <div class="cta-group">
-            <button class="cta ghost" onclick="downloadPDF('incident', '事故報告書')">報告書PDF</button>
-            <button class="cta secondary" onclick="createPreventionPlan()">再発防止を作成</button>
-            <button class="cta">再発防止を配信申請</button>
+            <button class="cta ghost" onclick="window.history.back()">← 戻る</button>
+            <button class="cta secondary" onclick="editIncident()" data-required-role="quality_assurance">編集</button>
+            <button class="cta" onclick="submitDistribution('incident')">配信申請</button>
           </div>
         </section>
 
+        <!-- 詳細グリッド -->
         <section class="detail-grid reveal delay-1">
-          <div class="detail-card">
-            <h4>概要</h4>
-            <div>
-              吊り荷の回転により足場支柱に接触しそうになった未遂事案。合図者の位置変更が遅れ、
-              風速上昇時の荷姿安定が不十分だった。
-            </div>
-            <div class="callout">重大度: 中 / 休業災害なし / 工程遅延 0日</div>
-          </div>
-          <div class="detail-card">
-            <h4>発生状況</h4>
-            <div class="list-dense">
-              <div>夜間舗装の資材搬入時、吊り荷が回転し足場支柱へ接近。</div>
-              <div>合図者が車両移動の誘導に一時離脱。</div>
-              <div>無線帯域が混線し、合図が遅延。</div>
+          <!-- 発生概要 -->
+          <div class="detail-card" style="grid-column: 1 / -1;">
+            <h4>発生概要</h4>
+            <div id="incidentSummary">
+              <!-- 動的に挿入 -->
             </div>
           </div>
+
+          <!-- 発生情報 -->
           <div class="detail-card">
+            <h4>発生情報</h4>
+            <table class="table">
+              <tbody id="incidentInfo">
+                <!-- 動的に挿入 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 被害状況 -->
+          <div class="detail-card">
+            <h4>被害状況</h4>
+            <div id="damageInfo" class="stat-grid">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- タイムライン -->
+          <div class="detail-card" id="timeline" style="grid-column: 1 / -1;">
             <h4>タイムライン</h4>
-            <div class="timeline">
-              <div class="timeline-item">
-                <strong>21:35</strong>
-                <div>資材搬入開始 / 合図者が配置</div>
-                <small>風速 5.8m/s / 夜間照度 120lx</small>
+            <div id="incidentTimeline" class="timeline">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 原因分析（4M分析） -->
+          <div class="detail-card" id="cause-analysis" style="grid-column: 1 / -1;">
+            <h4>原因分析（4M分析）</h4>
+            <div id="causeAnalysis">
+              <div class="detail-card" style="margin-bottom: 15px;">
+                <h5 style="margin: 0 0 10px 0;">Man（人）</h5>
+                <div id="causeMan" class="list-dense">
+                  <!-- 動的に挿入 -->
+                </div>
               </div>
-              <div class="timeline-item">
-                <strong>21:40</strong>
-                <div>吊り荷が回転し足場支柱へ接近</div>
-                <small>合図遅延 15秒 / 無線混線</small>
+              <div class="detail-card" style="margin-bottom: 15px;">
+                <h5 style="margin: 0 0 10px 0;">Machine（機械・設備）</h5>
+                <div id="causeMachine" class="list-dense">
+                  <!-- 動的に挿入 -->
+                </div>
               </div>
-              <div class="timeline-item">
-                <strong>21:42</strong>
-                <div>作業中断 / 吊り荷を安全位置へ移動</div>
-                <small>合図者追加配置 / 風速 6.5m/s</small>
+              <div class="detail-card" style="margin-bottom: 15px;">
+                <h5 style="margin: 0 0 10px 0;">Media（材料・情報）</h5>
+                <div id="causeMedia" class="list-dense">
+                  <!-- 動的に挿入 -->
+                </div>
+              </div>
+              <div class="detail-card">
+                <h5 style="margin: 0 0 10px 0;">Management（管理）</h5>
+                <div id="causeManagement" class="list-dense">
+                  <!-- 動的に挿入 -->
+                </div>
               </div>
             </div>
           </div>
-          <div class="detail-card">
-            <h4>原因分析 (4M)</h4>
-            <div class="list-dense">
-              <div>Man: 合図者の配置が不足、交代時の引継ぎ不備</div>
-              <div>Machine: 吊り荷回転防止治具が未使用</div>
-              <div>Media: 無線チャンネルの事前固定が未実施</div>
-              <div>Management: 夜間作業の風速判断手順が共有不足</div>
-            </div>
-          </div>
+
+          <!-- 即時対応 -->
           <div class="detail-card">
             <h4>即時対応</h4>
-            <div class="checklist">
-              <div>作業中断、吊り荷を安全位置へ移動</div>
-              <div>合図者を追加配置し、無線チャンネルを固定</div>
-              <div>翌日の朝礼で全作業員に注意喚起</div>
+            <div id="immediateActions" class="checklist">
+              <!-- 動的に挿入 -->
             </div>
           </div>
+
+          <!-- 再発防止策 -->
           <div class="detail-card">
             <h4>再発防止策</h4>
-            <div class="list-dense">
-              <div>吊り荷回転防止治具の常備化と使用確認</div>
-              <div>風速5m/s超での吊り荷作業停止基準を明記</div>
-              <div>夜間作業の合図者ダブル配置を標準化</div>
+            <div id="preventionMeasures" class="list-dense">
+              <!-- 動的に挿入 -->
             </div>
           </div>
-          <div class="detail-card">
+
+          <!-- 是正措置タスク -->
+          <div class="detail-card" id="corrective-actions" style="grid-column: 1 / -1;">
             <h4>是正措置タスク</h4>
-            <div class="schedule-list">
-              <div class="schedule-item">
-                <div class="status-row">
-                  <span class="status-dot is-warn"></span>
-                  <strong>吊り荷回転防止治具の配備</strong>
-                </div>
-                <small>担当: 現場代理人 / 期限 6/20</small>
-              </div>
-              <div class="schedule-item">
-                <div class="status-row">
-                  <span class="status-dot is-ok"></span>
-                  <strong>無線チャンネル固定の運用開始</strong>
-                </div>
-                <small>担当: 安全管理 / 完了 6/16</small>
-              </div>
-              <div class="schedule-item">
-                <div class="status-row">
-                  <span class="status-dot is-warn"></span>
-                  <strong>夜間作業の合図者追加配置</strong>
-                </div>
-                <small>担当: 施工班 / 期限 6/22</small>
-              </div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>再発防止 KPI</h4>
-            <div class="stat-grid">
-              <div class="stat-card">
-                <div>夜間作業監査</div>
-                <strong>3/6</strong>
-                <small>完了率 50%</small>
-              </div>
-              <div class="stat-card">
-                <div>治具使用率</div>
-                <strong>78%</strong>
-                <small>週次更新</small>
-              </div>
-              <div class="stat-card">
-                <div>教育参加率</div>
-                <strong>86%</strong>
-                <small>対象 42名</small>
-              </div>
-            </div>
-            <div>
-              <div class="alert-meta">夜間作業のリスク推移</div>
-              <div class="sparkline" aria-hidden="true">
-                <span style="height: 68%"></span>
-                <span class="is-high" style="height: 86%"></span>
-                <span style="height: 54%"></span>
-                <span style="height: 49%"></span>
-                <span style="height: 62%"></span>
-                <span style="height: 38%"></span>
-                <span style="height: 46%"></span>
-              </div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>承認フロー</h4>
-            <div class="flow">
-              <div class="flow-step">
-                <div>現場報告 (K-12)</div>
-                <span class="badge is-done">提出済み</span>
-              </div>
-              <div class="flow-step">
-                <div>安全衛生室レビュー</div>
-                <span class="badge is-wait">承認待ち</span>
-              </div>
-              <div class="flow-step">
-                <div>本社安全会議</div>
-                <span class="badge is-hold">未着手</span>
-              </div>
-              <div class="flow-step">
-                <div>全現場配信</div>
-                <span class="badge is-info">承認後自動配信</span>
-              </div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>添付資料</h4>
             <table class="table">
               <thead>
                 <tr>
-                  <th>資料</th>
-                  <th>種別</th>
-                  <th>更新日</th>
-                  <th>担当</th>
+                  <th>ステータス</th>
+                  <th>措置内容</th>
+                  <th>担当者</th>
+                  <th>期限</th>
+                  <th>進捗</th>
+                  <th>アクション</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>現場写真 (3枚)</td>
-                  <td>画像</td>
-                  <td>2024/06/15</td>
-                  <td>安全管理</td>
-                </tr>
-                <tr>
-                  <td>無線通話ログ</td>
-                  <td>ログ</td>
-                  <td>2024/06/15</td>
-                  <td>現場代理人</td>
-                </tr>
-                <tr>
-                  <td>再発防止策ドラフト</td>
-                  <td>文書</td>
-                  <td>2024/06/16</td>
-                  <td>安全衛生室</td>
-                </tr>
+              <tbody id="correctiveActionTable">
+                <!-- 動的に挿入 -->
               </tbody>
             </table>
+            <button class="cta secondary" onclick="addCorrectiveAction()" style="margin-top: 15px;" data-required-role="quality_assurance">
+              是正措置を追加
+            </button>
+          </div>
+
+          <!-- 添付資料（写真・図面） -->
+          <div class="detail-card" id="attachments" style="grid-column: 1 / -1;">
+            <h4>添付資料（写真・図面）</h4>
+            <div id="attachmentGallery" class="attachment-gallery">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- KPI・進捗 -->
+          <div class="detail-card">
+            <h4>是正措置KPI</h4>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div>完了率</div>
+                <strong id="completionRate">0</strong>
+                <small>%</small>
+              </div>
+              <div class="stat-card">
+                <div>期限遵守率</div>
+                <strong id="deadlineRate">0</strong>
+                <small>%</small>
+              </div>
+              <div class="stat-card">
+                <div>残タスク</div>
+                <strong id="remainingTasks">0</strong>
+                <small>件</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- 承認フロー -->
+          <div class="detail-card" id="approval">
+            <h4>承認フロー</h4>
+            <div class="flow" id="approvalFlow">
+              <!-- 動的に挿入 -->
+            </div>
           </div>
         </section>
       </section>
 
+      <!-- 右サイドバー -->
       <aside class="rail reveal delay-1">
-        <div class="alert">
-          <strong>期限:</strong> 発注者報告は 6/18 12:00 までに提出。
+        <div class="alert" id="urgentNotice" style="display: none;">
+          <!-- 動的に挿入 -->
         </div>
+
         <div>
           <h3>影響現場</h3>
-          <div class="status-list">
-            <div class="status-item">
-              <div>首都高速更新 K-12</div>
-              <span>是正中</span>
-            </div>
-            <div class="status-item">
-              <div>東北橋梁補修 B-03</div>
-              <span>周知予定</span>
-            </div>
-            <div class="status-item">
-              <div>河川護岸整備 R-07</div>
-              <span>注意喚起</span>
-            </div>
+          <div id="affectedSites" class="status-list">
+            <!-- 動的に挿入 -->
           </div>
         </div>
-        <div>
+
+        <div style="margin-top: 30px;">
           <h3>安全評価</h3>
-          <div class="document">
-            <strong>リスク評価: 中</strong>
-            <small>再発防止策レビュー中</small>
-            <div>吊り荷回転防止治具の適用を必須化。</div>
+          <div id="safetyAssessment" class="document">
+            <!-- 動的に挿入 -->
           </div>
         </div>
-        <div>
+
+        <div style="margin-top: 30px;">
           <h3>担当エキスパート</h3>
-          <div class="document">
-            <strong>安全衛生室: 斎藤</strong>
-            <small>対応可能 10:00-17:00</small>
-            <div>事故レポートと再発防止策を確認中。</div>
+          <div id="expertInfo" class="document">
+            <!-- 動的に挿入 -->
           </div>
         </div>
-        <div>
+
+        <div style="margin-top: 30px;">
           <h3>関連教育</h3>
-          <div class="document">
-            <strong>吊り荷作業 安全再教育</strong>
-            <small>2024/06/24 15:00 / K-12</small>
-            <div>無線合図と風速判断の再確認。</div>
+          <div id="relatedTraining">
+            <!-- 動的に挿入 -->
           </div>
         </div>
       </aside>
     </main>
 
-    <button class="floating" onclick="submitDistribution('incident', {})">是正措置を配信申請</button>
+    <!-- 是正措置追加モーダル -->
+    <div id="correctiveActionModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>是正措置を追加</h2>
+          <button class="modal-close" onclick="closeCorrectiveActionModal()">&times;</button>
+        </div>
+        <form id="correctiveActionForm">
+          <div class="field">
+            <label>措置内容 <span class="required">*</span></label>
+            <textarea id="actionContent" required rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label>担当者 <span class="required">*</span></label>
+            <input type="text" id="actionAssignee" required>
+          </div>
+          <div class="field">
+            <label>期限 <span class="required">*</span></label>
+            <input type="date" id="actionDeadline" required>
+          </div>
+          <div class="field">
+            <label>優先度</label>
+            <select id="actionPriority">
+              <option value="normal">通常</option>
+              <option value="high">高</option>
+              <option value="urgent">緊急</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="cta ghost" onclick="closeCorrectiveActionModal()">キャンセル</button>
+            <button type="submit" class="cta">追加</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <button class="floating" onclick="scrollToTop()">↑ トップへ</button>
+
     <script src="app.js"></script>
     <script src="detail-loader.js"></script>
-  <script src="actions.js"></script>
-</body>
+    <script src="detail-pages.js"></script>
+    <script src="actions.js"></script>
+  </body>
 </html>

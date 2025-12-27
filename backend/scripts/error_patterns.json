@@ -1,0 +1,267 @@
+{
+  "error_patterns": [
+    {
+      "id": "http_4xx",
+      "name": "HTTP 4xxエラー",
+      "pattern": "HTTP/[0-9.]+ 4[0-9]{2}",
+      "severity": "warning",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "log_rotate",
+          "description": "アクセスログをローテーション"
+        },
+        {
+          "type": "cache_clear",
+          "description": "HTTPキャッシュをクリア"
+        }
+      ]
+    },
+    {
+      "id": "http_5xx",
+      "name": "HTTP 5xxエラー",
+      "pattern": "HTTP/[0-9.]+ 5[0-9]{2}",
+      "severity": "critical",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "service_restart",
+          "service": "flask_app",
+          "description": "Flaskアプリケーションを再起動"
+        },
+        {
+          "type": "log_rotate",
+          "description": "エラーログをローテーション"
+        }
+      ]
+    },
+    {
+      "id": "database_connection_error",
+      "name": "データベース接続エラー",
+      "pattern": "(database connection|connection refused|could not connect to server|psycopg2\\.OperationalError|FATAL.*database)",
+      "severity": "critical",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "service_restart",
+          "service": "postgresql",
+          "description": "PostgreSQLサービスを再起動"
+        },
+        {
+          "type": "check_port",
+          "port": 5432,
+          "description": "PostgreSQLポートの確認"
+        },
+        {
+          "type": "database_vacuum",
+          "description": "データベースのVACUUM実行"
+        }
+      ]
+    },
+    {
+      "id": "python_exception",
+      "name": "Python例外",
+      "pattern": "(Traceback|Exception|Error): ",
+      "severity": "error",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "log_analysis",
+          "description": "詳細なスタックトレース分析"
+        },
+        {
+          "type": "temp_file_cleanup",
+          "description": "一時ファイルのクリーンアップ"
+        }
+      ]
+    },
+    {
+      "id": "file_not_found",
+      "name": "ファイル不存在エラー",
+      "pattern": "(FileNotFoundError|No such file or directory|\\[Errno 2\\])",
+      "severity": "error",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "create_missing_dirs",
+          "directories": ["data", "logs", "uploads", "cache"],
+          "description": "必要なディレクトリを作成"
+        },
+        {
+          "type": "check_permissions",
+          "description": "ファイル権限の確認と修正"
+        }
+      ]
+    },
+    {
+      "id": "permission_denied",
+      "name": "権限エラー",
+      "pattern": "(PermissionError|Permission denied|\\[Errno 13\\])",
+      "severity": "error",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "fix_permissions",
+          "paths": ["data", "logs", "uploads"],
+          "owner": "www-data",
+          "mode": "755",
+          "description": "ディレクトリ権限を修正"
+        }
+      ]
+    },
+    {
+      "id": "memory_error",
+      "name": "メモリ不足",
+      "pattern": "(MemoryError|Out of memory|OOM|Cannot allocate memory)",
+      "severity": "critical",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "cache_clear",
+          "description": "キャッシュメモリをクリア"
+        },
+        {
+          "type": "temp_file_cleanup",
+          "description": "一時ファイルを削除"
+        },
+        {
+          "type": "service_restart",
+          "service": "flask_app",
+          "description": "アプリケーションを再起動してメモリ解放"
+        }
+      ]
+    },
+    {
+      "id": "disk_full",
+      "name": "ディスク容量不足",
+      "pattern": "(No space left on device|\\[Errno 28\\]|disk.*full)",
+      "severity": "critical",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "log_rotate",
+          "description": "古いログファイルをアーカイブ"
+        },
+        {
+          "type": "temp_file_cleanup",
+          "description": "一時ファイルを削除"
+        },
+        {
+          "type": "old_file_cleanup",
+          "days": 30,
+          "description": "30日以上古いファイルを削除"
+        }
+      ]
+    },
+    {
+      "id": "port_in_use",
+      "name": "ポート使用中",
+      "pattern": "(Address already in use|port.*already|\\[Errno 98\\])",
+      "severity": "error",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "kill_process_on_port",
+          "port": 5000,
+          "description": "ポート5000を使用しているプロセスを終了"
+        },
+        {
+          "type": "service_restart",
+          "service": "flask_app",
+          "description": "アプリケーションを再起動"
+        }
+      ]
+    },
+    {
+      "id": "json_decode_error",
+      "name": "JSON解析エラー",
+      "pattern": "(JSONDecodeError|Invalid JSON|json\\.decoder)",
+      "severity": "warning",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "backup_and_fix_json",
+          "description": "破損したJSONファイルをバックアップして修復"
+        }
+      ]
+    },
+    {
+      "id": "redis_connection_error",
+      "name": "Redis接続エラー",
+      "pattern": "(redis.*connection|Error.*connecting to Redis|ConnectionRefusedError.*6379)",
+      "severity": "warning",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "service_restart",
+          "service": "redis",
+          "description": "Redisサービスを再起動"
+        },
+        {
+          "type": "check_port",
+          "port": 6379,
+          "description": "Redisポートの確認"
+        }
+      ]
+    },
+    {
+      "id": "ssl_certificate_error",
+      "name": "SSL証明書エラー",
+      "pattern": "(SSL.*certificate|certificate verify failed|SSLError)",
+      "severity": "error",
+      "auto_fix": false,
+      "actions": [
+        {
+          "type": "alert",
+          "description": "SSL証明書の手動確認が必要"
+        }
+      ]
+    }
+  ],
+  "health_checks": [
+    {
+      "name": "database_connection",
+      "type": "postgresql",
+      "interval": 60,
+      "timeout": 5,
+      "critical": true
+    },
+    {
+      "name": "redis_connection",
+      "type": "redis",
+      "interval": 60,
+      "timeout": 5,
+      "critical": false
+    },
+    {
+      "name": "disk_space",
+      "type": "disk",
+      "threshold": 90,
+      "interval": 300,
+      "critical": true
+    },
+    {
+      "name": "memory_usage",
+      "type": "memory",
+      "threshold": 85,
+      "interval": 300,
+      "critical": false
+    },
+    {
+      "name": "http_endpoint",
+      "type": "http",
+      "url": "http://localhost:5000/api/health",
+      "interval": 30,
+      "timeout": 10,
+      "critical": true
+    }
+  ],
+  "auto_fix_config": {
+    "max_retries": 3,
+    "retry_delay": 60,
+    "cooldown_period": 300,
+    "enable_notifications": true,
+    "notification_channels": ["log", "email"],
+    "backup_before_fix": true
+  }
+}

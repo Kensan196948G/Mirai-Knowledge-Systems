@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>専門家相談 - 建設土木ナレッジシステム</title>
+    <title>専門家相談詳細 - 建設土木ナレッジシステム</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -24,240 +24,276 @@
         <a class="is-active" href="expert-consult.html" aria-current="page">専門家相談</a>
       </nav>
       <div class="header-actions reveal delay-2">
-        <span class="chip">受付中 6件</span>
-        <span class="chip">平均回答 6時間</span>
-        <button class="cta" onclick="submitConsultation()">相談を起案</button>
+        <button class="icon-button" onclick="window.history.back()" title="戻る">
+          ←
+        </button>
+        <span class="chip" id="consultStatus">ステータス --</span>
+        <span class="chip" id="responseTime">回答時間 --</span>
+        <button class="cta" onclick="submitNewConsultation()">新規相談</button>
       </div>
     </header>
 
     <main class="page">
+      <!-- パンくずリスト -->
+      <nav class="breadcrumb-nav reveal" aria-label="パンくずリスト">
+        <ol class="breadcrumb" id="breadcrumbList">
+          <li><a href="index.html">ホーム</a></li>
+          <li><a href="index.html#consult">専門家相談一覧</a></li>
+          <li aria-current="page">詳細</li>
+        </ol>
+      </nav>
+
       <aside class="sidebar reveal delay-1">
         <div class="nav-section">
-          <div class="nav-title">EXPERT CATEGORIES</div>
+          <div class="nav-title">ナビゲーション</div>
           <div class="nav-item">
-            <strong>地盤・砂防</strong>
-            <span>相談 3</span>
+            <a href="#question"><strong>質問詳細</strong></a>
           </div>
           <div class="nav-item">
-            <strong>構造・橋梁</strong>
-            <span>相談 2</span>
+            <a href="#answers"><strong>回答一覧</strong></a>
           </div>
           <div class="nav-item">
-            <strong>安全衛生</strong>
-            <span>相談 4</span>
+            <a href="#new-answer"><strong>新規回答</strong></a>
           </div>
           <div class="nav-item">
-            <strong>品質・材料</strong>
-            <span>相談 1</span>
+            <a href="#attachments"><strong>添付ファイル</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#related"><strong>関連質問</strong></a>
           </div>
         </div>
         <div class="nav-section">
-          <div class="nav-title">RECENT REQUESTS</div>
-          <div class="nav-item">
-            <strong>地盤改良 施工制限</strong>
-            <span>受付中</span>
-          </div>
-          <div class="nav-item">
-            <strong>橋梁補修 塗膜剥離</strong>
-            <span>回答済み</span>
-          </div>
-          <div class="nav-item">
-            <strong>夜間作業の照度基準</strong>
-            <span>レビュー中</span>
-          </div>
+          <div class="nav-title">アクション</div>
+          <button class="cta ghost" onclick="toggleFollow()">
+            <span id="followIcon">☆</span> フォロー
+          </button>
+          <button class="cta ghost" onclick="downloadPDF('consult')">
+            📥 PDF保存
+          </button>
+          <button class="cta ghost" onclick="shareConsult()">
+            🔗 共有
+          </button>
         </div>
       </aside>
 
       <section class="main">
-        <section class="detail-hero reveal">
-          <div class="breadcrumb">専門家相談 / 地盤技術</div>
-          <h2 class="detail-title">現場の判断を即時に支える専門家相談</h2>
-          <div class="meta-row">
-            <span>当番: 地盤技術 吉岡</span>
-            <span>対応可能: 13:00-19:00</span>
-            <span>優先度: 高 (安全・品質)</span>
-            <span>回答SLA: 6時間以内</span>
+        <!-- ローディング表示 -->
+        <div id="loadingIndicator" class="loading-overlay">
+          <div class="loading-spinner"></div>
+          <p>読み込み中...</p>
+        </div>
+
+        <!-- エラー表示 -->
+        <div id="errorMessage" class="error-message" style="display: none;">
+          <strong>エラー:</strong> <span id="errorText"></span>
+          <button onclick="retryLoadConsult()">再試行</button>
+        </div>
+
+        <!-- 質問詳細 -->
+        <section class="detail-hero reveal" id="question">
+          <h2 class="detail-title" id="consultTitle">相談タイトル</h2>
+          <div class="meta-row" id="consultMeta">
+            <!-- 動的に挿入 -->
           </div>
-          <div class="knowledge-tags">
-            <span class="tag">地盤改良</span>
-            <span class="tag">砂防</span>
-            <span class="tag">安全確認</span>
+          <div class="knowledge-tags" id="consultTags">
+            <!-- 動的に挿入 -->
           </div>
           <div class="cta-group">
-            <button class="cta ghost" onclick="viewPastConsultations()">既存相談を参照</button>
-            <button class="cta secondary" onclick="attachDocument()">資料を添付</button>
-            <button class="cta" onclick="submitConsultation()">相談を起案</button>
+            <button class="cta ghost" onclick="window.history.back()">← 戻る</button>
+            <button class="cta secondary" onclick="editConsult()" id="editBtn">編集</button>
+            <button class="cta" onclick="closeConsult()" id="closeBtn" data-required-role="quality_assurance">解決済みにする</button>
           </div>
         </section>
 
+        <!-- 質問内容 -->
         <section class="detail-grid reveal delay-1">
+          <div class="detail-card" style="grid-column: 1 / -1;">
+            <h4>質問内容</h4>
+            <div id="questionContent" style="padding: 15px; background: #f9f9f9; border-radius: 4px; line-height: 1.8;">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 相談情報 -->
           <div class="detail-card">
-            <h4>相談フォーム</h4>
-            <div class="form">
+            <h4>相談情報</h4>
+            <table class="table">
+              <tbody id="consultInfo">
+                <!-- 動的に挿入 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 優先度・期限 -->
+          <div class="detail-card">
+            <h4>優先度・期限</h4>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div>優先度</div>
+                <strong id="priority">--</strong>
+              </div>
+              <div class="stat-card">
+                <div>回答期限</div>
+                <strong id="deadline">--</strong>
+              </div>
+              <div class="stat-card">
+                <div>経過時間</div>
+                <strong id="elapsedTime">--</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- 添付ファイル -->
+          <div class="detail-card" id="attachments" style="grid-column: 1 / -1;">
+            <h4>添付ファイル</h4>
+            <div id="attachmentList" class="attachment-gallery">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 回答一覧 -->
+          <div class="detail-card" id="answers" style="grid-column: 1 / -1;">
+            <h4>回答一覧 (<span id="answerCount">0</span>件)</h4>
+            <div id="answerList">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 新規回答フォーム -->
+          <div class="detail-card" id="new-answer" style="grid-column: 1 / -1;">
+            <h4>回答を投稿</h4>
+            <form id="answerForm">
               <div class="field">
-                <label>相談タイトル</label>
-                <input type="text" placeholder="例: 砂防堰堤B-03 透水係数の追加試験について" />
+                <label>回答内容 <span class="required">*</span></label>
+                <textarea id="answerContent" required rows="6" placeholder="詳細な回答を入力してください..."></textarea>
+                <small>Markdown記法が使用できます</small>
               </div>
               <div class="field">
-                <label>関連現場</label>
-                <select>
-                  <option>東北橋梁補修 B-03</option>
-                  <option>河川護岸整備 R-07</option>
-                  <option>砂防堰堤 B-05</option>
-                </select>
+                <label>参照資料・根拠</label>
+                <textarea id="answerReferences" rows="3" placeholder="参照したSOP、法令、過去事例など"></textarea>
               </div>
               <div class="field">
-                <label>相談内容</label>
-                <textarea placeholder="背景、現場条件、判断に迷っているポイントを簡潔に記入"></textarea>
+                <label>添付ファイル</label>
+                <input type="file" id="answerAttachment" multiple>
+                <small>画像、PDF、Excelファイルなど（最大10MB）</small>
               </div>
               <div class="field">
-                <label>回答希望期限</label>
-                <input type="text" placeholder="例: 2024/06/28 17:00" />
+                <label>
+                  <input type="checkbox" id="markAsBest">
+                  この回答をベストアンサーとして推奨する
+                </label>
               </div>
+              <div class="modal-actions">
+                <button type="button" class="cta ghost" onclick="resetAnswerForm()">リセット</button>
+                <button type="submit" class="cta">回答を投稿</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- ステータス履歴 -->
+          <div class="detail-card">
+            <h4>ステータス履歴</h4>
+            <div id="statusHistory" class="timeline">
+              <!-- 動的に挿入 -->
             </div>
           </div>
+
+          <!-- 統計情報 -->
           <div class="detail-card">
-            <h4>必要資料</h4>
-            <div class="checklist">
-              <div>図面 / 断面図 / 配筋計画</div>
-              <div>試験結果 (含水比・締固め・透水)</div>
-              <div>現場写真 (最新3枚以上)</div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>相談フロー</h4>
-            <div class="step-list">
-              <div class="step-item">
-                <strong>Step 1: 相談内容の整理</strong>
-                <div>現場条件・判断基準・制約条件を明文化。</div>
+            <h4>エンゲージメント</h4>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div>回答数</div>
+                <strong id="totalAnswers">0</strong>
+                <small>件</small>
               </div>
-              <div class="step-item">
-                <strong>Step 2: 専門家アサイン</strong>
-                <div>対応領域に応じて当番専門家へ即時通知。</div>
+              <div class="stat-card">
+                <div>閲覧数</div>
+                <strong id="viewCount">0</strong>
+                <small>回</small>
               </div>
-              <div class="step-item">
-                <strong>Step 3: 回答・共有</strong>
-                <div>回答内容は現場へ配信しナレッジ化。</div>
-              </div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>回答テンプレート</h4>
-            <div class="list-dense">
-              <div>現場条件と制約 (地盤・気象・工程)</div>
-              <div>推奨判断と根拠 (法令・SOP・過去事例)</div>
-              <div>追加試験・確認項目 (必要な資料)</div>
-              <div>リスクと代替案 (安全・品質・原価)</div>
-            </div>
-            <div class="callout">回答は24時間以内、緊急案件は2時間以内を目標。</div>
-          </div>
-          <div class="detail-card">
-            <h4>進行中の相談</h4>
-            <div class="list-dense">
-              <div>B-03 砂防堰堤: 透水係数の追加試験について</div>
-              <div>R-07 護岸: 基礎地盤の改良深度判断</div>
-              <div>K-12 夜間施工: 路面下空洞の再調査</div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>対応枠サマリ</h4>
-            <div class="progress-list">
-              <div class="progress-item" data-progress="72">
-                <div class="progress-title">当番専門家の稼働</div>
-                <div class="progress-track"><span class="progress-fill"></span></div>
-                <div class="progress-meta"><span>稼働 72%</span><span>残り枠 4</span></div>
-              </div>
-              <div class="progress-item" data-progress="60">
-                <div class="progress-title">回答SLA達成率</div>
-                <div class="progress-track"><span class="progress-fill"></span></div>
-                <div class="progress-meta"><span>達成 60%</span><span>今週</span></div>
-              </div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>承認フロー</h4>
-            <div class="flow">
-              <div class="flow-step">
-                <div>起案: 現場代理人</div>
-                <span class="badge is-done">提出済み</span>
-              </div>
-              <div class="flow-step">
-                <div>所長承認</div>
-                <span class="badge is-wait">承認待ち</span>
-              </div>
-              <div class="flow-step">
-                <div>専門家アサイン</div>
-                <span class="badge is-hold">未着手</span>
-              </div>
-              <div class="flow-step">
-                <div>回答・配信</div>
-                <span class="badge is-info">承認後自動配信</span>
+              <div class="stat-card">
+                <div>フォロー</div>
+                <strong id="followerCount">0</strong>
+                <small>人</small>
               </div>
             </div>
           </div>
         </section>
       </section>
 
+      <!-- 右サイドバー -->
       <aside class="rail reveal delay-1">
-        <div class="alert">
-          <strong>優先:</strong> 施工判断に直結する相談は即時対応対象です。
-        </div>
         <div>
-          <h3>当番エキスパート</h3>
-          <div class="document">
-            <strong>地盤技術: 吉岡</strong>
-            <small>対応可能 13:00-19:00</small>
-            <div>地中空洞検知 / 地盤改良の支援。</div>
-          </div>
-          <div class="document">
-            <strong>構造設計: 小林</strong>
-            <small>対応可能 10:00-16:00</small>
-            <div>橋梁補修の部材選定を支援。</div>
+          <h3>担当エキスパート</h3>
+          <div id="expertInfo" class="document">
+            <!-- 動的に挿入 -->
           </div>
         </div>
-        <div>
+
+        <div style="margin-top: 30px;">
+          <h3>ベストアンサー</h3>
+          <div id="bestAnswer" class="document">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <h3 id="related">関連質問</h3>
+          <div id="relatedQuestions">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
           <h3>回答状況</h3>
-          <div class="status-list">
-            <div class="status-item">
-              <div>24時間以内回答</div>
-              <span>86%</span>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div>回答率</div>
+              <strong id="responseRate">0</strong>
+              <small>%</small>
             </div>
-            <div class="status-item">
-              <div>滞留</div>
-              <span>2件</span>
-            </div>
-            <div class="status-item">
-              <div>平均回答</div>
-              <span>6時間</span>
+            <div class="stat-card">
+              <div>平均回答時間</div>
+              <strong id="avgResponseTime">0</strong>
+              <small>時間</small>
             </div>
           </div>
         </div>
-        <div>
-          <h3>参考ナレッジ</h3>
-          <div class="document">
-            <strong>地盤改良 施工制限手順</strong>
-            <small>SOP-0214</small>
-            <div>雨量閾値と施工再開判断。</div>
-          </div>
-        </div>
-        <div>
-          <h3>相談FAQ</h3>
-          <div class="activity-list">
-            <div class="activity-item">
-              <strong>写真添付は何枚必要？</strong>
-              <small>最低3枚、全景・詳細・測定位置が必須。</small>
-            </div>
-            <div class="activity-item">
-              <strong>回答期限の延長は可能？</strong>
-              <small>所長承認の上、最大48時間まで延長可。</small>
-            </div>
+
+        <div style="margin-top: 30px;">
+          <h3>参考SOP</h3>
+          <div id="referenceSOP">
+            <!-- 動的に挿入 -->
           </div>
         </div>
       </aside>
     </main>
 
-    <button class="floating" onclick="submitConsultation()">相談を起案</button>
+    <!-- 回答詳細モーダル -->
+    <div id="answerDetailModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>回答詳細</h2>
+          <button class="modal-close" onclick="closeAnswerDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="answerDetailContent">
+            <!-- 動的に挿入 -->
+          </div>
+          <div class="modal-actions">
+            <button class="cta secondary" onclick="selectBestAnswer()" id="bestAnswerBtn">ベストアンサーに選択</button>
+            <button class="cta ghost" onclick="closeAnswerDetailModal()">閉じる</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="floating" onclick="scrollToTop()">↑ トップへ</button>
+
     <script src="app.js"></script>
+    <script src="detail-loader.js"></script>
+    <script src="detail-pages.js"></script>
     <script src="actions.js"></script>
-</body>
+  </body>
 </html>

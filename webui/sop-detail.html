@@ -24,282 +24,280 @@
         <a href="expert-consult.html">専門家相談</a>
       </nav>
       <div class="header-actions reveal delay-2">
-        <span class="chip">SOP番号 SOP-0421</span>
-        <span class="chip">有効: 2024/06/02</span>
-        <button class="cta" onclick="proposeRevision('sop')">改訂を提案</button>
+        <button class="icon-button" onclick="window.history.back()" title="戻る">
+          ←
+        </button>
+        <span class="chip" id="sopNumber">SOP番号 --</span>
+        <span class="chip" id="sopVersion">バージョン --</span>
+        <button class="cta" onclick="downloadSOP()">ダウンロード</button>
+        <button class="cta secondary" onclick="printChecklist()">チェックリスト印刷</button>
       </div>
     </header>
 
     <main class="page">
+      <!-- パンくずリスト -->
+      <nav class="breadcrumb-nav reveal" aria-label="パンくずリスト">
+        <ol class="breadcrumb" id="breadcrumbList">
+          <li><a href="index.html">ホーム</a></li>
+          <li><a href="index.html#sop">SOP一覧</a></li>
+          <li aria-current="page">詳細</li>
+        </ol>
+      </nav>
+
       <aside class="sidebar reveal delay-1">
         <div class="nav-section">
-          <div class="nav-title">SOP INDEX</div>
+          <div class="nav-title">ナビゲーション</div>
           <div class="nav-item">
-            <strong>安全管理</strong>
-            <span>18件</span>
+            <a href="#overview"><strong>概要</strong></a>
           </div>
           <div class="nav-item">
-            <strong>施工計画</strong>
-            <span>12件</span>
+            <a href="#procedure"><strong>手順</strong></a>
           </div>
           <div class="nav-item">
-            <strong>品質監査</strong>
-            <span>9件</span>
+            <a href="#checklist"><strong>チェックリスト</strong></a>
           </div>
           <div class="nav-item">
-            <strong>機材点検</strong>
-            <span>14件</span>
+            <a href="#warnings"><strong>注意事項</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#versions"><strong>改訂履歴</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#related-sop"><strong>関連SOP</strong></a>
           </div>
         </div>
         <div class="nav-section">
-          <div class="nav-title">RELATED</div>
-          <div class="nav-item">
-            <strong>高所作業車 点検</strong>
-            <span>最新</span>
-          </div>
-          <div class="nav-item">
-            <strong>安全帯の装着 (SOP-0402)</strong>
-            <span>改訂</span>
-          </div>
-          <div class="nav-item">
-            <strong>夜間作業の照度基準</strong>
-            <span>参照</span>
-          </div>
+          <div class="nav-title">アクション</div>
+          <button class="cta ghost" onclick="startInspectionRecord()">
+            📋 実施記録開始
+          </button>
+          <button class="cta ghost" onclick="downloadPDF('sop')">
+            📥 PDF保存
+          </button>
+          <button class="cta ghost" onclick="shareSOP()">
+            🔗 共有
+          </button>
         </div>
       </aside>
 
       <section class="main">
-        <section class="detail-hero reveal">
-          <div class="breadcrumb">標準施工 / 安全管理 / 高所作業車</div>
-          <h2 class="detail-title">高所作業車 乗車前点検SOP</h2>
-          <div class="meta-row">
-            <span>改訂: 2024/06/02</span>
-            <span>作成: 安全管理チーム</span>
-            <span>対象: 20m級 高所作業車</span>
-            <span>点検頻度: 毎日始業前</span>
-            <span>所要時間: 15分</span>
+        <!-- ローディング表示 -->
+        <div id="loadingIndicator" class="loading-overlay">
+          <div class="loading-spinner"></div>
+          <p>読み込み中...</p>
+        </div>
+
+        <!-- エラー表示 -->
+        <div id="errorMessage" class="error-message" style="display: none;">
+          <strong>エラー:</strong> <span id="errorText"></span>
+          <button onclick="retryLoadSOP()">再試行</button>
+        </div>
+
+        <!-- 詳細ヒーロー -->
+        <section class="detail-hero reveal" id="overview">
+          <h2 class="detail-title" id="sopTitle">SOP タイトル</h2>
+          <div class="meta-row" id="sopMeta">
+            <!-- 動的に挿入 -->
           </div>
-          <div class="knowledge-tags">
-            <span class="tag">安全確認</span>
-            <span class="tag">動画あり</span>
-            <span class="tag">チェックリスト</span>
+          <div class="knowledge-tags" id="sopTags">
+            <!-- 動的に挿入 -->
           </div>
           <div class="cta-group">
-            <button class="cta ghost" onclick="downloadPDF('sop', '手順書')">手順書をダウンロード</button>
-            <button class="cta secondary" onclick="startInspection(1)">点検表を開始</button>
-            <button class="cta">配信申請</button>
+            <button class="cta ghost" onclick="window.history.back()">← 戻る</button>
+            <button class="cta secondary" onclick="editSOP()" data-required-role="quality_assurance">改訂提案</button>
+            <button class="cta" onclick="submitDistribution('sop')">配信申請</button>
           </div>
         </section>
 
+        <!-- 詳細グリッド -->
         <section class="detail-grid reveal delay-1">
+          <!-- 概要 -->
           <div class="detail-card">
-            <h4>必須装備・工具</h4>
-            <div class="info-grid">
-              <div class="pill">安全帯 (胴ベルト型)</div>
-              <div class="pill">点検ハンマー</div>
-              <div class="pill">油圧ゲージ</div>
-              <div class="pill">輪止め / 誘導旗</div>
-              <div class="pill">作業前点検表</div>
+            <h4>目的</h4>
+            <div id="sopPurpose">
+              <!-- 動的に挿入 -->
             </div>
           </div>
+
+          <!-- 適用範囲 -->
           <div class="detail-card">
-            <h4>点検ステップ</h4>
-            <div class="step-list">
-              <div class="step-item">
-                <strong>Step 1: 外観確認</strong>
-                <div>フレーム、タイヤ、アウトリガーの損傷・油漏れを確認。</div>
+            <h4>適用範囲</h4>
+            <div id="sopScope">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- バージョン情報 -->
+          <div class="detail-card">
+            <h4>バージョン情報</h4>
+            <table class="table">
+              <tbody id="versionInfo">
+                <!-- 動的に挿入 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 手順 -->
+          <div class="detail-card" id="procedure" style="grid-column: 1 / -1;">
+            <h4>作業手順</h4>
+            <div id="sopProcedure" class="step-list">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- チェックリスト -->
+          <div class="detail-card" id="checklist" style="grid-column: 1 / -1;">
+            <h4>チェックリスト</h4>
+            <div id="sopChecklist" class="checklist">
+              <!-- 動的に挿入 -->
+            </div>
+            <button class="cta secondary" onclick="printChecklist()" style="margin-top: 15px;">
+              チェックリストを印刷
+            </button>
+          </div>
+
+          <!-- 注意事項 -->
+          <div class="detail-card" id="warnings" style="grid-column: 1 / -1;">
+            <h4>注意事項・安全対策</h4>
+            <div id="sopWarnings" class="list-dense">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 必要資材・工具 -->
+          <div class="detail-card">
+            <h4>必要資材・工具</h4>
+            <div id="sopEquipment" class="info-grid">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 所要時間 -->
+          <div class="detail-card">
+            <h4>標準所要時間</h4>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div>準備時間</div>
+                <strong id="prepTime">--</strong>
+                <small>分</small>
               </div>
-              <div class="step-item">
-                <strong>Step 2: 操作盤チェック</strong>
-                <div>非常停止、警報、制御レバーの反応と復帰確認。</div>
+              <div class="stat-card">
+                <div>作業時間</div>
+                <strong id="workTime">--</strong>
+                <small>分</small>
               </div>
-              <div class="step-item">
-                <strong>Step 3: 荷重試験</strong>
-                <div>定格荷重の80%で伸縮・旋回動作を確認。</div>
-              </div>
-              <div class="step-item">
-                <strong>Step 4: 記録と報告</strong>
-                <div>異常箇所は写真添付し、当日の作業責任者へ報告。</div>
+              <div class="stat-card">
+                <div>合計</div>
+                <strong id="totalTime">--</strong>
+                <small>分</small>
               </div>
             </div>
           </div>
-          <div class="detail-card">
-            <h4>点検チェックリスト (抜粋)</h4>
-            <div class="schedule-list">
-              <div class="schedule-item">
-                <div class="status-row">
-                  <span class="status-dot is-ok"></span>
-                  <strong>アウトリガー固定ピンの緩み</strong>
+
+          <!-- 実施記録フォーム -->
+          <div class="detail-card" id="record-form" style="grid-column: 1 / -1; display: none;">
+            <h4>実施記録入力</h4>
+            <form id="inspectionForm">
+              <div class="field">
+                <label>実施日時 <span class="required">*</span></label>
+                <input type="datetime-local" id="recordDate" required>
+              </div>
+              <div class="field">
+                <label>実施者 <span class="required">*</span></label>
+                <input type="text" id="recordWorker" required>
+              </div>
+              <div class="field">
+                <label>所属・現場</label>
+                <input type="text" id="recordProject">
+              </div>
+              <div class="field">
+                <label>実施内容</label>
+                <textarea id="recordContent" rows="4"></textarea>
+              </div>
+              <div class="field">
+                <label>チェック項目</label>
+                <div id="recordChecklist">
+                  <!-- 動的に挿入 -->
                 </div>
-                <small>判定: OK / 点検担当: 佐藤</small>
               </div>
-              <div class="schedule-item">
-                <div class="status-row">
-                  <span class="status-dot is-warn"></span>
-                  <strong>油圧ゲージの指示値</strong>
-                </div>
-                <small>判定: 注意 / 再測定予定</small>
+              <div class="field">
+                <label>備考・特記事項</label>
+                <textarea id="recordNotes" rows="3"></textarea>
               </div>
-              <div class="schedule-item">
-                <div class="status-row">
-                  <span class="status-dot is-ok"></span>
-                  <strong>非常停止装置の動作</strong>
-                </div>
-                <small>判定: OK / 連続3日良好</small>
+              <div class="modal-actions">
+                <button type="button" class="cta ghost" onclick="cancelRecord()">キャンセル</button>
+                <button type="submit" class="cta">記録を保存</button>
               </div>
-            </div>
+            </form>
           </div>
-          <div class="detail-card">
-            <h4>点検結果サマリ</h4>
-            <div class="progress-list">
-              <div class="progress-item" data-progress="92">
-                <div class="progress-title">全体適合率</div>
-                <div class="progress-track"><span class="progress-fill"></span></div>
-                <div class="progress-meta"><span>適合 92%</span><span>前週 +3%</span></div>
-              </div>
-              <div class="progress-item" data-progress="78">
-                <div class="progress-title">油圧系統</div>
-                <div class="progress-track"><span class="progress-fill"></span></div>
-                <div class="progress-meta"><span>注意 22%</span><span>対象 9件</span></div>
-              </div>
-              <div class="progress-item" data-progress="96">
-                <div class="progress-title">安全装置</div>
-                <div class="progress-track"><span class="progress-fill"></span></div>
-                <div class="progress-meta"><span>適合 96%</span><span>要再点検 1件</span></div>
-              </div>
-            </div>
-            <div class="note">点検結果は当日中に安全管理へ報告し、写真添付を必須とする。</div>
-          </div>
-          <div class="detail-card">
-            <h4>判定基準</h4>
-            <div class="checklist">
-              <div>油圧ゲージが規定値から±10%を超えた場合は運転停止。</div>
-              <div>アウトリガーの沈下量が20mmを超える場合は再設置。</div>
-              <div>警報装置の不作動は即時是正、作業中止。</div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>安全上の注意</h4>
-            <div class="checklist">
-              <div>風速10m/s以上の場合は運転停止。代替作業へ切替。</div>
-              <div>転落防止装置の未装着は即時作業中止。</div>
-              <div>点検後の再起動時は必ず二人確認。</div>
-            </div>
-          </div>
-          <div class="detail-card">
-            <h4>承認フロー</h4>
-            <div class="flow">
-              <div class="flow-step">
-                <div>起案: 安全管理チーム</div>
-                <span class="badge is-done">提出済み</span>
-              </div>
-              <div class="flow-step">
-                <div>品質保証室レビュー</div>
-                <span class="badge is-done">承認済み</span>
-              </div>
-              <div class="flow-step">
-                <div>技術本部確認</div>
-                <span class="badge is-wait">承認待ち</span>
-              </div>
-              <div class="flow-step">
-                <div>社内標準化 (全社配信)</div>
-                <span class="badge is-hold">未着手</span>
-              </div>
-            </div>
-          </div>
-          <div class="detail-card">
+
+          <!-- 改訂履歴 -->
+          <div class="detail-card" id="versions" style="grid-column: 1 / -1;">
             <h4>改訂履歴</h4>
             <table class="table">
               <thead>
                 <tr>
+                  <th>バージョン</th>
                   <th>改訂日</th>
-                  <th>内容</th>
-                  <th>担当</th>
+                  <th>改訂内容</th>
+                  <th>担当者</th>
+                  <th>アクション</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>2024/06/02</td>
-                  <td>油圧ゲージ確認を必須化</td>
-                  <td>安全管理</td>
-                </tr>
-                <tr>
-                  <td>2024/03/18</td>
-                  <td>写真記録の提出先を追加</td>
-                  <td>品質保証</td>
-                </tr>
-                <tr>
-                  <td>2023/12/01</td>
-                  <td>初版制定</td>
-                  <td>安全管理</td>
-                </tr>
+              <tbody id="revisionHistory">
+                <!-- 動的に挿入 -->
               </tbody>
             </table>
           </div>
         </section>
       </section>
 
+      <!-- 右サイドバー -->
       <aside class="rail reveal delay-1">
-        <div class="alert">
-          <strong>注意喚起:</strong> 先週の点検不備が2件報告 (K-12 / B-03)。
-        </div>
         <div>
-          <h3>現場適用率</h3>
-          <div class="status-list">
-            <div class="status-item">
-              <div>全体適用率</div>
-              <span>92%</span>
-            </div>
-            <div class="status-item">
-              <div>直近30日</div>
-              <span>88%</span>
-            </div>
-            <div class="status-item">
-              <div>未適用現場</div>
-              <span>3現場</span>
-            </div>
+          <h3 id="related-sop">関連SOP</h3>
+          <div id="relatedSOPList">
+            <!-- 動的に挿入 -->
           </div>
         </div>
-        <div>
-          <h3>関連資料</h3>
-          <div class="document">
-            <strong>高所作業車 点検動画</strong>
-            <small>6分 / 2024/06</small>
-            <div>点検の要所を短時間で確認。</div>
-          </div>
-          <div class="document">
-            <strong>点検表 記入例</strong>
-            <small>PDF / 2ページ</small>
-            <div>記載漏れを防止するサンプル。</div>
+
+        <div style="margin-top: 30px;">
+          <h3>適用現場</h3>
+          <div id="applicableSites" class="status-list">
+            <!-- 動的に挿入 -->
           </div>
         </div>
-        <div>
-          <h3>担当エキスパート</h3>
-          <div class="document">
-            <strong>安全管理: 斎藤</strong>
-            <small>対応可能 10:00-17:00 / 東北エリア</small>
-            <div>現場点検の相談が集中。</div>
+
+        <div style="margin-top: 30px;">
+          <h3>承認状況</h3>
+          <div class="flow" id="approvalFlow">
+            <!-- 動的に挿入 -->
           </div>
         </div>
-        <div>
-          <h3>次回教育スケジュール</h3>
-          <div class="schedule-list">
-            <div class="schedule-item">
-              <strong>高所作業車 点検講習</strong>
-              <small>2024/07/02 09:00 / B-03 詰所</small>
+
+        <div style="margin-top: 30px;">
+          <h3>実施統計</h3>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div>実施回数</div>
+              <strong id="executionCount">0</strong>
+              <small>回</small>
             </div>
-            <div class="schedule-item">
-              <strong>安全装置の緊急停止訓練</strong>
-              <small>2024/07/06 15:00 / K-12 現場</small>
+            <div class="stat-card">
+              <div>適合率</div>
+              <strong id="complianceRate">0</strong>
+              <small>%</small>
             </div>
           </div>
         </div>
       </aside>
     </main>
 
-    <button class="floating" onclick="submitDistribution('sop', {})">手順を現場へ配信申請</button>
+    <button class="floating" onclick="scrollToTop()">↑ トップへ</button>
+
     <script src="app.js"></script>
     <script src="detail-loader.js"></script>
-  <script src="actions.js"></script>
-</body>
+    <script src="detail-pages.js"></script>
+    <script src="actions.js"></script>
+  </body>
 </html>
