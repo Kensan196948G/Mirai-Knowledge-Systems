@@ -53,11 +53,11 @@ class KnowledgeCreateSchema(Schema):
     tags = fields.List(
         fields.Str(validate=validate.Length(max=30)),
         validate=validate.Length(max=20),
-        missing=[]
+        load_default=[]
     )
     owner = fields.Str(
         validate=validate.Length(max=100),
-        missing='unknown'
+        load_default='unknown'
     )
     project = fields.Str(
         validate=validate.Length(max=100),
@@ -65,7 +65,7 @@ class KnowledgeCreateSchema(Schema):
     )
     priority = fields.Str(
         validate=validate.OneOf(['low', 'medium', 'high']),
-        missing='medium'
+        load_default='medium'
     )
 
 class KnowledgeUpdateSchema(Schema):
@@ -111,11 +111,11 @@ class IncidentCreateSchema(Schema):
     date = fields.DateTime(required=True)
     severity = fields.Str(
         validate=validate.OneOf(['low', 'medium', 'high', 'critical']),
-        missing='medium'
+        load_default='medium'
     )
     corrective_actions = fields.List(
         fields.Str(validate=validate.Length(max=500)),
-        missing=[]
+        load_default=[]
     )
     reporter = fields.Str(
         validate=validate.Length(max=100),

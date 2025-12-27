@@ -1798,5 +1798,205 @@
     "ip_address": "192.168.0.157",
     "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
     "timestamp": "2025-12-27T12:49:50.672194"
+  },
+  {
+    "id": 181,
+    "user_id": "1",
+    "action": "approvals.list",
+    "resource": "approvals",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:20:27.154058"
+  },
+  {
+    "id": 182,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:20:58.514382"
+  },
+  {
+    "id": 183,
+    "user_id": "1",
+    "action": "knowledge.list",
+    "resource": "knowledge",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:20:58.518049"
+  },
+  {
+    "id": 184,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:16.295888"
+  },
+  {
+    "id": 185,
+    "user_id": "1",
+    "action": "knowledge.list",
+    "resource": "knowledge",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:17.790133"
+  },
+  {
+    "id": 186,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:20.517873"
+  },
+  {
+    "id": 187,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:22.116094"
+  },
+  {
+    "id": 188,
+    "user_id": "1",
+    "action": "approvals.list",
+    "resource": "approvals",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:23.945397"
+  },
+  {
+    "id": 189,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:25.783583"
+  },
+  {
+    "id": 190,
+    "user_id": "1",
+    "action": "knowledge.list",
+    "resource": "knowledge",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:25.786990"
+  },
+  {
+    "id": 191,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:28.964294"
+  },
+  {
+    "id": 192,
+    "user_id": "1",
+    "action": "knowledge.list",
+    "resource": "knowledge",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:28.968961"
+  },
+  {
+    "id": 193,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:34.430248"
+  },
+  {
+    "id": 194,
+    "user_id": "1",
+    "action": "approvals.list",
+    "resource": "approvals",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:38.136825"
+  },
+  {
+    "id": 195,
+    "user_id": "1",
+    "action": "knowledge.list",
+    "resource": "knowledge",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:21:38.140354"
+  },
+  {
+    "id": 196,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:24:10.816065"
+  },
+  {
+    "id": 197,
+    "user_id": "1",
+    "action": "knowledge.list",
+    "resource": "knowledge",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:24:10.820755"
+  },
+  {
+    "id": 198,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:24:13.688777"
+  },
+  {
+    "id": 199,
+    "user_id": "1",
+    "action": "knowledge.list",
+    "resource": "knowledge",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:24:13.695677"
+  },
+  {
+    "id": 200,
+    "user_id": "1",
+    "action": "approvals.list",
+    "resource": "approvals",
+    "resource_id": null,
+    "ip_address": "192.168.0.157",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "timestamp": "2025-12-27T14:24:13.704142"
   }
 ]

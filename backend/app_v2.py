@@ -120,6 +120,13 @@ app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 # 完全なCSRF無効化（API専用）
 app.config['JWT_COOKIE_CSRF_PROTECT'] = False
 app.config['WTF_CSRF_ENABLED'] = False
+
+# セッションタイムアウト設定（本番環境での追加セキュリティ）
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('MKS_FORCE_HTTPS', 'false').lower() in ('true', '1', 'yes')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 print(f'[INIT] JWT Secret Key configured: {app.config["JWT_SECRET_KEY"][:20]}...')
 jwt = JWTManager(app)
 
@@ -1236,12 +1243,35 @@ knowledge_views_total {0}
 @app.route('/')
 def index():
     """トップページ"""
-    return send_from_directory(app.static_folder, 'index.html')
+    response = send_from_directory(app.static_folder, 'index.html')
+    # HTMLファイルはキャッシュしない（動的更新対応）
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/<path:path>')
 def serve_static(path):
-    """静的ファイル配信"""
-    return send_from_directory(app.static_folder, path)
+    """静的ファイル配信（キャッシュ最適化）"""
+    response = send_from_directory(app.static_folder, path)
+
+    # ファイルタイプに応じたキャッシュ設定
+    if path.endswith(('.js', '.css')):
+        # JS/CSSは1時間キャッシュ
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+    elif path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp')):
+        # 画像は1日キャッシュ
+        response.headers['Cache-Control'] = 'public, max-age=86400'
+    elif path.endswith(('.woff', '.woff2', '.ttf', '.eot')):
+        # フォントは1週間キャッシュ
+        response.headers['Cache-Control'] = 'public, max-age=604800'
+    elif path.endswith('.html'):
+        # HTMLファイルはキャッシュしない
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
+    return response
 
 # ============================================================
 # エラーハンドラー

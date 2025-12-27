@@ -196,8 +196,10 @@ class DataMigrationTool:
         }
 
         try:
-            # 既存データをバックアップ
-            for k in self.db.query(Knowledge).all():
+            # 既存データをバックアップ（効率化：select()使用）
+            from sqlalchemy import select
+            knowledge_list = self.db.scalars(select(Knowledge)).all()
+            for k in knowledge_list:
                 backup_data['knowledge'].append({
                     'id': k.id,
                     'title': k.title,
@@ -213,8 +215,9 @@ class DataMigrationTool:
                     'updated_at': k.updated_at.isoformat() if k.updated_at else None
                 })
 
-            # SOPなども同様にバックアップ
-            for s in self.db.query(SOP).all():
+            # SOPなども同様にバックアップ（効率化：select()使用）
+            sop_list = self.db.scalars(select(SOP)).all()
+            for s in sop_list:
                 backup_data['sop'].append({
                     'id': s.id,
                     'title': s.title,

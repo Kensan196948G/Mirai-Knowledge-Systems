@@ -77,31 +77,34 @@ def seed_roles_and_permissions():
         
         # 役割-権限の関連付け
         
-        # 管理者：全権限
-        admin_role = db.query(Role).filter_by(name='admin').first()
-        all_permissions = db.query(Permission).all()
+        # 管理者：全権限（SQLAlchemy 2.0 select使用）
+        from sqlalchemy import select
+        admin_role = db.scalar(select(Role).filter_by(name='admin'))
+        all_permissions = db.scalars(select(Permission)).all()
         for perm in all_permissions:
             db.add(RolePermission(role_id=admin_role.id, permission_id=perm.id))
-        
-        # 施工管理：読み取り＋作成
-        cm_role = db.query(Role).filter_by(name='construction_manager').first()
-        cm_perms = db.query(Permission).filter(
-            Permission.name.in_([
-                'knowledge.create', 'knowledge.read', 'knowledge.update',
-                'sop.read',
-                'incident.create', 'incident.read',
-                'consultation.create',
-                'approval.read',
-                'notification.read'
-            ])
+
+        # 施工管理：読み取り＋作成（SQLAlchemy 2.0 select使用）
+        cm_role = db.scalar(select(Role).filter_by(name='construction_manager'))
+        cm_perms = db.scalars(
+            select(Permission).filter(
+                Permission.name.in_([
+                    'knowledge.create', 'knowledge.read', 'knowledge.update',
+                    'sop.read',
+                    'incident.create', 'incident.read',
+                    'consultation.create',
+                    'approval.read',
+                    'notification.read'
+                ])
+            )
         ).all()
         for perm in cm_perms:
             db.add(RolePermission(role_id=cm_role.id, permission_id=perm.id))
-        
-        # 協力会社：閲覧のみ
-        partner_role = db.query(Role).filter_by(name='partner_company').first()
-        partner_perms = db.query(Permission).filter(
-            Permission.action == 'read'
+
+        # 協力会社：閲覧のみ（SQLAlchemy 2.0 select使用）
+        partner_role = db.scalar(select(Role).filter_by(name='partner_company'))
+        partner_perms = db.scalars(
+            select(Permission).filter(Permission.action == 'read')
         ).all()
         for perm in partner_perms:
             db.add(RolePermission(role_id=partner_role.id, permission_id=perm.id))
