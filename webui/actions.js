@@ -4,6 +4,60 @@
 // ============================================================
 
 /**
+ * トースト通知を表示
+ * @param {string} message - 表示するメッセージ
+ * @param {string} type - 通知タイプ ('success', 'error', 'warning', 'info')
+ */
+function showToast(message, type = 'info') {
+  // トーストコンテナを取得または作成
+  let container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  // トースト要素を作成
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+
+  // アイコンを設定
+  const iconMap = {
+    success: '✓',
+    error: '✕',
+    warning: '⚠',
+    info: 'ℹ'
+  };
+
+  toast.innerHTML = `
+    <div class="toast-icon">${iconMap[type] || 'ℹ'}</div>
+    <div class="toast-message">${message}</div>
+  `;
+
+  container.appendChild(toast);
+
+  // アニメーション表示
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+
+  // 3秒後に削除
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      container.removeChild(toast);
+      // コンテナが空なら削除
+      if (container.children.length === 0) {
+        document.body.removeChild(container);
+      }
+    }, 300);
+  }, 3000);
+}
+
+// グローバルに公開
+window.showToast = showToast;
+
+/**
  * 配信申請処理
  */
 function submitDistribution(type, data) {
@@ -159,6 +213,128 @@ function viewPastConsultations() {
   console.log('[ACTION] Past consultations view initiated');
 }
 
+/**
+ * 事故レポートステータス更新
+ */
+function updateIncidentStatus() {
+  const modal = document.getElementById('statusModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  } else {
+    alert('ステータス更新機能は準備中です');
+  }
+}
+
+/**
+ * ステータスモーダルを閉じる
+ */
+function closeStatusModal() {
+  const modal = document.getElementById('statusModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * 事故レポート編集
+ */
+function editIncident() {
+  alert('事故レポート編集機能は準備中です');
+  console.log('[ACTION] Edit incident initiated');
+}
+
+/**
+ * 専門家相談編集
+ */
+function editConsult() {
+  alert('専門家相談編集機能は準備中です');
+  console.log('[ACTION] Edit consultation initiated');
+}
+
+/**
+ * 専門家相談クローズ
+ */
+function closeConsult() {
+  const confirmed = confirm('この相談を解決済みにしますか？');
+  if (confirmed) {
+    alert('相談を解決済みにしました');
+    console.log('[ACTION] Consultation closed');
+  }
+}
+
+/**
+ * フォロー切り替え
+ */
+function toggleFollow() {
+  const icon = document.getElementById('followIcon');
+  if (icon) {
+    if (icon.textContent === '☆') {
+      icon.textContent = '★';
+      alert('この相談をフォローしました');
+    } else {
+      icon.textContent = '☆';
+      alert('フォローを解除しました');
+    }
+  }
+}
+
+/**
+ * 回答フォームリセット
+ */
+function resetAnswerForm() {
+  const form = document.getElementById('answerForm');
+  if (form) {
+    form.reset();
+  }
+}
+
+/**
+ * 回答詳細モーダルを閉じる
+ */
+function closeAnswerDetailModal() {
+  const modal = document.getElementById('answerDetailModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * ベストアンサーに選択
+ */
+function selectBestAnswer() {
+  const confirmed = confirm('この回答をベストアンサーに選択しますか？');
+  if (confirmed) {
+    alert('ベストアンサーに選択しました');
+    closeAnswerDetailModal();
+  }
+}
+
+/**
+ * SOP編集記録開始
+ */
+function startRecord() {
+  const formEl = document.getElementById('record-form');
+  if (formEl) {
+    formEl.style.display = 'block';
+    formEl.scrollIntoView({ behavior: 'smooth' });
+  } else {
+    alert('記録開始機能は準備中です');
+  }
+}
+
+/**
+ * 記録キャンセル
+ */
+function cancelRecord() {
+  const formEl = document.getElementById('record-form');
+  if (formEl) {
+    formEl.style.display = 'none';
+  }
+}
+
 // ============================================================
 // グローバル関数として登録（onclick属性から呼び出し可能）
 // ============================================================
@@ -179,3 +355,14 @@ window.attachDocument = attachDocument;
 window.viewDiff = viewDiff;
 window.compareVersions = compareVersions;
 window.viewPastConsultations = viewPastConsultations;
+window.updateIncidentStatus = updateIncidentStatus;
+window.closeStatusModal = closeStatusModal;
+window.editIncident = editIncident;
+window.editConsult = editConsult;
+window.closeConsult = closeConsult;
+window.toggleFollow = toggleFollow;
+window.resetAnswerForm = resetAnswerForm;
+window.closeAnswerDetailModal = closeAnswerDetailModal;
+window.selectBestAnswer = selectBestAnswer;
+window.startRecord = startRecord;
+window.cancelRecord = cancelRecord;

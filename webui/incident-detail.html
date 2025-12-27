@@ -27,6 +27,9 @@
         <button class="icon-button" onclick="window.history.back()" title="戻る">
           ←
         </button>
+        <button class="icon-button" onclick="openNewIncidentModal()" title="新規レポート作成">
+          ✚
+        </button>
         <span class="chip" id="incidentNumber">報告No. --</span>
         <span class="chip" id="incidentSeverity">重大度 --</span>
         <button class="cta" onclick="updateIncidentStatus()" data-required-role="quality_assurance">ステータス更新</button>
@@ -35,11 +38,11 @@
 
     <main class="page">
       <!-- パンくずリスト -->
-      <nav class="breadcrumb-nav reveal" aria-label="パンくずリスト">
-        <ol class="breadcrumb" id="breadcrumbList">
-          <li><a href="index.html">ホーム</a></li>
-          <li><a href="index.html#incident">事故レポート一覧</a></li>
-          <li aria-current="page">詳細</li>
+      <nav class="breadcrumb-nav-enhanced reveal" aria-label="パンくずリスト">
+        <ol class="breadcrumb-enhanced" id="breadcrumbList">
+          <li><span class="breadcrumb-icon">🏠</span><a href="index.html">ホーム</a></li>
+          <li><span class="breadcrumb-icon">📋</span><a href="index.html#incident">事故レポート一覧</a></li>
+          <li class="breadcrumb-current" aria-current="page"><span class="breadcrumb-icon">📄</span>詳細</li>
         </ol>
       </nav>
 
@@ -297,14 +300,14 @@
           <h2>是正措置を追加</h2>
           <button class="modal-close" onclick="closeCorrectiveActionModal()">&times;</button>
         </div>
-        <form id="correctiveActionForm">
+        <form id="correctiveActionForm" onsubmit="submitCorrectiveAction(event)">
           <div class="field">
             <label>措置内容 <span class="required">*</span></label>
-            <textarea id="actionContent" required rows="3"></textarea>
+            <textarea id="actionContent" required rows="3" placeholder="実施する是正措置の内容を記述してください"></textarea>
           </div>
           <div class="field">
             <label>担当者 <span class="required">*</span></label>
-            <input type="text" id="actionAssignee" required>
+            <input type="text" id="actionAssignee" required placeholder="担当者名">
           </div>
           <div class="field">
             <label>期限 <span class="required">*</span></label>
@@ -321,6 +324,138 @@
           <div class="modal-actions">
             <button type="button" class="cta ghost" onclick="closeCorrectiveActionModal()">キャンセル</button>
             <button type="submit" class="cta">追加</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 共有モーダル -->
+    <div id="shareModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>レポート共有</h2>
+          <button class="modal-close" onclick="closeShareModal()">&times;</button>
+        </div>
+        <div class="field">
+          <label>レポートURL</label>
+          <input type="text" id="shareUrl" readonly style="background: #f5f5f5;">
+        </div>
+        <div class="modal-actions" style="display: grid; gap: 10px; margin-top: 20px;">
+          <button class="cta" onclick="copyShareUrl()">📋 URLをコピー</button>
+          <button class="cta secondary" onclick="shareViaEmail()">✉️ メールで共有</button>
+          <button class="cta ghost" onclick="shareViaSlack()">💬 Slackで共有</button>
+          <button class="cta ghost" onclick="shareViaTeams()">👥 Teamsで共有</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステータス更新モーダル -->
+    <div id="statusModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>ステータス更新</h2>
+          <button class="modal-close" onclick="closeStatusModal()">&times;</button>
+        </div>
+        <div class="field">
+          <label>新しいステータス <span class="required">*</span></label>
+          <select id="newStatus" required>
+            <option value="">選択してください</option>
+            <option value="調査中">調査中</option>
+            <option value="対策立案中">対策立案中</option>
+            <option value="是正措置実施中">是正措置実施中</option>
+            <option value="完了">完了</option>
+            <option value="クローズ">クローズ</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>コメント</label>
+          <textarea id="statusComment" rows="3" placeholder="ステータス変更の理由や詳細"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cta ghost" onclick="closeStatusModal()">キャンセル</button>
+          <button type="button" class="cta" onclick="submitStatusUpdate()">更新</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新規レポート作成モーダル -->
+    <div id="newIncidentModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>新規事故レポート作成</h2>
+          <button class="modal-close" onclick="closeNewIncidentModal()">&times;</button>
+        </div>
+        <form id="newIncidentForm" onsubmit="submitNewIncident(event)">
+          <div class="field">
+            <label>タイトル <span class="required">*</span></label>
+            <input type="text" id="newIncidentTitle" required placeholder="事故の簡潔なタイトル">
+          </div>
+          <div class="field">
+            <label>発生日時 <span class="required">*</span></label>
+            <input type="datetime-local" id="newIncidentDate" required>
+          </div>
+          <div class="field">
+            <label>発生場所 <span class="required">*</span></label>
+            <input type="text" id="newIncidentLocation" required placeholder="現場名や具体的な場所">
+          </div>
+          <div class="field">
+            <label>重大度 <span class="required">*</span></label>
+            <select id="newIncidentSeverity" required>
+              <option value="">選択してください</option>
+              <option value="低">低</option>
+              <option value="中">中</option>
+              <option value="高">高</option>
+              <option value="最高">最高</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>事故内容 <span class="required">*</span></label>
+            <textarea id="newIncidentContent" required rows="5" placeholder="何が起きたかを詳細に記述してください"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="cta ghost" onclick="closeNewIncidentModal()">キャンセル</button>
+            <button type="submit" class="cta">作成</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div id="editIncidentModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>事故レポート編集</h2>
+          <button class="modal-close" onclick="closeEditIncidentModal()">&times;</button>
+        </div>
+        <form id="editIncidentForm" onsubmit="submitEditIncident(event)">
+          <div class="field">
+            <label>タイトル <span class="required">*</span></label>
+            <input type="text" id="editIncidentTitle" required>
+          </div>
+          <div class="field">
+            <label>発生日時 <span class="required">*</span></label>
+            <input type="datetime-local" id="editIncidentDate" required>
+          </div>
+          <div class="field">
+            <label>発生場所 <span class="required">*</span></label>
+            <input type="text" id="editIncidentLocation" required>
+          </div>
+          <div class="field">
+            <label>重大度 <span class="required">*</span></label>
+            <select id="editIncidentSeverity" required>
+              <option value="低">低</option>
+              <option value="中">中</option>
+              <option value="高">高</option>
+              <option value="最高">最高</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>事故内容 <span class="required">*</span></label>
+            <textarea id="editIncidentContent" required rows="5"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="cta ghost" onclick="closeEditIncidentModal()">キャンセル</button>
+            <button type="submit" class="cta">保存</button>
           </div>
         </form>
       </div>

@@ -1920,11 +1920,12 @@ select:focus-visible {
   opacity: 0.9;
 }
 
-/* パンくずリスト */
+/* パンくずリスト（改善版） */
 .breadcrumb-nav {
-  padding: 15px 30px;
-  background: var(--surface-strong);
-  border-bottom: 1px solid var(--line);
+  padding: 18px 30px;
+  background: linear-gradient(135deg, rgba(241, 236, 228, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+  border-bottom: 2px solid var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .breadcrumb {
@@ -1932,32 +1933,52 @@ select:focus-visible {
   padding: 0;
   margin: 0;
   display: flex;
-  gap: 10px;
-  font-size: 14px;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .breadcrumb li {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .breadcrumb li:not(:last-child)::after {
-  content: '›';
-  margin-left: 10px;
-  color: var(--muted);
+  content: '▶';
+  margin-left: 8px;
+  color: var(--accent);
+  font-size: 12px;
+  opacity: 0.6;
 }
 
 .breadcrumb a {
-  color: var(--accent);
+  color: var(--steel);
   text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .breadcrumb a:hover {
-  text-decoration: underline;
+  background: var(--accent);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(212, 102, 47, 0.3);
 }
 
 .breadcrumb li[aria-current="page"] {
-  color: var(--muted);
+  color: var(--accent);
+  font-weight: 700;
+  padding: 6px 12px;
+  background: rgba(212, 102, 47, 0.15);
+  border-radius: 6px;
+}
+
+.breadcrumb-icon {
+  font-size: 16px;
+  opacity: 0.8;
 }
 
 /* ナレッジコンテンツ */
@@ -2219,3 +2240,179 @@ select:focus-visible {
   }
 }
 
+
+/* ============================================================
+   パンくずリスト強化版
+   ============================================================ */
+.breadcrumb-nav-enhanced {
+  padding: 18px 30px;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.98), rgba(249, 246, 239, 0.9));
+  border-bottom: 2px solid rgba(212, 102, 47, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.breadcrumb-enhanced {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  font-size: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.breadcrumb-enhanced li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(241, 236, 228, 0.5);
+  transition: all 0.2s;
+}
+
+.breadcrumb-enhanced li:hover {
+  background: rgba(241, 236, 228, 0.8);
+  transform: translateY(-1px);
+}
+
+.breadcrumb-enhanced li:not(:last-child)::after {
+  content: '›';
+  margin-left: 8px;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.breadcrumb-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.breadcrumb-enhanced a {
+  color: var(--steel);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.breadcrumb-enhanced a:hover {
+  color: var(--accent);
+}
+
+.breadcrumb-current {
+  background: rgba(212, 102, 47, 0.15);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.breadcrumb-current .breadcrumb-icon {
+  color: var(--accent);
+}
+
+/* ============================================================
+   モーダル表示用スタイル（modal.is-active対応）
+   ============================================================ */
+.modal.is-active {
+  display: flex !important;
+}
+
+/* ============================================================
+   ステータス追加スタイル
+   ============================================================ */
+.status-dot.is-hold {
+  background: rgba(155, 181, 176, 0.5);
+}
+
+/* ============================================================
+   専門家相談ページ専用スタイル
+   ============================================================ */
+
+/* パンくずリスト改善版 */
+.breadcrumb-enhanced {
+  font-size: 15px !important;
+  gap: 12px !important;
+}
+
+.breadcrumb-enhanced li {
+  gap: 6px;
+}
+
+.breadcrumb-icon {
+  font-size: 16px;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+.breadcrumb-enhanced a {
+  color: var(--steel) !important;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.breadcrumb-enhanced a:hover {
+  color: var(--accent) !important;
+  text-decoration: none !important;
+}
+
+.breadcrumb-enhanced li[aria-current="page"] {
+  color: var(--ink) !important;
+  font-weight: 600;
+}
+
+/* 共有ボタン強調 */
+.sidebar .cta.ghost {
+  width: 100%;
+  margin-bottom: 8px;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+/* 回答フォーム */
+.answer-item {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  background: white;
+  transition: all 0.2s;
+}
+
+.answer-item:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+}
+
+.answer-item.best-answer {
+  background: #fffbf0;
+  border-color: #ffa500;
+}
+
+/* 統計カード */
+.stat-card {
+  text-align: center;
+}
+
+.stat-card strong {
+  display: block;
+  font-size: 24px;
+  color: var(--steel);
+  margin: 4px 0;
+}
+
+/* モーダルフォーム */
+#editConsultModal .modal-content,
+#newConsultModal .modal-content,
+#shareConsultModal .modal-content {
+  max-width: 600px;
+}
+
+/* フォロー中ボタン */
+button:has(#followIcon) {
+  transition: all 0.2s;
+}
+
+button:has(#followIcon):hover {
+  transform: scale(1.05);
+}

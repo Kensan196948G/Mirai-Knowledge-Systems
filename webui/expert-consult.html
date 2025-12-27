@@ -36,10 +36,10 @@
     <main class="page">
       <!-- パンくずリスト -->
       <nav class="breadcrumb-nav reveal" aria-label="パンくずリスト">
-        <ol class="breadcrumb" id="breadcrumbList">
-          <li><a href="index.html">ホーム</a></li>
-          <li><a href="index.html#consult">専門家相談一覧</a></li>
-          <li aria-current="page">詳細</li>
+        <ol class="breadcrumb breadcrumb-enhanced" id="breadcrumbList">
+          <li><span class="breadcrumb-icon">🏠</span><a href="index.html">ホーム</a></li>
+          <li><span class="breadcrumb-icon">📋</span><a href="index.html#consult">専門家相談一覧</a></li>
+          <li aria-current="page"><span class="breadcrumb-icon">📄</span>詳細</li>
         </ol>
       </nav>
 
@@ -289,11 +289,16 @@
       </div>
     </div>
 
+    <!-- 共有モーダル（動的に作成される） -->
+
+    <!-- 新規専門家相談モーダル（動的に作成される） -->
+
     <button class="floating" onclick="scrollToTop()">↑ トップへ</button>
 
     <script src="app.js"></script>
     <script src="detail-loader.js"></script>
     <script src="detail-pages.js"></script>
     <script src="actions.js"></script>
+    <script src="expert-consult-actions.js"></script>
   </body>
 </html>

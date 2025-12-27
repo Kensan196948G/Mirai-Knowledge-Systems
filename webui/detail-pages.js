@@ -974,12 +974,414 @@ async function loadCorrectiveActions(incidentId) {
 
 function addCorrectiveAction() {
   const modal = document.getElementById('correctiveActionModal');
-  if (modal) modal.classList.add('is-active');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    // フォームリセット
+    document.getElementById('correctiveActionForm').reset();
+  }
 }
 
 function closeCorrectiveActionModal() {
   const modal = document.getElementById('correctiveActionModal');
-  if (modal) modal.classList.remove('is-active');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function submitCorrectiveAction(event) {
+  event.preventDefault();
+
+  const content = document.getElementById('actionContent').value;
+  const assignee = document.getElementById('actionAssignee').value;
+  const deadline = document.getElementById('actionDeadline').value;
+  const priority = document.getElementById('actionPriority').value;
+
+  // URLパラメータから現在のincident IDを取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const incidentId = parseInt(urlParams.get('id'));
+
+  // localStorageから事故データを取得
+  const incidentsStr = localStorage.getItem('incidents_details');
+  if (!incidentsStr) {
+    showToast('データの読み込みに失敗しました', 'error');
+    return;
+  }
+
+  const incidents = JSON.parse(incidentsStr);
+  const incident = incidents.find(i => i.id === incidentId);
+
+  if (!incident) {
+    showToast('事故レポートが見つかりません', 'error');
+    return;
+  }
+
+  // 新しい是正措置を追加
+  if (!incident.corrective_actions) {
+    incident.corrective_actions = [];
+  }
+
+  const newAction = {
+    id: incident.corrective_actions.length + 1,
+    action: content,
+    content: content,
+    responsible: assignee,
+    assignee_name: assignee,
+    deadline: deadline,
+    priority: priority,
+    status: 'pending',
+    progress: 0,
+    created_at: new Date().toISOString()
+  };
+
+  incident.corrective_actions.push(newAction);
+
+  // localStorageに保存
+  localStorage.setItem('incidents_details', JSON.stringify(incidents));
+
+  // モーダルを閉じる
+  closeCorrectiveActionModal();
+
+  // ページをリロードして表示を更新
+  showToast('是正措置を追加しました', 'success');
+  setTimeout(() => {
+    window.location.reload();
+  }, 1000);
+}
+
+function downloadPDF(type) {
+  showToast('PDFを生成中...', 'info');
+
+  // 印刷ダイアログを開く（ブラウザの印刷→PDF保存機能を利用）
+  setTimeout(() => {
+    window.print();
+  }, 500);
+}
+
+function shareIncident() {
+  const modal = document.getElementById('shareModal');
+  const shareUrlEl = document.getElementById('shareUrl');
+  if (modal && shareUrlEl) {
+    shareUrlEl.value = window.location.href;
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeShareModal() {
+  const modal = document.getElementById('shareModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function copyShareUrl() {
+  const shareUrlEl = document.getElementById('shareUrl');
+  if (shareUrlEl) {
+    shareUrlEl.select();
+    document.execCommand('copy');
+
+    // Clipboard APIも試行
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrlEl.value).then(() => {
+        showToast('URLをコピーしました', 'success');
+      }).catch(() => {
+        showToast('URLをコピーしました', 'success');
+      });
+    } else {
+      showToast('URLをコピーしました', 'success');
+    }
+  }
+}
+
+function shareViaEmail() {
+  const url = document.getElementById('shareUrl').value;
+  const urlParams = new URLSearchParams(window.location.search);
+  const incidentId = urlParams.get('id');
+  const subject = encodeURIComponent(`事故レポート共有: INC-${incidentId}`);
+  const body = encodeURIComponent(`事故レポートを共有します。\n\n${url}`);
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  showToast('メールアプリを起動しました', 'info');
+}
+
+function shareViaSlack() {
+  const url = document.getElementById('shareUrl').value;
+  showToast('Slack連携機能は準備中です\nURL: ' + url, 'info');
+  // 実際の実装では Slack API や Webhook を使用
+}
+
+function shareViaTeams() {
+  const url = document.getElementById('shareUrl').value;
+  showToast('Teams連携機能は準備中です\nURL: ' + url, 'info');
+  // 実際の実装では Microsoft Teams API を使用
+}
+
+function updateIncidentStatus() {
+  const modal = document.getElementById('statusModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    document.getElementById('newStatus').value = '';
+    document.getElementById('statusComment').value = '';
+  }
+}
+
+function closeStatusModal() {
+  const modal = document.getElementById('statusModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function submitStatusUpdate() {
+  const newStatus = document.getElementById('newStatus').value;
+  const comment = document.getElementById('statusComment').value;
+
+  if (!newStatus) {
+    showToast('ステータスを選択してください', 'warning');
+    return;
+  }
+
+  // URLパラメータから現在のincident IDを取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const incidentId = parseInt(urlParams.get('id'));
+
+  // localStorageから事故データを取得
+  const incidentsStr = localStorage.getItem('incidents_details');
+  if (!incidentsStr) {
+    showToast('データの読み込みに失敗しました', 'error');
+    return;
+  }
+
+  const incidents = JSON.parse(incidentsStr);
+  const incident = incidents.find(i => i.id === incidentId);
+
+  if (!incident) {
+    showToast('事故レポートが見つかりません', 'error');
+    return;
+  }
+
+  // ステータスを更新
+  incident.status = newStatus;
+  incident.status_updated_at = new Date().toISOString();
+  if (comment) {
+    if (!incident.status_history) {
+      incident.status_history = [];
+    }
+    incident.status_history.push({
+      status: newStatus,
+      comment: comment,
+      updated_at: new Date().toISOString(),
+      updated_by: localStorage.getItem('username') || 'Unknown'
+    });
+  }
+
+  // localStorageに保存
+  localStorage.setItem('incidents_details', JSON.stringify(incidents));
+
+  // モーダルを閉じる
+  closeStatusModal();
+
+  // ページをリロードして表示を更新
+  showToast(`ステータスを「${newStatus}」に更新しました`, 'success');
+  setTimeout(() => {
+    window.location.reload();
+  }, 1000);
+}
+
+function openNewIncidentModal() {
+  const modal = document.getElementById('newIncidentModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    document.getElementById('newIncidentForm').reset();
+    // デフォルトで現在日時を設定
+    const now = new Date();
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    document.getElementById('newIncidentDate').value = localDateTime;
+  }
+}
+
+function closeNewIncidentModal() {
+  const modal = document.getElementById('newIncidentModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function submitNewIncident(event) {
+  event.preventDefault();
+
+  const title = document.getElementById('newIncidentTitle').value;
+  const date = document.getElementById('newIncidentDate').value;
+  const location = document.getElementById('newIncidentLocation').value;
+  const severity = document.getElementById('newIncidentSeverity').value;
+  const content = document.getElementById('newIncidentContent').value;
+
+  // localStorageから事故データを取得
+  const incidentsStr = localStorage.getItem('incidents_details');
+  const incidents = incidentsStr ? JSON.parse(incidentsStr) : [];
+
+  // 新しいIDを生成
+  const maxId = incidents.length > 0 ? Math.max(...incidents.map(i => i.id)) : 0;
+  const newId = maxId + 1;
+
+  // 新しい事故レポートを作成
+  const newIncident = {
+    id: newId,
+    incident_number: `INC-${newId.toString().padStart(4, '0')}`,
+    title: title,
+    occurred_at: date,
+    incident_date: date,
+    location: location,
+    severity: severity,
+    description: content,
+    summary: content,
+    status: '調査中',
+    reporter: localStorage.getItem('username') || 'Unknown',
+    reporter_name: localStorage.getItem('username') || 'Unknown',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    type: '作業事故',
+    tags: ['新規'],
+    timeline: [
+      {
+        time: date,
+        event: '事故発生',
+        details: content
+      },
+      {
+        time: new Date().toISOString(),
+        event: 'レポート作成',
+        details: 'システムに登録されました'
+      }
+    ],
+    root_causes: [],
+    corrective_actions: [],
+    completion_rate: 0,
+    deadline_rate: 0,
+    remaining_tasks: 0
+  };
+
+  incidents.push(newIncident);
+
+  // localStorageに保存
+  localStorage.setItem('incidents_details', JSON.stringify(incidents));
+
+  // モーダルを閉じる
+  closeNewIncidentModal();
+
+  // 新しいレポートのページに遷移
+  showToast('新規事故レポートを作成しました', 'success');
+  setTimeout(() => {
+    window.location.href = `incident-detail.html?id=${newId}`;
+  }, 1000);
+}
+
+function editIncident() {
+  const modal = document.getElementById('editIncidentModal');
+  if (!modal) return;
+
+  // URLパラメータから現在のincident IDを取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const incidentId = parseInt(urlParams.get('id'));
+
+  // localStorageから事故データを取得
+  const incidentsStr = localStorage.getItem('incidents_details');
+  if (!incidentsStr) {
+    showToast('データの読み込みに失敗しました', 'error');
+    return;
+  }
+
+  const incidents = JSON.parse(incidentsStr);
+  const incident = incidents.find(i => i.id === incidentId);
+
+  if (!incident) {
+    showToast('事故レポートが見つかりません', 'error');
+    return;
+  }
+
+  // フォームに既存データを設定
+  document.getElementById('editIncidentTitle').value = incident.title || '';
+
+  // 日時をdatetime-local形式に変換
+  const incidentDate = incident.occurred_at || incident.incident_date;
+  if (incidentDate) {
+    const date = new Date(incidentDate);
+    const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    document.getElementById('editIncidentDate').value = localDateTime;
+  }
+
+  document.getElementById('editIncidentLocation').value = incident.location || '';
+  document.getElementById('editIncidentSeverity').value = incident.severity || '';
+  document.getElementById('editIncidentContent').value = incident.description || incident.summary || '';
+
+  // モーダルを表示
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditIncidentModal() {
+  const modal = document.getElementById('editIncidentModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function submitEditIncident(event) {
+  event.preventDefault();
+
+  const title = document.getElementById('editIncidentTitle').value;
+  const date = document.getElementById('editIncidentDate').value;
+  const location = document.getElementById('editIncidentLocation').value;
+  const severity = document.getElementById('editIncidentSeverity').value;
+  const content = document.getElementById('editIncidentContent').value;
+
+  // URLパラメータから現在のincident IDを取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const incidentId = parseInt(urlParams.get('id'));
+
+  // localStorageから事故データを取得
+  const incidentsStr = localStorage.getItem('incidents_details');
+  if (!incidentsStr) {
+    showToast('データの読み込みに失敗しました', 'error');
+    return;
+  }
+
+  const incidents = JSON.parse(incidentsStr);
+  const incident = incidents.find(i => i.id === incidentId);
+
+  if (!incident) {
+    showToast('事故レポートが見つかりません', 'error');
+    return;
+  }
+
+  // データを更新
+  incident.title = title;
+  incident.occurred_at = date;
+  incident.incident_date = date;
+  incident.location = location;
+  incident.severity = severity;
+  incident.description = content;
+  incident.summary = content;
+  incident.updated_at = new Date().toISOString();
+
+  // localStorageに保存
+  localStorage.setItem('incidents_details', JSON.stringify(incidents));
+
+  // モーダルを閉じる
+  closeEditIncidentModal();
+
+  // ページをリロードして表示を更新
+  showToast('事故レポートを更新しました', 'success');
+  setTimeout(() => {
+    window.location.reload();
+  }, 1000);
 }
 
 function retryLoadIncident() {
@@ -1108,8 +1510,169 @@ function displayConsultDetail(data) {
   updateElement('viewCount', data.views || data.view_count || 0);
   updateElement('followerCount', data.follower_count || 0);
 
+  // 回答率・平均回答時間
+  updateElement('responseRate', data.response_rate || 85);
+  updateElement('avgResponseTime', data.avg_response_time || 4);
+
+  // エキスパート情報
+  displayExpertInfoConsult(data);
+
+  // ベストアンサー
+  displayBestAnswerConsult(data);
+
+  // 参考SOP
+  displayReferenceSOPConsult(data);
+
+  // 添付ファイル
+  displayConsultAttachments(data);
+
+  // ステータス履歴
+  displayConsultStatusHistory(data);
+
   // パンくずリスト更新
   updateBreadcrumb('専門家相談', data.title);
+}
+
+/**
+ * エキスパート情報を表示
+ */
+function displayExpertInfoConsult(data) {
+  const expertInfoEl = document.getElementById('expertInfo');
+  if (!expertInfoEl) return;
+
+  const expert = data.expert_info || {
+    name: '佐藤 健太',
+    title: '技術顧問',
+    department: '技術部門',
+    specialties: ['コンクリート工学', '品質管理', '構造設計'],
+    response_count: 127,
+    rating: 4.8
+  };
+
+  expertInfoEl.innerHTML = `
+    <div style="display: grid; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--steel), var(--teal)); display: grid; place-items: center; color: white; font-weight: 700; font-size: 18px;">
+          ${expert.name.substring(0, 1)}
+        </div>
+        <div>
+          <strong style="font-size: 16px;">${expert.name}</strong>
+          <div style="font-size: 12px; color: var(--muted);">${expert.title}</div>
+          <div style="font-size: 11px; color: var(--muted);">${expert.department}</div>
+        </div>
+      </div>
+      <div style="display: grid; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--line);">
+        <div style="font-size: 12px;"><strong>専門分野:</strong></div>
+        ${expert.specialties.map(s => `<span class="pill" style="font-size: 11px;">${s}</span>`).join(' ')}
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+        <div class="stat-card" style="padding: 8px;">
+          <div style="font-size: 11px;">回答数</div>
+          <strong style="font-size: 18px;">${expert.response_count}</strong>
+        </div>
+        <div class="stat-card" style="padding: 8px;">
+          <div style="font-size: 11px;">評価</div>
+          <strong style="font-size: 18px;">⭐${expert.rating}</strong>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * ベストアンサーを表示
+ */
+function displayBestAnswerConsult(data) {
+  const bestAnswerEl = document.getElementById('bestAnswer');
+  if (!bestAnswerEl) return;
+
+  const bestAnswer = data.answers?.find(a => a.is_best_answer);
+
+  if (bestAnswer) {
+    bestAnswerEl.innerHTML = `
+      <div style="padding: 15px; border: 2px solid #ffa500; border-radius: 12px; background: #fffbf0;">
+        <div style="color: #ffa500; font-weight: bold; margin-bottom: 8px;">✓ ベストアンサー</div>
+        <div style="font-size: 13px; line-height: 1.6; margin-bottom: 10px;">${bestAnswer.content.substring(0, 200)}${bestAnswer.content.length > 200 ? '...' : ''}</div>
+        <div style="font-size: 11px; color: var(--muted);">
+          <strong>${bestAnswer.expert || bestAnswer.author_name || 'エキスパート'}</strong> · ${formatDate(bestAnswer.created_at)}
+        </div>
+      </div>
+    `;
+  } else {
+    bestAnswerEl.innerHTML = '<p style="font-size: 13px; color: var(--muted);">まだベストアンサーが選択されていません</p>';
+  }
+}
+
+/**
+ * 参考SOPを表示
+ */
+function displayReferenceSOPConsult(data) {
+  const referenceSOPEl = document.getElementById('referenceSOP');
+  if (!referenceSOPEl) return;
+
+  const referenceDocs = data.reference_sops || [
+    { id: 1, title: 'コンクリート打設管理SOP', category: '品質管理' },
+    { id: 2, title: '養生作業手順書', category: '施工手順' }
+  ];
+
+  if (referenceDocs.length > 0) {
+    referenceSOPEl.innerHTML = referenceDocs.map(doc => `
+      <div class="document" style="cursor: pointer;" onclick="window.location.href='sop-detail.html?id=${doc.id}'">
+        <strong><a href="sop-detail.html?id=${doc.id}">${doc.title}</a></strong>
+        <small>${doc.category}</small>
+      </div>
+    `).join('');
+  } else {
+    referenceSOPEl.innerHTML = '<p style="font-size: 13px; color: var(--muted);">参考SOPがありません</p>';
+  }
+}
+
+/**
+ * 添付ファイルを表示
+ */
+function displayConsultAttachments(data) {
+  const attachmentListEl = document.getElementById('attachmentList');
+  if (!attachmentListEl) return;
+
+  const attachments = data.attachments || [];
+
+  if (attachments.length > 0) {
+    attachmentListEl.innerHTML = attachments.map(file => `
+      <div class="attachment-item">
+        <div style="font-size: 32px; margin-bottom: 8px;">📄</div>
+        <div style="font-size: 12px; font-weight: 600;">${file.name}</div>
+        <small style="color: var(--muted); font-size: 11px;">${file.size || '1.2MB'}</small>
+      </div>
+    `).join('');
+  } else {
+    attachmentListEl.innerHTML = '<p style="font-size: 13px; color: var(--muted);">添付ファイルがありません</p>';
+  }
+}
+
+/**
+ * ステータス履歴を表示
+ */
+function displayConsultStatusHistory(data) {
+  const statusHistoryEl = document.getElementById('statusHistory');
+  if (!statusHistoryEl) return;
+
+  const history = data.status_history || [
+    { status: '受付', timestamp: data.created_at, user: data.requester || 'ユーザー' },
+    { status: '専門家割当', timestamp: data.created_at, user: 'システム' }
+  ];
+
+  if (history.length > 0) {
+    statusHistoryEl.innerHTML = history.map(item => `
+      <div class="timeline-item">
+        <strong>${item.status}</strong>
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+          ${formatDate(item.timestamp)} · ${item.user}
+        </div>
+      </div>
+    `).join('');
+  } else {
+    statusHistoryEl.innerHTML = '<p style="font-size: 13px; color: var(--muted);">履歴がありません</p>';
+  }
 }
 
 /**
@@ -1304,6 +1867,502 @@ function updateBreadcrumb(category, title) {
     <li><a href="index.html#${category}">${category}</a></li>
     <li aria-current="page">${title || '詳細'}</li>
   `;
+}
+
+// ============================================================
+// PDF保存機能
+// ============================================================
+
+/**
+ * PDFダウンロード機能
+ * @param {string} pageType - 'incident', 'sop', 'knowledge', 'consult'
+ */
+function downloadPDF(pageType) {
+  try {
+    // PDFファイル名生成
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const filename = `${pageType}-report-${dateStr}.pdf`;
+
+    // ブラウザの印刷機能を使用（最も簡単な方法）
+    window.print();
+
+    // 成功通知
+    showNotification(`PDFの印刷ダイアログを開きました`, 'success');
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    showNotification('PDF保存に失敗しました', 'error');
+  }
+}
+
+// ============================================================
+// 共有機能
+// ============================================================
+
+/**
+ * ナレッジ共有モーダルを開く
+ */
+function shareKnowledge() {
+  openShareModal();
+}
+
+/**
+ * SOP共有モーダルを開く
+ */
+function shareSOP() {
+  openShareModal();
+}
+
+/**
+ * 事故レポート共有モーダルを開く
+ */
+function shareIncident() {
+  openShareModal();
+}
+
+/**
+ * 専門家相談共有モーダルを開く
+ */
+function shareConsult() {
+  openShareModal();
+}
+
+/**
+ * 共有モーダルを開く（共通処理）
+ */
+function openShareModal() {
+  const modal = document.getElementById('shareModal');
+  const shareUrlEl = document.getElementById('shareUrl');
+
+  if (modal && shareUrlEl) {
+    // 現在のURLを共有URLとして設定
+    shareUrlEl.value = window.location.href;
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  } else {
+    // モーダルが存在しない場合は動的に作成
+    createShareModal();
+  }
+}
+
+/**
+ * 共有モーダルを動的に作成
+ */
+function createShareModal() {
+  const modal = document.createElement('div');
+  modal.id = 'shareModal';
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>共有</h2>
+        <button class="modal-close" onclick="closeShareModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>共有URL</label>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="shareUrl" readonly value="${window.location.href}" style="flex: 1;">
+            <button class="cta secondary" onclick="copyShareUrl()">コピー</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>共有方法</label>
+          <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="cta ghost" onclick="shareByEmail()">📧 メール</button>
+            <button class="cta ghost" onclick="shareBySlack()">💬 Slack</button>
+            <button class="cta ghost" onclick="shareByTeams()">👥 Teams</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="cta ghost" onclick="closeShareModal()">閉じる</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
+
+  // モーダル外クリックで閉じる
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeShareModal();
+    }
+  });
+}
+
+/**
+ * 共有モーダルを閉じる
+ */
+function closeShareModal() {
+  const modal = document.getElementById('shareModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * 共有URLをクリップボードにコピー
+ */
+function copyShareUrl() {
+  const shareUrlEl = document.getElementById('shareUrl');
+  if (shareUrlEl) {
+    shareUrlEl.select();
+    shareUrlEl.setSelectionRange(0, 99999); // モバイル対応
+
+    // クリップボードAPIを使用
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareUrlEl.value)
+        .then(() => {
+          showNotification('URLをクリップボードにコピーしました', 'success');
+        })
+        .catch(() => {
+          // フォールバック: execCommand
+          document.execCommand('copy');
+          showNotification('URLをコピーしました', 'success');
+        });
+    } else {
+      // 古いブラウザ対応
+      document.execCommand('copy');
+      showNotification('URLをコピーしました', 'success');
+    }
+  }
+}
+
+/**
+ * メールで共有
+ */
+function shareByEmail() {
+  const url = encodeURIComponent(window.location.href);
+  const title = encodeURIComponent(document.title);
+  const subject = `【Mirai Knowledge】${title}`;
+  const body = `以下のページを共有します:%0D%0A%0D%0A${url}`;
+
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  showNotification('メールアプリを開きます...', 'info');
+}
+
+/**
+ * Slackで共有（ダミー処理）
+ */
+function shareBySlack() {
+  showNotification('Slack連携機能は準備中です', 'info');
+  // TODO: 実際のSlack API連携を実装
+}
+
+/**
+ * Microsoft Teamsで共有（ダミー処理）
+ */
+function shareByTeams() {
+  showNotification('Teams連携機能は準備中です', 'info');
+  // TODO: 実際のTeams API連携を実装
+}
+
+// ============================================================
+// 新規作成モーダル機能
+// ============================================================
+
+/**
+ * 新規事故レポート作成モーダルを開く
+ */
+function openNewIncidentModal() {
+  const modal = document.getElementById('newIncidentModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  } else {
+    createNewIncidentModal();
+  }
+}
+
+/**
+ * 新規事故レポート作成モーダルを作成
+ */
+function createNewIncidentModal() {
+  const modal = document.createElement('div');
+  modal.id = 'newIncidentModal';
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>新規事故レポート作成</h2>
+        <button class="modal-close" onclick="closeNewIncidentModal()">&times;</button>
+      </div>
+      <form id="newIncidentForm" onsubmit="submitNewIncident(event)">
+        <div class="modal-body">
+          <div class="field">
+            <label>タイトル <span class="required">*</span></label>
+            <input type="text" id="incidentNewTitle" required placeholder="例: 足場倒壊事故">
+          </div>
+          <div class="field">
+            <label>発生日時 <span class="required">*</span></label>
+            <input type="datetime-local" id="incidentNewDate" required>
+          </div>
+          <div class="field">
+            <label>発生場所 <span class="required">*</span></label>
+            <input type="text" id="incidentNewLocation" required placeholder="例: A工区 3階">
+          </div>
+          <div class="field">
+            <label>重大度 <span class="required">*</span></label>
+            <select id="incidentNewSeverity" required>
+              <option value="">選択してください</option>
+              <option value="低">低</option>
+              <option value="中">中</option>
+              <option value="高">高</option>
+              <option value="重大">重大</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>事故内容 <span class="required">*</span></label>
+            <textarea id="incidentNewContent" required rows="6" placeholder="事故の詳細を記入してください..."></textarea>
+          </div>
+          <div class="field">
+            <label>写真・資料</label>
+            <input type="file" id="incidentNewPhotos" multiple accept="image/*,.pdf">
+            <small>画像またはPDFファイル（最大10MB）</small>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cta ghost" onclick="closeNewIncidentModal()">キャンセル</button>
+          <button type="submit" class="cta">作成</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
+
+  // モーダル外クリックで閉じる
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeNewIncidentModal();
+    }
+  });
+
+  // デフォルト値設定（現在日時）
+  const dateInput = document.getElementById('incidentNewDate');
+  if (dateInput) {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    dateInput.value = now.toISOString().slice(0, 16);
+  }
+}
+
+/**
+ * 新規事故レポート作成モーダルを閉じる
+ */
+function closeNewIncidentModal() {
+  const modal = document.getElementById('newIncidentModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    // フォームリセット
+    const form = document.getElementById('newIncidentForm');
+    if (form) form.reset();
+  }
+}
+
+/**
+ * 新規事故レポートを送信
+ */
+async function submitNewIncident(event) {
+  event.preventDefault();
+
+  const title = document.getElementById('incidentNewTitle').value;
+  const date = document.getElementById('incidentNewDate').value;
+  const location = document.getElementById('incidentNewLocation').value;
+  const severity = document.getElementById('incidentNewSeverity').value;
+  const content = document.getElementById('incidentNewContent').value;
+
+  const data = {
+    title,
+    occurred_at: date,
+    location,
+    severity,
+    description: content,
+    status: 'reported'
+  };
+
+  try {
+    showNotification('事故レポートを作成中...', 'info');
+
+    // APIに送信
+    await apiCall('/incidents', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+
+    showNotification('事故レポートを作成しました', 'success');
+    closeNewIncidentModal();
+
+    // ページをリロード
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  } catch (error) {
+    console.error('Failed to create incident:', error);
+    showNotification(`事故レポートの作成に失敗しました: ${error.message}`, 'error');
+  }
+}
+
+/**
+ * 新規専門家相談作成モーダルを開く
+ */
+function openNewConsultationModal() {
+  const modal = document.getElementById('newConsultationModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  } else {
+    createNewConsultationModal();
+  }
+}
+
+/**
+ * 新規専門家相談モーダルを作成
+ */
+function createNewConsultationModal() {
+  const modal = document.createElement('div');
+  modal.id = 'newConsultationModal';
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>新規専門家相談</h2>
+        <button class="modal-close" onclick="closeNewConsultationModal()">&times;</button>
+      </div>
+      <form id="newConsultationForm" onsubmit="submitNewConsultation(event)">
+        <div class="modal-body">
+          <div class="field">
+            <label>質問タイトル <span class="required">*</span></label>
+            <input type="text" id="consultNewTitle" required placeholder="例: RC橋脚の配筋方法について">
+          </div>
+          <div class="field">
+            <label>カテゴリ <span class="required">*</span></label>
+            <select id="consultNewCategory" required>
+              <option value="">選択してください</option>
+              <option value="構造設計">構造設計</option>
+              <option value="施工管理">施工管理</option>
+              <option value="品質管理">品質管理</option>
+              <option value="安全管理">安全管理</option>
+              <option value="環境対策">環境対策</option>
+              <option value="地盤技術">地盤技術</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>優先度 <span class="required">*</span></label>
+            <select id="consultNewPriority" required>
+              <option value="通常">通常</option>
+              <option value="高">高</option>
+              <option value="緊急">緊急</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>質問内容 <span class="required">*</span></label>
+            <textarea id="consultNewContent" required rows="8" placeholder="具体的な質問内容を記入してください..."></textarea>
+            <small>できるだけ詳しく記述すると適切な回答が得られます</small>
+          </div>
+          <div class="field">
+            <label>添付ファイル</label>
+            <input type="file" id="consultNewAttachment" multiple accept="image/*,.pdf,.xlsx,.dwg">
+            <small>画像、PDF、Excel、CADファイル（最大10MB）</small>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cta ghost" onclick="closeNewConsultationModal()">キャンセル</button>
+          <button type="submit" class="cta">相談を投稿</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
+
+  // モーダル外クリックで閉じる
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeNewConsultationModal();
+    }
+  });
+}
+
+/**
+ * 新規専門家相談モーダルを閉じる
+ */
+function closeNewConsultationModal() {
+  const modal = document.getElementById('newConsultationModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    // フォームリセット
+    const form = document.getElementById('newConsultationForm');
+    if (form) form.reset();
+  }
+}
+
+/**
+ * 新規専門家相談を送信
+ */
+async function submitNewConsultation(event) {
+  if (event) {
+    event.preventDefault();
+  }
+
+  // モーダルが存在する場合のみフォームデータを取得
+  const titleEl = document.getElementById('consultNewTitle');
+  const categoryEl = document.getElementById('consultNewCategory');
+  const priorityEl = document.getElementById('consultNewPriority');
+  const contentEl = document.getElementById('consultNewContent');
+
+  if (!titleEl || !categoryEl || !priorityEl || !contentEl) {
+    // モーダルが存在しない場合は作成して開く
+    openNewConsultationModal();
+    return;
+  }
+
+  const title = titleEl.value;
+  const category = categoryEl.value;
+  const priority = priorityEl.value;
+  const content = contentEl.value;
+
+  const data = {
+    title,
+    category,
+    priority,
+    content,
+    status: 'pending'
+  };
+
+  try {
+    showNotification('専門家相談を投稿中...', 'info');
+
+    // APIに送信
+    await apiCall('/consultations', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+
+    showNotification('専門家相談を投稿しました', 'success');
+    closeNewConsultationModal();
+
+    // ページをリロード
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  } catch (error) {
+    console.error('Failed to create consultation:', error);
+    showNotification(`相談の投稿に失敗しました: ${error.message}`, 'error');
+  }
 }
 
 // ============================================================
