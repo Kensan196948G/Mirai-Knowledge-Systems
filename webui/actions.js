@@ -61,8 +61,11 @@ window.showToast = showToast;
  * 配信申請処理
  */
 function submitDistribution(type, data) {
-  alert(`【配信申請】\n\nタイプ: ${type}\n\nこの機能は今後実装予定です。\n配信申請が送信されました。`);
+  showToast('配信申請を送信しました', 'success');
   console.log('[ACTION] Distribution submitted:', type, data);
+
+  // TODO: 実際の配信申請APIを実装
+  // 例: await apiCall('/distribution/submit', { method: 'POST', body: JSON.stringify({ type, data }) });
 }
 
 /**
