@@ -36,11 +36,20 @@
 
     <main class="page">
       <!-- パンくずリスト -->
-      <nav class="breadcrumb-nav reveal" aria-label="パンくずリスト">
-        <ol class="breadcrumb" id="breadcrumbList">
-          <li><a href="index.html">ホーム</a></li>
-          <li><a href="index.html#sop">SOP一覧</a></li>
-          <li aria-current="page">詳細</li>
+      <nav class="breadcrumb-nav-enhanced reveal" aria-label="パンくずリスト">
+        <ol class="breadcrumb-enhanced" id="breadcrumbList">
+          <li>
+            <span class="breadcrumb-icon">🏠</span>
+            <a href="index.html">ホーム</a>
+          </li>
+          <li>
+            <span class="breadcrumb-icon">📋</span>
+            <a href="index.html#sop">SOP一覧</a>
+          </li>
+          <li class="breadcrumb-current" aria-current="page">
+            <span class="breadcrumb-icon">📄</span>
+            <span>詳細</span>
+          </li>
         </ol>
       </nav>
 
@@ -295,9 +304,66 @@
 
     <button class="floating" onclick="scrollToTop()">↑ トップへ</button>
 
+    <!-- 共有モーダル -->
+    <div id="shareModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>SOP共有</h2>
+          <button class="modal-close" onclick="closeShareModal()">&times;</button>
+        </div>
+        <div class="field">
+          <label>共有URL</label>
+          <input type="text" id="shareUrl" readonly style="background: #f5f5f5;">
+        </div>
+        <div class="modal-actions" style="display: grid; gap: 10px; margin-top: 20px;">
+          <button class="cta" onclick="copyShareUrl()">📋 URLをコピー</button>
+          <button class="cta secondary" onclick="shareViaEmail()">✉️ メールで共有</button>
+          <button class="cta ghost" onclick="shareViaSlack()">💬 Slackで共有</button>
+          <button class="cta ghost" onclick="shareViaTeams()">👥 Teamsで共有</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOP編集モーダル -->
+    <div id="editSOPModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>SOP改訂提案</h2>
+          <button class="modal-close" onclick="closeEditSOPModal()">&times;</button>
+        </div>
+        <form id="editSOPForm" onsubmit="submitEditSOP(event)">
+          <div class="field">
+            <label>タイトル <span class="required">*</span></label>
+            <input type="text" id="editSOPTitle" required>
+          </div>
+          <div class="field">
+            <label>目的 <span class="required">*</span></label>
+            <textarea id="editSOPPurpose" required rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label>適用範囲</label>
+            <input type="text" id="editSOPScope">
+          </div>
+          <div class="field">
+            <label>改訂内容 <span class="required">*</span></label>
+            <textarea id="editSOPChanges" required rows="4" placeholder="どのような改訂を提案しますか？"></textarea>
+          </div>
+          <div class="field">
+            <label>改訂理由</label>
+            <textarea id="editSOPReason" rows="3" placeholder="改訂の理由を記述してください"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="cta ghost" onclick="closeEditSOPModal()">キャンセル</button>
+            <button type="submit" class="cta">提案を送信</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script src="app.js"></script>
     <script src="detail-loader.js"></script>
     <script src="detail-pages.js"></script>
     <script src="actions.js"></script>
+    <script src="sop-detail-functions.js"></script>
   </body>
 </html>

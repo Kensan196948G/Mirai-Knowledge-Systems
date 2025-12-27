@@ -29,6 +29,7 @@
         </button>
         <span class="chip" id="viewCount">閲覧数 --</span>
         <span class="chip" id="lastSyncTime">最終同期 --:--</span>
+        <button class="cta ghost" onclick="createNewKnowledge()" title="新規作成">+ 新規</button>
         <button class="cta" onclick="printPage()">印刷</button>
         <button class="cta secondary" onclick="exportPDF()">PDF出力</button>
       </div>
@@ -36,11 +37,20 @@
 
     <main class="page">
       <!-- パンくずリスト -->
-      <nav class="breadcrumb-nav reveal" aria-label="パンくずリスト">
-        <ol class="breadcrumb" id="breadcrumbList">
-          <li><a href="index.html">ホーム</a></li>
-          <li><a href="index.html#search">検索結果</a></li>
-          <li aria-current="page">詳細</li>
+      <nav class="breadcrumb-nav-enhanced reveal" aria-label="パンくずリスト">
+        <ol class="breadcrumb-enhanced" id="breadcrumbList">
+          <li>
+            <span class="breadcrumb-icon">🏠</span>
+            <a href="index.html">ホーム</a>
+          </li>
+          <li>
+            <span class="breadcrumb-icon">🔍</span>
+            <a href="index.html#search">検索結果</a>
+          </li>
+          <li class="breadcrumb-current" aria-current="page">
+            <span class="breadcrumb-icon">📄</span>
+            <span>詳細</span>
+          </li>
         </ol>
       </nav>
 
@@ -251,6 +261,55 @@
               <button class="cta secondary" onclick="shareByTeams()">Teams</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div id="editModal" class="modal">
+      <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+          <h2>ナレッジ編集</h2>
+          <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="editForm" onsubmit="saveKnowledgeEdit(event)">
+            <div class="field">
+              <label for="editTitle">タイトル <span style="color: red;">*</span></label>
+              <input type="text" id="editTitle" required>
+            </div>
+            <div class="field">
+              <label for="editCategory">カテゴリ</label>
+              <select id="editCategory">
+                <option value="安全管理">安全管理</option>
+                <option value="品質管理">品質管理</option>
+                <option value="施工管理">施工管理</option>
+                <option value="環境管理">環境管理</option>
+                <option value="技術資料">技術資料</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="editSummary">概要</label>
+              <textarea id="editSummary" rows="3"></textarea>
+            </div>
+            <div class="field">
+              <label for="editContent">本文 <span style="color: red;">*</span></label>
+              <textarea id="editContent" rows="10" required></textarea>
+            </div>
+            <div class="field">
+              <label for="editTags">タグ（カンマ区切り）</label>
+              <input type="text" id="editTags" placeholder="例: 安全,作業手順,重機">
+            </div>
+            <div class="field">
+              <label for="editProject">プロジェクト</label>
+              <input type="text" id="editProject">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+              <button type="button" class="cta ghost" onclick="closeEditModal()">キャンセル</button>
+              <button type="submit" class="cta">保存</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

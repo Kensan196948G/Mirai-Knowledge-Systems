@@ -373,21 +373,41 @@ async function submitComment() {
   const commentEl = document.getElementById('newComment');
 
   if (!commentEl || !commentEl.value.trim()) {
-    alert('コメントを入力してください');
+    showToast('コメントを入力してください', 'warning');
     return;
   }
 
   try {
-    await apiCall(`/knowledge/${id}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ content: commentEl.value })
-    });
+    // localStorageにコメントを保存
+    const commentsKey = `knowledge_comments_${id}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
+
+    const newComment = {
+      id: Date.now(),
+      content: commentEl.value.trim(),
+      created_by: localStorage.getItem('user_name') || '現場作業員A',
+      created_at: new Date().toISOString(),
+      user_role: localStorage.getItem('user_role') || '作業員'
+    };
+
+    existingComments.push(newComment);
+    localStorage.setItem(commentsKey, JSON.stringify(existingComments));
+
+    // API呼び出しも試みる（エラーは無視）
+    try {
+      await apiCall(`/knowledge/${id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ content: commentEl.value })
+      });
+    } catch (apiError) {
+      console.log('[COMMENT] API call failed, using localStorage only');
+    }
 
     commentEl.value = '';
     await loadKnowledgeComments(id);
-    alert('コメントを投稿しました');
+    showToast('コメントを投稿しました', 'success');
   } catch (error) {
-    alert(`コメントの投稿に失敗しました: ${error.message}`);
+    showToast(`コメントの投稿に失敗しました: ${error.message}`, 'error');
   }
 }
 
@@ -395,14 +415,35 @@ async function toggleBookmark() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
 
+  if (!id) {
+    showToast('IDが取得できません', 'error');
+    return;
+  }
+
+  const bookmarkKey = `knowledge_bookmark_${id}`;
+  const currentState = localStorage.getItem(bookmarkKey) === 'true';
+  const newState = !currentState;
+
   try {
-    await apiCall(`/knowledge/${id}/bookmark`, { method: 'POST' });
+    // localStorageに保存
+    localStorage.setItem(bookmarkKey, newState.toString());
+
+    // UIを更新
     const icon = document.getElementById('bookmarkIcon');
     if (icon) {
-      icon.textContent = icon.textContent === '☆' ? '★' : '☆';
+      icon.textContent = newState ? '★' : '☆';
     }
+
+    // API呼び出しも試みる（エラーは無視）
+    try {
+      await apiCall(`/knowledge/${id}/bookmark`, { method: 'POST' });
+    } catch (apiError) {
+      console.log('[BOOKMARK] API call failed, using localStorage only');
+    }
+
+    showToast(newState ? 'ブックマークに追加しました' : 'ブックマークを解除しました', 'success');
   } catch (error) {
-    alert(`ブックマークの切り替えに失敗しました: ${error.message}`);
+    showToast(`ブックマークの切り替えに失敗しました: ${error.message}`, 'error');
   }
 }
 
@@ -410,18 +451,55 @@ async function toggleLike() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
 
+  if (!id) {
+    showToast('IDが取得できません', 'error');
+    return;
+  }
+
+  const likeKey = `knowledge_like_${id}`;
+  const likeCountKey = `knowledge_like_count_${id}`;
+  const currentState = localStorage.getItem(likeKey) === 'true';
+  const newState = !currentState;
+
   try {
-    const result = await apiCall(`/knowledge/${id}/like`, { method: 'POST' });
+    // localStorageに保存
+    localStorage.setItem(likeKey, newState.toString());
+
+    // いいね数を更新
+    let currentCount = parseInt(localStorage.getItem(likeCountKey) || '0');
+    currentCount = newState ? currentCount + 1 : Math.max(0, currentCount - 1);
+    localStorage.setItem(likeCountKey, currentCount.toString());
+
+    // UIを更新
     const icon = document.getElementById('likeIcon');
-    const count = document.getElementById('likeCount');
+    const countEl = document.getElementById('likeCount');
+    const totalLikesEl = document.getElementById('totalLikes');
+
     if (icon) {
-      icon.textContent = result.liked ? '♥' : '♡';
+      icon.textContent = newState ? '♥' : '♡';
     }
-    if (count) {
-      count.textContent = result.likes_count || 0;
+    if (countEl) {
+      countEl.textContent = currentCount;
     }
+    if (totalLikesEl) {
+      totalLikesEl.textContent = currentCount;
+    }
+
+    // API呼び出しも試みる（エラーは無視）
+    try {
+      const result = await apiCall(`/knowledge/${id}/like`, { method: 'POST' });
+      if (result && result.likes_count !== undefined) {
+        localStorage.setItem(likeCountKey, result.likes_count.toString());
+        if (countEl) countEl.textContent = result.likes_count;
+        if (totalLikesEl) totalLikesEl.textContent = result.likes_count;
+      }
+    } catch (apiError) {
+      console.log('[LIKE] API call failed, using localStorage only');
+    }
+
+    showToast(newState ? 'いいねしました' : 'いいねを解除しました', 'success');
   } catch (error) {
-    alert(`いいねの切り替えに失敗しました: ${error.message}`);
+    showToast(`いいねの切り替えに失敗しました: ${error.message}`, 'error');
   }
 }
 
@@ -453,7 +531,7 @@ function copyShareUrl() {
   if (shareUrlEl) {
     shareUrlEl.select();
     document.execCommand('copy');
-    alert('URLをコピーしました');
+    showToast('URLをコピーしました', 'success');
   }
 }
 
@@ -462,7 +540,10 @@ function printPage() {
 }
 
 function exportPDF() {
-  alert('PDF出力機能は準備中です');
+  showToast('PDFを生成中...', 'info');
+  setTimeout(() => {
+    window.print();
+  }, 500);
 }
 
 function retryLoad() {
@@ -522,6 +603,11 @@ async function loadSOPDetail() {
     console.log('[SOP DETAIL] Displaying data...');
     displaySOPDetail(data);
     await loadRelatedSOP(data.category, id);
+
+    // 実施統計を更新
+    if (typeof updateExecutionStats === 'function') {
+      updateExecutionStats();
+    }
   } catch (error) {
     console.error('[SOP DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
@@ -711,7 +797,46 @@ function startInspectionRecord() {
   const formEl = document.getElementById('record-form');
   if (formEl) {
     formEl.style.display = 'block';
+
+    // 現在の日時をセット
+    const now = new Date();
+    const dateInput = document.getElementById('recordDate');
+    if (dateInput) {
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    // チェックリスト項目をフォームに追加
+    const recordChecklistEl = document.getElementById('recordChecklist');
+    const sopChecklistEl = document.getElementById('sopChecklist');
+    if (recordChecklistEl && sopChecklistEl) {
+      const checkboxes = sopChecklistEl.querySelectorAll('input[type="checkbox"]');
+      let checklistHtml = '<div class="checklist">';
+      checkboxes.forEach((checkbox, index) => {
+        const label = checkbox.nextSibling ? checkbox.nextSibling.textContent : `項目 ${index + 1}`;
+        checklistHtml += `
+          <label class="checkbox-item">
+            <input type="checkbox" name="recordCheck${index}" ${checkbox.checked ? 'checked' : ''}>
+            ${label}
+          </label>
+        `;
+      });
+      checklistHtml += '</div>';
+      recordChecklistEl.innerHTML = checklistHtml;
+    }
+
     formEl.scrollIntoView({ behavior: 'smooth' });
+
+    // フォーム送信イベントリスナー設定
+    const formElement = document.getElementById('inspectionForm');
+    if (formElement && !formElement.hasAttribute('data-listener-attached')) {
+      formElement.addEventListener('submit', submitInspectionRecord);
+      formElement.setAttribute('data-listener-attached', 'true');
+    }
   }
 }
 
@@ -719,23 +844,232 @@ function cancelRecord() {
   const formEl = document.getElementById('record-form');
   if (formEl) {
     formEl.style.display = 'none';
+
+    // フォームをリセット
+    const formElement = document.getElementById('inspectionForm');
+    if (formElement) {
+      formElement.reset();
+    }
+  }
+}
+
+function submitInspectionRecord(event) {
+  event.preventDefault();
+
+  const recordDate = document.getElementById('recordDate').value;
+  const recordWorker = document.getElementById('recordWorker').value;
+  const recordProject = document.getElementById('recordProject').value;
+  const recordContent = document.getElementById('recordContent').value;
+  const recordNotes = document.getElementById('recordNotes').value;
+
+  // チェック項目を収集
+  const checkItems = [];
+  const checkboxes = document.querySelectorAll('#recordChecklist input[type="checkbox"]');
+  checkboxes.forEach((checkbox, index) => {
+    const label = checkbox.nextSibling ? checkbox.nextSibling.textContent.trim() : `項目 ${index + 1}`;
+    checkItems.push({
+      item: label,
+      checked: checkbox.checked
+    });
+  });
+
+  // SOPのIDを取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const sopId = urlParams.get('id');
+
+  // 記録データを作成
+  const recordData = {
+    id: Date.now(),
+    sop_id: sopId,
+    date: recordDate,
+    worker: recordWorker,
+    project: recordProject,
+    content: recordContent,
+    checklist: checkItems,
+    notes: recordNotes,
+    created_at: new Date().toISOString()
+  };
+
+  // localStorageに保存
+  const recordsKey = 'sop_inspection_records';
+  const existingRecords = JSON.parse(localStorage.getItem(recordsKey) || '[]');
+  existingRecords.push(recordData);
+  localStorage.setItem(recordsKey, JSON.stringify(existingRecords));
+
+  // 成功メッセージ
+  if (typeof showToast === 'function') {
+    showToast('実施記録を保存しました', 'success');
+  } else if (typeof showNotification === 'function') {
+    showNotification('実施記録を保存しました', 'success');
+  }
+
+  // フォームをリセットして非表示
+  cancelRecord();
+
+  // 実施統計を更新
+  updateExecutionStats();
+}
+
+function updateExecutionStats() {
+  // 実施統計を再計算
+  const urlParams = new URLSearchParams(window.location.search);
+  const sopId = urlParams.get('id');
+  const recordsKey = 'sop_inspection_records';
+  const allRecords = JSON.parse(localStorage.getItem(recordsKey) || '[]');
+  const sopRecords = allRecords.filter(r => r.sop_id === sopId);
+
+  // 実施回数
+  const executionCountEl = document.getElementById('executionCount');
+  if (executionCountEl) {
+    executionCountEl.textContent = sopRecords.length;
+  }
+
+  // 適合率（すべてのチェック項目がチェックされた記録の割合）
+  const complianceRateEl = document.getElementById('complianceRate');
+  if (complianceRateEl && sopRecords.length > 0) {
+    const compliantRecords = sopRecords.filter(record => {
+      if (!record.checklist || record.checklist.length === 0) return false;
+      return record.checklist.every(item => item.checked);
+    });
+    const rate = Math.round((compliantRecords.length / sopRecords.length) * 100);
+    complianceRateEl.textContent = rate;
   }
 }
 
 function downloadSOP() {
-  alert('SOP ダウンロード機能は準備中です');
+  // window.print()を使用してPDF保存
+  if (typeof downloadPDF === 'function') {
+    downloadPDF('sop', document.getElementById('sopTitle')?.textContent || 'SOP');
+  } else {
+    window.print();
+  }
+
+  if (typeof showToast === 'function') {
+    showToast('印刷ダイアログを開きました。PDFとして保存できます。', 'info');
+  }
 }
 
 function printChecklist() {
   const checklistEl = document.getElementById('sopChecklist');
+  const titleEl = document.getElementById('sopTitle');
+
   if (checklistEl) {
     const printWindow = window.open('', '', 'height=600,width=800');
-    printWindow.document.write('<html><head><title>チェックリスト</title></head><body>');
-    printWindow.document.write(checklistEl.innerHTML);
-    printWindow.document.write('</body></html>');
+    const title = titleEl ? titleEl.textContent : 'チェックリスト';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${title} - チェックリスト</title>
+          <style>
+            body {
+              font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+              padding: 20px;
+              line-height: 1.6;
+            }
+            h1 {
+              font-size: 18px;
+              margin-bottom: 20px;
+              border-bottom: 2px solid #333;
+              padding-bottom: 10px;
+            }
+            .checklist {
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            }
+            .checkbox-item {
+              display: flex;
+              align-items: center;
+              padding: 8px;
+              border: 1px solid #ddd;
+            }
+            input[type="checkbox"] {
+              margin-right: 10px;
+              width: 18px;
+              height: 18px;
+            }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${title} - チェックリスト</h1>
+          ${checklistEl.outerHTML}
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
     printWindow.document.close();
-    printWindow.print();
   }
+}
+
+function editSOP() {
+  const modal = document.getElementById('editSOPModal');
+  if (!modal) return;
+
+  // 既存データを取得してフォームに設定
+  const title = document.getElementById('sopTitle')?.textContent || '';
+  const purpose = document.getElementById('sopPurpose')?.textContent || '';
+  const scope = document.getElementById('sopScope')?.textContent || '';
+
+  document.getElementById('editSOPTitle').value = title;
+  document.getElementById('editSOPPurpose').value = purpose;
+  document.getElementById('editSOPScope').value = scope;
+  document.getElementById('editSOPChanges').value = '';
+  document.getElementById('editSOPReason').value = '';
+
+  // モーダルを表示
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditSOPModal() {
+  const modal = document.getElementById('editSOPModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function submitEditSOP(event) {
+  event.preventDefault();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const sopId = urlParams.get('id');
+
+  const proposalData = {
+    id: Date.now(),
+    sop_id: sopId,
+    title: document.getElementById('editSOPTitle').value,
+    purpose: document.getElementById('editSOPPurpose').value,
+    scope: document.getElementById('editSOPScope').value,
+    changes: document.getElementById('editSOPChanges').value,
+    reason: document.getElementById('editSOPReason').value,
+    proposer: localStorage.getItem('user_name') || '不明',
+    status: '提案中',
+    created_at: new Date().toISOString()
+  };
+
+  // localStorageに保存
+  const proposalsKey = 'sop_revision_proposals';
+  const existingProposals = JSON.parse(localStorage.getItem(proposalsKey) || '[]');
+  existingProposals.push(proposalData);
+  localStorage.setItem(proposalsKey, JSON.stringify(existingProposals));
+
+  // 成功メッセージ
+  if (typeof showToast === 'function') {
+    showToast('改訂提案を送信しました', 'success');
+  } else if (typeof showNotification === 'function') {
+    showNotification('改訂提案を送信しました', 'success');
+  }
+
+  closeEditSOPModal();
 }
 
 function retryLoadSOP() {
@@ -2043,14 +2377,14 @@ function shareByEmail() {
   const body = `以下のページを共有します:%0D%0A%0D%0A${url}`;
 
   window.location.href = `mailto:?subject=${subject}&body=${body}`;
-  showNotification('メールアプリを開きます...', 'info');
+  showToast('メールアプリを開きます...', 'info');
 }
 
 /**
  * Slackで共有（ダミー処理）
  */
 function shareBySlack() {
-  showNotification('Slack連携機能は準備中です', 'info');
+  showToast('Slack連携機能は準備中です', 'info');
   // TODO: 実際のSlack API連携を実装
 }
 
@@ -2058,7 +2392,7 @@ function shareBySlack() {
  * Microsoft Teamsで共有（ダミー処理）
  */
 function shareByTeams() {
-  showNotification('Teams連携機能は準備中です', 'info');
+  showToast('Teams連携機能は準備中です', 'info');
   // TODO: 実際のTeams API連携を実装
 }
 
@@ -2366,6 +2700,198 @@ async function submitNewConsultation(event) {
 }
 
 // ============================================================
+// 編集機能（search-detail.html用）
+// ============================================================
+
+/**
+ * ナレッジ編集モーダルを開く
+ */
+function editKnowledge() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const id = urlParams.get('id');
+
+  if (!id) {
+    showToast('IDが取得できません', 'error');
+    return;
+  }
+
+  // 現在のデータを取得
+  const knowledgeDataStr = localStorage.getItem('knowledge_details');
+  if (!knowledgeDataStr) {
+    showToast('データが見つかりません', 'error');
+    return;
+  }
+
+  const knowledgeData = JSON.parse(knowledgeDataStr);
+  const currentData = knowledgeData.find(k => k.id === parseInt(id));
+
+  if (!currentData) {
+    showToast('データが見つかりません', 'error');
+    return;
+  }
+
+  // フォームにデータを設定
+  document.getElementById('editTitle').value = currentData.title || '';
+  document.getElementById('editCategory').value = currentData.category || '技術資料';
+  document.getElementById('editSummary').value = currentData.summary || '';
+  document.getElementById('editContent').value = currentData.content || '';
+  document.getElementById('editTags').value = Array.isArray(currentData.tags) ? currentData.tags.join(', ') : '';
+  document.getElementById('editProject').value = currentData.project || '';
+
+  // モーダルを表示
+  const modal = document.getElementById('editModal');
+  if (modal) {
+    modal.classList.add('is-active');
+  }
+}
+
+/**
+ * 編集モーダルを閉じる
+ */
+function closeEditModal() {
+  const modal = document.getElementById('editModal');
+  if (modal) {
+    modal.classList.remove('is-active');
+  }
+}
+
+/**
+ * ナレッジ編集を保存
+ */
+function saveKnowledgeEdit(event) {
+  event.preventDefault();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const id = urlParams.get('id');
+
+  if (!id) {
+    showToast('IDが取得できません', 'error');
+    return;
+  }
+
+  try {
+    // フォームデータを取得
+    const updatedData = {
+      title: document.getElementById('editTitle').value.trim(),
+      category: document.getElementById('editCategory').value,
+      summary: document.getElementById('editSummary').value.trim(),
+      content: document.getElementById('editContent').value.trim(),
+      tags: document.getElementById('editTags').value.split(',').map(t => t.trim()).filter(t => t),
+      project: document.getElementById('editProject').value.trim(),
+      updated_at: new Date().toISOString(),
+      updated_by: localStorage.getItem('user_name') || '現場作業員A'
+    };
+
+    // localStorageのデータを更新
+    const knowledgeDataStr = localStorage.getItem('knowledge_details');
+    if (knowledgeDataStr) {
+      const knowledgeData = JSON.parse(knowledgeDataStr);
+      const index = knowledgeData.findIndex(k => k.id === parseInt(id));
+
+      if (index !== -1) {
+        // 既存データとマージ
+        knowledgeData[index] = {
+          ...knowledgeData[index],
+          ...updatedData
+        };
+
+        localStorage.setItem('knowledge_details', JSON.stringify(knowledgeData));
+      }
+    }
+
+    // 編集履歴を追加
+    const historyKey = `knowledge_history_${id}`;
+    const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+    history.unshift({
+      version: `v${history.length + 1}.0`,
+      updated_at: updatedData.updated_at,
+      updated_by: updatedData.updated_by,
+      changes: '手動編集により更新'
+    });
+    localStorage.setItem(historyKey, JSON.stringify(history));
+
+    // モーダルを閉じる
+    closeEditModal();
+
+    // ページをリロード
+    showToast('ナレッジを更新しました', 'success');
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  } catch (error) {
+    showToast(`保存に失敗しました: ${error.message}`, 'error');
+  }
+}
+
+/**
+ * 新規ナレッジ作成
+ */
+function createNewKnowledge() {
+  // フォームをクリア
+  document.getElementById('editTitle').value = '';
+  document.getElementById('editCategory').value = '技術資料';
+  document.getElementById('editSummary').value = '';
+  document.getElementById('editContent').value = '';
+  document.getElementById('editTags').value = '';
+  document.getElementById('editProject').value = '';
+
+  // モーダルを表示
+  const modal = document.getElementById('editModal');
+  if (modal) {
+    modal.classList.add('is-active');
+  }
+
+  // フォーム送信時の処理を変更
+  const form = document.getElementById('editForm');
+  if (form) {
+    form.onsubmit = function(event) {
+      event.preventDefault();
+
+      try {
+        // 新しいIDを生成
+        const newId = Date.now();
+
+        // フォームデータを取得
+        const newData = {
+          id: newId,
+          title: document.getElementById('editTitle').value.trim(),
+          category: document.getElementById('editCategory').value,
+          summary: document.getElementById('editSummary').value.trim(),
+          content: document.getElementById('editContent').value.trim(),
+          tags: document.getElementById('editTags').value.split(',').map(t => t.trim()).filter(t => t),
+          project: document.getElementById('editProject').value.trim(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          created_by: localStorage.getItem('user_name') || '現場作業員A',
+          created_by_name: localStorage.getItem('user_name') || '現場作業員A',
+          status: 'draft'
+        };
+
+        // localStorageに追加
+        const knowledgeDataStr = localStorage.getItem('knowledge_details');
+        const knowledgeData = knowledgeDataStr ? JSON.parse(knowledgeDataStr) : [];
+        knowledgeData.unshift(newData);
+        localStorage.setItem('knowledge_details', JSON.stringify(knowledgeData));
+
+        // モーダルを閉じる
+        closeEditModal();
+
+        // 新しいページに移動
+        showToast('ナレッジを作成しました', 'success');
+        setTimeout(() => {
+          window.location.href = `search-detail.html?id=${newId}`;
+        }, 1000);
+      } catch (error) {
+        showToast(`作成に失敗しました: ${error.message}`, 'error');
+      }
+
+      // フォーム送信時の処理を元に戻す
+      form.onsubmit = saveKnowledgeEdit;
+    };
+  }
+}
+
+// ============================================================
 // ページロード時の初期化
 // ============================================================
 
@@ -2374,6 +2900,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (path.includes('search-detail.html')) {
     loadKnowledgeDetail();
+
+    // ブックマーク・いいねの初期状態を設定
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+
+    if (id) {
+      const bookmarkKey = `knowledge_bookmark_${id}`;
+      const likeKey = `knowledge_like_${id}`;
+      const likeCountKey = `knowledge_like_count_${id}`;
+
+      // ブックマークアイコンの初期化
+      const bookmarkIcon = document.getElementById('bookmarkIcon');
+      if (bookmarkIcon) {
+        const isBookmarked = localStorage.getItem(bookmarkKey) === 'true';
+        bookmarkIcon.textContent = isBookmarked ? '★' : '☆';
+      }
+
+      // いいねアイコンの初期化
+      const likeIcon = document.getElementById('likeIcon');
+      const likeCount = document.getElementById('likeCount');
+      const totalLikes = document.getElementById('totalLikes');
+
+      if (likeIcon) {
+        const isLiked = localStorage.getItem(likeKey) === 'true';
+        likeIcon.textContent = isLiked ? '♥' : '♡';
+      }
+
+      const count = parseInt(localStorage.getItem(likeCountKey) || '0');
+      if (likeCount) likeCount.textContent = count;
+      if (totalLikes) totalLikes.textContent = count;
+    }
   } else if (path.includes('sop-detail.html')) {
     loadSOPDetail();
   } else if (path.includes('incident-detail.html')) {
