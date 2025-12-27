@@ -21,6 +21,9 @@ email-validator==2.1.0
 # Environment & Configuration
 python-dotenv==1.0.0
 
+# Monitoring & Metrics
+psutil==5.9.6
+
 # Development & Testing
 pytest==7.4.3
 pytest-flask==1.3.0

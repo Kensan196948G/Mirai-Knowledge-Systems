@@ -1,0 +1,118 @@
+# Alertmanager設定ファイル
+# 建設土木ナレッジシステム アラート通知設定
+
+global:
+  resolve_timeout: 5m
+  # SMTP設定（メール通知用）
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alertmanager@example.com'
+  smtp_auth_username: 'your-email@gmail.com'
+  smtp_auth_password: 'your-app-password'
+  smtp_require_tls: true
+
+# アラートルーティング
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+
+  routes:
+    # クリティカルアラートは即座に通知
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 5m
+
+    # 警告レベルは通常通知
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      repeat_interval: 1h
+
+    # システムアラート
+    - match:
+        category: system
+      receiver: 'system-team'
+
+    # アプリケーションアラート
+    - match:
+        category: application
+      receiver: 'app-team'
+
+    # データベースアラート
+    - match:
+        category: database
+      receiver: 'db-team'
+
+# 通知先設定
+receivers:
+  # デフォルト通知先
+  - name: 'default'
+    email_configs:
+      - to: 'team@example.com'
+        headers:
+          Subject: '[監視] {{ .GroupLabels.alertname }}'
+    # Slack通知（オプション）
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+    #     channel: '#alerts'
+    #     title: '{{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}'
+
+  # クリティカルアラート通知先
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'oncall@example.com'
+        send_resolved: true
+        headers:
+          Subject: '[緊急] {{ .GroupLabels.alertname }}'
+    # PagerDuty通知（オプション）
+    # pagerduty_configs:
+    #   - service_key: 'YOUR-PAGERDUTY-SERVICE-KEY'
+
+  # 警告レベル通知先
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'team@example.com'
+        headers:
+          Subject: '[警告] {{ .GroupLabels.alertname }}'
+
+  # システムチーム通知先
+  - name: 'system-team'
+    email_configs:
+      - to: 'sysadmin@example.com'
+        headers:
+          Subject: '[システム] {{ .GroupLabels.alertname }}'
+
+  # アプリケーションチーム通知先
+  - name: 'app-team'
+    email_configs:
+      - to: 'developers@example.com'
+        headers:
+          Subject: '[アプリ] {{ .GroupLabels.alertname }}'
+
+  # データベースチーム通知先
+  - name: 'db-team'
+    email_configs:
+      - to: 'dba@example.com'
+        headers:
+          Subject: '[DB] {{ .GroupLabels.alertname }}'
+
+# アラート抑制ルール
+inhibit_rules:
+  # クリティカルアラートが発火している場合、同じインスタンスの警告アラートを抑制
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['instance', 'alertname']
+
+  # サービスダウン時は他のアラートを抑制
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '.*'
+    equal: ['instance']

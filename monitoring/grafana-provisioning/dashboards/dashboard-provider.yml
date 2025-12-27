@@ -1,0 +1,17 @@
+# Grafana ダッシュボード自動プロビジョニング設定
+# JSONファイルからダッシュボードを自動的にロード
+
+apiVersion: 1
+
+providers:
+  - name: 'Mirai Knowledge System'
+    orgId: 1
+    folder: 'Monitoring'
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true

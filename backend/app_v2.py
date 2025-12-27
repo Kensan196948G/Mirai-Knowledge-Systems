@@ -19,6 +19,9 @@ import bcrypt
 from dotenv import load_dotenv
 from marshmallow import ValidationError
 from schemas import LoginSchema, KnowledgeCreateSchema
+import time
+import psutil
+from collections import defaultdict, Counter
 
 # 環境変数をロード
 load_dotenv()
@@ -214,6 +217,51 @@ def add_security_headers(response):
         ])
 
     response.headers.setdefault('Content-Security-Policy', csp_policy)
+
+    return response
+
+# ============================================================
+# メトリクス収集（Prometheus互換）
+# ============================================================
+
+# グローバルメトリクスストレージ
+metrics_storage = {
+    'http_requests_total': defaultdict(int),
+    'http_request_duration_seconds': defaultdict(list),
+    'active_users': set(),
+    'active_sessions': set(),
+    'login_attempts': defaultdict(int),
+    'knowledge_operations': defaultdict(int),
+    'errors': defaultdict(int),
+    'start_time': time.time()
+}
+
+@app.before_request
+def before_request_metrics():
+    """リクエスト前のメトリクス記録"""
+    request.start_time = time.time()
+
+@app.after_request
+def after_request_metrics(response):
+    """リクエスト後のメトリクス記録"""
+    # リクエスト処理時間計算
+    if hasattr(request, 'start_time'):
+        duration = time.time() - request.start_time
+
+        # エンドポイント特定
+        endpoint = request.endpoint or 'unknown'
+        method = request.method
+        status = response.status_code
+
+        # メトリクス記録
+        key = f"{method}_{endpoint}_{status}"
+        metrics_storage['http_requests_total'][key] += 1
+        metrics_storage['http_request_duration_seconds'][endpoint].append(duration)
+
+        # エラー記録
+        if status >= 400:
+            error_key = f"{status}"
+            metrics_storage['errors'][error_key] += 1
 
     return response
 
@@ -974,13 +1022,211 @@ def get_approvals():
     """承認フロー一覧取得"""
     current_user_id = get_jwt_identity()
     log_access(current_user_id, 'approvals.list', 'approvals')
-    
+
     approvals = load_data('approvals.json')
     return jsonify({
         'success': True,
         'data': approvals,
         'pagination': {'total_items': len(approvals)}
     })
+
+
+# ============================================================
+# メトリクスエンドポイント（Prometheus用）
+# ============================================================
+
+@app.route('/api/v1/metrics', methods=['GET'])
+def get_metrics():
+    """
+    Prometheus互換メトリクスエンドポイント
+
+    Returns:
+        text/plain: Prometheus形式のメトリクスデータ
+    """
+    from flask import Response
+
+    # システムメトリクス取得
+    cpu_percent = psutil.cpu_percent(interval=0.1)
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+
+    # ナレッジデータ統計
+    knowledge_list = load_data('knowledge.json')
+    sop_list = load_data('sop.json')
+
+    # アクセスログ分析
+    access_logs = load_data('access_logs.json')
+
+    # アクティブユーザー計算（過去15分以内にアクセスがあったユーザー）
+    now = datetime.now()
+    active_users = set()
+    active_sessions = set()
+    login_success = 0
+    login_failure = 0
+
+    for log in access_logs:
+        try:
+            log_time = datetime.fromisoformat(log.get('timestamp', ''))
+            if (now - log_time).total_seconds() < 900:  # 15分以内
+                user_id = log.get('user_id')
+                if user_id:
+                    active_users.add(user_id)
+                    active_sessions.add(log.get('session_id', ''))
+
+            # ログイン統計
+            if log.get('action') == 'auth.login':
+                if log.get('status') == 'success':
+                    login_success += 1
+                else:
+                    login_failure += 1
+        except (ValueError, TypeError):
+            continue
+
+    # カテゴリ別ナレッジ数
+    category_counts = Counter([k.get('category', 'unknown') for k in knowledge_list])
+
+    # HTTPリクエストメトリクス集計
+    http_requests_metrics = []
+    for key, count in metrics_storage['http_requests_total'].items():
+        parts = key.split('_', 2)
+        if len(parts) >= 3:
+            method, endpoint, status = parts[0], parts[1], parts[2]
+            http_requests_metrics.append(
+                f'http_requests_total{{method="{method}",endpoint="{endpoint}",status="{status}"}} {count}'
+            )
+
+    # 応答時間メトリクス（ヒストグラム風）
+    response_time_metrics = []
+    for endpoint, durations in metrics_storage['http_request_duration_seconds'].items():
+        if durations:
+            avg_duration = sum(durations) / len(durations)
+            max_duration = max(durations)
+            min_duration = min(durations)
+
+            # パーセンタイル計算
+            sorted_durations = sorted(durations)
+            p50 = sorted_durations[len(sorted_durations) // 2] if sorted_durations else 0
+            p95_idx = int(len(sorted_durations) * 0.95)
+            p95 = sorted_durations[p95_idx] if p95_idx < len(sorted_durations) else max_duration
+            p99_idx = int(len(sorted_durations) * 0.99)
+            p99 = sorted_durations[p99_idx] if p99_idx < len(sorted_durations) else max_duration
+
+            response_time_metrics.extend([
+                f'http_request_duration_seconds{{endpoint="{endpoint}",quantile="0.5"}} {p50:.4f}',
+                f'http_request_duration_seconds{{endpoint="{endpoint}",quantile="0.95"}} {p95:.4f}',
+                f'http_request_duration_seconds{{endpoint="{endpoint}",quantile="0.99"}} {p99:.4f}',
+                f'http_request_duration_seconds_sum{{endpoint="{endpoint}"}} {sum(durations):.4f}',
+                f'http_request_duration_seconds_count{{endpoint="{endpoint}"}} {len(durations)}'
+            ])
+
+    # Prometheus形式のテキスト生成
+    metrics_text = f"""# HELP app_info Application information
+# TYPE app_info gauge
+app_info{{version="2.0",name="mirai-knowledge-system"}} 1
+
+# HELP app_uptime_seconds Application uptime in seconds
+# TYPE app_uptime_seconds counter
+app_uptime_seconds {time.time() - metrics_storage['start_time']:.2f}
+
+# HELP system_cpu_usage_percent CPU usage percentage
+# TYPE system_cpu_usage_percent gauge
+system_cpu_usage_percent {cpu_percent:.2f}
+
+# HELP system_memory_usage_percent Memory usage percentage
+# TYPE system_memory_usage_percent gauge
+system_memory_usage_percent {memory.percent:.2f}
+
+# HELP system_memory_total_bytes Total memory in bytes
+# TYPE system_memory_total_bytes gauge
+system_memory_total_bytes {memory.total}
+
+# HELP system_memory_available_bytes Available memory in bytes
+# TYPE system_memory_available_bytes gauge
+system_memory_available_bytes {memory.available}
+
+# HELP system_disk_usage_percent Disk usage percentage
+# TYPE system_disk_usage_percent gauge
+system_disk_usage_percent {disk.percent:.2f}
+
+# HELP system_disk_total_bytes Total disk space in bytes
+# TYPE system_disk_total_bytes gauge
+system_disk_total_bytes {disk.total}
+
+# HELP system_disk_free_bytes Free disk space in bytes
+# TYPE system_disk_free_bytes gauge
+system_disk_free_bytes {disk.free}
+
+# HELP active_users_count Number of active users (last 15 minutes)
+# TYPE active_users_count gauge
+active_users_count {len(active_users)}
+
+# HELP active_sessions_count Number of active sessions
+# TYPE active_sessions_count gauge
+active_sessions_count {len(active_sessions)}
+
+# HELP login_attempts_total Total number of login attempts
+# TYPE login_attempts_total counter
+login_attempts_total{{status="success"}} {login_success}
+login_attempts_total{{status="failure"}} {login_failure}
+
+# HELP knowledge_total_count Total number of knowledge items
+# TYPE knowledge_total_count gauge
+knowledge_total_count {len(knowledge_list)}
+
+# HELP knowledge_by_category Knowledge items by category
+# TYPE knowledge_by_category gauge
+"""
+
+    # カテゴリ別メトリクス追加
+    for category, count in category_counts.items():
+        metrics_text += f'knowledge_by_category{{category="{category}"}} {count}\n'
+
+    metrics_text += f"""
+# HELP sop_total_count Total number of SOP documents
+# TYPE sop_total_count gauge
+sop_total_count {len(sop_list)}
+
+# HELP http_requests_total Total number of HTTP requests
+# TYPE http_requests_total counter
+"""
+
+    # HTTPリクエストメトリクス追加
+    if http_requests_metrics:
+        metrics_text += '\n'.join(http_requests_metrics) + '\n'
+
+    metrics_text += """
+# HELP http_request_duration_seconds HTTP request duration in seconds
+# TYPE http_request_duration_seconds histogram
+"""
+
+    # 応答時間メトリクス追加
+    if response_time_metrics:
+        metrics_text += '\n'.join(response_time_metrics) + '\n'
+
+    # エラーメトリクス
+    metrics_text += """
+# HELP http_errors_total Total number of HTTP errors
+# TYPE http_errors_total counter
+"""
+    for error_code, count in metrics_storage['errors'].items():
+        metrics_text += f'http_errors_total{{code="{error_code}"}} {count}\n'
+
+    # ナレッジ操作メトリクス
+    metrics_text += """
+# HELP knowledge_created_total Total number of created knowledge items
+# TYPE knowledge_created_total counter
+knowledge_created_total {0}
+
+# HELP knowledge_searches_total Total number of knowledge searches
+# TYPE knowledge_searches_total counter
+knowledge_searches_total {0}
+
+# HELP knowledge_views_total Total number of knowledge views
+# TYPE knowledge_views_total counter
+knowledge_views_total {0}
+"""
+
+    return Response(metrics_text, mimetype='text/plain; version=0.0.4; charset=utf-8')
 
 
 # ============================================================
