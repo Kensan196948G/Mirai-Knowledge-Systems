@@ -93,7 +93,7 @@ class HTTPSRedirectMiddleware:
 app = Flask(__name__, static_folder='../webui')
 
 # CORS設定（環境変数ベース）
-allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5000').split(',')
+allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5010').split(',')
 CORS(app,
      resources={
          r"/api/*": {
@@ -1411,8 +1411,8 @@ if __name__ == '__main__':
     init_demo_users()
 
     protocol = 'https' if os.environ.get('MKS_FORCE_HTTPS', 'false').lower() in ('true', '1', 'yes') else 'http'
-    print(f'アクセスURL: {protocol}://localhost:5000')
+    print(f'アクセスURL: {protocol}://localhost:5010')
     print('=' * 60)
 
     debug = os.environ.get('MKS_DEBUG', 'false').lower() in ('1', 'true', 'yes')
-    app.run(host='0.0.0.0', port=5000, debug=debug)
+    app.run(host='0.0.0.0', port=5010, debug=debug)
