@@ -1631,34 +1631,30 @@ async function loadDummyDataToStorage() {
   console.log('[DATA] Loading dummy data to localStorage...');
 
   const dataFiles = [
-    { key: 'knowledge_details', file: '/backend/data/knowledge_details.json' },
-    { key: 'sop_details', file: '/backend/data/sop_details.json' },
-    { key: 'incidents_details', file: '/backend/data/incidents_details.json' },
-    { key: 'consultations_details', file: '/backend/data/consultations_details.json' },
-    { key: 'projects', file: '/backend/data/projects.json' },
-    { key: 'experts', file: '/backend/data/experts.json' }
+    { key: 'knowledge_details', file: '/data/knowledge_details.json' },
+    { key: 'sop_details', file: '/data/sop_details.json' },
+    { key: 'incidents_details', file: '/data/incidents_details.json' },
+    { key: 'consultations_details', file: '/data/consultations_details.json' },
+    { key: 'projects', file: '/data/projects.json' },
+    { key: 'experts', file: '/data/experts.json' }
   ];
 
   for (const {key, file} of dataFiles) {
     try {
-      // localStorageに既に存在する場合はスキップ
-      if (localStorage.getItem(key)) {
-        console.log(`[DATA] ${key} already exists in localStorage`);
-        continue;
-      }
-
       const response = await fetch(file);
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem(key, JSON.stringify(data));
-        console.log(`[DATA] Loaded ${key}: ${data.length} items`);
+        console.log(`[DATA] ✓ Loaded ${key}: ${data.length} items (${(JSON.stringify(data).length / 1024).toFixed(1)} KB)`);
       } else {
-        console.warn(`[DATA] Failed to load ${file}: ${response.status}`);
+        console.error(`[DATA] ✗ Failed to load ${file}: ${response.status}`);
       }
     } catch (error) {
-      console.error(`[DATA] Error loading ${file}:`, error);
+      console.error(`[DATA] ✗ Error loading ${file}:`, error);
     }
   }
+
+  console.log('[DATA] All dummy data loaded to localStorage!');
 }
 
 /**

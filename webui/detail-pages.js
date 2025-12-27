@@ -2,7 +2,7 @@
 // 詳細ページ共通機能
 // ============================================================
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5000'}/api/v1`;
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5010'}/api/v1`;
 
 // ============================================================
 // ユーティリティ関数
@@ -103,8 +103,11 @@ async function apiCall(endpoint, options = {}) {
 // ============================================================
 
 async function loadKnowledgeDetail() {
+  console.log('[KNOWLEDGE DETAIL] Starting to load...');
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+
+  console.log('[KNOWLEDGE DETAIL] ID from URL:', id);
 
   if (!id) {
     showError('ナレッジIDが指定されていません');
@@ -118,8 +121,15 @@ async function loadKnowledgeDetail() {
     let data = null;
 
     // まずlocalStorageから取得を試みる
-    const knowledgeData = JSON.parse(localStorage.getItem('knowledge_details') || '[]');
-    data = knowledgeData.find(k => k.id === parseInt(id));
+    const knowledgeDataStr = localStorage.getItem('knowledge_details');
+    console.log('[KNOWLEDGE DETAIL] localStorage data exists:', !!knowledgeDataStr);
+
+    if (knowledgeDataStr) {
+      const knowledgeData = JSON.parse(knowledgeDataStr);
+      console.log('[KNOWLEDGE DETAIL] Total items in localStorage:', knowledgeData.length);
+      data = knowledgeData.find(k => k.id === parseInt(id));
+      console.log('[KNOWLEDGE DETAIL] Found in localStorage:', !!data);
+    }
 
     // localStorageにない場合はAPIから取得
     if (!data) {
@@ -129,12 +139,19 @@ async function loadKnowledgeDetail() {
       console.log('[DETAIL] Loading from localStorage...');
     }
 
+    if (!data) {
+      showError(`ナレッジID ${id} が見つかりません`);
+      return;
+    }
+
+    console.log('[KNOWLEDGE DETAIL] Displaying data...');
     displayKnowledgeDetail(data);
     await loadRelatedKnowledge(data.tags || [], id);
     loadKnowledgeCommentsFromData(data);
     loadKnowledgeHistoryFromData(data);
-    incrementViewCount(id);
+    // incrementViewCount(id); // 一旦コメントアウト
   } catch (error) {
+    console.error('[KNOWLEDGE DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
     hideLoading();
@@ -411,7 +428,8 @@ async function incrementViewCount(id) {
   try {
     await apiCall(`/knowledge/${id}/view`, { method: 'POST' });
   } catch (error) {
-    console.error('Failed to increment view count:', error);
+    // APIエラーは無視（ダミーデータ表示時は正常）
+    console.log('[VIEW COUNT] Skipped (using dummy data)');
   }
 }
 
@@ -455,8 +473,11 @@ function retryLoad() {
 // ============================================================
 
 async function loadSOPDetail() {
+  console.log('[SOP DETAIL] Starting to load...');
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+
+  console.log('[SOP DETAIL] ID from URL:', id);
 
   if (!id) {
     showError('SOP IDが指定されていません');
@@ -470,20 +491,38 @@ async function loadSOPDetail() {
     let data = null;
 
     // まずlocalStorageから取得を試みる
-    const sopData = JSON.parse(localStorage.getItem('sop_details') || '[]');
-    data = sopData.find(s => s.id === parseInt(id));
+    const sopDataStr = localStorage.getItem('sop_details');
+    console.log('[SOP DETAIL] localStorage data exists:', !!sopDataStr);
+
+    if (sopDataStr) {
+      const sopData = JSON.parse(sopDataStr);
+      console.log('[SOP DETAIL] Total items in localStorage:', sopData.length);
+      data = sopData.find(s => s.id === parseInt(id));
+      console.log('[SOP DETAIL] Found in localStorage:', !!data);
+    }
 
     // localStorageにない場合はAPIから取得
     if (!data) {
       console.log('[DETAIL] Loading SOP from API...');
-      data = await apiCall(`/sop/${id}`);
+      try {
+        data = await apiCall(`/sop/${id}`);
+      } catch (apiError) {
+        console.warn('[DETAIL] API call failed:', apiError);
+      }
     } else {
       console.log('[DETAIL] Loading SOP from localStorage...');
     }
 
+    if (!data) {
+      showError(`SOP ID ${id} が見つかりません`);
+      return;
+    }
+
+    console.log('[SOP DETAIL] Displaying data...');
     displaySOPDetail(data);
     await loadRelatedSOP(data.category, id);
   } catch (error) {
+    console.error('[SOP DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
     hideLoading();
@@ -707,8 +746,11 @@ function retryLoadSOP() {
 // ============================================================
 
 async function loadIncidentDetail() {
+  console.log('[INCIDENT DETAIL] Starting to load...');
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+
+  console.log('[INCIDENT DETAIL] ID from URL:', id);
 
   if (!id) {
     showError('事故レポートIDが指定されていません');
@@ -722,20 +764,38 @@ async function loadIncidentDetail() {
     let data = null;
 
     // まずlocalStorageから取得を試みる
-    const incidentData = JSON.parse(localStorage.getItem('incidents_details') || '[]');
-    data = incidentData.find(i => i.id === parseInt(id));
+    const incidentDataStr = localStorage.getItem('incidents_details');
+    console.log('[INCIDENT DETAIL] localStorage data exists:', !!incidentDataStr);
+
+    if (incidentDataStr) {
+      const incidentData = JSON.parse(incidentDataStr);
+      console.log('[INCIDENT DETAIL] Total items in localStorage:', incidentData.length);
+      data = incidentData.find(i => i.id === parseInt(id));
+      console.log('[INCIDENT DETAIL] Found in localStorage:', !!data);
+    }
 
     // localStorageにない場合はAPIから取得
     if (!data) {
       console.log('[DETAIL] Loading incident from API...');
-      data = await apiCall(`/incident/${id}`);
+      try {
+        data = await apiCall(`/incident/${id}`);
+      } catch (apiError) {
+        console.warn('[DETAIL] API call failed:', apiError);
+      }
     } else {
       console.log('[DETAIL] Loading incident from localStorage...');
     }
 
+    if (!data) {
+      showError(`事故レポートID ${id} が見つかりません`);
+      return;
+    }
+
+    console.log('[INCIDENT DETAIL] Displaying data...');
     displayIncidentDetail(data);
     loadCorrectiveActionsFromData(data);
   } catch (error) {
+    console.error('[INCIDENT DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
     hideLoading();
@@ -930,8 +990,11 @@ function retryLoadIncident() {
 // ============================================================
 
 async function loadConsultDetail() {
+  console.log('[CONSULT DETAIL] Starting to load...');
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+
+  console.log('[CONSULT DETAIL] ID from URL:', id);
 
   if (!id) {
     showError('相談IDが指定されていません');
@@ -945,21 +1008,39 @@ async function loadConsultDetail() {
     let data = null;
 
     // まずlocalStorageから取得を試みる
-    const consultData = JSON.parse(localStorage.getItem('consultations_details') || '[]');
-    data = consultData.find(c => c.id === parseInt(id));
+    const consultDataStr = localStorage.getItem('consultations_details');
+    console.log('[CONSULT DETAIL] localStorage data exists:', !!consultDataStr);
+
+    if (consultDataStr) {
+      const consultData = JSON.parse(consultDataStr);
+      console.log('[CONSULT DETAIL] Total items in localStorage:', consultData.length);
+      data = consultData.find(c => c.id === parseInt(id));
+      console.log('[CONSULT DETAIL] Found in localStorage:', !!data);
+    }
 
     // localStorageにない場合はAPIから取得
     if (!data) {
       console.log('[DETAIL] Loading consultation from API...');
-      data = await apiCall(`/consultation/${id}`);
+      try {
+        data = await apiCall(`/consultation/${id}`);
+      } catch (apiError) {
+        console.warn('[DETAIL] API call failed:', apiError);
+      }
     } else {
       console.log('[DETAIL] Loading consultation from localStorage...');
     }
 
+    if (!data) {
+      showError(`相談ID ${id} が見つかりません`);
+      return;
+    }
+
+    console.log('[CONSULT DETAIL] Displaying data...');
     displayConsultDetail(data);
     loadAnswersFromData(data);
     await loadRelatedQuestions(data.tags || [], id);
   } catch (error) {
+    console.error('[CONSULT DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
     hideLoading();
