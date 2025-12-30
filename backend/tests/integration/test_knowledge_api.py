@@ -26,6 +26,7 @@ def client(tmp_path):
     app.config['TESTING'] = True
     app.config['DATA_DIR'] = str(tmp_path)
     app.config['JWT_SECRET_KEY'] = 'test-secret'
+    app_v2.limiter.enabled = False
 
     # 管理者ユーザー
     users = [

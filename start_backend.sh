@@ -7,7 +7,7 @@
 #   ./start_backend.sh [オプション]
 #
 # オプション:
-#   --port PORT        ポート番号を指定（デフォルト: 5010）
+#   --port PORT        ポート番号を指定（デフォルト: 5100）
 #   --debug            デバッグモードで起動
 #   --production       本番モードで起動
 #   --workers N        Gunicornワーカー数を指定（本番モードのみ）
@@ -25,7 +25,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # デフォルト設定
-PORT=5010
+PORT=5100
 DEBUG_MODE=false
 PRODUCTION_MODE=false
 WORKERS=4
@@ -40,14 +40,14 @@ Mirai Knowledge Systems - バックエンド起動スクリプト
     $0 [オプション]
 
 オプション:
-    --port PORT        ポート番号を指定（デフォルト: 5010）
+    --port PORT        ポート番号を指定（デフォルト: 5100）
     --debug            デバッグモードで起動
     --production       本番モードで起動（Gunicorn使用）
     --workers N        Gunicornワーカー数（本番モードのみ、デフォルト: 4）
     --help             このヘルプを表示
 
 例:
-    # 開発モード（ポート5010）
+    # 開発モード（ポート5100）
     $0
 
     # デバッグモード

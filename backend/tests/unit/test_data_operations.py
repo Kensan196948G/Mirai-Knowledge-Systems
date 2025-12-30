@@ -73,6 +73,30 @@ class TestLoadData:
         assert result[0]['metadata']['tags'] == ['safety', 'construction']
         assert result[0]['metadata']['author']['name'] == 'Admin'
 
+    def test_load_data_returns_empty_list_on_invalid_json(self, tmp_path, monkeypatch):
+        """不正なJSONは空リストとして扱う"""
+        import app_v2
+
+        monkeypatch.setattr(app_v2.app, 'config', {'DATA_DIR': str(tmp_path)})
+
+        data_file = tmp_path / 'broken.json'
+        data_file.write_text('{"invalid":', encoding='utf-8')
+
+        result = app_v2.load_data('broken.json')
+        assert result == []
+
+    def test_load_data_returns_empty_list_on_non_list_json(self, tmp_path, monkeypatch):
+        """配列以外のJSONは空リストとして扱う"""
+        import app_v2
+
+        monkeypatch.setattr(app_v2.app, 'config', {'DATA_DIR': str(tmp_path)})
+
+        data_file = tmp_path / 'object.json'
+        data_file.write_text(json.dumps({'id': 1}), encoding='utf-8')
+
+        result = app_v2.load_data('object.json')
+        assert result == []
+
 
 class TestSaveData:
     """save_data関数のテスト"""

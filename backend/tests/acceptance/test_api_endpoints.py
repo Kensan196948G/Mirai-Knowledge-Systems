@@ -22,9 +22,9 @@ class TestAuthEndpoints:
             'password': 'admin123'
         })
         assert response.status_code == 200
-        assert 'access_token' in response.json
-        assert 'refresh_token' in response.json
-        assert 'user' in response.json
+        assert 'access_token' in response.json.get('data', {})
+        assert 'refresh_token' in response.json.get('data', {})
+        assert 'user' in response.json.get('data', {})
 
     def test_login_missing_username(self, client):
         """POST /api/v1/auth/login - ユーザー名なし"""
@@ -76,13 +76,13 @@ class TestAuthEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        refresh_token = login_response.json.get('refresh_token')
+        refresh_token = login_response.json.get('data', {}).get('refresh_token')
 
         if refresh_token:
             response = client.post('/api/v1/auth/refresh',
                 headers={'Authorization': f'Bearer {refresh_token}'})
             assert response.status_code == 200
-            assert 'access_token' in response.json
+            assert 'access_token' in response.json.get('data', {})
 
     def test_refresh_token_missing(self, client):
         """POST /api/v1/auth/refresh - トークンなし"""
@@ -101,13 +101,13 @@ class TestAuthEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/auth/me',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert 'username' in response.json
-        assert response.json['username'] == 'admin'
+        assert 'username' in response.json.get('data', {})
+        assert response.json['data']['username'] == 'admin'
 
     def test_get_current_user_no_token(self, client):
         """GET /api/v1/auth/me - トークンなし"""
@@ -130,12 +130,12 @@ class TestKnowledgeEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/knowledge',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert isinstance(response.json, list)
+        assert isinstance(response.json['data'], list)
 
     def test_get_knowledge_list_no_auth(self, client):
         """GET /api/v1/knowledge - 認証なし"""
@@ -143,32 +143,32 @@ class TestKnowledgeEndpoints:
         assert response.status_code == 401
 
     def test_get_knowledge_list_with_category_filter(self, client):
-        """GET /api/v1/knowledge?category=safety - カテゴリーフィルター"""
+        """GET /api/v1/knowledge?category=安全衛生 - カテゴリーフィルター"""
         login_response = client.post('/api/v1/auth/login', json={
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
-        response = client.get('/api/v1/knowledge?category=safety',
+        response = client.get('/api/v1/knowledge?category=安全衛生',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         for item in data:
-            assert item['category'] == 'safety'
+            assert item['category'] == '安全衛生'
 
     def test_get_knowledge_list_with_tag_filter(self, client):
-        """GET /api/v1/knowledge?tag=test - タグフィルター"""
+        """GET /api/v1/knowledge?tags=test - タグフィルター"""
         login_response = client.post('/api/v1/auth/login', json={
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
-        response = client.get('/api/v1/knowledge?tag=test',
+        response = client.get('/api/v1/knowledge?tags=test',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         for item in data:
             assert 'test' in item.get('tags', [])
 
@@ -178,12 +178,12 @@ class TestKnowledgeEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/knowledge/1',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert response.json['id'] == 1
+        assert response.json['data']['id'] == 1
 
     def test_get_knowledge_by_id_not_found(self, client):
         """GET /api/v1/knowledge/99999 - 存在しないID"""
@@ -191,7 +191,7 @@ class TestKnowledgeEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/knowledge/99999',
             headers={'Authorization': f'Bearer {token}'})
@@ -203,7 +203,7 @@ class TestKnowledgeEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/knowledge/invalid',
             headers={'Authorization': f'Bearer {token}'})
@@ -215,7 +215,7 @@ class TestKnowledgeEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.post('/api/v1/knowledge',
             headers={'Authorization': f'Bearer {token}'},
@@ -223,12 +223,12 @@ class TestKnowledgeEndpoints:
                 'title': 'APIテストナレッジ',
                 'summary': 'API自動テスト',
                 'content': '詳細な内容',
-                'category': 'safety',
+                'category': '安全衛生',
                 'tags': ['api', 'test']
             })
         assert response.status_code == 201
-        assert 'id' in response.json
-        assert response.json['title'] == 'APIテストナレッジ'
+        assert 'id' in response.json.get('data', {})
+        assert response.json['data']['title'] == 'APIテストナレッジ'
 
     def test_create_knowledge_missing_title(self, client):
         """POST /api/v1/knowledge - タイトルなし"""
@@ -236,13 +236,13 @@ class TestKnowledgeEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.post('/api/v1/knowledge',
             headers={'Authorization': f'Bearer {token}'},
             json={
                 'summary': 'サマリーのみ',
-                'category': 'safety'
+                'category': '安全衛生'
             })
         assert response.status_code in [400, 422]
 
@@ -252,13 +252,13 @@ class TestKnowledgeEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.post('/api/v1/knowledge',
             headers={'Authorization': f'Bearer {token}'},
             json={
                 'title': 'タイトルのみ',
-                'category': 'safety'
+                'category': '安全衛生'
             })
         assert response.status_code in [400, 422]
 
@@ -268,7 +268,7 @@ class TestKnowledgeEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.post('/api/v1/knowledge',
             headers={'Authorization': f'Bearer {token}'},
@@ -285,7 +285,7 @@ class TestKnowledgeEndpoints:
         response = client.post('/api/v1/knowledge', json={
             'title': 'テスト',
             'summary': 'サマリー',
-            'category': 'safety'
+            'category': '安全衛生'
         })
         assert response.status_code == 401
 
@@ -299,12 +299,12 @@ class TestSearchEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/search/unified?q=test',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert 'knowledge' in data
         assert 'sop' in data
 
@@ -314,7 +314,7 @@ class TestSearchEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/search/unified',
             headers={'Authorization': f'Bearer {token}'})
@@ -327,21 +327,21 @@ class TestSearchEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/search/unified?q=',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code in [200, 400]
 
     def test_unified_search_with_category(self, client):
-        """GET /api/v1/search/unified?q=test&category=safety - カテゴリー指定"""
+        """GET /api/v1/search/unified?q=test&types=knowledge - カテゴリー指定"""
         login_response = client.post('/api/v1/auth/login', json={
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
-        response = client.get('/api/v1/search/unified?q=test&category=safety',
+        response = client.get('/api/v1/search/unified?q=test&types=knowledge',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
 
@@ -356,7 +356,7 @@ class TestSearchEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/search/unified?q=test%20@#$%',
             headers={'Authorization': f'Bearer {token}'})
@@ -372,7 +372,7 @@ class TestNotificationEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 通知データを作成
         notifications_file = tmp_path / 'notifications.json'
@@ -381,7 +381,7 @@ class TestNotificationEndpoints:
         response = client.get('/api/v1/notifications',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert isinstance(response.json, list)
+        assert isinstance(response.json['data'], list)
 
     def test_get_notifications_no_auth(self, client):
         """GET /api/v1/notifications - 認証なし"""
@@ -394,7 +394,7 @@ class TestNotificationEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 通知データを作成
         notifications_file = tmp_path / 'notifications.json'
@@ -423,7 +423,7 @@ class TestNotificationEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 空の通知データ
         notifications_file = tmp_path / 'notifications.json'
@@ -439,7 +439,7 @@ class TestNotificationEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 通知データを作成
         notifications_file = tmp_path / 'notifications.json'
@@ -448,8 +448,8 @@ class TestNotificationEndpoints:
         response = client.get('/api/v1/notifications/unread/count',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert 'unread_count' in response.json
-        assert isinstance(response.json['unread_count'], int)
+        assert 'unread_count' in response.json.get('data', {})
+        assert isinstance(response.json['data']['unread_count'], int)
 
 
 class TestSOPEndpoints:
@@ -461,7 +461,7 @@ class TestSOPEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # SOPデータを作成
         sop_file = tmp_path / 'sop.json'
@@ -470,7 +470,7 @@ class TestSOPEndpoints:
         response = client.get('/api/v1/sop',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert isinstance(response.json, list)
+        assert isinstance(response.json['data'], list)
 
     def test_get_sop_list_no_auth(self, client):
         """GET /api/v1/sop - 認証なし"""
@@ -487,7 +487,7 @@ class TestApprovalEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 承認データを作成
         approvals_file = tmp_path / 'approvals.json'
@@ -496,7 +496,7 @@ class TestApprovalEndpoints:
         response = client.get('/api/v1/approvals',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert isinstance(response.json, list)
+        assert isinstance(response.json['data'], list)
 
     def test_get_approvals_with_status_filter(self, client, tmp_path):
         """GET /api/v1/approvals?status=pending - ステータスフィルター"""
@@ -504,7 +504,7 @@ class TestApprovalEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 承認データを作成
         approvals_file = tmp_path / 'approvals.json'
@@ -525,6 +525,7 @@ class TestApprovalEndpoints:
         response = client.get('/api/v1/approvals?status=pending',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
+        assert isinstance(response.json['data'], list)
 
 
 class TestDashboardEndpoints:
@@ -536,14 +537,15 @@ class TestDashboardEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/dashboard/stats',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        data = response.json
-        assert 'total_knowledge' in data
-        assert 'total_users' in data
+        data = response.json['data']
+        assert 'counts' in data
+        assert 'kpis' in data
+        assert 'total_knowledge' in data['counts']
 
     def test_get_dashboard_stats_no_auth(self, client):
         """GET /api/v1/dashboard/stats - 認証なし"""
@@ -560,14 +562,13 @@ class TestMetricsEndpoints:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/metrics',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        data = response.json
-        # メトリクスデータの構造を検証
-        assert isinstance(data, dict)
+        assert response.mimetype == 'text/plain'
+        assert response.get_data(as_text=True)
 
 
 class TestErrorHandling:
@@ -588,8 +589,8 @@ class TestErrorHandling:
         response = client.post('/api/v1/auth/login',
             data='username=admin&password=admin123',
             content_type='application/x-www-form-urlencoded')
-        # JSONを期待しているので400または422
-        assert response.status_code in [400, 422]
+        # JSONを期待しているので400/415/422
+        assert response.status_code in [400, 415, 422]
 
 
 class TestResponseFormat:
@@ -603,7 +604,7 @@ class TestResponseFormat:
         })
         assert response.status_code == 200
         assert response.content_type == 'application/json'
-        data = response.json
+        data = response.json['data']
         assert isinstance(data, dict)
 
     def test_error_response_format(self, client):
@@ -616,7 +617,7 @@ class TestResponseFormat:
         assert response.content_type == 'application/json'
         data = response.json
         assert isinstance(data, dict)
-        assert 'error' in data or 'message' in data
+        assert 'error' in data
 
     def test_list_response_format(self, client):
         """リストレスポンスの形式検証"""
@@ -624,12 +625,12 @@ class TestResponseFormat:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/knowledge',
             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
-        assert isinstance(response.json, list)
+        assert isinstance(response.json['data'], list)
 
 
 class TestSecurityHeaders:

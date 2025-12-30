@@ -78,7 +78,8 @@ class TestHTTPSRedirectBehavior:
         environ = {
             'wsgi.url_scheme': 'http',
             'HTTP_HOST': 'example.com',
-            'PATH_INFO': '/api/knowledge',
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '/api/v1/knowledge',
             'QUERY_STRING': ''
         }
 
@@ -101,7 +102,8 @@ class TestHTTPSRedirectBehavior:
         environ = {
             'wsgi.url_scheme': 'http',
             'HTTP_HOST': 'example.com',
-            'PATH_INFO': '/api/knowledge',
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '/api/v1/knowledge',
             'QUERY_STRING': ''
         }
 
@@ -118,7 +120,7 @@ class TestHTTPSRedirectBehavior:
         result = middleware(environ, start_response)
 
         assert status_code == '301 Moved Permanently'
-        assert location == 'https://example.com/api/knowledge'
+        assert location == 'https://example.com/api/v1/knowledge'
         assert result == [b'']
 
     def test_redirect_preserves_query_string(self):
@@ -128,6 +130,7 @@ class TestHTTPSRedirectBehavior:
         environ = {
             'wsgi.url_scheme': 'http',
             'HTTP_HOST': 'example.com',
+            'REQUEST_METHOD': 'GET',
             'PATH_INFO': '/api/search',
             'QUERY_STRING': 'q=test&category=technical'
         }
@@ -151,7 +154,8 @@ class TestHTTPSRedirectBehavior:
         environ = {
             'wsgi.url_scheme': 'https',
             'HTTP_HOST': 'example.com',
-            'PATH_INFO': '/api/knowledge',
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '/api/v1/knowledge',
             'QUERY_STRING': ''
         }
 
@@ -178,7 +182,8 @@ class TestHTTPSRedirectWithProxy:
             'wsgi.url_scheme': 'http',
             'HTTP_X_FORWARDED_PROTO': 'https',
             'HTTP_HOST': 'example.com',
-            'PATH_INFO': '/api/knowledge',
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '/api/v1/knowledge',
             'QUERY_STRING': ''
         }
 
@@ -201,7 +206,8 @@ class TestHTTPSRedirectWithProxy:
             'wsgi.url_scheme': 'http',
             'HTTP_X_FORWARDED_PROTO': 'http',
             'HTTP_HOST': 'example.com',
-            'PATH_INFO': '/api/knowledge',
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '/api/v1/knowledge',
             'QUERY_STRING': ''
         }
 
@@ -223,7 +229,8 @@ class TestHTTPSRedirectWithProxy:
             'wsgi.url_scheme': 'http',
             'HTTP_HOST': 'internal.example.com',
             'HTTP_X_FORWARDED_HOST': 'public.example.com',
-            'PATH_INFO': '/api/knowledge',
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '/api/v1/knowledge',
             'QUERY_STRING': ''
         }
 
@@ -238,7 +245,7 @@ class TestHTTPSRedirectWithProxy:
         middleware(environ, start_response)
 
         # X-Forwarded-Hostが使用されることを確認
-        assert location == 'https://public.example.com/api/knowledge'
+        assert location == 'https://public.example.com/api/v1/knowledge'
 
     def test_ignore_proxy_headers_when_not_trusted(self):
         """プロキシヘッダーを信頼しない場合は無視することを確認"""
@@ -248,7 +255,8 @@ class TestHTTPSRedirectWithProxy:
             'wsgi.url_scheme': 'http',
             'HTTP_X_FORWARDED_PROTO': 'https',
             'HTTP_HOST': 'example.com',
-            'PATH_INFO': '/api/knowledge',
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '/api/v1/knowledge',
             'QUERY_STRING': ''
         }
 
@@ -274,7 +282,8 @@ class TestHTTPSRedirectEdgeCases:
         environ = {
             'wsgi.url_scheme': 'http',
             'SERVER_NAME': 'fallback.example.com',
-            'PATH_INFO': '/api/knowledge',
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '/api/v1/knowledge',
             'QUERY_STRING': ''
         }
 
@@ -289,7 +298,7 @@ class TestHTTPSRedirectEdgeCases:
         middleware(environ, start_response)
 
         # SERVER_NAMEが使用されることを確認
-        assert location == 'https://fallback.example.com/api/knowledge'
+        assert location == 'https://fallback.example.com/api/v1/knowledge'
 
     def test_handles_root_path(self):
         """ルートパスのリダイレクトを確認"""
@@ -298,6 +307,7 @@ class TestHTTPSRedirectEdgeCases:
         environ = {
             'wsgi.url_scheme': 'http',
             'HTTP_HOST': 'example.com',
+            'REQUEST_METHOD': 'GET',
             'PATH_INFO': '/',
             'QUERY_STRING': ''
         }
@@ -321,6 +331,7 @@ class TestHTTPSRedirectEdgeCases:
         environ = {
             'wsgi.url_scheme': 'http',
             'HTTP_HOST': 'example.com',
+            'REQUEST_METHOD': 'GET',
             'QUERY_STRING': ''
         }
 
