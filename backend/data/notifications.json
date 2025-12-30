@@ -1,1 +1,33 @@
-[]
+[
+  {
+    "id": 1,
+    "title": "新規ナレッジが承認待ちです",
+    "message": "unknownさんが「通知テスト（Teams/Email）」を登録しました。承認をお願いします。",
+    "type": "approval_required",
+    "target_users": [],
+    "target_roles": [
+      "admin",
+      "quality_assurance"
+    ],
+    "priority": "high",
+    "related_entity_type": "knowledge",
+    "related_entity_id": 51,
+    "created_at": "2025-12-30T14:40:22.391129",
+    "status": "sent",
+    "read_by": [],
+    "external_delivery": {
+      "teams": {
+        "status": "failed",
+        "attempts": 5,
+        "last_error": "<urlopen error [Errno -2] Name or service not known>"
+      },
+      "email": {
+        "status": "failed",
+        "attempts": 5,
+        "last_error": "Connection unexpectedly closed: The read operation timed out",
+        "recipient_count": 1
+      }
+    },
+    "external_delivery_failed": true
+  }
+]

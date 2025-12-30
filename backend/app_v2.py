@@ -51,8 +51,12 @@ class HTTPSRedirectMiddleware:
 
     def __init__(self, app, force_https=None, trust_proxy=None):
         self.app = app
+        # 本番環境ではHTTPS強制をデフォルト有効化
+        is_production = os.environ.get('MKS_ENV', 'development').lower() == 'production'
+        default_force_https = 'true' if is_production else 'false'
+
         self.force_https = force_https if force_https is not None else \
-            os.environ.get('MKS_FORCE_HTTPS', 'false').lower() in ('true', '1', 'yes')
+            os.environ.get('MKS_FORCE_HTTPS', default_force_https).lower() in ('true', '1', 'yes')
         self.trust_proxy = trust_proxy if trust_proxy is not None else \
             os.environ.get('MKS_TRUST_PROXY_HEADERS', 'false').lower() in ('true', '1', 'yes')
 
@@ -118,9 +122,15 @@ DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 app.config['DATA_DIR'] = os.environ.get('MKS_DATA_DIR', DEFAULT_DATA_DIR)
 
 # JWT設定
-# 開発環境用の固定秘密鍵（本番環境では環境変数を使用してください）
-JWT_SECRET = 'mirai-knowledge-system-jwt-secret-key-2025'
-app.config['JWT_SECRET_KEY'] = os.environ.get('MKS_JWT_SECRET_KEY', JWT_SECRET)
+# セキュリティ強化: 環境変数必須化（デフォルト値を削除）
+JWT_SECRET_KEY = os.environ.get('MKS_JWT_SECRET_KEY')
+if not JWT_SECRET_KEY:
+    raise ValueError(
+        'MKS_JWT_SECRET_KEY environment variable is required. '
+        'Please set a secure random key (minimum 32 characters). '
+        'Example: export MKS_JWT_SECRET_KEY="your-secure-random-key-here"'
+    )
+app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 # 完全なCSRF無効化（API専用）
@@ -489,32 +499,102 @@ def log_access(user_id, action, resource=None, resource_id=None):
 # ============================================================
 
 def load_data(filename):
-    """JSONファイルからデータを読み込み"""
+    """
+    JSONファイルを安全に読み込む
+
+    Args:
+        filename: 読み込むJSONファイル名
+
+    Returns:
+        list: 読み込んだデータ（失敗時は空リスト）
+    """
     filepath = os.path.join(get_data_dir(), filename)
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if not isinstance(data, list):
-                    return []
-                return [item for item in data if isinstance(item, dict)]
-        except (json.JSONDecodeError, ValueError) as e:
-            print(f'[WARN] Failed to decode {filepath}: {e}')
+
+    try:
+        if not os.path.exists(filepath):
+            print(f'[INFO] File not found: {filename} (returning empty list)')
             return []
-    return []
+
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+            # データ型検証
+            if not isinstance(data, list):
+                print(f'[WARN] {filename}: Expected list, got {type(data).__name__}. Returning empty list.')
+                return []
+
+            # dict型のアイテムのみをフィルタリング
+            valid_items = [item for item in data if isinstance(item, dict)]
+            if len(valid_items) != len(data):
+                print(f'[WARN] {filename}: Filtered out {len(data) - len(valid_items)} non-dict items')
+
+            return valid_items
+
+    except json.JSONDecodeError as e:
+        print(f'[ERROR] JSON decode error in {filename}: {e} (line {e.lineno}, col {e.colno})')
+        return []
+    except PermissionError as e:
+        print(f'[ERROR] Permission denied reading {filename}: {e}')
+        return []
+    except UnicodeDecodeError as e:
+        print(f'[ERROR] Encoding error reading {filename}: {e}')
+        return []
+    except Exception as e:
+        print(f'[ERROR] Unexpected error reading {filename}: {type(e).__name__}: {e}')
+        return []
 
 def save_data(filename, data):
-    """JSONファイルにデータを保存"""
+    """
+    JSONファイルに安全にデータを保存（アトミック書き込み）
+
+    Args:
+        filename: 保存するJSONファイル名
+        data: 保存するデータ
+
+    Raises:
+        Exception: 保存に失敗した場合
+    """
     filepath = os.path.join(get_data_dir(), filename)
     dirpath = os.path.dirname(filepath)
-    fd, tmp_path = tempfile.mkstemp(prefix=f".{filename}.", suffix=".tmp", dir=dirpath)
+
+    # ディレクトリの存在確認
     try:
+        os.makedirs(dirpath, exist_ok=True)
+    except Exception as e:
+        print(f'[ERROR] Failed to create directory {dirpath}: {e}')
+        raise
+
+    tmp_path = None
+    try:
+        # 一時ファイルを作成
+        fd, tmp_path = tempfile.mkstemp(prefix=f".{filename}.", suffix=".tmp", dir=dirpath)
+
+        # データを一時ファイルに書き込み
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # アトミックに置き換え
         os.replace(tmp_path, filepath)
+        tmp_path = None  # 成功したのでクリーンアップ不要
+
+        print(f'[INFO] Successfully saved {filename} ({len(data)} items)')
+
+    except PermissionError as e:
+        print(f'[ERROR] Permission denied writing {filename}: {e}')
+        raise
+    except OSError as e:
+        print(f'[ERROR] OS error writing {filename}: {e}')
+        raise
+    except Exception as e:
+        print(f'[ERROR] Unexpected error writing {filename}: {type(e).__name__}: {e}')
+        raise
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        # 一時ファイルのクリーンアップ
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception as e:
+                print(f'[WARN] Failed to remove temp file {tmp_path}: {e}')
 
 # ============================================================
 # 認証API
@@ -1510,70 +1590,79 @@ def serve_static(path):
     return response
 
 # ============================================================
+# 標準エラーレスポンス関数
+# ============================================================
+
+def error_response(message, code='ERROR', status_code=400, details=None):
+    """
+    標準化されたエラーレスポンスを返す
+
+    Args:
+        message: エラーメッセージ
+        code: エラーコード（例: 'NOT_FOUND', 'VALIDATION_ERROR'）
+        status_code: HTTPステータスコード
+        details: 追加のエラー詳細情報
+
+    Returns:
+        tuple: (JSONレスポンス, HTTPステータスコード)
+    """
+    response = {
+        'success': False,
+        'error': {
+            'code': code,
+            'message': message
+        }
+    }
+
+    if details:
+        response['error']['details'] = details
+
+    print(f'[ERROR] {code}: {message} (status={status_code})')
+
+    return jsonify(response), status_code
+
+# ============================================================
 # エラーハンドラー
 # ============================================================
 
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    """全ての未処理例外をキャッチ"""
+    import traceback
+    print(f'[ERROR] Unexpected error: {type(e).__name__}: {e}')
+    print(traceback.format_exc())
+    return error_response('Internal server error', 'INTERNAL_ERROR', 500)
+
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({
-        'success': False,
-        'error': {
-            'code': 'NOT_FOUND',
-            'message': 'Resource not found'
-        }
-    }), 404
+    return error_response('Resource not found', 'NOT_FOUND', 404)
 
 @app.errorhandler(500)
 def internal_error(error):
-    return jsonify({
-        'success': False,
-        'error': {
-            'code': 'INTERNAL_ERROR',
-            'message': 'Internal server error'
-        }
-    }), 500
+    return error_response('Internal server error', 'INTERNAL_ERROR', 500)
 
 @app.errorhandler(429)
 def ratelimit_handler(error):
     """レート制限エラーハンドラ"""
-    return jsonify({
-        'success': False,
-        'error': {
-            'code': 'RATE_LIMIT_EXCEEDED',
-            'message': 'リクエストが多すぎます。しばらく待ってから再試行してください。',
-            'retry_after': str(error.description) if hasattr(error, 'description') else '60 seconds'
-        }
-    }), 429
+    retry_after = str(error.description) if hasattr(error, 'description') else '60 seconds'
+    return error_response(
+        'リクエストが多すぎます。しばらく待ってから再試行してください。',
+        'RATE_LIMIT_EXCEEDED',
+        429,
+        {'retry_after': retry_after}
+    )
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return jsonify({
-        'success': False,
-        'error': {
-            'code': 'TOKEN_EXPIRED',
-            'message': 'Token has expired'
-        }
-    }), 401
+    return error_response('Token has expired', 'TOKEN_EXPIRED', 401)
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error):
-    return jsonify({
-        'success': False,
-        'error': {
-            'code': 'INVALID_TOKEN',
-            'message': 'Invalid token'
-        }
-    }), 401
+    return error_response('Invalid token', 'INVALID_TOKEN', 401)
 
 @jwt.unauthorized_loader
 def missing_token_callback(error):
-    return jsonify({
-        'success': False,
-        'error': {
-            'code': 'MISSING_TOKEN',
-            'message': 'Authorization token is missing'
-        }
-    }), 401
+    return error_response('Authorization token is missing', 'MISSING_TOKEN', 401)
 
 # ============================================================
 # アプリケーション起動

@@ -207,7 +207,9 @@ a {
 .sidebar {
   position: sticky;
   top: 24px;
-  height: fit-content;
+  max-height: calc(100vh - 48px);
+  overflow-y: scroll;  /* 常にスクロールバーを表示 */
+  overflow-x: hidden;
 }
 
 .nav-section + .nav-section {
@@ -469,7 +471,9 @@ a {
 .rail {
   position: sticky;
   top: 24px;
-  height: fit-content;
+  max-height: calc(100vh - 48px);
+  overflow-y: scroll;  /* 常にスクロールバーを表示 */
+  overflow-x: hidden;
   display: grid;
   gap: 16px;
 }
@@ -1266,7 +1270,8 @@ select:focus-visible {
 
 .side-panel-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll;  /* 常にスクロールバーを表示 */
+  overflow-x: hidden;
   padding: 20px 28px;
 }
 
@@ -1462,6 +1467,69 @@ select:focus-visible {
 .field label:has(input[type="checkbox"]):hover,
 .field label:has(input[type="radio"]):hover {
   background: rgba(241, 236, 228, 0.6);
+}
+
+/* ============================================================
+   カスタムスクロールバースタイル（見やすく美しい）
+   ============================================================ */
+
+/* WebKit系ブラウザ（Chrome, Safari, Edge）用 */
+.sidebar::-webkit-scrollbar,
+.rail::-webkit-scrollbar,
+.side-panel-content::-webkit-scrollbar,
+.search-results::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.sidebar::-webkit-scrollbar-track,
+.rail::-webkit-scrollbar-track,
+.side-panel-content::-webkit-scrollbar-track,
+.search-results::-webkit-scrollbar-track {
+  background: rgba(241, 236, 228, 0.5);
+  border-radius: 10px;
+  margin: 4px 0;
+}
+
+.sidebar::-webkit-scrollbar-thumb,
+.rail::-webkit-scrollbar-thumb,
+.side-panel-content::-webkit-scrollbar-thumb,
+.search-results::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  border-radius: 10px;
+  border: 2px solid rgba(241, 236, 228, 0.5);
+  transition: background 0.3s ease;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover,
+.rail::-webkit-scrollbar-thumb:hover,
+.side-panel-content::-webkit-scrollbar-thumb:hover,
+.search-results::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  border-color: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb:active,
+.rail::-webkit-scrollbar-thumb:active,
+.side-panel-content::-webkit-scrollbar-thumb:active,
+.search-results::-webkit-scrollbar-thumb:active {
+  background: var(--accent-strong);
+}
+
+/* Firefox用スクロールバースタイル */
+.sidebar,
+.rail,
+.side-panel-content,
+.search-results {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) rgba(241, 236, 228, 0.5);
+}
+
+/* スクロールバーのスムーズなスクロール */
+.sidebar,
+.rail,
+.side-panel-content {
+  scroll-behavior: smooth;
 }
 
 /* ============================================================

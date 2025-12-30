@@ -19,18 +19,77 @@ os.makedirs(DATA_DIR, exist_ok=True)
 # ============================================================
 
 def load_data(filename):
-    """JSONファイルからデータを読み込み"""
+    """
+    JSONファイルを安全に読み込む
+
+    Args:
+        filename: 読み込むJSONファイル名
+
+    Returns:
+        list: 読み込んだデータ（失敗時は空リスト）
+    """
     filepath = os.path.join(DATA_DIR, filename)
-    if os.path.exists(filepath):
+
+    try:
+        if not os.path.exists(filepath):
+            print(f'[INFO] File not found: {filename} (returning empty list)')
+            return []
+
         with open(filepath, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return []
+            data = json.load(f)
+
+            # データ型検証
+            if not isinstance(data, list):
+                print(f'[WARN] {filename}: Expected list, got {type(data).__name__}. Returning empty list.')
+                return []
+
+            return data
+
+    except json.JSONDecodeError as e:
+        print(f'[ERROR] JSON decode error in {filename}: {e}')
+        return []
+    except PermissionError as e:
+        print(f'[ERROR] Permission denied reading {filename}: {e}')
+        return []
+    except UnicodeDecodeError as e:
+        print(f'[ERROR] Encoding error reading {filename}: {e}')
+        return []
+    except Exception as e:
+        print(f'[ERROR] Unexpected error reading {filename}: {type(e).__name__}: {e}')
+        return []
 
 def save_data(filename, data):
-    """JSONファイルにデータを保存"""
+    """
+    JSONファイルに安全にデータを保存
+
+    Args:
+        filename: 保存するJSONファイル名
+        data: 保存するデータ
+
+    Raises:
+        Exception: 保存に失敗した場合
+    """
     filepath = os.path.join(DATA_DIR, filename)
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    try:
+        # ディレクトリの存在確認
+        os.makedirs(DATA_DIR, exist_ok=True)
+
+        # データを書き込み
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        print(f'[INFO] Successfully saved {filename} ({len(data) if isinstance(data, list) else "N/A"} items)')
+
+    except PermissionError as e:
+        print(f'[ERROR] Permission denied writing {filename}: {e}')
+        raise
+    except OSError as e:
+        print(f'[ERROR] OS error writing {filename}: {e}')
+        raise
+    except Exception as e:
+        print(f'[ERROR] Unexpected error writing {filename}: {type(e).__name__}: {e}')
+        raise
 
 # ============================================================
 # API エンドポイント - ナレッジ管理

@@ -78,8 +78,8 @@ jobs:
     - name: Check coverage threshold
       run: |
         cd backend
-        pytest tests/unit tests/integration --cov=app_v2 --cov=schemas --cov-fail-under=70
-      continue-on-error: true
+        pytest tests/unit tests/integration --cov=app_v2 --cov=schemas --cov-fail-under=80
+      continue-on-error: false
 
   security:
     runs-on: ubuntu-latest

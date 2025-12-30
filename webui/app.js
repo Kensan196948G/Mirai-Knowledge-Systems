@@ -328,25 +328,55 @@ async function fetchAPI(endpoint, options = {}) {
       } else {
         // リフレッシュ失敗 → ログアウト
         console.log('[API] Token refresh failed. Logging out...');
+        showNotification('セッションの有効期限が切れました。再度ログインしてください。', 'error');
         logout();
         throw new Error('Authentication failed');
       }
     }
 
-    // 権限エラー（403）
-    if (response.status === 403) {
-      console.error('[API] 403 Forbidden.');
-      showNotification('この操作を実行する権限がありません。', 'error');
-      throw new Error('Permission denied');
-    }
-
+    // エラーレスポンスの処理
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      let errorMessage = `HTTP ${response.status}`;
+      let errorCode = 'UNKNOWN_ERROR';
+
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error.message || errorMessage;
+          errorCode = errorData.error.code || errorCode;
+        }
+      } catch (e) {
+        console.error('[API] Failed to parse error response:', e);
+      }
+
+      // ステータスコード別の処理
+      if (response.status === 403) {
+        showNotification('この操作を実行する権限がありません。', 'error');
+      } else if (response.status === 404) {
+        showNotification('リソースが見つかりません。', 'error');
+      } else if (response.status === 429) {
+        showNotification('リクエストが多すぎます。しばらく待ってから再試行してください。', 'warning');
+      } else if (response.status === 500) {
+        showNotification('サーバーエラーが発生しました。管理者に連絡してください。', 'error');
+      } else {
+        showNotification(`エラー: ${errorMessage}`, 'error');
+      }
+
+      const error = new Error(errorMessage);
+      error.code = errorCode;
+      error.status = response.status;
+      throw error;
     }
 
     return await response.json();
   } catch (error) {
     console.error('[API] Error:', error);
+
+    // ネットワークエラーの場合
+    if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+      showNotification('ネットワークエラー: サーバーに接続できません。', 'error');
+    }
+
     throw error;
   }
 }

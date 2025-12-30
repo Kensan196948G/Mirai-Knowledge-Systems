@@ -87,14 +87,33 @@ Mirai-Knowledge-Systems/
    pip install -r requirements.txt
    ```
 
-3. **サーバー起動（JWT認証対応版）**
+3. **環境変数の設定（重要）**
+
+   セキュリティのため、JWT秘密鍵の設定が必須です:
+
+   ```bash
+   # .envファイルを作成
+   cp .env.example .env
+
+   # JWT秘密鍵を生成して設定
+   python3 -c "import secrets; print('MKS_JWT_SECRET_KEY=' + secrets.token_urlsafe(32))" >> .env
+   ```
+
+   または、手動で `.env` ファイルを編集:
+   ```bash
+   # backend/.env
+   MKS_JWT_SECRET_KEY=your-secure-random-jwt-secret-key-minimum-32-characters
+   MKS_ENV=development
+   ```
+
+4. **サーバー起動（JWT認証対応版）**
    ```bash
    python app_v2.py
    ```
-   
+
    > 注: `app.py` は旧版（認証なし）、`app_v2.py` は新版（JWT認証 + RBAC対応）です。
 
-4. **デモユーザー自動作成**
+5. **デモユーザー自動作成**
    
    サーバー起動時に以下のデモアカウントが自動作成されます:
    
@@ -104,7 +123,7 @@ Mirai-Knowledge-Systems/
    | yamada | yamada123 | 施工管理 | ナレッジ作成・閲覧、事故レポート作成 |
    | partner | partner123 | 協力会社 | 閲覧のみ |
 
-5. **ログインしてアクセス**
+6. **ログインしてアクセス**
    
    ブラウザで以下のURLを開きます：
    ```
@@ -207,21 +226,28 @@ Mirai-Knowledge-Systems/
 ## 🔒 セキュリティ
 
 ### 実装済み ✅
+
+**認証・認可**
 - JWT認証（Flask-JWT-Extended）
 - 役割ベースアクセス制御（RBAC）
-- パスワードハッシュ化（SHA-256）
+- パスワードハッシュ化（bcrypt）
 - 監査ログ記録（全アクセスを自動記録）
 - トークン期限切れ検知（1時間）
 - 権限別API制御
-- JWT秘密鍵の環境変数化
-- セキュリティヘッダー追加
 
-### 今後の強化（Phase B-8）
-- HTTPS対応
-- CSRF対策
-- トークンリフレッシュUI実装
-- XSS対策（Content Security Policy）
-- レート制限
+**セキュリティ強化（Phase B-8）**
+- **JWT秘密鍵の環境変数必須化**（デフォルト値削除）
+- **本番環境でのHTTPS強制デフォルト有効化**
+- **XSS対策強化**（innerHTML使用箇所の削除、DOM API使用）
+- セキュリティヘッダー追加（CSP、X-Frame-Options、HSTS等）
+- レート制限（本番環境のみ有効）
+- Secure/HttpOnly Cookie設定
+- トークンリフレッシュ機能
+
+### 今後の強化
+- CSRF対策の追加強化
+- API入力値のさらなるバリデーション強化
+- セキュリティ監査ログの詳細化
 
 ## 📝 ライセンス
 
