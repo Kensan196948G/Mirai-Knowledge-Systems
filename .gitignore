@@ -73,7 +73,12 @@ Thumbs.db
 .DS_Store
 
 # Project specific
+backend/backups/
+backend/data/access_logs.json
+backend/data/knowledge.json
+backend/data/notifications.json
 backend/data/*.json.backup
 backend/data/*.json.old
 .backend.pid
 .frontend.pid
+webui/detail-pages.js.backup
