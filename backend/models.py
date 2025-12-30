@@ -41,11 +41,14 @@ class Knowledge(Base):
     created_by = relationship('User', foreign_keys=[created_by_id])
     updated_by = relationship('User', foreign_keys=[updated_by_id])
     
-    # インデックス
+    # インデックス（パフォーマンス最適化）
     __table_args__ = (
         Index('idx_knowledge_category', 'category'),
         Index('idx_knowledge_status', 'status'),
         Index('idx_knowledge_updated', 'updated_at'),
+        Index('idx_knowledge_title', 'title'),  # タイトル検索用
+        Index('idx_knowledge_owner', 'owner'),  # 所有者検索用
+        Index('idx_knowledge_project', 'project'),  # プロジェクト検索用
         {'schema': 'public'}
     )
 
@@ -53,8 +56,7 @@ class Knowledge(Base):
 class SOP(Base):
     """標準施工手順"""
     __tablename__ = 'sop'
-    __table_args__ = {'schema': 'public'}
-    
+
     id = Column(Integer, primary_key=True)
     title = Column(String(500), nullable=False)
     category = Column(String(100), nullable=False)
@@ -70,6 +72,15 @@ class SOP(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by_id = Column(Integer, ForeignKey('auth.users.id'))
     updated_by_id = Column(Integer, ForeignKey('auth.users.id'))
+
+    # インデックス
+    __table_args__ = (
+        Index('idx_sop_category', 'category'),
+        Index('idx_sop_status', 'status'),
+        Index('idx_sop_title', 'title'),
+        Index('idx_sop_version', 'version'),
+        {'schema': 'public'}
+    )
 
 
 class Regulation(Base):
@@ -95,8 +106,7 @@ class Regulation(Base):
 class Incident(Base):
     """事故・ヒヤリレポート"""
     __tablename__ = 'incidents'
-    __table_args__ = {'schema': 'public'}
-    
+
     id = Column(Integer, primary_key=True)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
@@ -112,8 +122,17 @@ class Incident(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     reporter_id = Column(Integer, ForeignKey('auth.users.id'))
-    
+
     reporter = relationship('User', foreign_keys=[reporter_id])
+
+    # インデックス
+    __table_args__ = (
+        Index('idx_incident_project', 'project'),
+        Index('idx_incident_severity', 'severity'),
+        Index('idx_incident_status', 'status'),
+        Index('idx_incident_date', 'incident_date'),
+        {'schema': 'public'}
+    )
 
 
 class Consultation(Base):

@@ -66,8 +66,14 @@ function displayNotifications(notifications) {
   const panel = document.querySelector('.notifications-panel');
   if (!panel) return;
 
+  // パネルをクリア（XSS対策）
+  panel.textContent = '';
+
   if (notifications.length === 0) {
-    panel.innerHTML = '<div class="no-notifications">通知はありません</div>';
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'no-notifications';
+    emptyDiv.textContent = '通知はありません';
+    panel.appendChild(emptyDiv);
     return;
   }
 
@@ -78,19 +84,49 @@ function displayNotifications(notifications) {
     'consultation_answered': '💬'
   };
 
-  panel.innerHTML = notifications.map(n => `
-    <div class="notification-item ${n.is_read ? 'read' : 'unread'}"
-         data-id="${n.id}"
-         onclick="handleNotificationClick(${n.id})">
-      <div class="notification-icon">${notificationTypeIcons[n.type] || '📢'}</div>
-      <div class="notification-content">
-        <div class="notification-title">${escapeHtml(n.title)}</div>
-        <div class="notification-message">${escapeHtml(n.message)}</div>
-        <div class="notification-time">${formatRelativeTime(n.created_at)}</div>
-      </div>
-      ${!n.is_read ? '<span class="unread-dot"></span>' : ''}
-    </div>
-  `).join('');
+  // 各通知アイテムを安全に作成（XSS対策: innerHTML → DOM API使用）
+  notifications.forEach(n => {
+    const item = document.createElement('div');
+    item.className = `notification-item ${n.is_read ? 'read' : 'unread'}`;
+    item.dataset.id = n.id;
+    item.onclick = () => handleNotificationClick(n.id);
+
+    // アイコン
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'notification-icon';
+    iconDiv.textContent = notificationTypeIcons[n.type] || '📢';
+    item.appendChild(iconDiv);
+
+    // コンテンツ
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'notification-content';
+
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'notification-title';
+    titleDiv.textContent = n.title;
+    contentDiv.appendChild(titleDiv);
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'notification-message';
+    messageDiv.textContent = n.message;
+    contentDiv.appendChild(messageDiv);
+
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'notification-time';
+    timeDiv.textContent = formatRelativeTime(n.created_at);
+    contentDiv.appendChild(timeDiv);
+
+    item.appendChild(contentDiv);
+
+    // 未読ドット
+    if (!n.is_read) {
+      const dotSpan = document.createElement('span');
+      dotSpan.className = 'unread-dot';
+      item.appendChild(dotSpan);
+    }
+
+    panel.appendChild(item);
+  });
 }
 
 /**

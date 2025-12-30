@@ -17,7 +17,7 @@ function showToast(message, type = 'info') {
     document.body.appendChild(container);
   }
 
-  // トースト要素を作成
+  // トースト要素を作成（XSS対策: innerHTML → DOM API使用）
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
 
@@ -29,10 +29,16 @@ function showToast(message, type = 'info') {
     info: 'ℹ'
   };
 
-  toast.innerHTML = `
-    <div class="toast-icon">${iconMap[type] || 'ℹ'}</div>
-    <div class="toast-message">${message}</div>
-  `;
+  const iconDiv = document.createElement('div');
+  iconDiv.className = 'toast-icon';
+  iconDiv.textContent = iconMap[type] || 'ℹ';
+
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'toast-message';
+  messageDiv.textContent = message;
+
+  toast.appendChild(iconDiv);
+  toast.appendChild(messageDiv);
 
   container.appendChild(toast);
 

@@ -81,20 +81,59 @@ async function apiCall(endpoint, options = {}) {
       headers
     });
 
+    // 認証エラー
     if (response.status === 401) {
-      console.error('Unauthorized. Redirecting to login...');
-      window.location.href = '/login.html';
+      console.error('[API] Unauthorized. Redirecting to login...');
+      showError('セッションの有効期限が切れました。再度ログインしてください。');
+      setTimeout(() => {
+        window.location.href = '/login.html';
+      }, 2000);
       return null;
     }
 
+    // エラーレスポンスの処理
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      let errorMessage = `HTTP ${response.status}`;
+      let errorCode = 'UNKNOWN_ERROR';
+
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error.message || errorMessage;
+          errorCode = errorData.error.code || errorCode;
+        }
+      } catch (e) {
+        console.error('[API] Failed to parse error response:', e);
+      }
+
+      // ステータスコード別のエラー表示
+      if (response.status === 403) {
+        showError('この操作を実行する権限がありません。');
+      } else if (response.status === 404) {
+        showError('リソースが見つかりません。');
+      } else if (response.status === 429) {
+        showError('リクエストが多すぎます。しばらく待ってから再試行してください。');
+      } else if (response.status === 500) {
+        showError('サーバーエラーが発生しました。管理者に連絡してください。');
+      } else {
+        showError(`エラー: ${errorMessage}`);
+      }
+
+      const error = new Error(errorMessage);
+      error.code = errorCode;
+      error.status = response.status;
+      throw error;
     }
 
     return await response.json();
   } catch (error) {
-    console.error('API call error:', error);
+    console.error('[API] Error:', error);
+
+    // ネットワークエラーの場合
+    if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+      showError('ネットワークエラー: サーバーに接続できません。');
+    }
+
     throw error;
   }
 }
