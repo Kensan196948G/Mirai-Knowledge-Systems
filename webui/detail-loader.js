@@ -31,19 +31,42 @@ function loadKnowledgeDetail() {
   // メタ情報
   const metaElement = document.querySelector('.detail-meta');
   if (metaElement) {
-    metaElement.innerHTML = `
-      <span>工区: ${knowledge.project || 'N/A'}</span> ·
-      <span>担当: ${knowledge.owner}</span> ·
-      <span>最終更新: ${new Date(knowledge.updated_at).toLocaleDateString('ja-JP')}</span>
-    `;
+    // 既存の内容をクリア
+    while (metaElement.firstChild) {
+      metaElement.removeChild(metaElement.firstChild);
+    }
+
+    const projectSpan = document.createElement('span');
+    projectSpan.textContent = `工区: ${knowledge.project || 'N/A'}`;
+    metaElement.appendChild(projectSpan);
+
+    metaElement.appendChild(document.createTextNode(' · '));
+
+    const ownerSpan = document.createElement('span');
+    ownerSpan.textContent = `担当: ${knowledge.owner}`;
+    metaElement.appendChild(ownerSpan);
+
+    metaElement.appendChild(document.createTextNode(' · '));
+
+    const updatedSpan = document.createElement('span');
+    updatedSpan.textContent = `最終更新: ${new Date(knowledge.updated_at).toLocaleDateString('ja-JP')}`;
+    metaElement.appendChild(updatedSpan);
   }
 
   // タグ
   const tagsElement = document.querySelector('.detail-tags');
   if (tagsElement && knowledge.tags) {
-    tagsElement.innerHTML = knowledge.tags.map(tag =>
-      `<span class="tag">${tag}</span>`
-    ).join('');
+    // 既存の内容をクリア
+    while (tagsElement.firstChild) {
+      tagsElement.removeChild(tagsElement.firstChild);
+    }
+
+    knowledge.tags.forEach(tag => {
+      const tagSpan = document.createElement('span');
+      tagSpan.className = 'tag';
+      tagSpan.textContent = tag;
+      tagsElement.appendChild(tagSpan);
+    });
   }
 
   // コンテンツ
@@ -85,19 +108,42 @@ function loadSOPDetail() {
   // メタ情報
   const metaElement = document.querySelector('.detail-meta');
   if (metaElement) {
-    metaElement.innerHTML = `
-      <span>対象: ${sop.target}</span> ·
-      <span>バージョン: ${sop.version || 'v1.0'}</span> ·
-      <span>改訂日: ${new Date(sop.revision_date).toLocaleDateString('ja-JP')}</span>
-    `;
+    // 既存の内容をクリア
+    while (metaElement.firstChild) {
+      metaElement.removeChild(metaElement.firstChild);
+    }
+
+    const targetSpan = document.createElement('span');
+    targetSpan.textContent = `対象: ${sop.target}`;
+    metaElement.appendChild(targetSpan);
+
+    metaElement.appendChild(document.createTextNode(' · '));
+
+    const versionSpan = document.createElement('span');
+    versionSpan.textContent = `バージョン: ${sop.version || 'v1.0'}`;
+    metaElement.appendChild(versionSpan);
+
+    metaElement.appendChild(document.createTextNode(' · '));
+
+    const revisionSpan = document.createElement('span');
+    revisionSpan.textContent = `改訂日: ${new Date(sop.revision_date).toLocaleDateString('ja-JP')}`;
+    metaElement.appendChild(revisionSpan);
   }
 
   // タグ
   const tagsElement = document.querySelector('.detail-tags');
   if (tagsElement && sop.tags) {
-    tagsElement.innerHTML = sop.tags.map(tag =>
-      `<span class="tag">${tag}</span>`
-    ).join('');
+    // 既存の内容をクリア
+    while (tagsElement.firstChild) {
+      tagsElement.removeChild(tagsElement.firstChild);
+    }
+
+    sop.tags.forEach(tag => {
+      const tagSpan = document.createElement('span');
+      tagSpan.className = 'tag';
+      tagSpan.textContent = tag;
+      tagsElement.appendChild(tagSpan);
+    });
   }
 
   // コンテンツ
@@ -146,19 +192,42 @@ function loadIncidentDetail() {
   // メタ情報
   const metaElement = document.querySelector('.detail-meta');
   if (metaElement) {
-    metaElement.innerHTML = `
-      <span>現場: ${incident.project}</span> ·
-      <span>報告者: ${incident.reporter}</span> ·
-      <span>報告日: ${new Date(incident.date).toLocaleDateString('ja-JP')}</span>
-    `;
+    // 既存の内容をクリア
+    while (metaElement.firstChild) {
+      metaElement.removeChild(metaElement.firstChild);
+    }
+
+    const projectSpan = document.createElement('span');
+    projectSpan.textContent = `現場: ${incident.project}`;
+    metaElement.appendChild(projectSpan);
+
+    metaElement.appendChild(document.createTextNode(' · '));
+
+    const reporterSpan = document.createElement('span');
+    reporterSpan.textContent = `報告者: ${incident.reporter}`;
+    metaElement.appendChild(reporterSpan);
+
+    metaElement.appendChild(document.createTextNode(' · '));
+
+    const dateSpan = document.createElement('span');
+    dateSpan.textContent = `報告日: ${new Date(incident.date).toLocaleDateString('ja-JP')}`;
+    metaElement.appendChild(dateSpan);
   }
 
   // タグ
   const tagsElement = document.querySelector('.detail-tags');
   if (tagsElement && incident.tags) {
-    tagsElement.innerHTML = incident.tags.map(tag =>
-      `<span class="tag">${tag}</span>`
-    ).join('');
+    // 既存の内容をクリア
+    while (tagsElement.firstChild) {
+      tagsElement.removeChild(tagsElement.firstChild);
+    }
+
+    incident.tags.forEach(tag => {
+      const tagSpan = document.createElement('span');
+      tagSpan.className = 'tag';
+      tagSpan.textContent = tag;
+      tagsElement.appendChild(tagSpan);
+    });
   }
 
   // 説明

@@ -217,21 +217,41 @@ function displayKnowledgeDetail(data) {
   // タグ
   const tagsEl = document.getElementById('knowledgeTags');
   if (tagsEl && data.tags) {
-    tagsEl.innerHTML = data.tags.map(tag =>
-      `<span class="tag">${tag}</span>`
-    ).join('');
+    // 既存の内容をクリア
+    while (tagsEl.firstChild) {
+      tagsEl.removeChild(tagsEl.firstChild);
+    }
+    data.tags.forEach(tag => {
+      const tagSpan = document.createElement('span');
+      tagSpan.className = 'tag';
+      tagSpan.textContent = tag;
+      tagsEl.appendChild(tagSpan);
+    });
   }
 
   // 概要
   const summaryEl = document.getElementById('knowledgeSummary');
   if (summaryEl) {
-    summaryEl.innerHTML = `<p>${data.summary || '概要がありません'}</p>`;
+    // 既存の内容をクリア
+    while (summaryEl.firstChild) {
+      summaryEl.removeChild(summaryEl.firstChild);
+    }
+    const p = document.createElement('p');
+    p.textContent = data.summary || '概要がありません';
+    summaryEl.appendChild(p);
   }
 
   // 本文
   const contentEl = document.getElementById('knowledgeContent');
   if (contentEl) {
-    contentEl.innerHTML = `<div style="white-space: pre-wrap;">${data.content || '内容がありません'}</div>`;
+    // 既存の内容をクリア
+    while (contentEl.firstChild) {
+      contentEl.removeChild(contentEl.firstChild);
+    }
+    const div = document.createElement('div');
+    div.style.whiteSpace = 'pre-wrap';
+    div.textContent = data.content || '内容がありません';
+    contentEl.appendChild(div);
   }
 
   // メタデータテーブル

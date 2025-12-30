@@ -26,7 +26,20 @@ function toggleFollow() {
   // ボタンテキスト更新
   const followBtn = followIcon.closest('button');
   if (followBtn) {
-    followBtn.innerHTML = `<span id="followIcon">${newState ? '★' : '☆'}</span> ${newState ? 'フォロー中' : 'フォロー'}`;
+    // 既存の内容をクリア
+    while (followBtn.firstChild) {
+      followBtn.removeChild(followBtn.firstChild);
+    }
+
+    const iconSpan = document.createElement('span');
+    iconSpan.id = 'followIcon';
+    iconSpan.textContent = newState ? '★' : '☆';
+    followBtn.appendChild(iconSpan);
+
+    followBtn.appendChild(document.createTextNode(' '));
+
+    const textNode = document.createTextNode(newState ? 'フォロー中' : 'フォロー');
+    followBtn.appendChild(textNode);
   }
 
   // フォロワーカウント更新
@@ -506,10 +519,17 @@ function showToastNotification(message, type = 'info') {
   // トースト要素を作成
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-  toast.innerHTML = `
-    <div class="toast-icon">${type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warning' ? '⚠' : 'ℹ'}</div>
-    <div class="toast-message">${message}</div>
-  `;
+
+  const iconDiv = document.createElement('div');
+  iconDiv.className = 'toast-icon';
+  iconDiv.textContent = type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warning' ? '⚠' : 'ℹ';
+
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'toast-message';
+  messageDiv.textContent = message;
+
+  toast.appendChild(iconDiv);
+  toast.appendChild(messageDiv);
 
   container.appendChild(toast);
 
@@ -542,7 +562,20 @@ document.addEventListener('DOMContentLoaded', () => {
         followIcon.textContent = isFollowing ? '★' : '☆';
         const followBtn = followIcon.closest('button');
         if (followBtn) {
-          followBtn.innerHTML = `<span id="followIcon">${isFollowing ? '★' : '☆'}</span> ${isFollowing ? 'フォロー中' : 'フォロー'}`;
+          // 既存の内容をクリア
+          while (followBtn.firstChild) {
+            followBtn.removeChild(followBtn.firstChild);
+          }
+
+          const iconSpan = document.createElement('span');
+          iconSpan.id = 'followIcon';
+          iconSpan.textContent = isFollowing ? '★' : '☆';
+          followBtn.appendChild(iconSpan);
+
+          followBtn.appendChild(document.createTextNode(' '));
+
+          const textNode = document.createTextNode(isFollowing ? 'フォロー中' : 'フォロー');
+          followBtn.appendChild(textNode);
         }
       }
     }
