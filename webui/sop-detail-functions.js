@@ -115,29 +115,54 @@ function displayApplicableSites(data) {
   const applicableSitesEl = document.getElementById('applicableSites');
   if (!applicableSitesEl) return;
 
+  // 既存の内容をクリア
+  while (applicableSitesEl.firstChild) {
+    applicableSitesEl.removeChild(applicableSitesEl.firstChild);
+  }
+
   if (data && data.applicable_sites) {
     if (Array.isArray(data.applicable_sites)) {
-      applicableSitesEl.innerHTML = data.applicable_sites.map(site => `
-        <div class="status-item">
-          <span class="status-dot active"></span>
-          <span>${site}</span>
-        </div>
-      `).join('');
+      data.applicable_sites.forEach(site => {
+        const statusItem = document.createElement('div');
+        statusItem.className = 'status-item';
+
+        const dot = document.createElement('span');
+        dot.className = 'status-dot active';
+        statusItem.appendChild(dot);
+
+        const siteSpan = document.createElement('span');
+        siteSpan.textContent = site;
+        statusItem.appendChild(siteSpan);
+
+        applicableSitesEl.appendChild(statusItem);
+      });
     } else {
-      applicableSitesEl.innerHTML = `
-        <div class="status-item">
-          <span class="status-dot active"></span>
-          <span>${data.applicable_sites}</span>
-        </div>
-      `;
+      const statusItem = document.createElement('div');
+      statusItem.className = 'status-item';
+
+      const dot = document.createElement('span');
+      dot.className = 'status-dot active';
+      statusItem.appendChild(dot);
+
+      const siteSpan = document.createElement('span');
+      siteSpan.textContent = data.applicable_sites;
+      statusItem.appendChild(siteSpan);
+
+      applicableSitesEl.appendChild(statusItem);
     }
   } else {
-    applicableSitesEl.innerHTML = `
-      <div class="status-item">
-        <span class="status-dot active"></span>
-        <span>全現場</span>
-      </div>
-    `;
+    const statusItem = document.createElement('div');
+    statusItem.className = 'status-item';
+
+    const dot = document.createElement('span');
+    dot.className = 'status-dot active';
+    statusItem.appendChild(dot);
+
+    const siteSpan = document.createElement('span');
+    siteSpan.textContent = '全現場';
+    statusItem.appendChild(siteSpan);
+
+    applicableSitesEl.appendChild(statusItem);
   }
 }
 
