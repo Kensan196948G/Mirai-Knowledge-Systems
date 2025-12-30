@@ -162,8 +162,8 @@
       "actions": [
         {
           "type": "kill_process_on_port",
-          "port": 5000,
-          "description": "ポート5000を使用しているプロセスを終了"
+          "port": 5100,
+          "description": "ポート5100を使用しているプロセスを終了"
         },
         {
           "type": "service_restart",
@@ -250,7 +250,7 @@
     {
       "name": "http_endpoint",
       "type": "http",
-      "url": "http://localhost:5000/api/health",
+      "url": "http://localhost:5100/api/health",
       "interval": 30,
       "timeout": 10,
       "critical": true

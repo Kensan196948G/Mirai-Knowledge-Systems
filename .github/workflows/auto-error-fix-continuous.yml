@@ -95,8 +95,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://mks_user:mks_password@localhost:5432/mks_db
           REDIS_URL: redis://localhost:6379/0
-          MKS_PORT: 5010
+          PGHOST: localhost
+          PGPORT: 5432
+          MKS_PORT: 5100
           MKS_ENV: test
+          MKS_SKIP_HTTP_CHECK: true
         run: |
           echo "==================================="
           echo "エラー自動検知・修復開始"
