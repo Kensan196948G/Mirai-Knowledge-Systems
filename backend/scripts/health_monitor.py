@@ -11,6 +11,7 @@ import subprocess
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import socket
+from urllib.parse import urlparse
 
 class HealthMonitor:
     """システムヘルスチェックを実行するクラス"""
@@ -34,8 +35,15 @@ class HealthMonitor:
     def check_database_connection(self, timeout: int = 5) -> Dict[str, Any]:
         """PostgreSQL接続チェック"""
         try:
+            args = ['pg_isready', '-t', str(timeout)]
+            host, port = self._resolve_pg_host_port()
+            if host:
+                args.extend(['-h', host])
+            if port:
+                args.extend(['-p', str(port)])
+
             result = subprocess.run(
-                ['pg_isready', '-t', str(timeout)],
+                args,
                 capture_output=True,
                 text=True,
                 timeout=timeout + 1
@@ -167,6 +175,40 @@ class HealthMonitor:
                 'timestamp': datetime.now().isoformat()
             }
 
+    def _resolve_pg_host_port(self) -> tuple:
+        """環境変数やDATABASE_URLからPostgreSQLの接続先を解決"""
+        host = os.environ.get('PGHOST')
+        port = os.environ.get('PGPORT')
+        db_url = os.environ.get('DATABASE_URL')
+
+        if db_url:
+            try:
+                parsed = urlparse(db_url)
+                if parsed.hostname:
+                    host = parsed.hostname
+                if parsed.port:
+                    port = parsed.port
+            except Exception:
+                pass
+
+        return host, port
+
+    def _resolve_http_check_url(self, configured_url: str) -> str:
+        """HTTPヘルスチェックURLを環境変数で上書き"""
+        env_url = os.environ.get('MKS_HEALTHCHECK_URL')
+        if env_url:
+            return env_url
+
+        port = os.environ.get('MKS_PORT')
+        if port:
+            return f"http://localhost:{port}/api/health"
+
+        return configured_url
+
+    def _skip_http_check(self) -> bool:
+        """HTTPヘルスチェックのスキップ判定"""
+        return os.environ.get('MKS_SKIP_HTTP_CHECK', '').lower() in ('1', 'true', 'yes', 'on')
+
     def check_port_available(self, port: int) -> Dict[str, Any]:
         """ポート使用状況チェック"""
         try:
@@ -281,10 +323,18 @@ class HealthMonitor:
             elif check_type == 'memory':
                 result = self.check_memory_usage(threshold=check.get('threshold', 85))
             elif check_type == 'http':
-                result = self.check_http_endpoint(
-                    url=check.get('url', 'http://localhost:5000'),
-                    timeout=check.get('timeout', 10)
-                )
+                if self._skip_http_check():
+                    result = {
+                        'status': 'skipped',
+                        'message': 'HTTP health check skipped by MKS_SKIP_HTTP_CHECK',
+                        'timestamp': datetime.now().isoformat()
+                    }
+                else:
+                    configured_url = check.get('url', 'http://localhost:5000')
+                    result = self.check_http_endpoint(
+                        url=self._resolve_http_check_url(configured_url),
+                        timeout=check.get('timeout', 10)
+                    )
             else:
                 result = {
                     'status': 'unknown',

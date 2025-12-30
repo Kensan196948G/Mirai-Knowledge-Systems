@@ -637,6 +637,11 @@ def main():
         default=5,
         help='イテレーション間の待機時間（分）（デフォルト: 5）'
     )
+    parser.add_argument(
+        '--once',
+        action='store_true',
+        help='1回だけ検知サイクルを実行（デフォルト動作と互換）'
+    )
 
     args = parser.parse_args()
 
@@ -652,7 +657,7 @@ def main():
             wait_minutes=args.wait_minutes
         )
     else:
-        # 1回だけ実行
+        # 1回だけ実行（--once 互換）
         daemon.run_detection_cycle(1)
 
 if __name__ == '__main__':
