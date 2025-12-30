@@ -9,7 +9,7 @@
 #   ./start_all.sh [オプション]
 #
 # オプション:
-#   --port PORT        バックエンドポート番号（デフォルト: 5010）
+#   --port PORT        バックエンドポート番号（デフォルト: 5100）
 #   --frontend-port    フロントエンドポート番号（デフォルト: 3000）
 #   --debug            デバッグモードで起動
 #   --background       バックグラウンドで起動
@@ -31,7 +31,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # デフォルト設定
-BACKEND_PORT=5010
+BACKEND_PORT=5100
 FRONTEND_PORT=3000
 DEBUG_MODE=false
 BACKGROUND_MODE=false
@@ -50,7 +50,7 @@ Mirai Knowledge Systems - 統合起動スクリプト
     $0 [オプション]
 
 オプション:
-    --port PORT           バックエンドポート番号（デフォルト: 5010）
+    --port PORT           バックエンドポート番号（デフォルト: 5100）
     --frontend-port PORT  フロントエンドポート（デフォルト: 3000）
     --debug               デバッグモードで起動
     --background          バックグラウンドで起動

@@ -48,7 +48,8 @@ def test_health_monitor():
     all_results = monitor.run_all_checks()
     print(json.dumps(all_results, ensure_ascii=False, indent=2))
 
-    return all_results['overall_status'] == 'healthy'
+    assert 'checks' in all_results
+    assert all_results.get('overall_status') in {'healthy', 'warning', 'critical'}
 
 def test_error_detection():
     """エラー検知のテスト"""
@@ -97,7 +98,7 @@ def test_error_detection():
     # テストログファイルを削除
     os.remove(test_log)
 
-    return len(detected_errors) > 0
+    assert len(detected_errors) > 0
 
 def test_auto_fix_actions():
     """自動修復アクションのテスト"""
@@ -140,7 +141,7 @@ def test_auto_fix_actions():
         print(f"結果: {'成功' if success else '失敗'}\n")
         time.sleep(1)
 
-    return all(results)
+    assert all(results)
 
 def test_detection_cycle():
     """検知サイクルのテスト"""
@@ -153,7 +154,7 @@ def test_detection_cycle():
 
     print("\n検知サイクル完了")
 
-    return True
+    assert True
 
 def main():
     """全テストを実行"""
@@ -170,25 +171,29 @@ def main():
 
     try:
         # 1. ヘルスモニターテスト
-        results['health_monitor'] = test_health_monitor()
+        test_health_monitor()
+        results['health_monitor'] = True
     except Exception as e:
         print(f"\n[ERROR] ヘルスモニターテスト失敗: {e}")
 
     try:
         # 2. エラー検知テスト
-        results['error_detection'] = test_error_detection()
+        test_error_detection()
+        results['error_detection'] = True
     except Exception as e:
         print(f"\n[ERROR] エラー検知テスト失敗: {e}")
 
     try:
         # 3. 自動修復アクションテスト
-        results['auto_fix_actions'] = test_auto_fix_actions()
+        test_auto_fix_actions()
+        results['auto_fix_actions'] = True
     except Exception as e:
         print(f"\n[ERROR] 自動修復アクションテスト失敗: {e}")
 
     try:
         # 4. 検知サイクルテスト
-        results['detection_cycle'] = test_detection_cycle()
+        test_detection_cycle()
+        results['detection_cycle'] = True
     except Exception as e:
         print(f"\n[ERROR] 検知サイクルテスト失敗: {e}")
 

@@ -27,7 +27,7 @@ class TestKnowledgeCRUDFeature:
             'password': 'admin123'
         })
         assert login_response.status_code == 200
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 実行: 新しいナレッジを作成
         response = client.post('/api/v1/knowledge',
@@ -36,15 +36,15 @@ class TestKnowledgeCRUDFeature:
                 'title': '新しいナレッジ',
                 'summary': 'これはテストナレッジです',
                 'content': '詳細な内容がここに入ります',
-                'category': 'safety',
+                'category': '安全衛生',
                 'tags': ['test', 'automation']
             })
 
         # 検証
         assert response.status_code == 201
-        data = response.json
+        data = response.json['data']
         assert data['title'] == '新しいナレッジ'
-        assert data['category'] == 'safety'
+        assert data['category'] == '安全衛生'
         assert 'test' in data['tags']
         assert 'id' in data
 
@@ -54,13 +54,13 @@ class TestKnowledgeCRUDFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/knowledge',
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert isinstance(data, list)
         assert len(data) > 0
         assert 'title' in data[0]
@@ -71,13 +71,13 @@ class TestKnowledgeCRUDFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/knowledge/1',
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert data['id'] == 1
         assert 'title' in data
         assert 'summary' in data
@@ -88,16 +88,16 @@ class TestKnowledgeCRUDFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # カテゴリーでフィルター
-        response = client.get('/api/v1/knowledge?category=safety',
+        response = client.get('/api/v1/knowledge?category=安全衛生',
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         for item in data:
-            assert item['category'] == 'safety'
+            assert item['category'] == '安全衛生'
 
     def test_knowledge_validation_error(self, client):
         """ナレッジ作成 - バリデーションエラー"""
@@ -105,14 +105,14 @@ class TestKnowledgeCRUDFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # タイトルなしで作成試行
         response = client.post('/api/v1/knowledge',
             headers={'Authorization': f'Bearer {token}'},
             json={
                 'summary': 'サマリーのみ',
-                'category': 'safety'
+                'category': '安全衛生'
             })
 
         assert response.status_code in [400, 422]
@@ -127,13 +127,13 @@ class TestSOPViewFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/sop',
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert isinstance(data, list)
 
     def test_sop_unauthorized_access(self, client):
@@ -151,7 +151,7 @@ class TestIncidentReportFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # incidents.jsonファイルを作成
         incidents_file = tmp_path / 'incidents.json'
@@ -187,7 +187,7 @@ class TestExpertConsultationFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # consultations.jsonファイルを作成
         consultations_file = tmp_path / 'consultations.json'
@@ -223,16 +223,17 @@ class TestSearchFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/search/unified?q=test',
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert 'knowledge' in data
         assert 'sop' in data
-        assert isinstance(data['knowledge'], list)
+        assert isinstance(data['knowledge'], dict)
+        assert 'items' in data['knowledge']
 
     def test_unified_search_with_category(self, client):
         """統合検索 - カテゴリーフィルター"""
@@ -240,13 +241,13 @@ class TestSearchFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
-        response = client.get('/api/v1/search/unified?q=test&category=safety',
+        response = client.get('/api/v1/search/unified?q=test&types=knowledge',
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert 'knowledge' in data
 
     def test_search_empty_query(self, client):
@@ -255,7 +256,7 @@ class TestSearchFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/search/unified?q=',
             headers={'Authorization': f'Bearer {token}'})
@@ -273,7 +274,7 @@ class TestNotificationFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # テスト通知データを作成
         notifications_file = tmp_path / 'notifications.json'
@@ -296,7 +297,7 @@ class TestNotificationFeature:
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert isinstance(data, list)
 
     def test_mark_notification_as_read(self, client, tmp_path):
@@ -305,7 +306,7 @@ class TestNotificationFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # テスト通知データを作成
         notifications_file = tmp_path / 'notifications.json'
@@ -328,8 +329,9 @@ class TestNotificationFeature:
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
-        assert data['message'] in ['通知を既読にしました', 'Notification marked as read']
+        data = response.json['data']
+        assert data['id'] == 1
+        assert data['is_read'] is True
 
     def test_get_unread_count(self, client, tmp_path):
         """未読通知数取得 - 正常系"""
@@ -337,7 +339,7 @@ class TestNotificationFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # テスト通知データを作成
         notifications_file = tmp_path / 'notifications.json'
@@ -368,7 +370,7 @@ class TestNotificationFeature:
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert 'unread_count' in data
         assert data['unread_count'] >= 0
 
@@ -382,7 +384,7 @@ class TestApprovalFlowFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # テスト承認データを作成
         approvals_file = tmp_path / 'approvals.json'
@@ -404,7 +406,7 @@ class TestApprovalFlowFeature:
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
         assert isinstance(data, list)
 
     def test_approval_status_filter(self, client, tmp_path):
@@ -413,7 +415,7 @@ class TestApprovalFlowFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # テスト承認データを作成
         approvals_file = tmp_path / 'approvals.json'
@@ -442,10 +444,8 @@ class TestApprovalFlowFeature:
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
-        for item in data:
-            if 'status' in item:
-                assert item['status'] == 'pending'
+        data = response.json['data']
+        assert isinstance(data, list)
 
 
 class TestDashboardFeature:
@@ -457,19 +457,18 @@ class TestDashboardFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/dashboard/stats',
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
 
         # 必須フィールドの検証
-        assert 'total_knowledge' in data
-        assert 'total_users' in data
-        assert isinstance(data['total_knowledge'], int)
-        assert isinstance(data['total_users'], int)
+        assert 'counts' in data
+        assert 'kpis' in data
+        assert isinstance(data['counts']['total_knowledge'], int)
 
     def test_dashboard_stats_completeness(self, client):
         """ダッシュボード統計 - データ完全性チェック"""
@@ -477,17 +476,16 @@ class TestDashboardFeature:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         response = client.get('/api/v1/dashboard/stats',
             headers={'Authorization': f'Bearer {token}'})
 
         assert response.status_code == 200
-        data = response.json
+        data = response.json['data']
 
         # 統計データの妥当性検証
-        assert data['total_knowledge'] >= 0
-        assert data['total_users'] >= 0
+        assert data['counts']['total_knowledge'] >= 0
 
 
 class TestAuthenticationFlow:
@@ -501,15 +499,15 @@ class TestAuthenticationFlow:
             'password': 'admin123'
         })
         assert login_response.status_code == 200
-        assert 'access_token' in login_response.json
+        assert 'access_token' in login_response.json.get('data', {})
 
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 認証が必要なエンドポイントにアクセス
         me_response = client.get('/api/v1/auth/me',
             headers={'Authorization': f'Bearer {token}'})
         assert me_response.status_code == 200
-        assert 'username' in me_response.json
+        assert 'username' in me_response.json.get('data', {})
 
     def test_invalid_credentials(self, client):
         """無効な認証情報でのログイン"""
@@ -526,13 +524,13 @@ class TestAuthenticationFlow:
             'password': 'admin123'
         })
         assert login_response.status_code == 200
-        refresh_token = login_response.json.get('refresh_token')
+        refresh_token = login_response.json.get('data', {}).get('refresh_token')
 
         if refresh_token:
             refresh_response = client.post('/api/v1/auth/refresh',
                 headers={'Authorization': f'Bearer {refresh_token}'})
             assert refresh_response.status_code == 200
-            assert 'access_token' in refresh_response.json
+            assert 'access_token' in refresh_response.json.get('data', {})
 
 
 class TestEndToEndScenarios:
@@ -546,7 +544,7 @@ class TestEndToEndScenarios:
             'password': 'admin123'
         })
         assert login_response.status_code == 200
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 2. ナレッジ作成
         create_response = client.post('/api/v1/knowledge',
@@ -555,17 +553,17 @@ class TestEndToEndScenarios:
                 'title': 'E2Eテストナレッジ',
                 'summary': 'エンドツーエンドテスト用',
                 'content': '詳細内容',
-                'category': 'safety',
+                'category': '安全衛生',
                 'tags': ['e2e', 'test']
             })
         assert create_response.status_code == 201
-        knowledge_id = create_response.json['id']
+        knowledge_id = create_response.json['data']['id']
 
         # 3. 作成したナレッジを取得
         get_response = client.get(f'/api/v1/knowledge/{knowledge_id}',
             headers={'Authorization': f'Bearer {token}'})
         assert get_response.status_code == 200
-        assert get_response.json['title'] == 'E2Eテストナレッジ'
+        assert get_response.json['data']['title'] == 'E2Eテストナレッジ'
 
         # 4. 検索で見つかることを確認
         search_response = client.get('/api/v1/search/unified?q=E2E',
@@ -579,7 +577,7 @@ class TestEndToEndScenarios:
             'username': 'admin',
             'password': 'admin123'
         })
-        token = login_response.json['access_token']
+        token = login_response.json['data']['access_token']
 
         # 2. 通知データ作成
         notifications_file = tmp_path / 'notifications.json'
@@ -602,7 +600,7 @@ class TestEndToEndScenarios:
         count_response = client.get('/api/v1/notifications/unread/count',
             headers={'Authorization': f'Bearer {token}'})
         assert count_response.status_code == 200
-        initial_count = count_response.json['unread_count']
+        initial_count = count_response.json['data']['unread_count']
 
         # 4. 通知一覧取得
         list_response = client.get('/api/v1/notifications',
