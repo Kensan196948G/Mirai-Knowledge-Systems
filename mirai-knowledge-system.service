@@ -1,0 +1,26 @@
+[Unit]
+Description=Mirai Knowledge System - 建設土木ナレッジシステム
+After=network.target
+
+[Service]
+Type=simple
+User=kensan
+Group=kensan
+WorkingDirectory=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+EnvironmentFile=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/.env
+Environment="PATH=/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="MKS_ENV=development"
+Environment="MKS_DEBUG=false"
+ExecStart=/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin/python3 app_v2.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mirai-knowledge
+
+# セキュリティ設定
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
