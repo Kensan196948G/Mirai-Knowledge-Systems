@@ -75,9 +75,14 @@ module.exports = defineConfig({
 
   // Run local dev server before starting the tests
   webServer: process.env.SKIP_WEBSERVER ? undefined : {
-    command: 'python -m uvicorn app.main:app --host 0.0.0.0 --port 8000',
+    command: 'cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend && source venv/bin/activate && python -m uvicorn app_v2:app --host 0.0.0.0 --port 8000',
     port: 8000,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
+
+  // Global setup/teardown
+  globalSetup: process.env.SKIP_SETUP ? undefined : './tests/e2e/global-setup.js',
 });
