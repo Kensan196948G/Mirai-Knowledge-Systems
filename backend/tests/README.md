@@ -4,7 +4,29 @@
 
 このディレクトリには、Mirai Knowledge Systemsの包括的なテストスイートが含まれています。
 
+- **バックエンド**: Python (pytest) - 245+ テスト
+- **フロントエンド**: JavaScript (Jest + Playwright) - 242+ テスト
+
 ## クイックスタート
+
+### フロントエンドテスト (新規追加)
+
+```bash
+# セットアップ
+cd backend
+./setup-frontend-tests.sh
+
+# ユニットテスト実行
+npm run test:unit
+
+# E2Eテスト実行
+npm run test:e2e
+
+# 全テスト実行
+npm test
+```
+
+### バックエンドテスト
 
 ### カバレッジ測定（推奨）
 
@@ -26,12 +48,20 @@ pytest tests/ -v
 
 ```
 tests/
-├── unit/                           # ユニットテスト (40+件)
-│   ├── test_password_hashing.py
-│   ├── test_validation.py
-│   ├── test_data_operations.py
-│   ├── test_notification_helpers.py
-│   └── test_app_v2_additional_coverage.py
+├── unit/                           # ユニットテスト
+│   ├── [Backend] Python (40+件)
+│   │   ├── test_password_hashing.py
+│   │   ├── test_validation.py
+│   │   ├── test_data_operations.py
+│   │   ├── test_notification_helpers.py
+│   │   └── test_app_v2_additional_coverage.py
+│   └── [Frontend] JavaScript (129件) ★NEW
+│       ├── setup.js
+│       ├── dom-helpers.test.js (24 tests)
+│       ├── actions.test.js (22 tests)
+│       ├── notifications.test.js (25 tests)
+│       ├── app-auth.test.js (31 tests)
+│       └── detail-pages-utils.test.js (27 tests)
 │
 ├── integration/                    # 統合テスト (130+件)
 │   ├── test_auth_flow.py          # 認証フロー
@@ -51,11 +81,23 @@ tests/
 │   ├── test_input_validation.py   # 入力検証
 │   └── test_https_security.py     # HTTPSセキュリティ
 │
-├── e2e/                           # E2Eテスト (20+件)
-│   ├── test_dashboard_flow.py     # ダッシュボードフロー ★NEW
-│   ├── test_knowledge_search_flow.py # 検索フロー ★NEW
-│   ├── auth.spec.js               # 認証フロー（JS）
-│   └── playwright.config.js       # Playwright設定
+├── e2e/                           # E2Eテスト
+│   ├── [Backend] Python (20+件)
+│   │   ├── test_dashboard_flow.py     # ダッシュボードフロー ★NEW
+│   │   └── test_knowledge_search_flow.py # 検索フロー ★NEW
+│   └── [Frontend] JavaScript (113件) ★NEW
+│       ├── global-setup.js
+│       ├── login.spec.js (9 tests)
+│       ├── knowledge-search.spec.js (11 tests)
+│       ├── sop-detail-expert-consult.spec.js (16 tests)
+│       ├── scenario1_knowledge_lifecycle.spec.js (2 tests)
+│       ├── scenario2_approval_flow.spec.js (5 tests)
+│       ├── scenario3_search_and_view.spec.js (9 tests)
+│       ├── scenario4_incident_report.spec.js (7 tests)
+│       ├── scenario5_expert_consultation.spec.js (7 tests)
+│       └── compatibility/
+│           ├── browsers.spec.js (19 tests)
+│           └── responsive.spec.js (28 tests)
 │
 ├── acceptance/                     # 受け入れテスト (15+件)
 │   ├── test_all_features.py
@@ -215,19 +257,62 @@ pytest tests/ --cov=app_v2 --cov=schemas --cov-report=html
 
 ## テスト統計
 
+### バックエンド (Python)
 | カテゴリ | ファイル数 | テストケース数 |
 |---------|-----------|--------------|
 | ユニット | 5 | 40+ |
 | 統合 | 10 | 130+ |
 | セキュリティ | 4 | 30+ |
-| E2E | 3 | 20+ |
+| E2E | 2 | 20+ |
 | 受け入れ | 3 | 15+ |
 | 負荷 | 3 | 10+ |
-| **合計** | **28** | **245+** |
+| **小計** | **27** | **245+** |
 
-## 最新の更新 (2025-12-30)
+### フロントエンド (JavaScript) ★NEW
+| カテゴリ | ファイル数 | テストケース数 |
+|---------|-----------|--------------|
+| ユニット (Jest) | 5 | 129 |
+| E2E (Playwright) | 10 | 113 |
+| **小計** | **15** | **242** |
 
-### 新規追加されたテスト
+### 総合計
+| | ファイル数 | テストケース数 |
+|--|-----------|--------------|
+| **全テスト** | **42** | **487+** |
+
+## 最新の更新
+
+### 2026-01-01: フロントエンドテスト環境構築 ★NEW
+
+**追加されたフロントエンドテスト (242件):**
+
+1. **ユニットテスト (Jest) - 129件**
+   - `dom-helpers.test.js` - XSS対策、セキュアなDOM操作 (24件)
+   - `actions.test.js` - トースト通知、アクション処理 (22件)
+   - `notifications.test.js` - 通知システム、バッジ管理 (25件)
+   - `app-auth.test.js` - 認証、RBAC、権限管理 (31件)
+   - `detail-pages-utils.test.js` - API呼び出し、日付フォーマット (27件)
+
+2. **E2Eテスト (Playwright) - 113件**
+   - `login.spec.js` - ログインフロー (9件)
+   - `knowledge-search.spec.js` - ナレッジ検索 (11件)
+   - `sop-detail-expert-consult.spec.js` - SOP詳細・専門家相談 (16件)
+   - その他シナリオテスト (77件)
+
+**新規設定ファイル:**
+- `jest.config.js` - Jest設定
+- `playwright.config.js` - Playwright設定（更新）
+- `package.json` - フロントエンド依存パッケージ
+- `setup-frontend-tests.sh` - セットアップスクリプト
+- `.github/workflows/frontend-tests.yml` - CI/CD統合
+
+**カバレッジ目標:**
+- フロントエンド: 70%以上（全メトリクス）
+
+**ドキュメント:**
+- `FRONTEND_TESTING.md` - フロントエンドテスト完全ガイド
+
+### 2025-12-30: バックエンドテスト強化
 
 1. **統合テスト**
    - `test_knowledge_crud_full.py` - ナレッジの更新・削除を含む完全CRUD (18件)
@@ -237,17 +322,7 @@ pytest tests/ --cov=app_v2 --cov=schemas --cov-report=html
    - `test_dashboard_flow.py` - ダッシュボードフロー全体 (11件)
    - `test_knowledge_search_flow.py` - 検索フロー全体 (8件)
 
-### 新規設定ファイル
-
-- `.coveragerc` - カバレッジ設定
-- `run_coverage.sh` - カバレッジ測定スクリプト
-
-### 更新された設定
-
-- `pytest.ini` - カバレッジ目標80%設定
-- `.github/workflows/ci-backend-improved.yml` - カバレッジ必須化
-
-**合計追加テストケース: 57件**
+**合計追加テストケース: 299件**
 
 ---
 

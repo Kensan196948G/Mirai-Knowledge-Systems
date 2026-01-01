@@ -28,9 +28,101 @@ import ssl
 from email.message import EmailMessage
 import urllib.request
 import tempfile
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from recommendation_engine import RecommendationEngine
 
 # 環境変数をロード
 load_dotenv()
+
+# 推薦エンジンインスタンス
+recommendation_engine = RecommendationEngine(cache_ttl=300)  # 5分間キャッシュ
+
+# ============================================================
+# Prometheusメトリクス定義
+# ============================================================
+
+# リクエストカウンター
+REQUEST_COUNT = Counter(
+    'mks_http_requests_total',
+    'Total HTTP requests',
+    ['method', 'endpoint', 'status']
+)
+
+# レスポンスタイム
+REQUEST_DURATION = Histogram(
+    'mks_http_request_duration_seconds',
+    'HTTP request latency',
+    ['method', 'endpoint']
+)
+
+# エラーカウンター
+ERROR_COUNT = Counter(
+    'mks_errors_total',
+    'Total errors',
+    ['type', 'endpoint']
+)
+
+# API呼び出しカウンター
+API_CALLS = Counter(
+    'mks_api_calls_total',
+    'Total API calls',
+    ['endpoint', 'method']
+)
+
+# データベース接続数
+DB_CONNECTIONS = Gauge(
+    'mks_database_connections',
+    'Number of database connections'
+)
+
+# データベースクエリ時間
+DB_QUERY_DURATION = Histogram(
+    'mks_database_query_duration_seconds',
+    'Database query duration',
+    ['operation']
+)
+
+# アクティブユーザー数
+ACTIVE_USERS = Gauge(
+    'mks_active_users',
+    'Number of active users'
+)
+
+# ナレッジ総数
+KNOWLEDGE_TOTAL = Gauge(
+    'mks_knowledge_total',
+    'Total number of knowledge entries'
+)
+
+# システムメトリクス
+SYSTEM_CPU_USAGE = Gauge(
+    'mks_system_cpu_usage_percent',
+    'System CPU usage percentage'
+)
+
+SYSTEM_MEMORY_USAGE = Gauge(
+    'mks_system_memory_usage_percent',
+    'System memory usage percentage'
+)
+
+SYSTEM_DISK_USAGE = Gauge(
+    'mks_system_disk_usage_percent',
+    'System disk usage percentage'
+)
+
+# 認証メトリクス
+AUTH_ATTEMPTS = Counter(
+    'mks_auth_attempts_total',
+    'Total authentication attempts',
+    ['status']
+)
+
+# レート制限メトリクス
+RATE_LIMIT_HITS = Counter(
+    'mks_rate_limit_hits_total',
+    'Total rate limit hits',
+    ['endpoint']
+)
 
 
 # ============================================================
@@ -274,7 +366,7 @@ def before_request_metrics():
 
 @app.after_request
 def after_request_metrics(response):
-    """リクエスト後のメトリクス記録"""
+    """リクエスト後のメトリクス記録（Prometheus対応）"""
     # リクエスト処理時間計算
     if hasattr(request, 'start_time'):
         duration = time.time() - request.start_time
@@ -282,17 +374,23 @@ def after_request_metrics(response):
         # エンドポイント特定
         endpoint = request.endpoint or 'unknown'
         method = request.method
-        status = response.status_code
+        status = str(response.status_code)
 
-        # メトリクス記録
+        # Prometheusメトリクス記録
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=status).inc()
+        REQUEST_DURATION.labels(method=method, endpoint=endpoint).observe(duration)
+        API_CALLS.labels(endpoint=endpoint, method=method).inc()
+
+        # レガシーメトリクス記録（互換性のため）
         key = f"{method}_{endpoint}_{status}"
         metrics_storage['http_requests_total'][key] += 1
         metrics_storage['http_request_duration_seconds'][endpoint].append(duration)
 
         # エラー記録
-        if status >= 400:
+        if response.status_code >= 400:
             error_key = f"{status}"
             metrics_storage['errors'][error_key] += 1
+            ERROR_COUNT.labels(type='http_error', endpoint=endpoint).inc()
 
     return response
 
@@ -831,10 +929,10 @@ def create_knowledge():
     current_user_id = get_jwt_identity()
     data = request.validated_data  # 検証済みデータを使用
     knowledge_list = load_data('knowledge.json')
-    
+
     # ID自動採番
     new_id = max([k['id'] for k in knowledge_list], default=0) + 1
-    
+
     new_knowledge = {
         'id': new_id,
         'title': data.get('title'),
@@ -850,7 +948,7 @@ def create_knowledge():
         'priority': data.get('priority', 'medium'),
         'created_by_id': current_user_id
     }
-    
+
     knowledge_list.append(new_knowledge)
     save_data('knowledge.json', knowledge_list)
 
@@ -871,6 +969,64 @@ def create_knowledge():
         'success': True,
         'data': new_knowledge
     }), 201
+
+@app.route('/api/v1/knowledge/<int:knowledge_id>/related', methods=['GET'])
+@check_permission('knowledge.read')
+def get_related_knowledge(knowledge_id):
+    """
+    関連ナレッジを取得
+
+    クエリパラメータ:
+        limit: 取得件数（デフォルト: 5）
+        algorithm: アルゴリズム（tag/category/keyword/hybrid、デフォルト: hybrid）
+        min_score: 最小スコア閾値（デフォルト: 0.1）
+    """
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, 'knowledge.related', 'knowledge', knowledge_id)
+
+    # パラメータ取得
+    limit = int(request.args.get('limit', 5))
+    algorithm = request.args.get('algorithm', 'hybrid')
+    min_score = float(request.args.get('min_score', 0.1))
+
+    # バリデーション
+    if limit < 1 or limit > 20:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'INVALID_LIMIT', 'message': 'limit must be between 1 and 20'}
+        }), 400
+
+    if algorithm not in ['tag', 'category', 'keyword', 'hybrid']:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'INVALID_ALGORITHM', 'message': 'algorithm must be tag, category, keyword, or hybrid'}
+        }), 400
+
+    # ナレッジ取得
+    knowledge_list = load_data('knowledge.json')
+    target_knowledge = next((k for k in knowledge_list if k['id'] == knowledge_id), None)
+
+    if not target_knowledge:
+        return jsonify({'success': False, 'error': 'Knowledge not found'}), 404
+
+    # 関連アイテム取得
+    related = recommendation_engine.get_related_items(
+        target_knowledge,
+        knowledge_list,
+        limit=limit,
+        algorithm=algorithm,
+        min_score=min_score
+    )
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'target_id': knowledge_id,
+            'related_items': related,
+            'algorithm': algorithm,
+            'count': len(related)
+        }
+    })
 
 # ============================================================
 # 横断検索API
@@ -1299,12 +1455,70 @@ def get_sop():
     """SOP一覧取得"""
     current_user_id = get_jwt_identity()
     log_access(current_user_id, 'sop.list', 'sop')
-    
+
     sop_list = load_data('sop.json')
     return jsonify({
         'success': True,
         'data': sop_list,
         'pagination': {'total_items': len(sop_list)}
+    })
+
+@app.route('/api/v1/sop/<int:sop_id>/related', methods=['GET'])
+@check_permission('sop.read')
+def get_related_sop(sop_id):
+    """
+    関連SOPを取得
+
+    クエリパラメータ:
+        limit: 取得件数（デフォルト: 5）
+        algorithm: アルゴリズム（tag/category/keyword/hybrid、デフォルト: hybrid）
+        min_score: 最小スコア閾値（デフォルト: 0.1）
+    """
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, 'sop.related', 'sop', sop_id)
+
+    # パラメータ取得
+    limit = int(request.args.get('limit', 5))
+    algorithm = request.args.get('algorithm', 'hybrid')
+    min_score = float(request.args.get('min_score', 0.1))
+
+    # バリデーション
+    if limit < 1 or limit > 20:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'INVALID_LIMIT', 'message': 'limit must be between 1 and 20'}
+        }), 400
+
+    if algorithm not in ['tag', 'category', 'keyword', 'hybrid']:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'INVALID_ALGORITHM', 'message': 'algorithm must be tag, category, keyword, or hybrid'}
+        }), 400
+
+    # SOP取得
+    sop_list = load_data('sop.json')
+    target_sop = next((s for s in sop_list if s['id'] == sop_id), None)
+
+    if not target_sop:
+        return jsonify({'success': False, 'error': 'SOP not found'}), 404
+
+    # 関連アイテム取得
+    related = recommendation_engine.get_related_items(
+        target_sop,
+        sop_list,
+        limit=limit,
+        algorithm=algorithm,
+        min_score=min_score
+    )
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'target_id': sop_id,
+            'related_items': related,
+            'algorithm': algorithm,
+            'count': len(related)
+        }
     })
 
 @app.route('/api/v1/dashboard/stats', methods=['GET'])
@@ -1351,6 +1565,126 @@ def get_approvals():
         'success': True,
         'data': approvals,
         'pagination': {'total_items': len(approvals)}
+    })
+
+# ============================================================
+# 推薦API
+# ============================================================
+
+@app.route('/api/v1/recommendations/personalized', methods=['GET'])
+@jwt_required()
+def get_personalized_recommendations():
+    """
+    パーソナライズ推薦を取得
+
+    ユーザーの閲覧履歴に基づいて推薦を行います。
+    協調フィルタリングとコンテンツベースフィルタリングを組み合わせています。
+
+    クエリパラメータ:
+        limit: 取得件数（デフォルト: 5、最大: 20）
+        days: 対象期間（日数、デフォルト: 30）
+        type: 推薦タイプ（knowledge/sop/all、デフォルト: all）
+    """
+    current_user_id = int(get_jwt_identity())
+    log_access(current_user_id, 'recommendations.personalized', 'recommendations')
+
+    # パラメータ取得
+    limit = int(request.args.get('limit', 5))
+    days = int(request.args.get('days', 30))
+    rec_type = request.args.get('type', 'all')
+
+    # バリデーション
+    if limit < 1 or limit > 20:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'INVALID_LIMIT', 'message': 'limit must be between 1 and 20'}
+        }), 400
+
+    if days < 1 or days > 365:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'INVALID_DAYS', 'message': 'days must be between 1 and 365'}
+        }), 400
+
+    if rec_type not in ['knowledge', 'sop', 'all']:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'INVALID_TYPE', 'message': 'type must be knowledge, sop, or all'}
+        }), 400
+
+    # データ読み込み
+    access_logs = load_data('access_logs.json')
+    knowledge_list = load_data('knowledge.json')
+    sop_list = load_data('sop.json')
+
+    results = {}
+
+    # ナレッジ推薦
+    if rec_type in ['knowledge', 'all']:
+        knowledge_recommendations = recommendation_engine.get_personalized_recommendations(
+            user_id=current_user_id,
+            access_logs=access_logs,
+            all_items=knowledge_list,
+            limit=limit,
+            days=days
+        )
+        results['knowledge'] = {
+            'items': knowledge_recommendations,
+            'count': len(knowledge_recommendations)
+        }
+
+    # SOP推薦
+    if rec_type in ['sop', 'all']:
+        sop_recommendations = recommendation_engine.get_personalized_recommendations(
+            user_id=current_user_id,
+            access_logs=access_logs,
+            all_items=sop_list,
+            limit=limit,
+            days=days
+        )
+        results['sop'] = {
+            'items': sop_recommendations,
+            'count': len(sop_recommendations)
+        }
+
+    return jsonify({
+        'success': True,
+        'data': results,
+        'parameters': {
+            'limit': limit,
+            'days': days,
+            'type': rec_type
+        }
+    })
+
+@app.route('/api/v1/recommendations/cache/stats', methods=['GET'])
+@jwt_required()
+@check_permission('admin')
+def get_recommendation_cache_stats():
+    """推薦エンジンのキャッシュ統計を取得（管理者のみ）"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, 'recommendations.cache_stats', 'recommendations')
+
+    stats = recommendation_engine.get_cache_stats()
+
+    return jsonify({
+        'success': True,
+        'data': stats
+    })
+
+@app.route('/api/v1/recommendations/cache/clear', methods=['POST'])
+@jwt_required()
+@check_permission('admin')
+def clear_recommendation_cache():
+    """推薦エンジンのキャッシュをクリア（管理者のみ）"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, 'recommendations.cache_clear', 'recommendations')
+
+    recommendation_engine.clear_cache()
+
+    return jsonify({
+        'success': True,
+        'message': 'Recommendation cache cleared successfully'
     })
 
 
@@ -1553,6 +1887,20 @@ knowledge_views_total {0}
 
 
 # ============================================================
+# Swagger UI統合（API Documentation）
+# ============================================================
+
+@app.route('/api/docs')
+def api_docs():
+    """Swagger UI for API documentation"""
+    return send_from_directory(os.path.dirname(__file__), 'swagger-ui.html')
+
+@app.route('/api/openapi.yaml')
+def openapi_spec():
+    """OpenAPI仕様ファイルを配信"""
+    return send_from_directory(os.path.dirname(__file__), 'openapi.yaml')
+
+# ============================================================
 # 公開エンドポイント（認証不要）
 # ============================================================
 
@@ -1667,6 +2015,140 @@ def missing_token_callback(error):
 # ============================================================
 # アプリケーション起動
 # ============================================================
+
+# ============================================================
+# Prometheusメトリクスエンドポイント
+# ============================================================
+
+def update_system_metrics():
+    """システムメトリクスを更新"""
+    try:
+        # CPU使用率
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        SYSTEM_CPU_USAGE.set(cpu_percent)
+
+        # メモリ使用率
+        memory = psutil.virtual_memory()
+        SYSTEM_MEMORY_USAGE.set(memory.percent)
+
+        # ディスク使用率
+        disk = psutil.disk_usage('/')
+        SYSTEM_DISK_USAGE.set(disk.percent)
+
+        # ナレッジ総数
+        knowledges = load_knowledges()
+        KNOWLEDGE_TOTAL.set(len(knowledges))
+
+        # アクティブユーザー数（セッションベース）
+        active_count = len(metrics_storage.get('active_sessions', set()))
+        ACTIVE_USERS.set(active_count)
+
+    except Exception as e:
+        print(f"[ERROR] Failed to update system metrics: {e}")
+
+@app.route('/metrics', methods=['GET'])
+def metrics():
+    """
+    Prometheusメトリクスエンドポイント
+
+    このエンドポイントはPrometheusサーバーがスクレイピングするため、
+    認証不要でアクセス可能にする。
+    """
+    try:
+        # システムメトリクスを更新
+        update_system_metrics()
+
+        # Prometheus形式でメトリクスを出力
+        return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
+    except Exception as e:
+        print(f"[ERROR] Metrics endpoint error: {e}")
+        return jsonify({'error': 'Failed to generate metrics'}), 500
+
+@app.route('/api/metrics/summary', methods=['GET'])
+@jwt_required()
+def metrics_summary():
+    """
+    メトリクスサマリーAPI（管理者用）
+    人間が読みやすい形式でメトリクスを返す
+    """
+    try:
+        current_user = get_jwt_identity()
+
+        # CPU使用率
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        # メモリ使用率
+        memory = psutil.virtual_memory()
+
+        # ディスク使用率
+        disk = psutil.disk_usage('/')
+
+        # ナレッジ総数
+        knowledges = load_knowledges()
+
+        summary = {
+            'system': {
+                'cpu_usage_percent': cpu_percent,
+                'memory_usage_percent': memory.percent,
+                'memory_total_gb': memory.total / (1024**3),
+                'memory_available_gb': memory.available / (1024**3),
+                'disk_usage_percent': disk.percent,
+                'disk_total_gb': disk.total / (1024**3),
+                'disk_free_gb': disk.free / (1024**3)
+            },
+            'application': {
+                'knowledge_total': len(knowledges),
+                'active_sessions': len(metrics_storage.get('active_sessions', set())),
+                'uptime_seconds': time.time() - metrics_storage.get('start_time', time.time())
+            },
+            'requests': {
+                'total': sum(metrics_storage['http_requests_total'].values()),
+                'by_status': dict(Counter(
+                    key.split('_')[-1]
+                    for key in metrics_storage['http_requests_total'].keys()
+                ))
+            },
+            'errors': {
+                'total': sum(metrics_storage['errors'].values()),
+                'by_code': dict(metrics_storage['errors'])
+            }
+        }
+
+        return jsonify(summary), 200
+
+    except Exception as e:
+        print(f"[ERROR] Metrics summary error: {e}")
+        return jsonify({'error': 'Failed to generate metrics summary'}), 500
+
+# ============================================================
+# デコレータ: メトリクス記録
+# ============================================================
+
+def track_db_query(operation):
+    """
+    データベースクエリのメトリクスを記録するデコレータ
+
+    使用例:
+        @track_db_query('select')
+        def load_knowledges():
+            ...
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+                duration = time.time() - start_time
+                DB_QUERY_DURATION.labels(operation=operation).observe(duration)
+                return result
+            except Exception as e:
+                duration = time.time() - start_time
+                DB_QUERY_DURATION.labels(operation=operation).observe(duration)
+                ERROR_COUNT.labels(type='db_error', endpoint=operation).inc()
+                raise
+        return wrapper
+    return decorator
 
 def init_demo_users():
     """デモユーザー作成"""

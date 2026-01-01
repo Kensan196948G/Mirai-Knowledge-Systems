@@ -206,12 +206,12 @@ function displayKnowledgeDetail(data) {
   // メタ情報
   const metaEl = document.getElementById('knowledgeMeta');
   if (metaEl) {
-    metaEl.innerHTML = `
-      <span>カテゴリ: ${data.category || 'N/A'}</span>
-      <span>最終更新: ${formatDate(data.updated_at)}</span>
-      <span>作成者: ${data.created_by || data.created_by_name || 'N/A'}</span>
-      <span>プロジェクト: ${data.project || 'N/A'}</span>
-    `;
+    setSecureChildren(metaEl, createMetaInfoElement({
+      category: data.category || 'N/A',
+      updated_at: data.updated_at,
+      created_by: data.created_by || data.created_by_name || 'N/A',
+      project: data.project || 'N/A'
+    }, 'knowledge'));
   }
 
   // タグ
@@ -257,14 +257,15 @@ function displayKnowledgeDetail(data) {
   // メタデータテーブル
   const metadataTable = document.getElementById('metadataTable');
   if (metadataTable) {
-    metadataTable.innerHTML = `
-      <tr><th>作成日</th><td>${formatDate(data.created_at)}</td></tr>
-      <tr><th>最終更新</th><td>${formatDate(data.updated_at)}</td></tr>
-      <tr><th>作成者</th><td>${data.created_by || data.created_by_name || 'N/A'}</td></tr>
-      <tr><th>カテゴリ</th><td>${data.category || 'N/A'}</td></tr>
-      <tr><th>プロジェクト</th><td>${data.project || 'N/A'}</td></tr>
-      <tr><th>ステータス</th><td>${data.status || '公開'}</td></tr>
-    `;
+    const rows = [
+      { label: '作成日', value: formatDate(data.created_at) },
+      { label: '最終更新', value: formatDate(data.updated_at) },
+      { label: '作成者', value: data.created_by || data.created_by_name || 'N/A' },
+      { label: 'カテゴリ', value: data.category || 'N/A' },
+      { label: 'プロジェクト', value: data.project || 'N/A' },
+      { label: 'ステータス', value: data.status || '公開' }
+    ];
+    setSecureChildren(metadataTable, rows.map(row => createTableRow(row.label, row.value)));
   }
 
   // 統計情報
@@ -284,6 +285,17 @@ async function loadRelatedKnowledge(tags, currentId) {
   const relatedListEl = document.getElementById('relatedKnowledgeList');
   if (!relatedListEl) return;
 
+  // 新しいAPI推薦システムを試行
+  if (typeof loadRelatedKnowledgeFromAPI === 'function') {
+    try {
+      await loadRelatedKnowledgeFromAPI(currentId, 'hybrid', 5);
+      return; // 成功したら終了
+    } catch (error) {
+      console.warn('API recommendation failed, falling back to localStorage:', error);
+    }
+  }
+
+  // フォールバック: 既存のlocalStorage方式
   try {
     // まずlocalStorageから関連ナレッジを取得
     const knowledgeData = JSON.parse(localStorage.getItem('knowledge_details') || '[]');
@@ -306,19 +318,15 @@ async function loadRelatedKnowledge(tags, currentId) {
     }
 
     if (relatedItems.length > 0) {
-      relatedListEl.innerHTML = relatedItems.map(item => `
-        <div class="document" style="cursor: pointer;" onclick="window.location.href='search-detail.html?id=${item.id}'">
-          <strong><a href="search-detail.html?id=${item.id}">${item.title}</a></strong>
-          <small>${formatDateShort(item.updated_at)}</small>
-          <div>${item.summary || ''}</div>
-        </div>
-      `).join('');
+      setSecureChildren(relatedListEl, relatedItems.map(item =>
+        createDocumentElement(item, 'search-detail.html')
+      ));
     } else {
-      relatedListEl.innerHTML = '<p>関連ナレッジが見つかりませんでした</p>';
+      setSecureChildren(relatedListEl, createEmptyMessage('関連ナレッジが見つかりませんでした'));
     }
   } catch (error) {
     console.error('Failed to load related knowledge:', error);
-    relatedListEl.innerHTML = '<p>関連ナレッジの読み込みに失敗しました</p>';
+    setSecureChildren(relatedListEl, createErrorMessage('関連ナレッジの読み込みに失敗しました'));
   }
 }
 
@@ -334,18 +342,9 @@ function loadKnowledgeCommentsFromData(data) {
   if (commentCountEl) commentCountEl.textContent = comments.length;
 
   if (comments.length > 0) {
-    commentListEl.innerHTML = comments.map(comment => `
-      <div class="comment-item" style="padding: 15px; border-bottom: 1px solid #eee;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-          <strong>${comment.user || comment.author_name || 'Unknown'}</strong>
-          <small>${formatDate(comment.created_at)}</small>
-        </div>
-        <div>${comment.content}</div>
-        ${comment.likes ? `<div style="margin-top: 8px; font-size: 12px; color: #888;">👍 ${comment.likes}</div>` : ''}
-      </div>
-    `).join('');
+    setSecureChildren(commentListEl, comments.map(comment => createCommentElement(comment)));
   } else {
-    commentListEl.innerHTML = '<p>コメントがありません</p>';
+    setSecureChildren(commentListEl, createEmptyMessage('コメントがありません'));
   }
 }
 
@@ -359,17 +358,17 @@ function loadKnowledgeHistoryFromData(data) {
   const history = data.edit_history || [];
 
   if (history.length > 0) {
-    historyTableEl.innerHTML = history.map((item, index) => `
-      <tr>
-        <td>v${item.version || (history.length - index)}</td>
-        <td>${formatDate(item.edited_at || item.updated_at)}</td>
-        <td>${item.edited_by || item.updated_by_name || 'N/A'}</td>
-        <td>${item.changes || item.change_summary || '更新'}</td>
-        <td><button class="cta ghost" onclick="alert('バージョン表示機能は準備中です')">表示</button></td>
-      </tr>
-    `).join('');
+    setSecureChildren(historyTableEl, history.map((item, index) =>
+      createTableRowWithHTML([
+        `v${item.version || (history.length - index)}`,
+        formatDate(item.edited_at || item.updated_at),
+        item.edited_by || item.updated_by_name || 'N/A',
+        item.changes || item.change_summary || '更新',
+        '<button class="cta ghost" onclick="alert(\'バージョン表示機能は準備中です\')">表示</button>'
+      ])
+    ));
   } else {
-    historyTableEl.innerHTML = '<tr><td colspan="5">履歴がありません</td></tr>';
+    setSecureChildren(historyTableEl, createEmptyMessage('履歴がありません', 5));
   }
 }
 
@@ -383,21 +382,13 @@ async function loadKnowledgeComments(knowledgeId) {
     if (commentCountEl) commentCountEl.textContent = comments.length;
 
     if (comments.length > 0) {
-      commentListEl.innerHTML = comments.map(comment => `
-        <div class="comment-item" style="padding: 15px; border-bottom: 1px solid #eee;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <strong>${comment.author_name || 'Unknown'}</strong>
-            <small>${formatDate(comment.created_at)}</small>
-          </div>
-          <div>${comment.content}</div>
-        </div>
-      `).join('');
+      setSecureChildren(commentListEl, comments.map(comment => createCommentElement(comment)));
     } else {
-      commentListEl.innerHTML = '<p>コメントがありません</p>';
+      setSecureChildren(commentListEl, createEmptyMessage('コメントがありません'));
     }
   } catch (error) {
     console.error('Failed to load comments:', error);
-    commentListEl.innerHTML = '<p>コメントの読み込みに失敗しました</p>';
+    setSecureChildren(commentListEl, createErrorMessage('コメントの読み込みに失敗しました'));
   }
 }
 
@@ -408,21 +399,21 @@ async function loadKnowledgeHistory(knowledgeId) {
   try {
     const history = await apiCall(`/knowledge/${knowledgeId}/history`);
     if (history && history.length > 0) {
-      historyTableEl.innerHTML = history.map((item, index) => `
-        <tr>
-          <td>v${item.version || (history.length - index)}</td>
-          <td>${formatDate(item.updated_at)}</td>
-          <td>${item.updated_by_name || 'N/A'}</td>
-          <td>${item.change_summary || '更新'}</td>
-          <td><button class="cta ghost" onclick="viewVersion(${item.id})">表示</button></td>
-        </tr>
-      `).join('');
+      setSecureChildren(historyTableEl, history.map((item, index) =>
+        createTableRowWithHTML([
+          `v${item.version || (history.length - index)}`,
+          formatDate(item.updated_at),
+          item.updated_by_name || 'N/A',
+          item.change_summary || '更新',
+          `<button class="cta ghost" onclick="viewVersion(${item.id})">表示</button>`
+        ])
+      ));
     } else {
-      historyTableEl.innerHTML = '<tr><td colspan="5">履歴がありません</td></tr>';
+      setSecureChildren(historyTableEl, createEmptyMessage('履歴がありません', 5));
     }
   } catch (error) {
     console.error('Failed to load history:', error);
-    historyTableEl.innerHTML = '<tr><td colspan="5">履歴の読み込みに失敗しました</td></tr>';
+    setSecureChildren(historyTableEl, createErrorMessage('履歴の読み込みに失敗しました', 5));
   }
 }
 
@@ -687,19 +678,17 @@ function displaySOPDetail(data) {
   // メタ情報
   const metaEl = document.getElementById('sopMeta');
   if (metaEl) {
-    metaEl.innerHTML = `
-      <span>改訂日: ${formatDateShort(data.revision_date || data.updated_at)}</span>
-      <span>カテゴリ: ${data.category || 'N/A'}</span>
-      <span>対象: ${data.target || data.scope || 'N/A'}</span>
-    `;
+    setSecureChildren(metaEl, createMetaInfoElement({
+      revision_date: data.revision_date || data.updated_at,
+      category: data.category || 'N/A',
+      target: data.target || data.scope || 'N/A'
+    }, 'sop'));
   }
 
   // タグ
   const tagsEl = document.getElementById('sopTags');
   if (tagsEl && data.tags) {
-    tagsEl.innerHTML = data.tags.map(tag =>
-      `<span class="tag">${tag}</span>`
-    ).join('');
+    setSecureChildren(tagsEl, data.tags.map(tag => createTagElement(tag)));
   }
 
   // 目的
@@ -711,11 +700,12 @@ function displaySOPDetail(data) {
   // バージョン情報
   const versionInfoEl = document.getElementById('versionInfo');
   if (versionInfoEl) {
-    versionInfoEl.innerHTML = `
-      <tr><th>バージョン</th><td>${data.version || 'v1.0'}</td></tr>
-      <tr><th>改訂日</th><td>${formatDateShort(data.revision_date || data.updated_at)}</td></tr>
-      <tr><th>次回改訂予定</th><td>${formatDateShort(data.next_revision_date) || 'N/A'}</td></tr>
-    `;
+    const rows = [
+      { label: 'バージョン', value: data.version || 'v1.0' },
+      { label: '改訂日', value: formatDateShort(data.revision_date || data.updated_at) },
+      { label: '次回改訂予定', value: formatDateShort(data.next_revision_date) || 'N/A' }
+    ];
+    setSecureChildren(versionInfoEl, rows.map(row => createTableRow(row.label, row.value)));
   }
 
   // 手順（localStorageデータはsteps配列を持つ）
@@ -723,17 +713,11 @@ function displaySOPDetail(data) {
   if (procedureEl) {
     const steps = data.steps || data.procedure || [];
     if (Array.isArray(steps) && steps.length > 0) {
-      procedureEl.innerHTML = steps.map((step, i) => `
-        <div class="step-item" style="padding: 15px; margin-bottom: 10px; border-left: 3px solid var(--accent); background: rgba(241, 236, 228, 0.3);">
-          <strong>Step ${step.step_number || (i + 1)}: ${step.title || ''}</strong>
-          <div style="margin-top: 8px;">${step.description || step}</div>
-          ${step.responsible ? `<small style="color: var(--muted); margin-top: 5px; display: block;">担当: ${step.responsible} · 所要時間: ${step.estimated_time || 'N/A'}</small>` : ''}
-        </div>
-      `).join('');
+      setSecureChildren(procedureEl, steps.map((step, i) => createStepElement(step, i)));
     } else if (typeof steps === 'string') {
-      procedureEl.innerHTML = `<div>${steps}</div>`;
+      setSecureChildren(procedureEl, createSecureElement('div', {}, [steps]));
     } else {
-      procedureEl.innerHTML = '<p>手順データがありません</p>';
+      setSecureChildren(procedureEl, createEmptyMessage('手順データがありません'));
     }
   }
 
@@ -741,13 +725,9 @@ function displaySOPDetail(data) {
   const checklistEl = document.getElementById('sopChecklist');
   if (checklistEl && data.checklist) {
     if (Array.isArray(data.checklist)) {
-      checklistEl.innerHTML = data.checklist.map(item => {
-        const itemText = typeof item === 'object' ? item.item : item;
-        const isRequired = typeof item === 'object' ? item.required : false;
-        return `<div style="padding: 8px;"><input type="checkbox"> ${itemText}${isRequired ? ' <span style="color: var(--danger);">*</span>' : ''}</div>`;
-      }).join('');
+      setSecureChildren(checklistEl, data.checklist.map(item => createChecklistElement(item)));
     } else {
-      checklistEl.innerHTML = `<div>${data.checklist}</div>`;
+      setSecureChildren(checklistEl, createSecureElement('div', {}, [data.checklist]));
     }
   }
 
@@ -756,13 +736,11 @@ function displaySOPDetail(data) {
   if (warningsEl) {
     const warnings = data.precautions || data.warnings || [];
     if (Array.isArray(warnings) && warnings.length > 0) {
-      warningsEl.innerHTML = warnings.map(warning =>
-        `<div style="padding: 10px; margin-bottom: 8px; border-left: 3px solid var(--warning); background: rgba(255, 193, 7, 0.1);">⚠️ ${warning}</div>`
-      ).join('');
+      setSecureChildren(warningsEl, warnings.map(warning => createWarningElement(warning)));
     } else if (typeof warnings === 'string') {
-      warningsEl.innerHTML = `<div>⚠️ ${warnings}</div>`;
+      setSecureChildren(warningsEl, createWarningElement(warnings));
     } else {
-      warningsEl.innerHTML = '<p>注意事項がありません</p>';
+      setSecureChildren(warningsEl, createEmptyMessage('注意事項がありません'));
     }
   }
 
@@ -770,15 +748,15 @@ function displaySOPDetail(data) {
   const revisionHistoryEl = document.getElementById('revisionHistory');
   if (revisionHistoryEl && data.revision_history) {
     if (Array.isArray(data.revision_history)) {
-      revisionHistoryEl.innerHTML = data.revision_history.map(rev => `
-        <tr>
-          <td>${rev.version || 'N/A'}</td>
-          <td>${rev.date || formatDateShort(rev.updated_at)}</td>
-          <td>${rev.changes || 'N/A'}</td>
-          <td>${rev.author || 'N/A'}</td>
-          <td><button class="cta ghost" onclick="alert('バージョン表示機能は準備中です')">表示</button></td>
-        </tr>
-      `).join('');
+      setSecureChildren(revisionHistoryEl, data.revision_history.map(rev =>
+        createTableRowWithHTML([
+          rev.version || 'N/A',
+          rev.date || formatDateShort(rev.updated_at),
+          rev.changes || 'N/A',
+          rev.author || 'N/A',
+          '<button class="cta ghost" onclick="alert(\'バージョン表示機能は準備中です\')">表示</button>'
+        ])
+      ));
     }
   }
 
@@ -786,11 +764,9 @@ function displaySOPDetail(data) {
   const equipmentEl = document.getElementById('sopEquipment');
   if (equipmentEl && data.equipment) {
     if (Array.isArray(data.equipment)) {
-      equipmentEl.innerHTML = data.equipment.map(item =>
-        `<div class="pill">${item}</div>`
-      ).join('');
+      setSecureChildren(equipmentEl, data.equipment.map(item => createPillElement(item)));
     } else {
-      equipmentEl.innerHTML = `<div class="pill">${data.equipment}</div>`;
+      setSecureChildren(equipmentEl, createPillElement(data.equipment));
     }
   }
 
@@ -814,6 +790,17 @@ async function loadRelatedSOP(category, currentId) {
   const relatedListEl = document.getElementById('relatedSOPList');
   if (!relatedListEl) return;
 
+  // 新しいAPI推薦システムを試行
+  if (typeof loadRelatedSOPFromAPI === 'function') {
+    try {
+      await loadRelatedSOPFromAPI(currentId, 'hybrid', 5);
+      return; // 成功したら終了
+    } catch (error) {
+      console.warn('API recommendation failed, falling back to localStorage:', error);
+    }
+  }
+
+  // フォールバック: 既存のlocalStorage方式
   try {
     // まずlocalStorageから関連SOPを取得
     const sopData = JSON.parse(localStorage.getItem('sop_details') || '[]');
@@ -822,7 +809,7 @@ async function loadRelatedSOP(category, currentId) {
     let relatedItems = [];
 
     if (currentSOP && currentSOP.related_sops) {
-      // related_sopsを使用
+      // related_sops を使用
       relatedItems = currentSOP.related_sops
         .map(relatedId => sopData.find(s => s.id === relatedId))
         .filter(item => item)
@@ -836,19 +823,15 @@ async function loadRelatedSOP(category, currentId) {
     }
 
     if (relatedItems.length > 0) {
-      relatedListEl.innerHTML = relatedItems.map(item => `
-        <div class="document" style="cursor: pointer;" onclick="window.location.href='sop-detail.html?id=${item.id}'">
-          <strong><a href="sop-detail.html?id=${item.id}">${item.title}</a></strong>
-          <small>${item.version || 'v1.0'}</small>
-          <div>${item.purpose || ''}</div>
-        </div>
-      `).join('');
+      setSecureChildren(relatedListEl, relatedItems.map(item =>
+        createDocumentElement(item, 'sop-detail.html')
+      ));
     } else {
-      relatedListEl.innerHTML = '<p>関連SOPが見つかりませんでした</p>';
+      setSecureChildren(relatedListEl, createEmptyMessage('関連SOPが見つかりませんでした'));
     }
   } catch (error) {
     console.error('Failed to load related SOP:', error);
-    relatedListEl.innerHTML = '<p>関連SOPの読み込みに失敗しました</p>';
+    setSecureChildren(relatedListEl, createErrorMessage('関連SOPの読み込みに失敗しました'));
   }
 }
 
@@ -874,18 +857,22 @@ function startInspectionRecord() {
     const sopChecklistEl = document.getElementById('sopChecklist');
     if (recordChecklistEl && sopChecklistEl) {
       const checkboxes = sopChecklistEl.querySelectorAll('input[type="checkbox"]');
-      let checklistHtml = '<div class="checklist">';
+      const container = createSecureElement('div', { className: 'checklist' });
+      const items = [];
       checkboxes.forEach((checkbox, index) => {
-        const label = checkbox.nextSibling ? checkbox.nextSibling.textContent : `項目 ${index + 1}`;
-        checklistHtml += `
-          <label class="checkbox-item">
-            <input type="checkbox" name="recordCheck${index}" ${checkbox.checked ? 'checked' : ''}>
-            ${label}
-          </label>
-        `;
+        const labelText = checkbox.nextSibling ? checkbox.nextSibling.textContent : `項目 ${index + 1}`;
+        const label = createSecureElement('label', { className: 'checkbox-item' });
+        const input = createSecureElement('input', {
+          type: 'checkbox',
+          name: `recordCheck${index}`,
+          checked: checkbox.checked
+        });
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(' ' + labelText));
+        items.push(label);
       });
-      checklistHtml += '</div>';
-      recordChecklistEl.innerHTML = checklistHtml;
+      setSecureChildren(container, items);
+      setSecureChildren(recordChecklistEl, container);
     }
 
     formEl.scrollIntoView({ behavior: 'smooth' });
@@ -1208,20 +1195,18 @@ function displayIncidentDetail(data) {
   // メタ情報
   const metaEl = document.getElementById('incidentMeta');
   if (metaEl) {
-    metaEl.innerHTML = `
-      <span>発生日: ${formatDate(data.occurred_at || data.incident_date)}</span>
-      <span>場所: ${data.location || 'N/A'}</span>
-      <span>報告者: ${data.reporter || data.reporter_name || 'N/A'}</span>
-      <span>種類: ${data.type || 'N/A'}</span>
-    `;
+    setSecureChildren(metaEl, createMetaInfoElement({
+      occurred_at: data.occurred_at || data.incident_date,
+      location: data.location || 'N/A',
+      reporter: data.reporter || data.reporter_name || 'N/A',
+      type: data.type || 'N/A'
+    }, 'incident'));
   }
 
   // タグ
   const tagsEl = document.getElementById('incidentTags');
   if (tagsEl && data.tags) {
-    tagsEl.innerHTML = data.tags.map(tag =>
-      `<span class="tag">${tag}</span>`
-    ).join('');
+    setSecureChildren(tagsEl, data.tags.map(tag => createTagElement(tag)));
   }
 
   // 概要
@@ -1230,28 +1215,23 @@ function displayIncidentDetail(data) {
   // 発生情報
   const incidentInfoEl = document.getElementById('incidentInfo');
   if (incidentInfoEl) {
-    incidentInfoEl.innerHTML = `
-      <tr><th>発生日時</th><td>${formatDate(data.occurred_at || data.incident_date)}</td></tr>
-      <tr><th>発生場所</th><td>${data.location || 'N/A'}</td></tr>
-      <tr><th>種類</th><td>${data.type || 'N/A'}</td></tr>
-      <tr><th>重大度</th><td>${data.severity || 'N/A'}</td></tr>
-      <tr><th>ステータス</th><td>${data.status || 'N/A'}</td></tr>
-    `;
+    const rows = [
+      { label: '発生日時', value: formatDate(data.occurred_at || data.incident_date) },
+      { label: '発生場所', value: data.location || 'N/A' },
+      { label: '種類', value: data.type || 'N/A' },
+      { label: '重大度', value: data.severity || 'N/A' },
+      { label: 'ステータス', value: data.status || 'N/A' }
+    ];
+    setSecureChildren(incidentInfoEl, rows.map(row => createTableRow(row.label, row.value)));
   }
 
   // タイムライン（localStorageデータはtimeline配列を持つ）
   const timelineEl = document.getElementById('incidentTimeline');
   if (timelineEl && data.timeline) {
     if (Array.isArray(data.timeline)) {
-      timelineEl.innerHTML = data.timeline.map(event => `
-        <div class="timeline-item" style="padding: 15px; margin-bottom: 10px; border-left: 3px solid var(--steel); background: rgba(47, 75, 82, 0.05);">
-          <strong>${formatDate(event.time)}</strong>
-          <div style="margin-top: 5px; font-weight: 600;">${event.event || ''}</div>
-          <small style="color: var(--muted);">${event.details || ''}</small>
-        </div>
-      `).join('');
+      setSecureChildren(timelineEl, data.timeline.map(event => createTimelineElement(event)));
     } else {
-      timelineEl.innerHTML = `<div>${data.timeline}</div>`;
+      setSecureChildren(timelineEl, createSecureElement('div', {}, [data.timeline]));
     }
   }
 
@@ -1302,22 +1282,18 @@ function loadCorrectiveActionsFromData(data) {
   const actions = data.corrective_actions || [];
 
   if (actions.length > 0) {
-    tableEl.innerHTML = actions.map(action => {
+    setSecureChildren(tableEl, actions.map(action => {
       const statusClass = action.status === 'completed' ? 'is-ok' : action.status === 'in_progress' ? 'is-warn' : 'is-hold';
       const statusText = action.status === 'completed' ? '完了' : action.status === 'in_progress' ? '進行中' : '未着手';
-      return `
-        <tr>
-          <td><span class="status-dot ${statusClass}"></span> ${statusText}</td>
-          <td>${action.action || action.content}</td>
-          <td>${action.responsible || action.assignee_name || 'N/A'}</td>
-          <td>${formatDateShort(action.deadline)}</td>
-          <td>${action.progress || (action.status === 'completed' ? 100 : action.status === 'in_progress' ? 50 : 0)}%</td>
-          <td>
-            <button class="cta ghost" onclick="alert('是正措置更新機能は準備中です')">更新</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+      return createTableRowWithHTML([
+        `<span class="status-dot ${statusClass}"></span> ${statusText}`,
+        action.action || action.content,
+        action.responsible || action.assignee_name || 'N/A',
+        formatDateShort(action.deadline),
+        `${action.progress || (action.status === 'completed' ? 100 : action.status === 'in_progress' ? 50 : 0)}%`,
+        '<button class="cta ghost" onclick="alert(\'是正措置更新機能は準備中です\')">更新</button>'
+      ]);
+    }));
 
     // KPI更新
     const completedCount = actions.filter(a => a.status === 'completed').length;
@@ -1330,7 +1306,7 @@ function loadCorrectiveActionsFromData(data) {
     updateElement('deadlineRate', deadlineRate);
     updateElement('remainingTasks', remainingTasks);
   } else {
-    tableEl.innerHTML = '<tr><td colspan="6">是正措置がありません</td></tr>';
+    setSecureChildren(tableEl, createEmptyMessage('是正措置がありません', 6));
   }
 }
 
@@ -1341,27 +1317,23 @@ async function loadCorrectiveActions(incidentId) {
   try {
     const actions = await apiCall(`/incident/${incidentId}/corrective-actions`);
     if (actions && actions.length > 0) {
-      tableEl.innerHTML = actions.map(action => {
+      setSecureChildren(tableEl, actions.map(action => {
         const statusClass = action.status === 'completed' ? 'is-ok' : 'is-warn';
-        return `
-          <tr>
-            <td><span class="status-dot ${statusClass}"></span></td>
-            <td>${action.content}</td>
-            <td>${action.assignee_name || 'N/A'}</td>
-            <td>${formatDateShort(action.deadline)}</td>
-            <td>${action.progress || 0}%</td>
-            <td>
-              <button class="cta ghost" onclick="alert('是正措置更新機能は準備中です')">更新</button>
-            </td>
-          </tr>
-        `;
-      }).join('');
+        return createTableRowWithHTML([
+          `<span class="status-dot ${statusClass}"></span>`,
+          action.content,
+          action.assignee_name || 'N/A',
+          formatDateShort(action.deadline),
+          `${action.progress || 0}%`,
+          '<button class="cta ghost" onclick="alert(\'是正措置更新機能は準備中です\')">更新</button>'
+        ]);
+      }));
     } else {
-      tableEl.innerHTML = '<tr><td colspan="6">是正措置がありません</td></tr>';
+      setSecureChildren(tableEl, createEmptyMessage('是正措置がありません', 6));
     }
   } catch (error) {
     console.error('Failed to load corrective actions:', error);
-    tableEl.innerHTML = '<tr><td colspan="6">是正措置の読み込みに失敗しました</td></tr>';
+    setSecureChildren(tableEl, createErrorMessage('是正措置の読み込みに失敗しました', 6));
   }
 }
 
@@ -1860,20 +1832,18 @@ function displayConsultDetail(data) {
   // メタ情報
   const metaEl = document.getElementById('consultMeta');
   if (metaEl) {
-    metaEl.innerHTML = `
-      <span>投稿日: ${formatDate(data.created_at)}</span>
-      <span>投稿者: ${data.requester || data.author_name || 'N/A'}</span>
-      <span>カテゴリ: ${data.category || 'N/A'}</span>
-      <span>プロジェクト: ${data.project || 'N/A'}</span>
-    `;
+    setSecureChildren(metaEl, createMetaInfoElement({
+      created_at: data.created_at,
+      requester: data.requester || data.author_name || 'N/A',
+      category: data.category || 'N/A',
+      project: data.project || 'N/A'
+    }, 'consult'));
   }
 
   // タグ
   const tagsEl = document.getElementById('consultTags');
   if (tagsEl && data.tags) {
-    tagsEl.innerHTML = data.tags.map(tag =>
-      `<span class="tag">${tag}</span>`
-    ).join('');
+    setSecureChildren(tagsEl, data.tags.map(tag => createTagElement(tag)));
   }
 
   // 質問内容
@@ -1882,13 +1852,14 @@ function displayConsultDetail(data) {
   // 相談情報
   const consultInfoEl = document.getElementById('consultInfo');
   if (consultInfoEl) {
-    consultInfoEl.innerHTML = `
-      <tr><th>投稿日</th><td>${formatDate(data.created_at)}</td></tr>
-      <tr><th>投稿者</th><td>${data.requester || data.author_name || 'N/A'}</td></tr>
-      <tr><th>カテゴリ</th><td>${data.category || 'N/A'}</td></tr>
-      <tr><th>プロジェクト</th><td>${data.project || 'N/A'}</td></tr>
-      <tr><th>ステータス</th><td>${statusText}</td></tr>
-    `;
+    const rows = [
+      { label: '投稿日', value: formatDate(data.created_at) },
+      { label: '投稿者', value: data.requester || data.author_name || 'N/A' },
+      { label: 'カテゴリ', value: data.category || 'N/A' },
+      { label: 'プロジェクト', value: data.project || 'N/A' },
+      { label: 'ステータス', value: statusText }
+    ];
+    setSecureChildren(consultInfoEl, rows.map(row => createTableRow(row.label, row.value)));
   }
 
   // 優先度・期限
@@ -1942,34 +1913,7 @@ function displayExpertInfoConsult(data) {
     rating: 4.8
   };
 
-  expertInfoEl.innerHTML = `
-    <div style="display: grid; gap: 10px;">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--steel), var(--teal)); display: grid; place-items: center; color: white; font-weight: 700; font-size: 18px;">
-          ${expert.name.substring(0, 1)}
-        </div>
-        <div>
-          <strong style="font-size: 16px;">${expert.name}</strong>
-          <div style="font-size: 12px; color: var(--muted);">${expert.title}</div>
-          <div style="font-size: 11px; color: var(--muted);">${expert.department}</div>
-        </div>
-      </div>
-      <div style="display: grid; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--line);">
-        <div style="font-size: 12px;"><strong>専門分野:</strong></div>
-        ${expert.specialties.map(s => `<span class="pill" style="font-size: 11px;">${s}</span>`).join(' ')}
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
-        <div class="stat-card" style="padding: 8px;">
-          <div style="font-size: 11px;">回答数</div>
-          <strong style="font-size: 18px;">${expert.response_count}</strong>
-        </div>
-        <div class="stat-card" style="padding: 8px;">
-          <div style="font-size: 11px;">評価</div>
-          <strong style="font-size: 18px;">⭐${expert.rating}</strong>
-        </div>
-      </div>
-    </div>
-  `;
+  setSecureChildren(expertInfoEl, createExpertInfoElement(expert));
 }
 
 /**
@@ -1982,17 +1926,9 @@ function displayBestAnswerConsult(data) {
   const bestAnswer = data.answers?.find(a => a.is_best_answer);
 
   if (bestAnswer) {
-    bestAnswerEl.innerHTML = `
-      <div style="padding: 15px; border: 2px solid #ffa500; border-radius: 12px; background: #fffbf0;">
-        <div style="color: #ffa500; font-weight: bold; margin-bottom: 8px;">✓ ベストアンサー</div>
-        <div style="font-size: 13px; line-height: 1.6; margin-bottom: 10px;">${bestAnswer.content.substring(0, 200)}${bestAnswer.content.length > 200 ? '...' : ''}</div>
-        <div style="font-size: 11px; color: var(--muted);">
-          <strong>${bestAnswer.expert || bestAnswer.author_name || 'エキスパート'}</strong> · ${formatDate(bestAnswer.created_at)}
-        </div>
-      </div>
-    `;
+    setSecureChildren(bestAnswerEl, createBestAnswerElement(bestAnswer));
   } else {
-    bestAnswerEl.innerHTML = '<p style="font-size: 13px; color: var(--muted);">まだベストアンサーが選択されていません</p>';
+    setSecureChildren(bestAnswerEl, createEmptyMessage('まだベストアンサーが選択されていません'));
   }
 }
 
@@ -2009,14 +1945,11 @@ function displayReferenceSOPConsult(data) {
   ];
 
   if (referenceDocs.length > 0) {
-    referenceSOPEl.innerHTML = referenceDocs.map(doc => `
-      <div class="document" style="cursor: pointer;" onclick="window.location.href='sop-detail.html?id=${doc.id}'">
-        <strong><a href="sop-detail.html?id=${doc.id}">${doc.title}</a></strong>
-        <small>${doc.category}</small>
-      </div>
-    `).join('');
+    setSecureChildren(referenceSOPEl, referenceDocs.map(doc =>
+      createDocumentElement(doc, 'sop-detail.html')
+    ));
   } else {
-    referenceSOPEl.innerHTML = '<p style="font-size: 13px; color: var(--muted);">参考SOPがありません</p>';
+    setSecureChildren(referenceSOPEl, createEmptyMessage('参考SOPがありません'));
   }
 }
 
@@ -2030,15 +1963,11 @@ function displayConsultAttachments(data) {
   const attachments = data.attachments || [];
 
   if (attachments.length > 0) {
-    attachmentListEl.innerHTML = attachments.map(file => `
-      <div class="attachment-item">
-        <div style="font-size: 32px; margin-bottom: 8px;">📄</div>
-        <div style="font-size: 12px; font-weight: 600;">${file.name}</div>
-        <small style="color: var(--muted); font-size: 11px;">${file.size || '1.2MB'}</small>
-      </div>
-    `).join('');
+    setSecureChildren(attachmentListEl, attachments.map(file =>
+      createAttachmentElement(file)
+    ));
   } else {
-    attachmentListEl.innerHTML = '<p style="font-size: 13px; color: var(--muted);">添付ファイルがありません</p>';
+    setSecureChildren(attachmentListEl, createEmptyMessage('添付ファイルがありません'));
   }
 }
 
@@ -2055,16 +1984,11 @@ function displayConsultStatusHistory(data) {
   ];
 
   if (history.length > 0) {
-    statusHistoryEl.innerHTML = history.map(item => `
-      <div class="timeline-item">
-        <strong>${item.status}</strong>
-        <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
-          ${formatDate(item.timestamp)} · ${item.user}
-        </div>
-      </div>
-    `).join('');
+    setSecureChildren(statusHistoryEl, history.map(item =>
+      createStatusHistoryElement(item)
+    ));
   } else {
-    statusHistoryEl.innerHTML = '<p style="font-size: 13px; color: var(--muted);">履歴がありません</p>';
+    setSecureChildren(statusHistoryEl, createEmptyMessage('履歴がありません'));
   }
 }
 
@@ -2092,30 +2016,9 @@ function loadAnswersFromData(data) {
   if (answerCountEl) answerCountEl.textContent = answers.length;
 
   if (answers.length > 0) {
-    answerListEl.innerHTML = answers.map(answer => `
-      <div class="answer-item" style="padding: 20px; border: 1px solid ${answer.is_best_answer ? '#ffa500' : 'var(--line)'}; border-radius: 8px; margin-bottom: 15px; background: ${answer.is_best_answer ? '#fffbf0' : 'white'};">
-        ${answer.is_best_answer ? '<div style="color: #ffa500; font-weight: bold; margin-bottom: 10px;">✓ ベストアンサー</div>' : ''}
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-          <div>
-            <strong>${answer.expert || answer.author_name || 'Unknown'}</strong>
-            <small style="color: var(--muted); margin-left: 10px;">${answer.expert_title || ''}</small>
-          </div>
-          <small>${formatDate(answer.created_at)}</small>
-        </div>
-        <div style="margin-bottom: 10px; white-space: pre-wrap;">${answer.content}</div>
-        ${answer.attachments && answer.attachments.length > 0 ? `
-          <div style="padding: 10px; background: #f5f5f5; border-radius: 4px; margin-top: 10px;">
-            <strong>添付ファイル:</strong>
-            ${answer.attachments.map(att => `<div>📎 ${att.name}</div>`).join('')}
-          </div>
-        ` : ''}
-        <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">
-          👍 役に立った: ${answer.helpful_count || 0}人
-        </div>
-      </div>
-    `).join('');
+    setSecureChildren(answerListEl, answers.map(answer => createAnswerElement(answer, answer.is_best_answer || answer.is_best)));
   } else {
-    answerListEl.innerHTML = '<p>まだ回答がありません</p>';
+    setSecureChildren(answerListEl, createEmptyMessage('まだ回答がありません'));
   }
 }
 
@@ -2129,23 +2032,13 @@ async function loadAnswers(consultId) {
     if (answerCountEl) answerCountEl.textContent = answers.length;
 
     if (answers.length > 0) {
-      answerListEl.innerHTML = answers.map(answer => `
-        <div class="answer-item" style="padding: 20px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; ${answer.is_best ? 'background: #fffbf0; border-color: #ffa500;' : ''}">
-          ${answer.is_best ? '<div style="color: #ffa500; font-weight: bold; margin-bottom: 10px;">✓ ベストアンサー</div>' : ''}
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <strong>${answer.author_name || 'Unknown'}</strong>
-            <small>${formatDate(answer.created_at)}</small>
-          </div>
-          <div style="margin-bottom: 10px;">${answer.content}</div>
-          ${answer.references ? `<div style="padding: 10px; background: #f5f5f5; border-radius: 4px;"><strong>参照:</strong> ${answer.references}</div>` : ''}
-        </div>
-      `).join('');
+      setSecureChildren(answerListEl, answers.map(answer => createAnswerElement(answer, answer.is_best)));
     } else {
-      answerListEl.innerHTML = '<p>まだ回答がありません</p>';
+      setSecureChildren(answerListEl, createEmptyMessage('まだ回答がありません'));
     }
   } catch (error) {
     console.error('Failed to load answers:', error);
-    answerListEl.innerHTML = '<p>回答の読み込みに失敗しました</p>';
+    setSecureChildren(answerListEl, createErrorMessage('回答の読み込みに失敗しました'));
   }
 }
 
@@ -2177,19 +2070,15 @@ async function loadRelatedQuestions(tags, currentId) {
     }
 
     if (relatedItems.length > 0) {
-      relatedEl.innerHTML = relatedItems.map(item => `
-        <div class="document" style="cursor: pointer;" onclick="window.location.href='expert-consult.html?id=${item.id}'">
-          <strong><a href="expert-consult.html?id=${item.id}">${item.title}</a></strong>
-          <small>${item.answers ? item.answers.length : 0}件の回答</small>
-          <div>${item.content ? item.content.substring(0, 100) + '...' : ''}</div>
-        </div>
-      `).join('');
+      setSecureChildren(relatedEl, relatedItems.map(item =>
+        createDocumentElement(item, 'expert-consult.html')
+      ));
     } else {
-      relatedEl.innerHTML = '<p>関連質問が見つかりませんでした</p>';
+      setSecureChildren(relatedEl, createEmptyMessage('関連質問が見つかりませんでした'));
     }
   } catch (error) {
     console.error('Failed to load related questions:', error);
-    relatedEl.innerHTML = '<p>関連質問の読み込みに失敗しました</p>';
+    setSecureChildren(relatedEl, createErrorMessage('関連質問の読み込みに失敗しました'));
   }
 }
 
@@ -2216,8 +2105,14 @@ function retryLoadConsult() {
 function updateElement(id, value) {
   const el = document.getElementById(id);
   if (el) {
-    if (typeof value === 'object') {
-      el.innerHTML = value;
+    if (typeof value === 'object' && value !== null) {
+      // オブジェクトの場合はDOM要素として追加
+      if (value instanceof Node) {
+        setSecureChildren(el, value);
+      } else {
+        // 配列またはその他のオブジェクトの場合は文字列化
+        el.textContent = String(value);
+      }
     } else {
       el.textContent = value;
     }
@@ -2243,23 +2138,24 @@ function displayApprovalFlow(approvalStatus) {
     'info': 'is-info'
   };
 
-  flowEl.innerHTML = (Array.isArray(flow) ? flow : defaultFlow).map(item => `
-    <div class="flow-step">
-      <div>${item.step}</div>
-      <span class="badge ${statusMap[item.status] || 'is-hold'}">${item.status === 'done' ? '完了' : item.status === 'wait' ? '待機中' : '未着手'}</span>
-    </div>
-  `).join('');
+  const flowData = Array.isArray(flow) ? flow : defaultFlow;
+  setSecureChildren(flowEl, flowData.map(item => createApprovalFlowElement(item, statusMap)));
 }
 
 function updateBreadcrumb(category, title) {
   const breadcrumbEl = document.getElementById('breadcrumbList');
   if (!breadcrumbEl) return;
 
-  breadcrumbEl.innerHTML = `
-    <li><a href="index.html">ホーム</a></li>
-    <li><a href="index.html#${category}">${category}</a></li>
-    <li aria-current="page">${title || '詳細'}</li>
-  `;
+  const items = [
+    createSecureElement('li', {}, [
+      createSecureElement('a', { href: 'index.html' }, ['ホーム'])
+    ]),
+    createSecureElement('li', {}, [
+      createSecureElement('a', { href: `index.html#${category}` }, [category])
+    ]),
+    createSecureElement('li', { 'aria-current': 'page' }, [title || '詳細'])
+  ];
+  setSecureChildren(breadcrumbEl, items);
 }
 
 // ============================================================
@@ -2342,39 +2238,61 @@ function openShareModal() {
  * 共有モーダルを動的に作成
  */
 function createShareModal() {
-  const modal = document.createElement('div');
-  modal.id = 'shareModal';
-  modal.className = 'modal';
-  modal.style.display = 'flex';
+  const modal = createSecureElement('div', {
+    id: 'shareModal',
+    className: 'modal',
+    style: 'display: flex;'
+  });
 
-  modal.innerHTML = `
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>共有</h2>
-        <button class="modal-close" onclick="closeShareModal()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="field">
-          <label>共有URL</label>
-          <div style="display: flex; gap: 10px;">
-            <input type="text" id="shareUrl" readonly value="${window.location.href}" style="flex: 1;">
-            <button class="cta secondary" onclick="copyShareUrl()">コピー</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>共有方法</label>
-          <div style="display: flex; gap: 10px; margin-top: 10px;">
-            <button class="cta ghost" onclick="shareByEmail()">📧 メール</button>
-            <button class="cta ghost" onclick="shareBySlack()">💬 Slack</button>
-            <button class="cta ghost" onclick="shareByTeams()">👥 Teams</button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="cta ghost" onclick="closeShareModal()">閉じる</button>
-      </div>
-    </div>
-  `;
+  const modalContent = createSecureElement('div', { className: 'modal-content' });
+
+  // ヘッダー
+  const header = createSecureElement('div', { className: 'modal-header' }, [
+    createSecureElement('h2', {}, ['共有']),
+    createSecureElement('button', {
+      className: 'modal-close',
+      onclick: 'closeShareModal()'
+    }, ['×'])
+  ]);
+
+  // ボディ
+  const body = createSecureElement('div', { className: 'modal-body' });
+
+  const urlField = createSecureElement('div', { className: 'field' }, [
+    createSecureElement('label', {}, ['共有URL']),
+    createSecureElement('div', { style: 'display: flex; gap: 10px;' }, [
+      createSecureElement('input', {
+        type: 'text',
+        id: 'shareUrl',
+        readonly: true,
+        value: window.location.href,
+        style: 'flex: 1;'
+      }),
+      createSecureElement('button', {
+        className: 'cta secondary',
+        onclick: 'copyShareUrl()'
+      }, ['コピー'])
+    ])
+  ]);
+
+  const shareField = createSecureElement('div', { className: 'field' }, [
+    createSecureElement('label', {}, ['共有方法']),
+    createSecureElement('div', { style: 'display: flex; gap: 10px; margin-top: 10px;' }, [
+      createSecureElement('button', { className: 'cta ghost', onclick: 'shareByEmail()' }, ['📧 メール']),
+      createSecureElement('button', { className: 'cta ghost', onclick: 'shareBySlack()' }, ['💬 Slack']),
+      createSecureElement('button', { className: 'cta ghost', onclick: 'shareByTeams()' }, ['👥 Teams'])
+    ])
+  ]);
+
+  setSecureChildren(body, [urlField, shareField]);
+
+  // フッター
+  const actions = createSecureElement('div', { className: 'modal-actions' }, [
+    createSecureElement('button', { className: 'cta ghost', onclick: 'closeShareModal()' }, ['閉じる'])
+  ]);
+
+  setSecureChildren(modalContent, [header, body, actions]);
+  setSecureChildren(modal, modalContent);
 
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
@@ -2476,70 +2394,73 @@ function openNewIncidentModal() {
  * 新規事故レポート作成モーダルを作成
  */
 function createNewIncidentModal() {
-  const modal = document.createElement('div');
-  modal.id = 'newIncidentModal';
-  modal.className = 'modal';
-  modal.style.display = 'flex';
+  const modal = createSecureElement('div', {
+    id: 'newIncidentModal',
+    className: 'modal',
+    style: 'display: flex;'
+  });
 
-  modal.innerHTML = `
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>新規事故レポート作成</h2>
-        <button class="modal-close" onclick="closeNewIncidentModal()">&times;</button>
-      </div>
-      <form id="newIncidentForm" onsubmit="submitNewIncident(event)">
-        <div class="modal-body">
-          <div class="field">
-            <label>タイトル <span class="required">*</span></label>
-            <input type="text" id="incidentNewTitle" required placeholder="例: 足場倒壊事故">
-          </div>
-          <div class="field">
-            <label>発生日時 <span class="required">*</span></label>
-            <input type="datetime-local" id="incidentNewDate" required>
-          </div>
-          <div class="field">
-            <label>発生場所 <span class="required">*</span></label>
-            <input type="text" id="incidentNewLocation" required placeholder="例: A工区 3階">
-          </div>
-          <div class="field">
-            <label>重大度 <span class="required">*</span></label>
-            <select id="incidentNewSeverity" required>
-              <option value="">選択してください</option>
-              <option value="低">低</option>
-              <option value="中">中</option>
-              <option value="高">高</option>
-              <option value="重大">重大</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>事故内容 <span class="required">*</span></label>
-            <textarea id="incidentNewContent" required rows="6" placeholder="事故の詳細を記入してください..."></textarea>
-          </div>
-          <div class="field">
-            <label>写真・資料</label>
-            <input type="file" id="incidentNewPhotos" multiple accept="image/*,.pdf">
-            <small>画像またはPDFファイル（最大10MB）</small>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="cta ghost" onclick="closeNewIncidentModal()">キャンセル</button>
-          <button type="submit" class="cta">作成</button>
-        </div>
-      </form>
-    </div>
-  `;
+  const modalContent = createSecureElement('div', { className: 'modal-content' });
+
+  const header = createSecureElement('div', { className: 'modal-header' }, [
+    createSecureElement('h2', {}, ['新規事故レポート作成']),
+    createSecureElement('button', { className: 'modal-close', onclick: 'closeNewIncidentModal()' }, ['×'])
+  ]);
+
+  const form = createSecureElement('form', { id: 'newIncidentForm', onsubmit: 'submitNewIncident(event)' });
+
+  const body = createSecureElement('div', { className: 'modal-body' }, [
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['タイトル ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('input', { type: 'text', id: 'incidentNewTitle', required: true, placeholder: '例: 足場倒壊事故' })
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['発生日時 ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('input', { type: 'datetime-local', id: 'incidentNewDate', required: true })
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['発生場所 ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('input', { type: 'text', id: 'incidentNewLocation', required: true, placeholder: '例: A工区 3階' })
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['重大度 ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('select', { id: 'incidentNewSeverity', required: true }, [
+        createSecureElement('option', { value: '' }, ['選択してください']),
+        createSecureElement('option', { value: '低' }, ['低']),
+        createSecureElement('option', { value: '中' }, ['中']),
+        createSecureElement('option', { value: '高' }, ['高']),
+        createSecureElement('option', { value: '重大' }, ['重大'])
+      ])
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['事故内容 ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('textarea', { id: 'incidentNewContent', required: true, rows: '6', placeholder: '事故の詳細を記入してください...' })
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['写真・資料']),
+      createSecureElement('input', { type: 'file', id: 'incidentNewPhotos', multiple: true, accept: 'image/*,.pdf' }),
+      createSecureElement('small', {}, ['画像またはPDFファイル（最大10MB）'])
+    ])
+  ]);
+
+  const actions = createSecureElement('div', { className: 'modal-actions' }, [
+    createSecureElement('button', { type: 'button', className: 'cta ghost', onclick: 'closeNewIncidentModal()' }, ['キャンセル']),
+    createSecureElement('button', { type: 'submit', className: 'cta' }, ['作成'])
+  ]);
+
+  setSecureChildren(form, [body, actions]);
+  setSecureChildren(modalContent, [header, form]);
+  setSecureChildren(modal, modalContent);
 
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
 
-  // モーダル外クリックで閉じる
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       closeNewIncidentModal();
     }
   });
 
-  // デフォルト値設定（現在日時）
   const dateInput = document.getElementById('incidentNewDate');
   if (dateInput) {
     const now = new Date();
@@ -2622,66 +2543,70 @@ function openNewConsultationModal() {
  * 新規専門家相談モーダルを作成
  */
 function createNewConsultationModal() {
-  const modal = document.createElement('div');
-  modal.id = 'newConsultationModal';
-  modal.className = 'modal';
-  modal.style.display = 'flex';
+  const modal = createSecureElement('div', {
+    id: 'newConsultationModal',
+    className: 'modal',
+    style: 'display: flex;'
+  });
 
-  modal.innerHTML = `
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>新規専門家相談</h2>
-        <button class="modal-close" onclick="closeNewConsultationModal()">&times;</button>
-      </div>
-      <form id="newConsultationForm" onsubmit="submitNewConsultation(event)">
-        <div class="modal-body">
-          <div class="field">
-            <label>質問タイトル <span class="required">*</span></label>
-            <input type="text" id="consultNewTitle" required placeholder="例: RC橋脚の配筋方法について">
-          </div>
-          <div class="field">
-            <label>カテゴリ <span class="required">*</span></label>
-            <select id="consultNewCategory" required>
-              <option value="">選択してください</option>
-              <option value="構造設計">構造設計</option>
-              <option value="施工管理">施工管理</option>
-              <option value="品質管理">品質管理</option>
-              <option value="安全管理">安全管理</option>
-              <option value="環境対策">環境対策</option>
-              <option value="地盤技術">地盤技術</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>優先度 <span class="required">*</span></label>
-            <select id="consultNewPriority" required>
-              <option value="通常">通常</option>
-              <option value="高">高</option>
-              <option value="緊急">緊急</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>質問内容 <span class="required">*</span></label>
-            <textarea id="consultNewContent" required rows="8" placeholder="具体的な質問内容を記入してください..."></textarea>
-            <small>できるだけ詳しく記述すると適切な回答が得られます</small>
-          </div>
-          <div class="field">
-            <label>添付ファイル</label>
-            <input type="file" id="consultNewAttachment" multiple accept="image/*,.pdf,.xlsx,.dwg">
-            <small>画像、PDF、Excel、CADファイル（最大10MB）</small>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="cta ghost" onclick="closeNewConsultationModal()">キャンセル</button>
-          <button type="submit" class="cta">相談を投稿</button>
-        </div>
-      </form>
-    </div>
-  `;
+  const modalContent = createSecureElement('div', { className: 'modal-content' });
+
+  const header = createSecureElement('div', { className: 'modal-header' }, [
+    createSecureElement('h2', {}, ['新規専門家相談']),
+    createSecureElement('button', { className: 'modal-close', onclick: 'closeNewConsultationModal()' }, ['×'])
+  ]);
+
+  const form = createSecureElement('form', { id: 'newConsultationForm', onsubmit: 'submitNewConsultation(event)' });
+
+  const body = createSecureElement('div', { className: 'modal-body' }, [
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['質問タイトル ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('input', { type: 'text', id: 'consultNewTitle', required: true, placeholder: '例: RC橋脚の配筋方法について' })
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['カテゴリ ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('select', { id: 'consultNewCategory', required: true }, [
+        createSecureElement('option', { value: '' }, ['選択してください']),
+        createSecureElement('option', { value: '構造設計' }, ['構造設計']),
+        createSecureElement('option', { value: '施工管理' }, ['施工管理']),
+        createSecureElement('option', { value: '品質管理' }, ['品質管理']),
+        createSecureElement('option', { value: '安全管理' }, ['安全管理']),
+        createSecureElement('option', { value: '環境対策' }, ['環境対策']),
+        createSecureElement('option', { value: '地盤技術' }, ['地盤技術'])
+      ])
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['優先度 ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('select', { id: 'consultNewPriority', required: true }, [
+        createSecureElement('option', { value: '通常' }, ['通常']),
+        createSecureElement('option', { value: '高' }, ['高']),
+        createSecureElement('option', { value: '緊急' }, ['緊急'])
+      ])
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['質問内容 ', createSecureElement('span', { className: 'required' }, ['*'])]),
+      createSecureElement('textarea', { id: 'consultNewContent', required: true, rows: '8', placeholder: '具体的な質問内容を記入してください...' }),
+      createSecureElement('small', {}, ['できるだけ詳しく記述すると適切な回答が得られます'])
+    ]),
+    createSecureElement('div', { className: 'field' }, [
+      createSecureElement('label', {}, ['添付ファイル']),
+      createSecureElement('input', { type: 'file', id: 'consultNewAttachment', multiple: true, accept: 'image/*,.pdf,.xlsx,.dwg' }),
+      createSecureElement('small', {}, ['画像、PDF、Excel、CADファイル（最大10MB）'])
+    ])
+  ]);
+
+  const actions = createSecureElement('div', { className: 'modal-actions' }, [
+    createSecureElement('button', { type: 'button', className: 'cta ghost', onclick: 'closeNewConsultationModal()' }, ['キャンセル']),
+    createSecureElement('button', { type: 'submit', className: 'cta' }, ['相談を投稿'])
+  ]);
+
+  setSecureChildren(form, [body, actions]);
+  setSecureChildren(modalContent, [header, form]);
+  setSecureChildren(modal, modalContent);
 
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
 
-  // モーダル外クリックで閉じる
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       closeNewConsultationModal();

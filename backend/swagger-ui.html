@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mirai Knowledge System API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+    <link rel="icon" type="image/png" href="https://unpkg.com/swagger-ui-dist@5/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="https://unpkg.com/swagger-ui-dist@5/favicon-16x16.png" sizes="16x16" />
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+
+        *,
+        *:before,
+        *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .topbar {
+            background-color: #1976d2 !important;
+        }
+
+        .swagger-ui .topbar .download-url-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        .swagger-ui .info {
+            margin: 50px 0;
+        }
+
+        .swagger-ui .info .title {
+            font-size: 36px;
+            margin: 0;
+            font-family: sans-serif;
+            color: #3b4151;
+        }
+
+        .custom-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .custom-header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+
+        .custom-header p {
+            margin: 10px 0 0 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .info-section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 4px solid #1976d2;
+        }
+
+        .info-section h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+
+        .info-section code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="custom-header">
+        <h1>Mirai Knowledge System API</h1>
+        <p>建設土木ナレッジシステム REST API ドキュメント</p>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            // Build a system
+            const ui = SwaggerUIBundle({
+                url: "/api/openapi.yaml",
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                defaultModelsExpandDepth: 1,
+                defaultModelExpandDepth: 1,
+                docExpansion: "list",
+                filter: true,
+                showExtensions: true,
+                showCommonExtensions: true,
+                supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+                validatorUrl: null,
+                // JWT認証の設定
+                onComplete: function() {
+                    // ローカルストレージからトークンを取得して自動設定
+                    const token = localStorage.getItem('access_token');
+                    if (token) {
+                        ui.preauthorizeApiKey('bearerAuth', `Bearer ${token}`);
+                    }
+                },
+                // リクエストインターセプター（トークン自動挿入）
+                requestInterceptor: function(request) {
+                    const token = localStorage.getItem('access_token');
+                    if (token && !request.headers.Authorization) {
+                        request.headers.Authorization = `Bearer ${token}`;
+                    }
+                    return request;
+                },
+                // レスポンスインターセプター（トークンの保存）
+                responseInterceptor: function(response) {
+                    // ログインレスポンスからトークンを自動保存
+                    if (response.url.includes('/api/v1/auth/login') && response.status === 200) {
+                        try {
+                            const data = JSON.parse(response.text);
+                            if (data.success && data.data.access_token) {
+                                localStorage.setItem('access_token', data.data.access_token);
+                                localStorage.setItem('refresh_token', data.data.refresh_token);
+                                console.log('トークンを保存しました');
+                                // UIを更新
+                                ui.preauthorizeApiKey('bearerAuth', `Bearer ${data.data.access_token}`);
+                            }
+                        } catch (e) {
+                            console.error('トークンの保存に失敗しました:', e);
+                        }
+                    }
+                    return response;
+                }
+            });
+
+            window.ui = ui;
+
+            // カスタムヘルパー関数
+            window.logout = function() {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                console.log('ログアウトしました');
+                window.location.reload();
+            };
+
+            window.getToken = function() {
+                return localStorage.getItem('access_token');
+            };
+
+            window.setToken = function(token) {
+                localStorage.setItem('access_token', token);
+                ui.preauthorizeApiKey('bearerAuth', `Bearer ${token}`);
+                console.log('トークンを設定しました');
+            };
+
+            // コンソールにヘルプを表示
+            console.log('%c Mirai Knowledge System API ドキュメント ', 'background: #1976d2; color: white; font-size: 16px; padding: 10px;');
+            console.log('');
+            console.log('%c便利な関数:', 'font-weight: bold; font-size: 14px;');
+            console.log('  logout()        - ログアウト（トークンを削除）');
+            console.log('  getToken()      - 現在のトークンを取得');
+            console.log('  setToken(token) - トークンを手動設定');
+            console.log('');
+            console.log('%cヒント:', 'font-weight: bold; font-size: 14px;');
+            console.log('  1. /api/v1/auth/login でログインするとトークンが自動保存されます');
+            console.log('  2. その後のリクエストには自動的にトークンが付与されます');
+            console.log('  3. トークンはブラウザのLocalStorageに保存されます');
+        }
+    </script>
+</body>
+</html>

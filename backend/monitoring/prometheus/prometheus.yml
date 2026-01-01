@@ -1,0 +1,64 @@
+# Prometheus設定ファイル
+# Mirai Knowledge System監視設定
+
+global:
+  scrape_interval: 15s  # メトリクス収集間隔
+  evaluation_interval: 15s  # アラートルール評価間隔
+  external_labels:
+    cluster: 'mirai-knowledge-system'
+    environment: 'production'
+
+# アラートマネージャー設定（オプション）
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# アラートルール設定
+rule_files:
+  - 'alert-rules.yml'
+
+# スクレイプ設定
+scrape_configs:
+  # Prometheus自身の監視
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Mirai Knowledge System バックエンドAPI
+  - job_name: 'mks-backend'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:5100']
+        labels:
+          service: 'mks-backend'
+          environment: 'production'
+    # 本番環境の場合はホスト名を変更
+    # - targets: ['mks-backend:5100']
+
+  # Node Exporter（システムメトリクス）
+  # システムレベルのメトリクスが必要な場合はコメントを外す
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #       labels:
+  #         service: 'node-exporter'
+
+  # PostgreSQL Exporter（データベースメトリクス）
+  # データベースメトリクスが必要な場合はコメントを外す
+  # - job_name: 'postgres-exporter'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: 'postgres'
+
+# メトリクス保持期間設定
+storage:
+  tsdb:
+    retention.time: 15d  # 15日間保持
+    retention.size: 10GB  # 最大10GB

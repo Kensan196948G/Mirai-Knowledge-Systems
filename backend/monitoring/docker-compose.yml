@@ -1,0 +1,118 @@
+version: '3.8'
+
+# Mirai Knowledge System 監視システム
+# Prometheus + Grafana による完全な監視環境
+
+services:
+  # Prometheus - メトリクス収集・保存
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: mks-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - monitoring
+    labels:
+      - "service=prometheus"
+      - "environment=production"
+
+  # Grafana - メトリクス可視化ダッシュボード
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: mks-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    environment:
+      # 管理者設定
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      # 一般設定
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=
+      # 日本語設定
+      - GF_DEFAULT_TIMEZONE=Asia/Tokyo
+      - GF_DATE_FORMATS_DEFAULT_TIMEZONE=Asia/Tokyo
+      # 匿名アクセス無効化
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      # セッション設定
+      - GF_SESSION_COOKIE_SECURE=false
+      - GF_SESSION_COOKIE_SAMESITE=lax
+      # ログ設定
+      - GF_LOG_MODE=console
+      - GF_LOG_LEVEL=info
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+    labels:
+      - "service=grafana"
+      - "environment=production"
+
+  # Node Exporter - システムメトリクス収集（オプション）
+  # システムレベルのメトリクスが必要な場合はコメントを外す
+  # node-exporter:
+  #   image: prom/node-exporter:v1.7.0
+  #   container_name: mks-node-exporter
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9100:9100"
+  #   command:
+  #     - '--path.procfs=/host/proc'
+  #     - '--path.sysfs=/host/sys'
+  #     - '--path.rootfs=/rootfs'
+  #     - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+  #   volumes:
+  #     - /proc:/host/proc:ro
+  #     - /sys:/host/sys:ro
+  #     - /:/rootfs:ro
+  #   networks:
+  #     - monitoring
+  #   labels:
+  #     - "service=node-exporter"
+  #     - "environment=production"
+
+  # PostgreSQL Exporter - データベースメトリクス収集（オプション）
+  # データベースメトリクスが必要な場合はコメントを外す
+  # postgres-exporter:
+  #   image: prometheuscommunity/postgres-exporter:v0.15.0
+  #   container_name: mks-postgres-exporter
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9187:9187"
+  #   environment:
+  #     - DATA_SOURCE_NAME=postgresql://username:password@postgres:5432/database?sslmode=disable
+  #   networks:
+  #     - monitoring
+  #   labels:
+  #     - "service=postgres-exporter"
+  #     - "environment=production"
+
+networks:
+  monitoring:
+    driver: bridge
+    name: mks-monitoring
+
+volumes:
+  prometheus-data:
+    name: mks-prometheus-data
+  grafana-data:
+    name: mks-grafana-data

@@ -1,0 +1,88 @@
+# Mirai Knowledge System ログローテーション設定
+#
+# インストール方法:
+#   sudo cp backend/logrotate.d/mirai-knowledge-system /etc/logrotate.d/
+#   sudo chmod 644 /etc/logrotate.d/mirai-knowledge-system
+#
+# テスト:
+#   sudo logrotate -d /etc/logrotate.d/mirai-knowledge-system
+
+/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/*.log {
+    # 日次ローテーション
+    daily
+
+    # 7日間のログを保持
+    rotate 7
+
+    # ログファイルが空でもローテーション
+    ifempty
+
+    # ローテーション後のログファイルを圧縮
+    compress
+
+    # 最新のログファイルは圧縮しない（書き込み中のため）
+    delaycompress
+
+    # ローテーション後にログファイルを作成しない（アプリケーションが自動作成）
+    nocreate
+
+    # 古いログファイルを保持
+    notifempty
+
+    # 日付を使用してローテーション後のファイル名を生成
+    dateext
+    dateformat -%Y%m%d
+
+    # ファイルが存在しなくてもエラーにしない
+    missingok
+
+    # Gunicorn/アプリケーションにログファイル再オープンを通知
+    postrotate
+        # Gunicornプロセスにシグナルを送信（存在する場合）
+        if [ -f /var/run/gunicorn-mirai.pid ]; then
+            kill -USR1 $(cat /var/run/gunicorn-mirai.pid) 2>/dev/null || true
+        fi
+
+        # systemd経由でサービスをリロード
+        /usr/bin/systemctl reload mirai-knowledge-production.service 2>/dev/null || true
+    endscript
+}
+
+# アクセスログの個別設定（大きくなりやすいため）
+/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/access.log {
+    daily
+    rotate 14         # アクセスログは14日間保持
+    compress
+    delaycompress
+    missingok
+    notifempty
+    dateext
+    dateformat -%Y%m%d
+
+    # サイズ制限: 100MBを超えたら即座にローテーション
+    size 100M
+
+    postrotate
+        if [ -f /var/run/gunicorn-mirai.pid ]; then
+            kill -USR1 $(cat /var/run/gunicorn-mirai.pid) 2>/dev/null || true
+        fi
+    endscript
+}
+
+# エラーログの個別設定
+/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/error.log {
+    daily
+    rotate 30         # エラーログは30日間保持（デバッグ用）
+    compress
+    delaycompress
+    missingok
+    notifempty
+    dateext
+    dateformat -%Y%m%d
+
+    postrotate
+        if [ -f /var/run/gunicorn-mirai.pid ]; then
+            kill -USR1 $(cat /var/run/gunicorn-mirai.pid) 2>/dev/null || true
+        fi
+    endscript
+}
