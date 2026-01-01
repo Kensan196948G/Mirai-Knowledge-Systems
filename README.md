@@ -107,9 +107,21 @@ Mirai-Knowledge-Systems/
    ```
 
 4. **サーバー起動（JWT認証対応版）**
+
+   **開発/テスト用（手動起動）:**
    ```bash
    python app_v2.py
    ```
+
+   **本番環境用（systemd自動起動）:**
+
+   Linux環境では、systemdサービスとして登録することで、サーバー再起動時に自動起動できます：
+   ```bash
+   # 自動セットアップスクリプトを実行
+   ./setup-systemd.sh
+   ```
+
+   詳細は [SYSTEMD_SETUP.md](SYSTEMD_SETUP.md) を参照してください。
 
    > 注: `app.py` は旧版（認証なし）、`app_v2.py` は新版（JWT認証 + RBAC対応）です。
 
@@ -124,18 +136,20 @@ Mirai-Knowledge-Systems/
    | partner | partner123 | 協力会社 | 閲覧のみ |
 
 6. **ログインしてアクセス**
-   
+
    ブラウザで以下のURLを開きます：
    ```
-   http://localhost:5000/login.html
+   http://localhost:5100/login.html
    ```
-   
+
    デモアカウントのいずれかでログイン後、ダッシュボードへ自動リダイレクトされます。
 
 ### デフォルトポート
-- バックエンドAPI: `http://localhost:5000`
-- ログイン画面: `http://localhost:5000/login.html`
-- ダッシュボード: `http://localhost:5000/index.html`（認証要）
+- バックエンドAPI: `http://localhost:5100`
+- ログイン画面: `http://localhost:5100/login.html`
+- ダッシュボード: `http://localhost:5100/index.html`（認証要）
+
+> **注**: ポート5100で起動します。ネットワーク経由でアクセスする場合は、サーバーのIPアドレスを使用してください（例: `http://192.168.0.187:5100`）
 
 ## 📊 API エンドポイント
 

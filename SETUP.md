@@ -68,12 +68,25 @@ pip install -r requirements.txt
 
 ## 起動方法
 
-### 開発サーバーの起動
+### 環境変数の設定（重要）
+
+セキュリティのため、JWT秘密鍵の設定が必須です：
+
+```bash
+# .envファイルを作成（まだ存在しない場合）
+cd backend
+cp .env.example .env
+
+# JWT秘密鍵を生成して追加
+python3 -c "import secrets; print('MKS_JWT_SECRET_KEY=' + secrets.token_urlsafe(32))" >> .env
+```
+
+### 開発サーバーの起動（手動）
 
 `backend` ディレクトリで以下のコマンドを実行します：
 
 ```bash
-python app.py
+python app_v2.py
 ```
 
 以下のような出力が表示されれば成功です：
@@ -82,28 +95,36 @@ python app.py
 ============================================================
 建設土木ナレッジシステム - サーバー起動中
 ============================================================
-アクセスURL: http://localhost:5000
+環境モード: development
+アクセスURL: http://localhost:5100
 ============================================================
- * Serving Flask app 'app'
- * Debug mode: on
- * Running on http://0.0.0.0:5000
+ * Serving Flask app 'app_v2'
+ * Debug mode: off
+ * Running on http://0.0.0.0:5100
 ```
 
-### 環境変数（任意）
+> **注**: `app.py` は旧版（認証なし）、`app_v2.py` は新版（JWT認証 + RBAC対応）です。
 
-- `MKS_JWT_SECRET_KEY`: JWTの秘密鍵（未設定時は開発用の値）
-- `MKS_DATA_DIR`: JSONデータの保存先ディレクトリ
-- `MKS_DEBUG`: デバッグモード（`true`/`false`）
+### 本番サーバーの起動（systemd自動起動）
+
+**Linux環境のみ**: systemdサービスとして登録することで、サーバー再起動時に自動起動できます：
+
+```bash
+# プロジェクトルートディレクトリで実行
+./setup-systemd.sh
+```
+
+詳細は [SYSTEMD_SETUP.md](SYSTEMD_SETUP.md) を参照してください。
 
 ### ブラウザでアクセス
 
 ブラウザを開いて、以下のURLにアクセスします：
 
 ```
-http://localhost:5000
+http://localhost:5100/login.html
 ```
 
-ダッシュボード画面が表示されれば成功です！
+ログイン画面が表示されれば成功です！デモアカウント（admin / admin123など）でログインしてください。
 
 ## 動作確認
 
@@ -143,7 +164,7 @@ http://localhost:5000
 
 ## トラブルシューティング
 
-### ポート5000が既に使用されている
+### ポート5100が既に使用されている
 
 **エラーメッセージ:**
 ```
@@ -153,25 +174,30 @@ Address already in use
 **解決方法:**
 
 #### 方法1: ポートを変更する
-`backend/app.py` の最後の行を編集：
+`backend/app_v2.py` の最後の行を編集：
 ```python
-app.run(host='0.0.0.0', port=5001, debug=True)  # 5000 → 5001に変更
+app.run(host='0.0.0.0', port=5101, debug=False)  # 5100 → 5101に変更
 ```
 
-その後、`http://localhost:5001` でアクセスしてください。
+その後、`http://localhost:5101` でアクセスしてください。
 
 #### 方法2: 使用中のプロセスを終了する
 
 **Windows:**
 ```bash
-netstat -ano | findstr :5000
+netstat -ano | findstr :5100
 taskkill /PID <プロセスID> /F
 ```
 
 **macOS/Linux:**
 ```bash
-lsof -i :5000
+lsof -i :5100
 kill -9 <PID>
+```
+
+**systemdサービスが起動している場合:**
+```bash
+sudo systemctl stop mirai-knowledge-system.service
 ```
 
 ### モジュールが見つからないエラー
@@ -206,11 +232,12 @@ pip install -r requirements.txt
 
 **エラーメッセージ（ブラウザコンソール）:**
 ```
-Access to fetch at 'http://localhost:5000/api/...' has been blocked by CORS policy
+Access to fetch at 'http://localhost:5100/api/...' has been blocked by CORS policy
 ```
 
 **解決方法:**
-- `backend/app.py` で `Flask-CORS` が正しくインストールされていることを確認
+- `backend/app_v2.py` で `Flask-CORS` が正しくインストールされていることを確認
+- `.env` ファイルの `CORS_ORIGINS` 設定を確認
 - サーバーを再起動してください
 
 ### データが表示されない
@@ -237,14 +264,22 @@ Access to fetch at 'http://localhost:5000/api/...' has been blocked by CORS poli
 
 本番環境では以下の設定変更が必要です：
 
-1. `app.py` のデバッグモードを無効化：
-   ```python
-   app.run(host='0.0.0.0', port=5000, debug=False)
+1. **systemdサービスとして設定** [SYSTEMD_SETUP.md](SYSTEMD_SETUP.md) を参照
+
+2. **環境変数を本番用に設定** (`.env`ファイル):
+   ```bash
+   MKS_ENV=production
+   MKS_DEBUG=false
+   MKS_FORCE_HTTPS=true  # SSL/TLS証明書設定後
    ```
 
-2. 本番用WSGIサーバー（Gunicornなど）の使用を推奨
+3. **SSL/TLS証明書の設定** (HTTPSを使用する場合)
 
-3. データベースへの移行（現在はJSON、本番ではPostgreSQL等を推奨）
+4. **本番用WSGIサーバーの使用** (Gunicorn、uWSGI、Waitressなど)
+
+5. **データベースへの移行** (PostgreSQLを推奨)
+
+詳細は [Production-Deployment-Guide.md](docs/10_移行・展開(Deployment)/03_Production-Deployment-Guide.md) を参照してください。
 
 4. HTTPS対応
 
