@@ -216,7 +216,7 @@ class TestRecommendationAPI(unittest.TestCase):
         data = json.loads(response.data)
         self.assertTrue(data['success'])
         self.assertIn('data', data)
-        self.assertIn('parameters', data)
+        self.assertIn('parameters', data['data'])
 
     def test_get_personalized_recommendations_with_parameters(self):
         """パーソナライズ推薦取得API（パラメータ指定）のテスト"""

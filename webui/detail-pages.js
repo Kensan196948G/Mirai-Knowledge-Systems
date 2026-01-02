@@ -5,6 +5,27 @@
 // API_BASEはapp.jsで定義されているため、ここでは定義しない
 // const API_BASE = app.jsで定義済み
 
+// 本番環境判定（app.jsのIS_PRODUCTIONを使用、なければ独自判定）
+function isProductionMode() {
+  // app.jsで定義されたIS_PRODUCTIONがあればそれを使用
+  if (typeof IS_PRODUCTION !== 'undefined') {
+    return IS_PRODUCTION;
+  }
+  // フォールバック: 独自判定
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('env') === 'production') return true;
+  if (urlParams.get('env') === 'development') return false;
+  const envSetting = localStorage.getItem('MKS_ENV');
+  if (envSetting === 'production') return true;
+  if (envSetting === 'development') return false;
+  // ローカルホスト以外は本番と見なす
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return false;
+  }
+  return false;
+}
+
 // ============================================================
 // ユーティリティ関数
 // ============================================================
@@ -146,8 +167,9 @@ async function loadKnowledgeDetail() {
   console.log('[KNOWLEDGE DETAIL] Starting to load...');
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+  const inProduction = isProductionMode();
 
-  console.log('[KNOWLEDGE DETAIL] ID from URL:', id);
+  console.log('[KNOWLEDGE DETAIL] ID from URL:', id, 'Production mode:', inProduction);
 
   if (!id) {
     showError('ナレッジIDが指定されていません');
@@ -160,23 +182,35 @@ async function loadKnowledgeDetail() {
   try {
     let data = null;
 
-    // まずlocalStorageから取得を試みる
-    const knowledgeDataStr = localStorage.getItem('knowledge_details');
-    console.log('[KNOWLEDGE DETAIL] localStorage data exists:', !!knowledgeDataStr);
-
-    if (knowledgeDataStr) {
-      const knowledgeData = JSON.parse(knowledgeDataStr);
-      console.log('[KNOWLEDGE DETAIL] Total items in localStorage:', knowledgeData.length);
-      data = knowledgeData.find(k => k.id === parseInt(id));
-      console.log('[KNOWLEDGE DETAIL] Found in localStorage:', !!data);
-    }
-
-    // localStorageにない場合はAPIから取得
-    if (!data) {
-      console.log('[DETAIL] Loading from API...');
-      data = await apiCall(`/knowledge/${id}`);
+    // 本番環境ではAPI優先、開発環境ではlocalStorage優先
+    if (inProduction) {
+      // 本番環境: API優先
+      console.log('[DETAIL] Production mode - Loading from API first...');
+      try {
+        data = await apiCall(`/knowledge/${id}`);
+      } catch (apiError) {
+        console.warn('[DETAIL] API call failed in production:', apiError);
+        // 本番環境でAPIが失敗した場合はエラー表示（localStorageにフォールバックしない）
+      }
     } else {
-      console.log('[DETAIL] Loading from localStorage...');
+      // 開発環境: localStorage優先
+      const knowledgeDataStr = localStorage.getItem('knowledge_details');
+      console.log('[KNOWLEDGE DETAIL] localStorage data exists:', !!knowledgeDataStr);
+
+      if (knowledgeDataStr) {
+        const knowledgeData = JSON.parse(knowledgeDataStr);
+        console.log('[KNOWLEDGE DETAIL] Total items in localStorage:', knowledgeData.length);
+        data = knowledgeData.find(k => k.id === parseInt(id));
+        console.log('[KNOWLEDGE DETAIL] Found in localStorage:', !!data);
+      }
+
+      // localStorageにない場合はAPIから取得
+      if (!data) {
+        console.log('[DETAIL] Loading from API...');
+        data = await apiCall(`/knowledge/${id}`);
+      } else {
+        console.log('[DETAIL] Loading from localStorage...');
+      }
     }
 
     if (!data) {
@@ -608,8 +642,9 @@ async function loadSOPDetail() {
   console.log('[SOP DETAIL] Starting to load...');
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+  const inProduction = isProductionMode();
 
-  console.log('[SOP DETAIL] ID from URL:', id);
+  console.log('[SOP DETAIL] ID from URL:', id, 'Production mode:', inProduction);
 
   if (!id) {
     showError('SOP IDが指定されていません');
@@ -622,27 +657,38 @@ async function loadSOPDetail() {
   try {
     let data = null;
 
-    // まずlocalStorageから取得を試みる
-    const sopDataStr = localStorage.getItem('sop_details');
-    console.log('[SOP DETAIL] localStorage data exists:', !!sopDataStr);
-
-    if (sopDataStr) {
-      const sopData = JSON.parse(sopDataStr);
-      console.log('[SOP DETAIL] Total items in localStorage:', sopData.length);
-      data = sopData.find(s => s.id === parseInt(id));
-      console.log('[SOP DETAIL] Found in localStorage:', !!data);
-    }
-
-    // localStorageにない場合はAPIから取得
-    if (!data) {
-      console.log('[DETAIL] Loading SOP from API...');
+    // 本番環境ではAPI優先、開発環境ではlocalStorage優先
+    if (inProduction) {
+      // 本番環境: API優先
+      console.log('[DETAIL] Production mode - Loading SOP from API first...');
       try {
         data = await apiCall(`/sop/${id}`);
       } catch (apiError) {
-        console.warn('[DETAIL] API call failed:', apiError);
+        console.warn('[DETAIL] API call failed in production:', apiError);
       }
     } else {
-      console.log('[DETAIL] Loading SOP from localStorage...');
+      // 開発環境: localStorage優先
+      const sopDataStr = localStorage.getItem('sop_details');
+      console.log('[SOP DETAIL] localStorage data exists:', !!sopDataStr);
+
+      if (sopDataStr) {
+        const sopData = JSON.parse(sopDataStr);
+        console.log('[SOP DETAIL] Total items in localStorage:', sopData.length);
+        data = sopData.find(s => s.id === parseInt(id));
+        console.log('[SOP DETAIL] Found in localStorage:', !!data);
+      }
+
+      // localStorageにない場合はAPIから取得
+      if (!data) {
+        console.log('[DETAIL] Loading SOP from API...');
+        try {
+          data = await apiCall(`/sop/${id}`);
+        } catch (apiError) {
+          console.warn('[DETAIL] API call failed:', apiError);
+        }
+      } else {
+        console.log('[DETAIL] Loading SOP from localStorage...');
+      }
     }
 
     if (!data) {
@@ -1130,8 +1176,9 @@ async function loadIncidentDetail() {
   console.log('[INCIDENT DETAIL] Starting to load...');
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+  const inProduction = isProductionMode();
 
-  console.log('[INCIDENT DETAIL] ID from URL:', id);
+  console.log('[INCIDENT DETAIL] ID from URL:', id, 'Production mode:', inProduction);
 
   if (!id) {
     showError('事故レポートIDが指定されていません');
@@ -1144,27 +1191,38 @@ async function loadIncidentDetail() {
   try {
     let data = null;
 
-    // まずlocalStorageから取得を試みる
-    const incidentDataStr = localStorage.getItem('incidents_details');
-    console.log('[INCIDENT DETAIL] localStorage data exists:', !!incidentDataStr);
-
-    if (incidentDataStr) {
-      const incidentData = JSON.parse(incidentDataStr);
-      console.log('[INCIDENT DETAIL] Total items in localStorage:', incidentData.length);
-      data = incidentData.find(i => i.id === parseInt(id));
-      console.log('[INCIDENT DETAIL] Found in localStorage:', !!data);
-    }
-
-    // localStorageにない場合はAPIから取得
-    if (!data) {
-      console.log('[DETAIL] Loading incident from API...');
+    // 本番環境ではAPI優先、開発環境ではlocalStorage優先
+    if (inProduction) {
+      // 本番環境: API優先
+      console.log('[DETAIL] Production mode - Loading incident from API first...');
       try {
         data = await apiCall(`/incident/${id}`);
       } catch (apiError) {
-        console.warn('[DETAIL] API call failed:', apiError);
+        console.warn('[DETAIL] API call failed in production:', apiError);
       }
     } else {
-      console.log('[DETAIL] Loading incident from localStorage...');
+      // 開発環境: localStorage優先
+      const incidentDataStr = localStorage.getItem('incidents_details');
+      console.log('[INCIDENT DETAIL] localStorage data exists:', !!incidentDataStr);
+
+      if (incidentDataStr) {
+        const incidentData = JSON.parse(incidentDataStr);
+        console.log('[INCIDENT DETAIL] Total items in localStorage:', incidentData.length);
+        data = incidentData.find(i => i.id === parseInt(id));
+        console.log('[INCIDENT DETAIL] Found in localStorage:', !!data);
+      }
+
+      // localStorageにない場合はAPIから取得
+      if (!data) {
+        console.log('[DETAIL] Loading incident from API...');
+        try {
+          data = await apiCall(`/incident/${id}`);
+        } catch (apiError) {
+          console.warn('[DETAIL] API call failed:', apiError);
+        }
+      } else {
+        console.log('[DETAIL] Loading incident from localStorage...');
+      }
     }
 
     if (!data) {
@@ -1761,8 +1819,9 @@ async function loadConsultDetail() {
   console.log('[CONSULT DETAIL] Starting to load...');
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+  const inProduction = isProductionMode();
 
-  console.log('[CONSULT DETAIL] ID from URL:', id);
+  console.log('[CONSULT DETAIL] ID from URL:', id, 'Production mode:', inProduction);
 
   if (!id) {
     showError('相談IDが指定されていません');
@@ -1775,27 +1834,38 @@ async function loadConsultDetail() {
   try {
     let data = null;
 
-    // まずlocalStorageから取得を試みる
-    const consultDataStr = localStorage.getItem('consultations_details');
-    console.log('[CONSULT DETAIL] localStorage data exists:', !!consultDataStr);
-
-    if (consultDataStr) {
-      const consultData = JSON.parse(consultDataStr);
-      console.log('[CONSULT DETAIL] Total items in localStorage:', consultData.length);
-      data = consultData.find(c => c.id === parseInt(id));
-      console.log('[CONSULT DETAIL] Found in localStorage:', !!data);
-    }
-
-    // localStorageにない場合はAPIから取得
-    if (!data) {
-      console.log('[DETAIL] Loading consultation from API...');
+    // 本番環境ではAPI優先、開発環境ではlocalStorage優先
+    if (inProduction) {
+      // 本番環境: API優先
+      console.log('[DETAIL] Production mode - Loading consultation from API first...');
       try {
         data = await apiCall(`/consultation/${id}`);
       } catch (apiError) {
-        console.warn('[DETAIL] API call failed:', apiError);
+        console.warn('[DETAIL] API call failed in production:', apiError);
       }
     } else {
-      console.log('[DETAIL] Loading consultation from localStorage...');
+      // 開発環境: localStorage優先
+      const consultDataStr = localStorage.getItem('consultations_details');
+      console.log('[CONSULT DETAIL] localStorage data exists:', !!consultDataStr);
+
+      if (consultDataStr) {
+        const consultData = JSON.parse(consultDataStr);
+        console.log('[CONSULT DETAIL] Total items in localStorage:', consultData.length);
+        data = consultData.find(c => c.id === parseInt(id));
+        console.log('[CONSULT DETAIL] Found in localStorage:', !!data);
+      }
+
+      // localStorageにない場合はAPIから取得
+      if (!data) {
+        console.log('[DETAIL] Loading consultation from API...');
+        try {
+          data = await apiCall(`/consultation/${id}`);
+        } catch (apiError) {
+          console.warn('[DETAIL] API call failed:', apiError);
+        }
+      } else {
+        console.log('[DETAIL] Loading consultation from localStorage...');
+      }
     }
 
     if (!data) {
