@@ -6,13 +6,242 @@ from flask_cors import CORS
 from datetime import datetime
 import json
 import os
+import logging
+import psutil
+from functools import wraps
+import time
+
+# ログ設定
+LOG_LEVEL = os.environ.get('MKS_LOG_LEVEL', 'INFO').upper()
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO), format=LOG_FORMAT)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='../webui')
 CORS(app)
 
+# 環境設定
+IS_PRODUCTION = os.environ.get('MKS_ENV', 'development').lower() == 'production'
+
 # データストレージディレクトリ
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
+
+# アプリケーション起動時刻
+APP_START_TIME = datetime.now()
+
+# リクエストカウンター（Prometheus用）
+REQUEST_METRICS = {
+    'total_requests': 0,
+    'success_requests': 0,
+    'error_requests': 0,
+    'response_times': []
+}
+
+# ============================================================
+# ヘルスチェック・監視エンドポイント
+# ============================================================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """
+    ヘルスチェックエンドポイント
+    システムの健全性を確認するための基本的なエンドポイント
+    """
+    try:
+        # データディレクトリのアクセス確認
+        data_accessible = os.path.isdir(DATA_DIR) and os.access(DATA_DIR, os.R_OK | os.W_OK)
+
+        # メモリ使用率
+        memory = psutil.virtual_memory()
+        memory_ok = memory.percent < 90
+
+        # ディスク使用率
+        disk = psutil.disk_usage('/')
+        disk_ok = disk.percent < 95
+
+        overall_healthy = data_accessible and memory_ok and disk_ok
+
+        return jsonify({
+            'status': 'healthy' if overall_healthy else 'degraded',
+            'timestamp': datetime.now().isoformat(),
+            'uptime_seconds': (datetime.now() - APP_START_TIME).total_seconds(),
+            'environment': 'production' if IS_PRODUCTION else 'development',
+            'checks': {
+                'data_directory': 'ok' if data_accessible else 'error',
+                'memory': 'ok' if memory_ok else 'warning',
+                'disk': 'ok' if disk_ok else 'warning'
+            }
+        }), 200 if overall_healthy else 503
+    except Exception as e:
+        logger.error(f'Health check failed: {e}')
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }), 503
+
+
+@app.route('/api/health/liveness', methods=['GET'])
+def liveness_probe():
+    """
+    Liveness Probe（生存確認）
+    アプリケーションが生存しているかを確認
+    """
+    return jsonify({'status': 'alive', 'timestamp': datetime.now().isoformat()}), 200
+
+
+@app.route('/api/health/readiness', methods=['GET'])
+def readiness_probe():
+    """
+    Readiness Probe（準備状態確認）
+    アプリケーションがリクエストを受け付ける準備ができているかを確認
+    """
+    try:
+        # データファイルのアクセス確認
+        test_file = os.path.join(DATA_DIR, 'knowledge.json')
+        if os.path.exists(test_file):
+            with open(test_file, 'r', encoding='utf-8') as f:
+                json.load(f)  # JSONパース可能か確認
+
+        return jsonify({
+            'status': 'ready',
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        logger.warning(f'Readiness check failed: {e}')
+        return jsonify({
+            'status': 'not_ready',
+            'timestamp': datetime.now().isoformat(),
+            'reason': str(e)
+        }), 503
+
+
+@app.route('/api/metrics', methods=['GET'])
+def metrics():
+    """
+    メトリクスエンドポイント（Prometheus互換形式）
+    """
+    try:
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        # Prometheus形式のメトリクス
+        metrics_output = []
+
+        # アプリケーションメトリクス
+        uptime = (datetime.now() - APP_START_TIME).total_seconds()
+        metrics_output.append(f'# HELP mks_uptime_seconds Application uptime in seconds')
+        metrics_output.append(f'# TYPE mks_uptime_seconds gauge')
+        metrics_output.append(f'mks_uptime_seconds {uptime:.2f}')
+
+        # リクエストメトリクス
+        metrics_output.append(f'# HELP mks_requests_total Total number of requests')
+        metrics_output.append(f'# TYPE mks_requests_total counter')
+        metrics_output.append(f'mks_requests_total {REQUEST_METRICS["total_requests"]}')
+
+        # システムメトリクス
+        metrics_output.append(f'# HELP mks_memory_usage_percent Memory usage percentage')
+        metrics_output.append(f'# TYPE mks_memory_usage_percent gauge')
+        metrics_output.append(f'mks_memory_usage_percent {memory.percent}')
+
+        metrics_output.append(f'# HELP mks_disk_usage_percent Disk usage percentage')
+        metrics_output.append(f'# TYPE mks_disk_usage_percent gauge')
+        metrics_output.append(f'mks_disk_usage_percent {disk.percent}')
+
+        metrics_output.append(f'# HELP mks_cpu_usage_percent CPU usage percentage')
+        metrics_output.append(f'# TYPE mks_cpu_usage_percent gauge')
+        metrics_output.append(f'mks_cpu_usage_percent {cpu_percent}')
+
+        return '\n'.join(metrics_output), 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    except Exception as e:
+        logger.error(f'Metrics collection failed: {e}')
+        return f'# Error collecting metrics: {e}', 500, {'Content-Type': 'text/plain; charset=utf-8'}
+
+
+@app.route('/api/status', methods=['GET'])
+def system_status():
+    """
+    詳細なシステムステータス（管理者向け）
+    """
+    try:
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+
+        # 各データファイルの状態を確認
+        data_files = {}
+        for filename in ['knowledge.json', 'sop.json', 'incidents.json', 'consultations.json', 'regulations.json']:
+            filepath = os.path.join(DATA_DIR, filename)
+            if os.path.exists(filepath):
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        data_files[filename] = {
+                            'exists': True,
+                            'record_count': len(data) if isinstance(data, list) else 'N/A',
+                            'size_kb': round(os.path.getsize(filepath) / 1024, 2)
+                        }
+                except Exception as e:
+                    data_files[filename] = {'exists': True, 'error': str(e)}
+            else:
+                data_files[filename] = {'exists': False}
+
+        return jsonify({
+            'status': 'operational',
+            'timestamp': datetime.now().isoformat(),
+            'environment': 'production' if IS_PRODUCTION else 'development',
+            'uptime_seconds': (datetime.now() - APP_START_TIME).total_seconds(),
+            'system': {
+                'memory': {
+                    'total_gb': round(memory.total / (1024**3), 2),
+                    'available_gb': round(memory.available / (1024**3), 2),
+                    'usage_percent': memory.percent
+                },
+                'disk': {
+                    'total_gb': round(disk.total / (1024**3), 2),
+                    'free_gb': round(disk.free / (1024**3), 2),
+                    'usage_percent': disk.percent
+                },
+                'cpu_percent': psutil.cpu_percent(interval=0.1),
+                'process_count': len(psutil.pids())
+            },
+            'data_files': data_files,
+            'request_stats': {
+                'total_requests': REQUEST_METRICS['total_requests'],
+                'success_requests': REQUEST_METRICS['success_requests'],
+                'error_requests': REQUEST_METRICS['error_requests']
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f'Status check failed: {e}')
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+# リクエストカウントミドルウェア
+@app.before_request
+def before_request():
+    """リクエスト開始時刻を記録"""
+    request.start_time = time.time()
+    REQUEST_METRICS['total_requests'] += 1
+
+
+@app.after_request
+def after_request(response):
+    """レスポンス後にメトリクスを更新"""
+    if hasattr(request, 'start_time'):
+        response_time = (time.time() - request.start_time) * 1000  # ms
+        REQUEST_METRICS['response_times'].append(response_time)
+        # 最新1000件のみ保持
+        if len(REQUEST_METRICS['response_times']) > 1000:
+            REQUEST_METRICS['response_times'] = REQUEST_METRICS['response_times'][-1000:]
+
+    if response.status_code >= 400:
+        REQUEST_METRICS['error_requests'] += 1
+    else:
+        REQUEST_METRICS['success_requests'] += 1
+
+    return response
 
 # ============================================================
 # データモデル初期化

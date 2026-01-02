@@ -18,7 +18,7 @@ import hashlib
 import bcrypt
 from dotenv import load_dotenv
 from marshmallow import ValidationError
-from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from schemas import LoginSchema, KnowledgeCreateSchema
 import time
 import psutil
@@ -28,7 +28,7 @@ import ssl
 from email.message import EmailMessage
 import urllib.request
 import tempfile
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter as PrometheusCounter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from recommendation_engine import RecommendationEngine
 
 # 環境変数をロード
@@ -42,7 +42,7 @@ recommendation_engine = RecommendationEngine(cache_ttl=300)  # 5分間キャッ�
 # ============================================================
 
 # リクエストカウンター
-REQUEST_COUNT = Counter(
+REQUEST_COUNT = PrometheusCounter(
     'mks_http_requests_total',
     'Total HTTP requests',
     ['method', 'endpoint', 'status']
@@ -56,14 +56,14 @@ REQUEST_DURATION = Histogram(
 )
 
 # エラーカウンター
-ERROR_COUNT = Counter(
+ERROR_COUNT = PrometheusCounter(
     'mks_errors_total',
     'Total errors',
     ['type', 'endpoint']
 )
 
 # API呼び出しカウンター
-API_CALLS = Counter(
+API_CALLS = PrometheusCounter(
     'mks_api_calls_total',
     'Total API calls',
     ['endpoint', 'method']
@@ -111,14 +111,14 @@ SYSTEM_DISK_USAGE = Gauge(
 )
 
 # 認証メトリクス
-AUTH_ATTEMPTS = Counter(
+AUTH_ATTEMPTS = PrometheusCounter(
     'mks_auth_attempts_total',
     'Total authentication attempts',
     ['status']
 )
 
 # レート制限メトリクス
-RATE_LIMIT_HITS = Counter(
+RATE_LIMIT_HITS = PrometheusCounter(
     'mks_rate_limit_hits_total',
     'Total rate limit hits',
     ['endpoint']
@@ -453,16 +453,16 @@ def get_user_permissions(user):
     role_permissions = {
         'admin': ['*'],  # 全権限
         'construction_manager': [
-            'knowledge.create', 'knowledge.read', 'knowledge.update',
+            'knowledge.create', 'knowledge.read', 'knowledge.update', 'knowledge.delete',
             'sop.read', 'incident.create', 'incident.read',
             'consultation.create', 'approval.read', 'notification.read'
         ],
         'quality_assurance': [
-            'knowledge.read', 'knowledge.approve', 'sop.read', 'sop.update',
+            'knowledge.read', 'knowledge.create', 'knowledge.approve', 'sop.read', 'sop.update',
             'incident.read', 'approval.execute', 'notification.read'
         ],
         'safety_officer': [
-            'knowledge.read', 'sop.read', 'incident.create', 'incident.read',
+            'knowledge.read', 'knowledge.create', 'sop.read', 'incident.create', 'incident.read',
             'incident.update', 'approval.read', 'notification.read'
         ],
         'partner_company': [
@@ -895,11 +895,28 @@ def get_knowledge():
         filtered = [k for k in filtered if
                    any(tag in k.get('tags', []) for tag in tag_list)]
 
+    # ページネーション
+    total_items = len(filtered)
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+
+    # per_pageの上限を設定
+    per_page = min(per_page, 100)
+
+    # ページ計算
+    total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_data = filtered[start_idx:end_idx]
+
     return jsonify({
         'success': True,
-        'data': filtered,
+        'data': paginated_data,
         'pagination': {
-            'total_items': len(filtered)
+            'total_items': total_items,
+            'total_pages': total_pages,
+            'current_page': page,
+            'per_page': per_page
         }
     })
 
@@ -969,6 +986,89 @@ def create_knowledge():
         'success': True,
         'data': new_knowledge
     }), 201
+
+
+@app.route('/api/v1/knowledge/<int:knowledge_id>', methods=['PUT'])
+@check_permission('knowledge.update')
+def update_knowledge(knowledge_id):
+    """ナレッジ更新"""
+    current_user_id = get_jwt_identity()
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'INVALID_INPUT', 'message': 'Request body is required'}
+        }), 400
+
+    knowledge_list = load_data('knowledge.json')
+    knowledge_index = next((i for i, k in enumerate(knowledge_list) if k['id'] == knowledge_id), None)
+
+    if knowledge_index is None:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'NOT_FOUND', 'message': 'Knowledge not found'}
+        }), 404
+
+    # 更新可能なフィールド
+    updatable_fields = ['title', 'summary', 'content', 'category', 'tags', 'status', 'priority', 'project', 'owner']
+
+    for field in updatable_fields:
+        if field in data:
+            knowledge_list[knowledge_index][field] = data[field]
+
+    knowledge_list[knowledge_index]['updated_at'] = datetime.now().isoformat()
+    knowledge_list[knowledge_index]['updated_by_id'] = current_user_id
+
+    save_data('knowledge.json', knowledge_list)
+    log_access(current_user_id, 'knowledge.update', 'knowledge', knowledge_id)
+
+    return jsonify({
+        'success': True,
+        'data': knowledge_list[knowledge_index]
+    })
+
+
+@app.route('/api/v1/knowledge/<int:knowledge_id>', methods=['DELETE'])
+@check_permission('knowledge.delete')
+def delete_knowledge(knowledge_id):
+    """ナレッジ削除"""
+    current_user_id = int(get_jwt_identity())
+
+    knowledge_list = load_data('knowledge.json')
+    knowledge_index = next((i for i, k in enumerate(knowledge_list) if k['id'] == knowledge_id), None)
+
+    if knowledge_index is None:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'NOT_FOUND', 'message': 'Knowledge not found'}
+        }), 404
+
+    knowledge = knowledge_list[knowledge_index]
+
+    # 所有権チェック: 管理者または所有者のみ削除可能
+    users = load_users()
+    current_user = next((u for u in users if u['id'] == current_user_id), None)
+    user_permissions = get_user_permissions(current_user) if current_user else []
+    is_admin = '*' in user_permissions
+    is_owner = knowledge.get('created_by_id') == current_user_id or knowledge.get('owner_id') == current_user_id
+
+    if not is_admin and not is_owner:
+        return jsonify({
+            'success': False,
+            'error': {'code': 'FORBIDDEN', 'message': 'You can only delete your own knowledge'}
+        }), 403
+
+    deleted_knowledge = knowledge_list.pop(knowledge_index)
+    save_data('knowledge.json', knowledge_list)
+    log_access(current_user_id, 'knowledge.delete', 'knowledge', knowledge_id)
+
+    return jsonify({
+        'success': True,
+        'message': f'Knowledge {knowledge_id} deleted successfully',
+        'data': deleted_knowledge
+    })
+
 
 @app.route('/api/v1/knowledge/<int:knowledge_id>/related', methods=['GET'])
 @check_permission('knowledge.read')
@@ -1647,14 +1747,16 @@ def get_personalized_recommendations():
             'count': len(sop_recommendations)
         }
 
+    # parametersをresults内に追加
+    results['parameters'] = {
+        'limit': limit,
+        'days': days,
+        'type': rec_type
+    }
+
     return jsonify({
         'success': True,
-        'data': results,
-        'parameters': {
-            'limit': limit,
-            'days': days,
-            'type': rec_type
-        }
+        'data': results
     })
 
 @app.route('/api/v1/recommendations/cache/stats', methods=['GET'])
@@ -1813,22 +1915,22 @@ system_disk_total_bytes {disk.total}
 # TYPE system_disk_free_bytes gauge
 system_disk_free_bytes {disk.free}
 
-# HELP active_users_count Number of active users (last 15 minutes)
-# TYPE active_users_count gauge
-active_users_count {len(active_users)}
+# HELP active_users Number of active users (last 15 minutes)
+# TYPE active_users gauge
+active_users {len(active_users)}
 
-# HELP active_sessions_count Number of active sessions
-# TYPE active_sessions_count gauge
-active_sessions_count {len(active_sessions)}
+# HELP active_sessions Number of active sessions
+# TYPE active_sessions gauge
+active_sessions {len(active_sessions)}
 
 # HELP login_attempts_total Total number of login attempts
 # TYPE login_attempts_total counter
 login_attempts_total{{status="success"}} {login_success}
 login_attempts_total{{status="failure"}} {login_failure}
 
-# HELP knowledge_total_count Total number of knowledge items
-# TYPE knowledge_total_count gauge
-knowledge_total_count {len(knowledge_list)}
+# HELP knowledge_total Total number of knowledge items
+# TYPE knowledge_total gauge
+knowledge_total {len(knowledge_list)}
 
 # HELP knowledge_by_category Knowledge items by category
 # TYPE knowledge_by_category gauge
@@ -1839,9 +1941,9 @@ knowledge_total_count {len(knowledge_list)}
         metrics_text += f'knowledge_by_category{{category="{category}"}} {count}\n'
 
     metrics_text += f"""
-# HELP sop_total_count Total number of SOP documents
-# TYPE sop_total_count gauge
-sop_total_count {len(sop_list)}
+# HELP sop_total Total number of SOP documents
+# TYPE sop_total gauge
+sop_total {len(sop_list)}
 
 # HELP http_requests_total Total number of HTTP requests
 # TYPE http_requests_total counter
@@ -1999,6 +2101,35 @@ def ratelimit_handler(error):
         429,
         {'retry_after': retry_after}
     )
+
+
+@app.errorhandler(405)
+def method_not_allowed(error):
+    """405 Method Not Allowedエラーハンドラ"""
+    return error_response(
+        'The method is not allowed for the requested URL',
+        'METHOD_NOT_ALLOWED',
+        405
+    )
+
+@app.errorhandler(415)
+def unsupported_media_type(error):
+    """415 Unsupported Media Typeエラーハンドラ"""
+    return error_response(
+        'Unsupported Media Type. Content-Type must be application/json',
+        'UNSUPPORTED_MEDIA_TYPE',
+        415
+    )
+
+@app.errorhandler(UnsupportedMediaType)
+def unsupported_media_type_exception(error):
+    """UnsupportedMediaType例外ハンドラ"""
+    return error_response(
+        'Unsupported Media Type. Content-Type must be application/json',
+        'UNSUPPORTED_MEDIA_TYPE',
+        415
+    )
+
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):

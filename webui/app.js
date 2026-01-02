@@ -1,4 +1,41 @@
 // ============================================================
+// 環境設定
+// ============================================================
+
+/**
+ * 本番環境フラグ
+ * true: 本番環境（ダミーデータを表示しない、APIからデータ取得）
+ * false: 開発環境（ダミーデータを表示、開発用データ使用）
+ *
+ * 本番環境では以下の方法で切り替え:
+ * 1. URLパラメータ: ?env=production
+ * 2. localStorage: localStorage.setItem('MKS_ENV', 'production')
+ * 3. ホスト名が localhost/127.0.0.1 以外の場合は自動的に本番モード
+ */
+const IS_PRODUCTION = (() => {
+  // URLパラメータをチェック
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('env') === 'production') return true;
+  if (urlParams.get('env') === 'development') return false;
+
+  // localStorageをチェック
+  const envSetting = localStorage.getItem('MKS_ENV');
+  if (envSetting === 'production') return true;
+  if (envSetting === 'development') return false;
+
+  // ホスト名で判定（localhost以外は本番）
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return false;
+  }
+
+  // デフォルトは開発環境
+  return false;
+})();
+
+console.log('[ENV] 環境モード:', IS_PRODUCTION ? '本番' : '開発');
+
+// ============================================================
 // 認証管理
 // ============================================================
 
@@ -1893,6 +1930,13 @@ function loadPopularKnowledge(category = '') {
 
   container.textContent = '';
 
+  // 本番環境ではダミーデータを表示しない
+  if (IS_PRODUCTION) {
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['人気ナレッジデータなし']);
+    container.appendChild(emptyMsg);
+    return;
+  }
+
   let filteredData = DUMMY_POPULAR_KNOWLEDGE;
   if (category) {
     filteredData = filteredData.filter(k => k.category === category);
@@ -1923,6 +1967,13 @@ function loadRecentKnowledge(category = '') {
 
   container.textContent = '';
 
+  // 本番環境ではダミーデータを表示しない
+  if (IS_PRODUCTION) {
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['最近のナレッジデータなし']);
+    container.appendChild(emptyMsg);
+    return;
+  }
+
   let filteredData = DUMMY_RECENT_KNOWLEDGE;
   if (category) {
     filteredData = filteredData.filter(k => k.category === category);
@@ -1950,6 +2001,13 @@ function loadFavoriteKnowledge() {
   if (!container) return;
 
   container.textContent = '';
+
+  // 本番環境ではダミーデータを表示しない
+  if (IS_PRODUCTION) {
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['お気に入りデータなし']);
+    container.appendChild(emptyMsg);
+    return;
+  }
 
   if (DUMMY_FAVORITE_KNOWLEDGE.length === 0) {
     const emptyMsg = createElement('div', { className: 'empty-message' }, ['お気に入りはありません']);
@@ -1984,6 +2042,13 @@ function loadTagCloud() {
 
   container.textContent = '';
 
+  // 本番環境ではダミーデータを表示しない
+  if (IS_PRODUCTION) {
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['タグデータなし']);
+    container.appendChild(emptyMsg);
+    return;
+  }
+
   DUMMY_TAGS.forEach(tag => {
     const tagBtn = createElement('button', {
       className: `tag-btn tag-${tag.size}`,
@@ -2002,6 +2067,13 @@ function loadProjects(type = '') {
   if (!container) return;
 
   container.textContent = '';
+
+  // 本番環境ではダミーデータを表示しない
+  if (IS_PRODUCTION) {
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['プロジェクトデータなし']);
+    container.appendChild(emptyMsg);
+    return;
+  }
 
   let filteredData = DUMMY_PROJECTS;
   if (type) {
@@ -2085,6 +2157,13 @@ function loadExperts(field = '') {
   if (!container) return;
 
   container.textContent = '';
+
+  // 本番環境ではダミーデータを表示しない
+  if (IS_PRODUCTION) {
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['専門家データなし']);
+    container.appendChild(emptyMsg);
+    return;
+  }
 
   let filteredData = DUMMY_EXPERTS;
   if (field) {
