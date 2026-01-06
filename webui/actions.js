@@ -68,7 +68,7 @@ window.showToast = showToast;
  */
 function submitDistribution(type, data) {
   showToast('配信申請を送信しました', 'success');
-  console.log('[ACTION] Distribution submitted:', type, data);
+  logger.log('[ACTION] Distribution submitted:', type, data);
 
   // TODO: 実際の配信申請APIを実装
   // 例: await apiCall('/distribution/submit', { method: 'POST', body: JSON.stringify({ type, data }) });
@@ -81,7 +81,7 @@ function proposeRevision(type) {
   const reason = prompt(`【改訂提案】\n\n改訂理由を入力してください:`);
   if (reason) {
     alert(`改訂提案を受け付けました。\n理由: ${reason}\n\n品質保証部門に通知されます。`);
-    console.log('[ACTION] Revision proposed:', type, reason);
+    logger.log('[ACTION] Revision proposed:', type, reason);
   }
 }
 
@@ -92,7 +92,7 @@ function shareDashboard() {
   const recipients = prompt('共有先のメールアドレスを入力してください（カンマ区切り）:');
   if (recipients) {
     alert(`ダッシュボードを共有しました。\n送信先: ${recipients}`);
-    console.log('[ACTION] Dashboard shared to:', recipients);
+    logger.log('[ACTION] Dashboard shared to:', recipients);
   }
 }
 
@@ -108,7 +108,7 @@ function openApprovalBox() {
  */
 function generateMorningSummary() {
   alert('【朝礼用サマリ】\n\n本日の重要事項:\n• 承認待ち: 7件\n• 新規事故報告: 2件\n• 期限切れ是正措置: 1件\n\nPDFをダウンロードしますか？');
-  console.log('[ACTION] Morning summary generated');
+  logger.log('[ACTION] Morning summary generated');
 }
 
 /**
@@ -116,7 +116,7 @@ function generateMorningSummary() {
  */
 function downloadPDF(type, title) {
   alert(`【PDFダウンロード】\n\nタイプ: ${type}\nファイル名: ${title}.pdf\n\nダウンロード機能は今後実装予定です。`);
-  console.log('[ACTION] PDF download:', type, title);
+  logger.log('[ACTION] PDF download:', type, title);
 }
 
 /**
@@ -126,7 +126,7 @@ function startInspection(sopId) {
   const confirmed = confirm('点検表を開始しますか？\n\nチェックリストが表示されます。');
   if (confirmed) {
     alert('点検表機能は今後実装予定です。');
-    console.log('[ACTION] Inspection started for SOP:', sopId);
+    logger.log('[ACTION] Inspection started for SOP:', sopId);
   }
 }
 
@@ -137,7 +137,7 @@ function recordImpactAssessment() {
   const notes = prompt('影響評価メモを入力してください:');
   if (notes) {
     alert(`影響評価を記録しました。\n内容: ${notes}`);
-    console.log('[ACTION] Impact assessment recorded:', notes);
+    logger.log('[ACTION] Impact assessment recorded:', notes);
   }
 }
 
@@ -146,7 +146,7 @@ function recordImpactAssessment() {
  */
 function createNotice() {
   alert('現場周知文書の作成画面を表示します。\n（今後実装予定）');
-  console.log('[ACTION] Notice creation initiated');
+  logger.log('[ACTION] Notice creation initiated');
 }
 
 /**
@@ -156,7 +156,7 @@ function registerCorrectiveAction() {
   const action = prompt('是正措置を入力してください:');
   if (action) {
     alert(`是正措置を登録しました。\n内容: ${action}\n\n関係者に通知されます。`);
-    console.log('[ACTION] Corrective action registered:', action);
+    logger.log('[ACTION] Corrective action registered:', action);
   }
 }
 
@@ -165,7 +165,7 @@ function registerCorrectiveAction() {
  */
 function createPreventionPlan() {
   alert('再発防止策作成フォームを表示します。\n（今後実装予定）');
-  console.log('[ACTION] Prevention plan creation initiated');
+  logger.log('[ACTION] Prevention plan creation initiated');
 }
 
 /**
@@ -187,7 +187,7 @@ function submitConsultation() {
   }
 
   alert(`【専門家相談】\n\nタイトル: ${title}\n\n相談内容が送信されました。\n専門家から回答があり次第、通知します。`);
-  console.log('[ACTION] Consultation submitted:', { title, content });
+  logger.log('[ACTION] Consultation submitted:', { title, content });
 }
 
 /**
@@ -195,7 +195,7 @@ function submitConsultation() {
  */
 function attachDocument() {
   alert('ファイル選択ダイアログを表示します。\n（今後実装予定）');
-  console.log('[ACTION] Document attachment initiated');
+  logger.log('[ACTION] Document attachment initiated');
 }
 
 /**
@@ -203,7 +203,7 @@ function attachDocument() {
  */
 function viewDiff() {
   alert('改訂差分の比較画面を表示します。\n（今後実装予定）');
-  console.log('[ACTION] Diff view initiated');
+  logger.log('[ACTION] Diff view initiated');
 }
 
 /**
@@ -211,7 +211,7 @@ function viewDiff() {
  */
 function compareVersions() {
   alert('バージョン比較画面を表示します。\n（今後実装予定）');
-  console.log('[ACTION] Version comparison initiated');
+  logger.log('[ACTION] Version comparison initiated');
 }
 
 /**
@@ -219,7 +219,7 @@ function compareVersions() {
  */
 function viewPastConsultations() {
   alert('過去の相談履歴を表示します。\n（今後実装予定）');
-  console.log('[ACTION] Past consultations view initiated');
+  logger.log('[ACTION] Past consultations view initiated');
 }
 
 /**
@@ -251,7 +251,7 @@ function closeStatusModal() {
  */
 function editIncident() {
   alert('事故レポート編集機能は準備中です');
-  console.log('[ACTION] Edit incident initiated');
+  logger.log('[ACTION] Edit incident initiated');
 }
 
 /**
@@ -259,7 +259,7 @@ function editIncident() {
  */
 function editConsult() {
   alert('専門家相談編集機能は準備中です');
-  console.log('[ACTION] Edit consultation initiated');
+  logger.log('[ACTION] Edit consultation initiated');
 }
 
 /**
@@ -269,7 +269,7 @@ function closeConsult() {
   const confirmed = confirm('この相談を解決済みにしますか？');
   if (confirmed) {
     alert('相談を解決済みにしました');
-    console.log('[ACTION] Consultation closed');
+    logger.log('[ACTION] Consultation closed');
   }
 }
 

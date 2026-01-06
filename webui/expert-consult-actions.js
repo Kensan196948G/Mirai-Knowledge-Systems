@@ -51,7 +51,7 @@ function toggleFollow() {
 
   // トースト通知
   showToastNotification(newState ? 'フォローしました' : 'フォロー解除しました', 'success');
-  console.log('[FOLLOW] Toggled:', { consultId, isFollowing: newState });
+  logger.log('[FOLLOW] Toggled:', { consultId, isFollowing: newState });
 }
 
 /**
@@ -143,7 +143,7 @@ function shareConsultViaEmail() {
  */
 function shareConsultViaSlack() {
   showToastNotification('Slack連携機能は準備中です', 'info');
-  console.log('[SHARE] Slack share initiated');
+  logger.log('[SHARE] Slack share initiated');
 }
 
 /**
@@ -151,7 +151,7 @@ function shareConsultViaSlack() {
  */
 function shareConsultViaTeams() {
   showToastNotification('Teams連携機能は準備中です', 'info');
-  console.log('[SHARE] Teams share initiated');
+  logger.log('[SHARE] Teams share initiated');
 }
 
 /**
@@ -501,7 +501,7 @@ function closeAnswerDetailModal() {
  */
 function selectBestAnswer() {
   showToastNotification('ベストアンサー機能は準備中です', 'info');
-  console.log('[ANSWER] Best answer selection initiated');
+  logger.log('[ANSWER] Best answer selection initiated');
 }
 
 /**

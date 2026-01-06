@@ -33,7 +33,26 @@ const IS_PRODUCTION = (() => {
   return false;
 })();
 
-console.log('[ENV] 環境モード:', IS_PRODUCTION ? '本番' : '開発');
+// ============================================================
+// セキュアロガー（本番環境ではログ出力を抑制）
+// ============================================================
+
+/**
+ * 開発環境でのみログを出力するロガー
+ * 本番環境では機密情報漏洩を防ぐためログを抑制
+ */
+const logger = {
+  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
+  error: (...args) => { console.error(...args); }, // エラーは常に出力
+  debug: (...args) => { if (!IS_PRODUCTION) console.debug(...args); },
+  info: (...args) => { if (!IS_PRODUCTION) console.info(...args); }
+};
+
+// グローバルに公開（他のファイルからも使用可能）
+window.logger = logger;
+
+logger.log('[ENV] 環境モード:', IS_PRODUCTION ? '本番' : '開発');
 
 // ============================================================
 // 認証管理
@@ -42,19 +61,19 @@ console.log('[ENV] 環境モード:', IS_PRODUCTION ? '本番' : '開発');
 // 認証チェック
 function checkAuth() {
   const token = localStorage.getItem('access_token');
-  console.log('[AUTH] Checking authentication. Token exists:', token ? 'YES' : 'NO');
+  logger.log('[AUTH] Checking authentication. Token exists:', token ? 'YES' : 'NO');
   if (!token) {
-    console.log('[AUTH] No token found. Redirecting to login...');
+    logger.log('[AUTH] No token found. Redirecting to login...');
     window.location.href = '/login.html';
     return false;
   }
-  console.log('[AUTH] Token found. Length:', token.length);
+  logger.log('[AUTH] Token found. Length:', token.length);
   return true;
 }
 
 // ログアウト
 function logout() {
-  console.log('[AUTH] Logging out...');
+  logger.log('[AUTH] Logging out...');
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('user');
@@ -112,7 +131,7 @@ function checkPermission(requiredRole) {
     }
   });
 
-  console.log(`[RBAC] checkPermission: required=${requiredRole}(${requiredLevel}), userMax=${userMaxLevel}`);
+  logger.log(`[RBAC] checkPermission: required=${requiredRole}(${requiredLevel}), userMax=${userMaxLevel}`);
   return userMaxLevel >= requiredLevel;
 }
 
@@ -157,8 +176,8 @@ function applyRBACUI() {
   const user = getCurrentUser();
   if (!user) return;
 
-  console.log('[RBAC] Applying UI controls for user:', user.username);
-  console.log('[RBAC] User roles:', user.roles);
+  logger.log('[RBAC] Applying UI controls for user:', user.username);
+  logger.log('[RBAC] User roles:', user.roles);
 
   // data-permission属性を持つ要素を制御
   document.querySelectorAll('[data-permission]').forEach(element => {
@@ -168,7 +187,7 @@ function applyRBACUI() {
     if (!hasAccess) {
       // 権限がない場合は非表示
       element.classList.add('permission-hidden');
-      console.log('[RBAC] Permission denied to element:', requiredPermission);
+      logger.log('[RBAC] Permission denied to element:', requiredPermission);
     }
   });
 
@@ -180,7 +199,7 @@ function applyRBACUI() {
 
     if (!hasRole) {
       element.classList.add('permission-hidden');
-      console.log('[RBAC] Role access denied:', allowedRoles);
+      logger.log('[RBAC] Role access denied:', allowedRoles);
     }
   });
 
@@ -191,7 +210,7 @@ function applyRBACUI() {
 
     if (!hasAccess) {
       element.classList.add('permission-hidden');
-      console.log('[RBAC] Required role denied:', requiredRole);
+      logger.log('[RBAC] Required role denied:', requiredRole);
     }
   });
 
@@ -202,7 +221,7 @@ function applyRBACUI() {
 
     if (!canEditItem) {
       element.classList.add('permission-hidden');
-      console.log('[RBAC] Edit permission denied for creator:', creatorId);
+      logger.log('[RBAC] Edit permission denied for creator:', creatorId);
     }
   });
 }
@@ -241,7 +260,7 @@ function createElement(tag, attrs = {}, children = []) {
 // ユーザー情報表示
 function displayUserInfo() {
   const user = getCurrentUser();
-  console.log('[AUTH] Displaying user info:', user);
+  logger.log('[AUTH] Displaying user info:', user);
   if (!user) return;
 
   // ヘッダーにユーザー情報を表示（XSS対策: DOM APIを使用）
@@ -282,12 +301,12 @@ async function refreshAccessToken() {
   const refreshToken = localStorage.getItem('refresh_token');
 
   if (!refreshToken) {
-    console.log('[AUTH] No refresh token available');
+    logger.log('[AUTH] No refresh token available');
     return false;
   }
 
   try {
-    console.log('[AUTH] Refreshing access token...');
+    logger.log('[AUTH] Refreshing access token...');
     const response = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       headers: {
@@ -301,12 +320,12 @@ async function refreshAccessToken() {
       if (result.success) {
         // 新しいアクセストークンを保存
         localStorage.setItem('access_token', result.data.access_token);
-        console.log('[AUTH] Access token refreshed successfully');
+        logger.log('[AUTH] Access token refreshed successfully');
         return true;
       }
     }
 
-    console.log('[AUTH] Token refresh failed');
+    logger.log('[AUTH] Token refresh failed');
     return false;
   } catch (error) {
     console.error('[AUTH] Token refresh error:', error);
@@ -317,11 +336,11 @@ async function refreshAccessToken() {
 async function fetchAPI(endpoint, options = {}) {
   const token = localStorage.getItem('access_token');
 
-  console.log('[API] Calling:', endpoint);
-  console.log('[API] Token exists:', token ? 'YES' : 'NO');
+  logger.log('[API] Calling:', endpoint);
+  logger.log('[API] Token exists:', token ? 'YES' : 'NO');
 
   if (!token && !endpoint.includes('/auth/')) {
-    console.log('[API] No token for non-auth endpoint. Redirecting...');
+    logger.log('[API] No token for non-auth endpoint. Redirecting...');
     window.location.href = '/login.html';
     throw new Error('No authentication token');
   }
@@ -334,7 +353,7 @@ async function fetchAPI(endpoint, options = {}) {
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-      console.log('[API] Authorization header added');
+      logger.log('[API] Authorization header added');
     }
 
     let response = await fetch(`${API_BASE}${endpoint}`, {
@@ -342,17 +361,17 @@ async function fetchAPI(endpoint, options = {}) {
       headers
     });
 
-    console.log('[API] Response status:', response.status);
+    logger.log('[API] Response status:', response.status);
 
     // 認証エラー（401）の場合、トークンリフレッシュを試行
     if (response.status === 401 && !endpoint.includes('/auth/')) {
-      console.log('[API] 401 Unauthorized. Attempting token refresh...');
+      logger.log('[API] 401 Unauthorized. Attempting token refresh...');
 
       const refreshed = await refreshAccessToken();
 
       if (refreshed) {
         // リフレッシュ成功 → リクエストをリトライ
-        console.log('[API] Retrying request with new token...');
+        logger.log('[API] Retrying request with new token...');
         const newToken = localStorage.getItem('access_token');
         headers['Authorization'] = `Bearer ${newToken}`;
 
@@ -361,10 +380,10 @@ async function fetchAPI(endpoint, options = {}) {
           headers
         });
 
-        console.log('[API] Retry response status:', response.status);
+        logger.log('[API] Retry response status:', response.status);
       } else {
         // リフレッシュ失敗 → ログアウト
-        console.log('[API] Token refresh failed. Logging out...');
+        logger.log('[API] Token refresh failed. Logging out...');
         showNotification('セッションの有効期限が切れました。再度ログインしてください。', 'error');
         logout();
         throw new Error('Authentication failed');
@@ -470,7 +489,7 @@ async function loadDashboardStats() {
       updateDashboardStats(result.data);
     }
   } catch (error) {
-    console.log('[DASHBOARD] Using static data (API unavailable)');
+    logger.log('[DASHBOARD] Using static data (API unavailable)');
     // APIエラーは無視してダミーデータで動作
   }
 }
@@ -485,7 +504,7 @@ async function loadKnowledge(params = {}) {
       displayKnowledge(result.data);
     }
   } catch (error) {
-    console.log('[KNOWLEDGE] Using static data (API unavailable)');
+    logger.log('[KNOWLEDGE] Using static data (API unavailable)');
     // APIエラーは無視してダミーデータで動作
   }
 }
@@ -519,7 +538,7 @@ async function loadApprovals() {
       displayApprovals(result.data);
     }
   } catch (error) {
-    console.log('[APPROVALS] Using static data (API unavailable)');
+    logger.log('[APPROVALS] Using static data (API unavailable)');
     // APIエラーは無視してダミーデータで動作
   }
 }
@@ -1376,7 +1395,7 @@ async function approveSelected() {
 
   // TODO: 実際の承認処理をAPIで実行
   showNotification('承認処理を実行しました。', 'success');
-  console.log('[APPROVAL] Approved selected items');
+  logger.log('[APPROVAL] Approved selected items');
   loadApprovals();
 }
 
@@ -1395,7 +1414,7 @@ async function rejectSelected() {
 
   // TODO: 実際の却下処理をAPIで実行
   showNotification('却下処理を実行しました。', 'success');
-  console.log('[APPROVAL] Rejected selected items. Reason:', reason);
+  logger.log('[APPROVAL] Rejected selected items. Reason:', reason);
   loadApprovals();
 }
 
@@ -1411,7 +1430,7 @@ async function editKnowledge(knowledgeId, creatorId) {
 
   // TODO: 編集モーダルを表示するか、編集画面へ遷移
   showNotification('編集画面へ遷移します: ' + knowledgeId, 'info');
-  console.log('[KNOWLEDGE] Editing knowledge:', knowledgeId);
+  logger.log('[KNOWLEDGE] Editing knowledge:', knowledgeId);
 }
 
 // ============================================================
@@ -1698,7 +1717,7 @@ function startPeriodicUpdates() {
  * バックエンドの生成済みダミーデータをlocalStorageに保存
  */
 async function loadDummyDataToStorage() {
-  console.log('[DATA] Loading dummy data to localStorage...');
+  logger.log('[DATA] Loading dummy data to localStorage...');
 
   const dataFiles = [
     { key: 'knowledge_details', file: '/data/knowledge_details.json' },
@@ -1715,7 +1734,7 @@ async function loadDummyDataToStorage() {
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem(key, JSON.stringify(data));
-        console.log(`[DATA] ✓ Loaded ${key}: ${data.length} items (${(JSON.stringify(data).length / 1024).toFixed(1)} KB)`);
+        logger.log(`[DATA] ✓ Loaded ${key}: ${data.length} items (${(JSON.stringify(data).length / 1024).toFixed(1)} KB)`);
       } else {
         console.error(`[DATA] ✗ Failed to load ${file}: ${response.status}`);
       }
@@ -1724,14 +1743,14 @@ async function loadDummyDataToStorage() {
     }
   }
 
-  console.log('[DATA] All dummy data loaded to localStorage!');
+  logger.log('[DATA] All dummy data loaded to localStorage!');
 }
 
 /**
  * 詳細ページへ遷移（ナレッジ）
  */
 function viewKnowledgeDetail(knowledgeId) {
-  console.log('[NAVIGATION] Viewing knowledge detail:', knowledgeId);
+  logger.log('[NAVIGATION] Viewing knowledge detail:', knowledgeId);
 
   // localStorageからナレッジデータを取得
   const knowledgeData = JSON.parse(localStorage.getItem('knowledge_details') || '[]');
@@ -1750,7 +1769,7 @@ function viewKnowledgeDetail(knowledgeId) {
  * 詳細ページへ遷移（SOP）
  */
 function viewSOPDetail(sopId) {
-  console.log('[NAVIGATION] Viewing SOP detail:', sopId);
+  logger.log('[NAVIGATION] Viewing SOP detail:', sopId);
 
   const sopData = JSON.parse(localStorage.getItem('sop_details') || '[]');
   const sop = sopData.find(s => s.id === sopId);
@@ -1767,7 +1786,7 @@ function viewSOPDetail(sopId) {
  * 詳細ページへ遷移（事故レポート）
  */
 function viewIncidentDetail(incidentId) {
-  console.log('[NAVIGATION] Viewing incident detail:', incidentId);
+  logger.log('[NAVIGATION] Viewing incident detail:', incidentId);
 
   const incidentData = JSON.parse(localStorage.getItem('incidents_details') || '[]');
   const incident = incidentData.find(i => i.id === incidentId);
@@ -1784,7 +1803,7 @@ function viewIncidentDetail(incidentId) {
  * 詳細ページへ遷移（専門家相談）
  */
 function viewConsultationDetail(consultId) {
-  console.log('[NAVIGATION] Viewing consultation detail:', consultId);
+  logger.log('[NAVIGATION] Viewing consultation detail:', consultId);
 
   const consultData = JSON.parse(localStorage.getItem('consultations_details') || '[]');
   const consultation = consultData.find(c => c.id === consultId);
@@ -2241,7 +2260,7 @@ function filterExpertsByField(field) {
  * ナレッジ詳細を表示
  */
 function viewKnowledgeDetail(knowledgeId) {
-  console.log('[SIDEBAR] Viewing knowledge:', knowledgeId);
+  logger.log('[SIDEBAR] Viewing knowledge:', knowledgeId);
   showNotification(`ナレッジ詳細 ID:${knowledgeId} を表示します`, 'info');
   // TODO: 実際の詳細画面へ遷移
 }
@@ -2250,7 +2269,7 @@ function viewKnowledgeDetail(knowledgeId) {
  * お気に入りから削除
  */
 function removeFavorite(knowledgeId) {
-  console.log('[SIDEBAR] Removing favorite:', knowledgeId);
+  logger.log('[SIDEBAR] Removing favorite:', knowledgeId);
   showNotification('お気に入りから削除しました', 'success');
   // TODO: 実際の削除処理
   loadFavoriteKnowledge();
@@ -2260,7 +2279,7 @@ function removeFavorite(knowledgeId) {
  * タグでフィルター
  */
 function filterByTag(tagName) {
-  console.log('[SIDEBAR] Filtering by tag:', tagName);
+  logger.log('[SIDEBAR] Filtering by tag:', tagName);
   showNotification(`タグ「${tagName}」で検索します`, 'info');
   // TODO: タグ検索を実行
 }
@@ -2271,7 +2290,7 @@ function filterByTag(tagName) {
 function consultExpert(expertId) {
   const expert = DUMMY_EXPERTS.find(e => e.id === expertId);
   if (expert) {
-    console.log('[SIDEBAR] Consulting expert:', expert.name);
+    logger.log('[SIDEBAR] Consulting expert:', expert.name);
     showNotification(`${expert.name}さんへ相談画面を開きます`, 'info');
 
     // 専門家相談の最初のアイテムを表示（デモ用）
@@ -2288,7 +2307,7 @@ function consultExpert(expertId) {
  * メインコンテンツのカードにクリックイベントを追加
  */
 function setupCardClickHandlers() {
-  console.log('[SETUP] Setting up card click handlers...');
+  logger.log('[SETUP] Setting up card click handlers...');
 
   // 各タブパネル内のknowledge-cardを取得
   const panels = {
@@ -2333,7 +2352,7 @@ function setupCardClickHandlers() {
       });
     });
 
-    console.log(`[SETUP] Added click handlers to ${cards.length} cards in ${panelId}`);
+    logger.log(`[SETUP] Added click handlers to ${cards.length} cards in ${panelId}`);
   });
 
   // 当番エキスパート（右サイドバー）にクリックイベントを追加
@@ -2374,7 +2393,7 @@ function setupExpertClickHandlers() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('建設土木ナレッジシステム - 初期化中...');
+  logger.log('建設土木ナレッジシステム - 初期化中...');
 
   // 認証チェック
   if (!checkAuth()) {
@@ -2424,5 +2443,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 定期更新を開始
   startPeriodicUpdates();
 
-  console.log('初期化完了！');
+  logger.log('初期化完了！');
 });

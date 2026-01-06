@@ -354,6 +354,26 @@
     const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5000'}/api/v1`;
     let selectedTags = [];
 
+    // 本番環境判定
+    const IS_PRODUCTION = (() => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('env') === 'production') return true;
+      if (urlParams.get('env') === 'development') return false;
+      const envSetting = localStorage.getItem('MKS_ENV');
+      if (envSetting === 'production') return true;
+      if (envSetting === 'development') return false;
+      const hostname = window.location.hostname;
+      return hostname !== 'localhost' && hostname !== '127.0.0.1';
+    })();
+
+    // セキュアロガー（本番環境ではログ出力を抑制）
+    const logger = {
+      log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+      warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
+      error: (...args) => { console.error(...args); },
+      debug: (...args) => { if (!IS_PRODUCTION) console.debug(...args); }
+    };
+
     // ============================================================
     // 認証管理
     // ============================================================
@@ -361,19 +381,19 @@
     // 認証チェック
     function checkAuth() {
       const token = localStorage.getItem('access_token');
-      console.log('[AUTH] Checking authentication. Token exists:', token ? 'YES' : 'NO');
+      logger.log('[AUTH] Checking authentication. Token exists:', token ? 'YES' : 'NO');
       if (!token) {
-        console.log('[AUTH] No token found. Redirecting to login...');
+        logger.log('[AUTH] No token found. Redirecting to login...');
         window.location.href = '/login.html';
         return false;
       }
-      console.log('[AUTH] Token found. Length:', token.length);
+      logger.log('[AUTH] Token found. Length:', token.length);
       return true;
     }
 
     // ログアウト
     function logout() {
-      console.log('[AUTH] Logging out...');
+      logger.log('[AUTH] Logging out...');
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user');
@@ -397,7 +417,7 @@
     // ユーザー情報表示
     function displayUserInfo() {
       const user = getCurrentUser();
-      console.log('[AUTH] Displaying user info:', user);
+      logger.log('[AUTH] Displaying user info:', user);
       if (!user) return;
 
       const userNameEl = document.querySelector('.user-name');
@@ -416,12 +436,12 @@
       const refreshToken = localStorage.getItem('refresh_token');
 
       if (!refreshToken) {
-        console.log('[AUTH] No refresh token available');
+        logger.log('[AUTH] No refresh token available');
         return false;
       }
 
       try {
-        console.log('[AUTH] Refreshing access token...');
+        logger.log('[AUTH] Refreshing access token...');
         const response = await fetch(`${API_BASE}/auth/refresh`, {
           method: 'POST',
           headers: {
@@ -434,12 +454,12 @@
           const result = await response.json();
           if (result.success) {
             localStorage.setItem('access_token', result.data.access_token);
-            console.log('[AUTH] Access token refreshed successfully');
+            logger.log('[AUTH] Access token refreshed successfully');
             return true;
           }
         }
 
-        console.log('[AUTH] Token refresh failed');
+        logger.log('[AUTH] Token refresh failed');
         return false;
       } catch (error) {
         console.error('[AUTH] Token refresh error:', error);
@@ -451,11 +471,11 @@
     async function fetchAPI(endpoint, options = {}) {
       const token = localStorage.getItem('access_token');
 
-      console.log('[API] Calling:', endpoint);
-      console.log('[API] Token exists:', token ? 'YES' : 'NO');
+      logger.log('[API] Calling:', endpoint);
+      logger.log('[API] Token exists:', token ? 'YES' : 'NO');
 
       if (!token && !endpoint.includes('/auth/')) {
-        console.log('[API] No token for non-auth endpoint. Redirecting...');
+        logger.log('[API] No token for non-auth endpoint. Redirecting...');
         window.location.href = '/login.html';
         throw new Error('No authentication token');
       }
@@ -468,7 +488,7 @@
 
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
-          console.log('[API] Authorization header added');
+          logger.log('[API] Authorization header added');
         }
 
         let response = await fetch(`${API_BASE}${endpoint}`, {
@@ -476,17 +496,17 @@
           headers
         });
 
-        console.log('[API] Response status:', response.status);
+        logger.log('[API] Response status:', response.status);
 
         // 認証エラー（401）の場合、トークンリフレッシュを試行
         if (response.status === 401 && !endpoint.includes('/auth/')) {
-          console.log('[API] 401 Unauthorized. Attempting token refresh...');
+          logger.log('[API] 401 Unauthorized. Attempting token refresh...');
 
           const refreshed = await refreshAccessToken();
 
           if (refreshed) {
             // リフレッシュ成功 → リクエストをリトライ
-            console.log('[API] Retrying request with new token...');
+            logger.log('[API] Retrying request with new token...');
             const newToken = localStorage.getItem('access_token');
             headers['Authorization'] = `Bearer ${newToken}`;
 
@@ -495,10 +515,10 @@
               headers
             });
 
-            console.log('[API] Retry response status:', response.status);
+            logger.log('[API] Retry response status:', response.status);
           } else {
             // リフレッシュ失敗 → ログアウト
-            console.log('[API] Token refresh failed. Logging out...');
+            logger.log('[API] Token refresh failed. Logging out...');
             logout();
             throw new Error('Authentication failed');
           }
@@ -546,20 +566,29 @@
     // タグ入力機能
     // ============================================================
 
+    // XSS対策: DOM API使用によるタグレンダリング
     function renderTags() {
       const container = document.getElementById('tagContainer');
-      const input = document.getElementById('tagInput');
+      const inputField = container.querySelector('.tag-input-field');
 
-      container.innerHTML = selectedTags.map((tag, index) => `
-          <span class="tag-input-item">
-            ${tag}
-            <button type="button" onclick="removeTag(${index})">×</button>
-          </span>
-        `).join('') + container.querySelector('.tag-input-field').outerHTML;
+      // 既存のタグ要素を削除（入力フィールドは保持）
+      const existingTags = container.querySelectorAll('.tag-input-item');
+      existingTags.forEach(tag => tag.remove());
 
-      // 入力フィールドを再取得してイベントリスナーを再設定
-      const newInput = container.querySelector('.tag-input-field');
-      newInput.addEventListener('keypress', handleTagInput);
+      // 新しいタグ要素を作成
+      selectedTags.forEach((tag, index) => {
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'tag-input-item';
+        tagSpan.textContent = tag + ' ';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => removeTag(index));
+
+        tagSpan.appendChild(removeBtn);
+        container.insertBefore(tagSpan, inputField);
+      });
     }
 
     function addTag(tag) {
@@ -629,64 +658,156 @@
     // データ読み込み
     // ============================================================
 
+    // XSS対策: DOM API使用によるナレッジ一覧レンダリング
     async function loadKnowledge() {
       try {
         const result = await fetchAPI('/knowledge');
 
         if (result.success) {
           const tbody = document.getElementById('knowledgeList');
+          tbody.textContent = ''; // 既存の内容をクリア
 
           if (result.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted);">データがありません</td></tr>';
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 6;
+            td.style.textAlign = 'center';
+            td.style.color = 'var(--muted)';
+            td.textContent = 'データがありません';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
             return;
           }
 
-          tbody.innerHTML = result.data.map(k => `
-              <tr>
-                <td>${k.id}</td>
-                <td>${k.title}</td>
-                <td>${k.category}</td>
-                <td><span class="status-badge ${k.status}">${k.status === 'approved' ? '承認済み' : '下書き'}</span></td>
-                <td>${formatDate(k.updated_at)}</td>
-                <td>
-                  <button class="action-btn" onclick="viewKnowledge(${k.id})">詳細</button>
-                  <button class="action-btn danger" onclick="deleteKnowledge(${k.id})">削除</button>
-                </td>
-              </tr>
-            `).join('');
+          result.data.forEach(k => {
+            const tr = document.createElement('tr');
+
+            // ID
+            const tdId = document.createElement('td');
+            tdId.textContent = k.id;
+            tr.appendChild(tdId);
+
+            // タイトル
+            const tdTitle = document.createElement('td');
+            tdTitle.textContent = k.title;
+            tr.appendChild(tdTitle);
+
+            // カテゴリ
+            const tdCategory = document.createElement('td');
+            tdCategory.textContent = k.category;
+            tr.appendChild(tdCategory);
+
+            // ステータス
+            const tdStatus = document.createElement('td');
+            const statusBadge = document.createElement('span');
+            statusBadge.className = `status-badge ${k.status}`;
+            statusBadge.textContent = k.status === 'approved' ? '承認済み' : '下書き';
+            tdStatus.appendChild(statusBadge);
+            tr.appendChild(tdStatus);
+
+            // 更新日
+            const tdDate = document.createElement('td');
+            tdDate.textContent = formatDate(k.updated_at);
+            tr.appendChild(tdDate);
+
+            // アクション
+            const tdActions = document.createElement('td');
+            const viewBtn = document.createElement('button');
+            viewBtn.className = 'action-btn';
+            viewBtn.textContent = '詳細';
+            viewBtn.addEventListener('click', () => viewKnowledge(k.id));
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'action-btn danger';
+            deleteBtn.textContent = '削除';
+            deleteBtn.addEventListener('click', () => deleteKnowledge(k.id));
+
+            tdActions.appendChild(viewBtn);
+            tdActions.appendChild(deleteBtn);
+            tr.appendChild(tdActions);
+
+            tbody.appendChild(tr);
+          });
         }
       } catch (error) {
         console.error('Failed to load knowledge:', error);
       }
     }
 
+    // XSS対策: DOM API使用による承認一覧レンダリング
     async function loadApprovals() {
       try {
         const result = await fetchAPI('/approvals');
 
         if (result.success) {
           const tbody = document.getElementById('approvalList');
+          tbody.textContent = ''; // 既存の内容をクリア
 
           if (result.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted);">データがありません</td></tr>';
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 6;
+            td.style.textAlign = 'center';
+            td.style.color = 'var(--muted)';
+            td.textContent = 'データがありません';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
             return;
           }
 
-          tbody.innerHTML = result.data.map(a => `
-              <tr>
-                <td>${a.id}</td>
-                <td>${a.title}</td>
-                <td>${a.type}</td>
-                <td>${a.requester}</td>
-                <td><span class="status-badge ${a.status}">${a.status === 'pending' ? '承認待ち' : a.status === 'reviewing' ? '確認中' : a.status}</span></td>
-                <td>
-                  ${a.status === 'pending' || a.status === 'reviewing' ? `
-                    <button class="action-btn" onclick="approveItem(${a.id})">承認</button>
-                    <button class="action-btn danger" onclick="rejectItem(${a.id})">却下</button>
-                  ` : '完了'}
-                </td>
-              </tr>
-            `).join('');
+          result.data.forEach(a => {
+            const tr = document.createElement('tr');
+
+            // ID
+            const tdId = document.createElement('td');
+            tdId.textContent = a.id;
+            tr.appendChild(tdId);
+
+            // タイトル
+            const tdTitle = document.createElement('td');
+            tdTitle.textContent = a.title;
+            tr.appendChild(tdTitle);
+
+            // タイプ
+            const tdType = document.createElement('td');
+            tdType.textContent = a.type;
+            tr.appendChild(tdType);
+
+            // 申請者
+            const tdRequester = document.createElement('td');
+            tdRequester.textContent = a.requester;
+            tr.appendChild(tdRequester);
+
+            // ステータス
+            const tdStatus = document.createElement('td');
+            const statusBadge = document.createElement('span');
+            statusBadge.className = `status-badge ${a.status}`;
+            statusBadge.textContent = a.status === 'pending' ? '承認待ち' : a.status === 'reviewing' ? '確認中' : a.status;
+            tdStatus.appendChild(statusBadge);
+            tr.appendChild(tdStatus);
+
+            // アクション
+            const tdActions = document.createElement('td');
+            if (a.status === 'pending' || a.status === 'reviewing') {
+              const approveBtn = document.createElement('button');
+              approveBtn.className = 'action-btn';
+              approveBtn.textContent = '承認';
+              approveBtn.addEventListener('click', () => approveItem(a.id));
+
+              const rejectBtn = document.createElement('button');
+              rejectBtn.className = 'action-btn danger';
+              rejectBtn.textContent = '却下';
+              rejectBtn.addEventListener('click', () => rejectItem(a.id));
+
+              tdActions.appendChild(approveBtn);
+              tdActions.appendChild(rejectBtn);
+            } else {
+              tdActions.textContent = '完了';
+            }
+            tr.appendChild(tdActions);
+
+            tbody.appendChild(tr);
+          });
         }
       } catch (error) {
         console.error('Failed to load approvals:', error);
@@ -774,7 +895,7 @@
     // ============================================================
 
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('管理画面 - 初期化中...');
+      logger.log('管理画面 - 初期化中...');
 
       // 認証チェック
       if (!checkAuth()) {
@@ -788,7 +909,7 @@
       loadKnowledge();
       loadApprovals();
 
-      console.log('管理画面 - 初期化完了！');
+      logger.log('管理画面 - 初期化完了！');
     });
   </script>
   <script src="actions.js"></script>
