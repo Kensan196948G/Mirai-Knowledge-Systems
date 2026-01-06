@@ -53,6 +53,7 @@ package-lock.json
 # Claude Code (API keys in settings.local.json)
 .claude/settings.local.json
 .claude.json
+.mcp.json
 fix-mcp-env.ps1
 set-env-permanent.ps1
 
