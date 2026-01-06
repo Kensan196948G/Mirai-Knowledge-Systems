@@ -313,6 +313,24 @@
         // 動的にAPIベースURLを設定（現在のホストを使用）
         const API_BASE = `${window.location.origin}/api/v1`;
 
+        // 本番環境判定
+        const IS_PRODUCTION = (() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('env') === 'production') return true;
+            if (urlParams.get('env') === 'development') return false;
+            const envSetting = localStorage.getItem('MKS_ENV');
+            if (envSetting === 'production') return true;
+            if (envSetting === 'development') return false;
+            const hostname = window.location.hostname;
+            return hostname !== 'localhost' && hostname !== '127.0.0.1';
+        })();
+
+        // セキュアロガー（本番環境ではログ出力を抑制）
+        const logger = {
+            log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+            error: (...args) => { console.error(...args); }
+        };
+
         // デモアカウントクリック
         document.querySelectorAll('.demo-account').forEach(account => {
             account.addEventListener('click', () => {
@@ -353,7 +371,7 @@
             hideAlert();
 
             try {
-                console.log('[LOGIN] Sending login request...');
+                logger.log('[LOGIN] Sending login request...');
                 const response = await fetch(`${API_BASE}/auth/login`, {
                     method: 'POST',
                     headers: {
@@ -362,23 +380,23 @@
                     body: JSON.stringify({ username, password })
                 });
 
-                console.log('[LOGIN] Response status:', response.status);
+                logger.log('[LOGIN] Response status:', response.status);
                 const result = await response.json();
-                console.log('[LOGIN] Response data:', result);
+                logger.log('[LOGIN] Response data:', result);
 
                 if (result.success) {
                     // トークンとユーザー情報を保存
-                    console.log('[LOGIN] Saving tokens to localStorage...');
+                    logger.log('[LOGIN] Saving tokens to localStorage...');
                     localStorage.setItem('access_token', result.data.access_token);
                     localStorage.setItem('refresh_token', result.data.refresh_token);
                     localStorage.setItem('user', JSON.stringify(result.data.user));
 
                     // 保存確認
-                    console.log('[LOGIN] Token saved:', localStorage.getItem('access_token') ? 'YES' : 'NO');
-                    console.log('[LOGIN] User saved:', localStorage.getItem('user') ? 'YES' : 'NO');
+                    logger.log('[LOGIN] Token saved:', localStorage.getItem('access_token') ? 'YES' : 'NO');
+                    logger.log('[LOGIN] User saved:', localStorage.getItem('user') ? 'YES' : 'NO');
 
                     // 少し待ってからリダイレクト（localStorageの保存を確実にするため）
-                    console.log('[LOGIN] Redirecting to dashboard...');
+                    logger.log('[LOGIN] Redirecting to dashboard...');
                     setTimeout(() => {
                         window.location.href = '/index.html';
                     }, 100);

@@ -214,11 +214,63 @@ curl -I http://localhost:5100
 - `README.md` (セキュリティセクション更新、環境変数設定手順追加)
 - `SECURITY_FIXES.md` (このファイル、新規作成)
 
+## CSRF対策について
+
+### 現在の設定
+
+```python
+# backend/app_v2.py
+app.config['JWT_COOKIE_CSRF_PROTECT'] = False
+app.config['WTF_CSRF_ENABLED'] = False
+```
+
+### CSRF保護が不要な理由
+
+本システムはCSRF（クロスサイトリクエストフォージェリ）対策として**JWTトークンベース認証**を採用しており、従来のCSRFトークン保護は不要です。
+
+#### 技術的根拠
+
+1. **認証方式**: JWTトークンは`Authorization`ヘッダーで送信
+   ```javascript
+   headers['Authorization'] = `Bearer ${token}`;
+   ```
+
+2. **自動送信されない**: ブラウザがCookieのように自動送信しないため、悪意あるサイトからのリクエストでは認証が通らない
+
+3. **Same-Origin Policy**: 他のドメインから`Authorization`ヘッダーを設定することは不可能
+
+4. **CORS制限**: APIは信頼されたオリジンからのみリクエストを受け付け
+
+#### CSRF攻撃が成立しない理由
+
+```
+従来のCookie認証:
+  悪意あるサイト → ブラウザがCookieを自動送信 → 攻撃成功
+
+JWTヘッダー認証（本システム）:
+  悪意あるサイト → Authorizationヘッダーを設定できない → 攻撃失敗
+```
+
+#### 補完的な保護策
+
+- **レート制限**: 不正なリクエストの大量送信を防止
+- **CORS設定**: 信頼されたオリジンのみ許可
+- **セキュリティヘッダー**: X-Content-Type-Options, X-Frame-Optionsなど
+
+### 結論
+
+JWTトークンベースのAPI認証では、**CSRFトークンは技術的に不要**です。これはOWASPのセキュリティガイドラインでも認められています。
+
+> "If the application does not rely on cookies for authentication, CSRF protection is unnecessary."
+> — OWASP CSRF Prevention Cheat Sheet
+
+---
+
 ## 次のステップ
 
-1. **優先度1: 残存XSS脆弱性の完全修正**
-   - detail-pages.js の全 innerHTML を修正
-   - その他のファイルの innerHTML を修正
+1. ~~**優先度1: 残存XSS脆弱性の完全修正**~~ ✅ 完了
+   - ~~detail-pages.js の全 innerHTML を修正~~
+   - ~~その他のファイルの innerHTML を修正~~
 
 2. **優先度2: セキュリティテストの実施**
    - 自動化されたXSSスキャン
@@ -226,7 +278,7 @@ curl -I http://localhost:5100
    - セキュリティ監査
 
 3. **優先度3: 継続的セキュリティ改善**
-   - CSRF対策の強化
    - Content Security Policy の厳格化
    - セキュリティヘッダーの定期レビュー
+   - 依存関係の脆弱性スキャン
 

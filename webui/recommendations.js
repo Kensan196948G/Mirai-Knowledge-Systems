@@ -140,7 +140,7 @@ async function loadPersonalizedRecommendations(type = 'all', limit = 5, days = 3
 }
 
 /**
- * 推薦カードを生成
+ * 推薦カードを生成（XSS対策: DOM API使用）
  *
  * @param {Object} item - アイテムデータ
  * @param {string} type - アイテムタイプ（knowledge/sop）
@@ -152,37 +152,70 @@ function createRecommendationCard(item, type) {
 
   // リンク先を決定
   const linkUrl = type === 'knowledge'
-    ? `search-detail.html?id=${item.id}`
-    : `sop-detail.html?id=${item.id}`;
+    ? `search-detail.html?id=${encodeURIComponent(item.id)}`
+    : `sop-detail.html?id=${encodeURIComponent(item.id)}`;
+
+  // リンク要素を作成
+  const link = document.createElement('a');
+  link.href = linkUrl;
+  link.className = 'rec-card-link';
+
+  // ヘッダー
+  const header = document.createElement('div');
+  header.className = 'rec-card-header';
+
+  const title = document.createElement('h4');
+  title.className = 'rec-card-title';
+  title.textContent = item.title || 'タイトルなし';
+  header.appendChild(title);
 
   // スコアバッジ
-  const scoreBadge = item.recommendation_score
-    ? `<span class="rec-score" title="推薦スコア">${(item.recommendation_score * 100).toFixed(0)}%</span>`
-    : '';
+  if (item.recommendation_score) {
+    const scoreBadge = document.createElement('span');
+    scoreBadge.className = 'rec-score';
+    scoreBadge.title = '推薦スコア';
+    scoreBadge.textContent = `${(item.recommendation_score * 100).toFixed(0)}%`;
+    header.appendChild(scoreBadge);
+  }
+
+  link.appendChild(header);
+
+  // サマリー
+  const summary = document.createElement('p');
+  summary.className = 'rec-card-summary';
+  const summaryText = (item.summary || item.content || '').substring(0, 80);
+  summary.textContent = summaryText + (summaryText.length >= 80 ? '...' : '');
+  link.appendChild(summary);
 
   // 推薦理由バッジ
-  const reasonBadges = (item.recommendation_reasons || [])
-    .map(reason => `<span class="rec-reason">${escapeHTML(reason)}</span>`)
-    .join('');
+  const reasons = item.recommendation_reasons || [];
+  if (reasons.length > 0) {
+    const reasonsDiv = document.createElement('div');
+    reasonsDiv.className = 'rec-reasons';
+    reasons.forEach(reason => {
+      const badge = document.createElement('span');
+      badge.className = 'rec-reason';
+      badge.textContent = reason;
+      reasonsDiv.appendChild(badge);
+    });
+    link.appendChild(reasonsDiv);
+  }
 
   // タグ表示
-  const tags = (item.tags || [])
-    .slice(0, 3)
-    .map(tag => `<span class="tag">${escapeHTML(tag)}</span>`)
-    .join('');
+  const tags = (item.tags || []).slice(0, 3);
+  if (tags.length > 0) {
+    const tagsDiv = document.createElement('div');
+    tagsDiv.className = 'rec-tags';
+    tags.forEach(tag => {
+      const tagSpan = document.createElement('span');
+      tagSpan.className = 'tag';
+      tagSpan.textContent = tag;
+      tagsDiv.appendChild(tagSpan);
+    });
+    link.appendChild(tagsDiv);
+  }
 
-  card.innerHTML = `
-    <a href="${linkUrl}" class="rec-card-link">
-      <div class="rec-card-header">
-        <h4 class="rec-card-title">${escapeHTML(item.title || 'タイトルなし')}</h4>
-        ${scoreBadge}
-      </div>
-      <p class="rec-card-summary">${escapeHTML(item.summary || item.content || '').substring(0, 80)}...</p>
-      ${reasonBadges ? `<div class="rec-reasons">${reasonBadges}</div>` : ''}
-      ${tags ? `<div class="rec-tags">${tags}</div>` : ''}
-    </a>
-  `;
-
+  card.appendChild(link);
   return card;
 }
 
@@ -215,14 +248,22 @@ function createRecommendationSection(title, items, type) {
 }
 
 /**
- * コンテナ内にローディング表示
+ * コンテナ内にローディング表示（XSS対策: DOM API使用）
  *
  * @param {HTMLElement} container - コンテナ要素
  */
 function showLoadingInContainer(container) {
   const loading = document.createElement('div');
   loading.className = 'loading-container';
-  loading.innerHTML = '<div class="spinner"></div><p>読み込み中...</p>';
+
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner';
+
+  const text = document.createElement('p');
+  text.textContent = '読み込み中...';
+
+  loading.appendChild(spinner);
+  loading.appendChild(text);
   setSecureChildren(container, [loading]);
 }
 
@@ -252,7 +293,7 @@ function getCurrentSOPCategory() {
 }
 
 /**
- * アルゴリズム選択UIを追加
+ * アルゴリズム選択UIを追加（XSS対策: DOM API使用）
  *
  * @param {string} containerId - コンテナID
  * @param {Function} onChangeCallback - 変更時のコールバック
@@ -263,61 +304,118 @@ function addAlgorithmSelector(containerId, onChangeCallback) {
 
   const selector = document.createElement('div');
   selector.className = 'algorithm-selector';
-  selector.innerHTML = `
-    <label for="recAlgorithm">推薦アルゴリズム:</label>
-    <select id="recAlgorithm" class="algorithm-select">
-      <option value="hybrid">ハイブリッド（推奨）</option>
-      <option value="tag">タグ類似度</option>
-      <option value="category">カテゴリマッチ</option>
-      <option value="keyword">キーワード類似度</option>
-    </select>
-  `;
 
-  const select = selector.querySelector('#recAlgorithm');
+  const label = document.createElement('label');
+  label.setAttribute('for', 'recAlgorithm');
+  label.textContent = '推薦アルゴリズム:';
+
+  const select = document.createElement('select');
+  select.id = 'recAlgorithm';
+  select.className = 'algorithm-select';
+
+  const options = [
+    { value: 'hybrid', text: 'ハイブリッド（推奨）' },
+    { value: 'tag', text: 'タグ類似度' },
+    { value: 'category', text: 'カテゴリマッチ' },
+    { value: 'keyword', text: 'キーワード類似度' }
+  ];
+
+  options.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.text;
+    select.appendChild(option);
+  });
+
   select.addEventListener('change', (e) => {
     if (onChangeCallback) {
       onChangeCallback(e.target.value);
     }
   });
 
+  selector.appendChild(label);
+  selector.appendChild(select);
   container.insertBefore(selector, container.firstChild);
 }
 
 /**
- * 推薦詳細情報を表示するモーダル
+ * 推薦詳細情報を表示するモーダル（XSS対策: DOM API使用）
  *
  * @param {Object} item - アイテムデータ
  */
 function showRecommendationDetails(item) {
   const modal = document.createElement('div');
   modal.className = 'rec-details-modal';
-  modal.innerHTML = `
-    <div class="modal-overlay"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>推薦の詳細情報</h3>
-        <button class="close-btn" onclick="this.closest('.rec-details-modal').remove()">×</button>
-      </div>
-      <div class="modal-body">
-        <h4>${escapeHTML(item.title)}</h4>
-        <p><strong>推薦スコア:</strong> ${(item.recommendation_score * 100).toFixed(1)}%</p>
-        <p><strong>推薦理由:</strong></p>
-        <ul>
-          ${(item.recommendation_reasons || []).map(r => `<li>${escapeHTML(r)}</li>`).join('')}
-        </ul>
-        ${item.recommendation_details && item.recommendation_details.common_keywords ? `
-          <p><strong>共通キーワード:</strong> ${item.recommendation_details.common_keywords.join(', ')}</p>
-        ` : ''}
-      </div>
-    </div>
-  `;
+
+  // オーバーレイ
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.addEventListener('click', () => modal.remove());
+
+  // コンテンツ
+  const content = document.createElement('div');
+  content.className = 'modal-content';
+
+  // ヘッダー
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+
+  const headerTitle = document.createElement('h3');
+  headerTitle.textContent = '推薦の詳細情報';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'close-btn';
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', () => modal.remove());
+
+  header.appendChild(headerTitle);
+  header.appendChild(closeBtn);
+
+  // ボディ
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+
+  const itemTitle = document.createElement('h4');
+  itemTitle.textContent = item.title || '';
+  body.appendChild(itemTitle);
+
+  const scoreP = document.createElement('p');
+  const scoreLabel = document.createElement('strong');
+  scoreLabel.textContent = '推薦スコア: ';
+  scoreP.appendChild(scoreLabel);
+  scoreP.appendChild(document.createTextNode(`${(item.recommendation_score * 100).toFixed(1)}%`));
+  body.appendChild(scoreP);
+
+  const reasonLabel = document.createElement('p');
+  const reasonStrong = document.createElement('strong');
+  reasonStrong.textContent = '推薦理由:';
+  reasonLabel.appendChild(reasonStrong);
+  body.appendChild(reasonLabel);
+
+  const reasonList = document.createElement('ul');
+  (item.recommendation_reasons || []).forEach(reason => {
+    const li = document.createElement('li');
+    li.textContent = reason;
+    reasonList.appendChild(li);
+  });
+  body.appendChild(reasonList);
+
+  // 共通キーワード
+  if (item.recommendation_details && item.recommendation_details.common_keywords) {
+    const keywordP = document.createElement('p');
+    const keywordLabel = document.createElement('strong');
+    keywordLabel.textContent = '共通キーワード: ';
+    keywordP.appendChild(keywordLabel);
+    keywordP.appendChild(document.createTextNode(item.recommendation_details.common_keywords.join(', ')));
+    body.appendChild(keywordP);
+  }
+
+  content.appendChild(header);
+  content.appendChild(body);
+  modal.appendChild(overlay);
+  modal.appendChild(content);
 
   document.body.appendChild(modal);
-
-  // オーバーレイクリックで閉じる
-  modal.querySelector('.modal-overlay').addEventListener('click', () => {
-    modal.remove();
-  });
 }
 
 // ============================================================
@@ -369,7 +467,7 @@ async function initializeDashboardRecommendations() {
 }
 
 /**
- * コンパクトな推薦カードを生成（ダッシュボード用）
+ * コンパクトな推薦カードを生成（ダッシュボード用）（XSS対策: DOM API使用）
  *
  * @param {Object} item - アイテムデータ
  * @returns {HTMLElement} - カード要素
@@ -379,25 +477,44 @@ function createCompactRecommendationCard(item) {
   card.className = 'compact-rec-card';
 
   const linkUrl = item.type === 'knowledge'
-    ? `search-detail.html?id=${item.id}`
-    : `sop-detail.html?id=${item.id}`;
+    ? `search-detail.html?id=${encodeURIComponent(item.id)}`
+    : `sop-detail.html?id=${encodeURIComponent(item.id)}`;
 
-  const typeLabel = item.type === 'knowledge' ? 'ナレッジ' : 'SOP';
-  const score = item.recommendation_score
-    ? `<span class="compact-score">${(item.recommendation_score * 100).toFixed(0)}%</span>`
-    : '';
+  const link = document.createElement('a');
+  link.href = linkUrl;
+  link.className = 'compact-rec-link';
 
-  card.innerHTML = `
-    <a href="${linkUrl}" class="compact-rec-link">
-      <div class="compact-rec-header">
-        <span class="compact-type-badge">${typeLabel}</span>
-        ${score}
-      </div>
-      <h5 class="compact-rec-title">${escapeHTML(item.title || 'タイトルなし')}</h5>
-      <p class="compact-rec-reason">${escapeHTML((item.recommendation_reasons || [])[0] || '')}</p>
-    </a>
-  `;
+  // ヘッダー
+  const header = document.createElement('div');
+  header.className = 'compact-rec-header';
 
+  const typeBadge = document.createElement('span');
+  typeBadge.className = 'compact-type-badge';
+  typeBadge.textContent = item.type === 'knowledge' ? 'ナレッジ' : 'SOP';
+  header.appendChild(typeBadge);
+
+  if (item.recommendation_score) {
+    const score = document.createElement('span');
+    score.className = 'compact-score';
+    score.textContent = `${(item.recommendation_score * 100).toFixed(0)}%`;
+    header.appendChild(score);
+  }
+
+  link.appendChild(header);
+
+  // タイトル
+  const title = document.createElement('h5');
+  title.className = 'compact-rec-title';
+  title.textContent = item.title || 'タイトルなし';
+  link.appendChild(title);
+
+  // 推薦理由
+  const reason = document.createElement('p');
+  reason.className = 'compact-rec-reason';
+  reason.textContent = (item.recommendation_reasons || [])[0] || '';
+  link.appendChild(reason);
+
+  card.appendChild(link);
   return card;
 }
 
