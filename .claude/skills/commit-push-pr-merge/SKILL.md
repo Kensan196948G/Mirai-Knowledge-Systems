@@ -1,7 +1,11 @@
 ---
 name: commit-push-pr-merge
 description: 変更をコミットし、リモートにプッシュし、プルリクエストを作成して、即座にマージします。ユーザーが「コミットしてPR作成してマージ」「変更をマージまで完了」などと指示した際に使用します。緊急修正やホットフィックスに便利です。
-allowed-tools: Bash, Read, Grep, Glob
+allowed-tools:
+  - Bash
+  - Read
+  - Grep
+  - Glob
 ---
 
 # Commit-Push-PR-Merge Skill

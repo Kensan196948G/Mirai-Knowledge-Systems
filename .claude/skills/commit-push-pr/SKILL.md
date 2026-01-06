@@ -1,7 +1,11 @@
 ---
 name: commit-push-pr
 description: 変更をコミットし、リモートにプッシュし、プルリクエストを作成します。ユーザーが「コミットしてPR作成」「変更をプッシュしてPR」などと指示した際に使用します。
-allowed-tools: Bash, Read, Grep, Glob
+allowed-tools:
+  - Bash
+  - Read
+  - Grep
+  - Glob
 ---
 
 # Commit-Push-PR Skill

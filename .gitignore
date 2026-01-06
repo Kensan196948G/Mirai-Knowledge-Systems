@@ -48,6 +48,13 @@ package-lock.json
 .env
 .env.local
 .env.*.local
+.env.mcp
+
+# Claude Code (API keys in settings.local.json)
+.claude/settings.local.json
+.claude.json
+fix-mcp-env.ps1
+set-env-permanent.ps1
 
 # Logs
 *.log
