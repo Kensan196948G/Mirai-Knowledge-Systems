@@ -34,12 +34,13 @@ scrape_configs:
     scrape_timeout: 5s
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['host.docker.internal:5100']
+      - targets: ['172.17.0.1:5100']  # Docker bridge gateway
         labels:
           service: 'mks-backend'
           environment: 'production'
-    # 本番環境の場合はホスト名を変更
-    # - targets: ['mks-backend:5100']
+    # 代替設定（環境に応じて変更）
+    # - targets: ['192.168.0.187:5100']  # ホストの実際のIP
+    # - targets: ['host.docker.internal:5100']  # Docker Desktop (Windows/Mac)
 
   # Node Exporter（システムメトリクス）
   # システムレベルのメトリクスが必要な場合はコメントを外す
@@ -58,7 +59,6 @@ scrape_configs:
   #         service: 'postgres'
 
 # メトリクス保持期間設定
-storage:
-  tsdb:
-    retention.time: 15d  # 15日間保持
-    retention.size: 10GB  # 最大10GB
+# 注意: retention設定はdocker-compose.ymlのコマンドライン引数で指定
+# --storage.tsdb.retention.time=15d
+# --storage.tsdb.retention.size=10GB
