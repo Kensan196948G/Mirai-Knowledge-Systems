@@ -1,0 +1,3 @@
+title,description,project,incident_date,severity,status,root_cause,location,tags
+ヒヤリハット事例1,作業中に転倒しそうになった,プロジェクトA,2026-01-05,minor,reported,足場の不安定,現場A,"安全,転倒"
+事故事例1,重機接触による軽傷,プロジェクトB,2026-01-03,moderate,investigating,確認不足,現場B,"重機,接触"
