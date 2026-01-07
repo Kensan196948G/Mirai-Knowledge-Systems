@@ -153,47 +153,6 @@
             transform: none;
         }
 
-        .demo-accounts {
-            margin-top: 32px;
-            padding-top: 32px;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .demo-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: #64748b;
-            margin-bottom: 12px;
-            text-align: center;
-        }
-
-        .demo-account {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .demo-account:hover {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-        }
-
-        .demo-account-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 4px;
-        }
-
-        .demo-account-role {
-            font-size: 12px;
-            color: #64748b;
-        }
-
         .loading-spinner {
             display: none;
             width: 20px;
@@ -291,21 +250,7 @@
                 </button>
             </form>
 
-            <div class="demo-accounts">
-                <div class="demo-title">デモアカウント（クリックで入力）</div>
-                <div class="demo-account" data-username="admin" data-password="admin123">
-                    <div class="demo-account-name">👑 管理者</div>
-                    <div class="demo-account-role">admin / admin123 - 全権限</div>
-                </div>
-                <div class="demo-account" data-username="yamada" data-password="yamada123">
-                    <div class="demo-account-name">👷 施工管理</div>
-                    <div class="demo-account-role">yamada / yamada123 - ナレッジ作成・閲覧</div>
-                </div>
-                <div class="demo-account" data-username="partner" data-password="partner123">
-                    <div class="demo-account-name">🏢 協力会社</div>
-                    <div class="demo-account-role">partner / partner123 - 閲覧のみ</div>
-                </div>
-            </div>
+            <!-- デモアカウント表示は本番環境では削除済み -->
         </div>
     </div>
 
@@ -330,17 +275,6 @@
             log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
             error: (...args) => { console.error(...args); }
         };
-
-        // デモアカウントクリック
-        document.querySelectorAll('.demo-account').forEach(account => {
-            account.addEventListener('click', () => {
-                const username = account.dataset.username;
-                const password = account.dataset.password;
-                document.getElementById('username').value = username;
-                document.getElementById('password').value = password;
-                hideAlert();
-            });
-        });
 
         // ログインフォーム送信
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
