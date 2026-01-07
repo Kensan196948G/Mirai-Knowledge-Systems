@@ -381,7 +381,7 @@ ORDER BY created_at DESC;
 
 ```bash
 # PostgreSQLデータベースのバックアップ
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 
 # 全データベースをダンプ
 pg_dump -h localhost -U mirai_user -d mirai_knowledge_db \
@@ -683,7 +683,7 @@ psql -h localhost -U mirai_user -d mirai_knowledge_db -c \
 
 1. **依存パッケージの更新**
    ```bash
-   cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+   cd /path/to/Mirai-Knowledge-Systems/backend
    pip list --outdated
    pip install --upgrade -r requirements.txt
    ```

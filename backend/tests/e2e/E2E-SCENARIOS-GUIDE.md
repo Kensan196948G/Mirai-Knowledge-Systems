@@ -72,7 +72,7 @@ Playwright を使用したエンドツーエンド (E2E) シナリオテスト�
 
 ```bash
 # プロジェクトルートから
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 
 # 依存関係のインストール
 npm install

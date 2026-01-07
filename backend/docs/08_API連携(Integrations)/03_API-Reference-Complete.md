@@ -1208,7 +1208,7 @@ HTTPステータスコード: `200 OK`
       "action": "login",
       "resource": "/api/v1/auth/login",
       "status": "success",
-      "ip_address": "192.168.1.100",
+      "ip_address": "203.0.113.10",
       "user_agent": "Mozilla/5.0...",
       "session_id": "abc123",
       "changes": null,

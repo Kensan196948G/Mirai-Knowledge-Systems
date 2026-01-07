@@ -72,6 +72,17 @@
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
+### 1.5 自動化スクリプト（任意）
+
+手順を簡略化したい場合は、ルートの自動セットアップスクリプトを利用できます。
+
+```bash
+cd /path/to/Mirai-Knowledge-Systems
+./setup-production.sh
+```
+
+Gunicornのみを手動で起動する場合は `backend/run_production.sh` を使用します。
+
 ---
 
 ## 2. サーバー準備

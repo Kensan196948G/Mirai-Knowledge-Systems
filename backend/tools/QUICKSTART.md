@@ -32,7 +32,7 @@ sudo systemctl status postgresql
 ### 2. データベース準備
 ```bash
 # データベースが初期化されていない場合
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python3 -c "from database import init_db; init_db()"
 ```
 

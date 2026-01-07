@@ -113,6 +113,11 @@ Mirai-Knowledge-Systems/
    python app_v2.py
    ```
 
+   **開発/テスト用（スクリプト起動）:**
+   ```bash
+   ./start_backend.sh
+   ```
+
    **本番環境用（systemd自動起動）:**
 
    Linux環境では、systemdサービスとして登録することで、サーバー再起動時に自動起動できます：
@@ -149,7 +154,7 @@ Mirai-Knowledge-Systems/
 - ログイン画面: `http://localhost:5100/login.html`
 - ダッシュボード: `http://localhost:5100/index.html`（認証要）
 
-> **注**: ポート5100で起動します。ネットワーク経由でアクセスする場合は、サーバーのIPアドレスを使用してください（例: `http://192.168.0.187:5100`）
+> **注**: ポート5100で起動します。ネットワーク経由でアクセスする場合は、サーバーのIPアドレスを使用してください（例: `http://<server-ip>:5100`）
 
 ## 📊 API エンドポイント
 
@@ -265,7 +270,7 @@ Mirai-Knowledge-Systems/
 
 ## 📝 ライセンス
 
-このプロジェクトは内部使用専用です。
+公開利用条件は別途定義します（外部公開向けに内容整理済み）。
 
 ## 👥 想定利用部門
 
@@ -278,7 +283,14 @@ Mirai-Knowledge-Systems/
 
 ## 📞 サポート
 
-詳細な仕様については `docs/` ディレクトリ内のドキュメントを参照してください。
+詳細な仕様については `docs/` と `backend/docs/` のドキュメントを参照してください。
+構成一覧は `docs/00_リポジトリ構成(Repository-Structure).md` にまとめています。
+
+## 📚 ドキュメント案内
+
+- 全体構成: `docs/00_リポジトリ構成(Repository-Structure).md`
+- 運用スクリプト: `docs/11_運用保守(Operations)/11_運用スクリプト一覧(Operations-Scripts).md`
+- 本番移行: `PRODUCTION_DEPLOYMENT.md`
 
 ## 変更履歴
 

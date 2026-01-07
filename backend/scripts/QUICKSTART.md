@@ -5,7 +5,7 @@
 ### 1. 基本的な動作確認
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/scripts
+cd /path/to/Mirai-Knowledge-Systems/backend/scripts
 
 # ヘルスチェックを実行
 python3 health_monitor.py
@@ -96,7 +96,7 @@ sudo journalctl -u auto-fix-daemon -f
 
 ```bash
 # サーバー起動
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python3 app.py &
 
 # エラー検知デーモンを起動
@@ -124,7 +124,7 @@ python3 auto_fix_daemon.py --continuous --loop-count 5 --wait-minutes 1
 crontab -e
 
 # 以下を追加
-*/5 * * * * cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/scripts && python3 health_monitor.py >> ../logs/health_check.log 2>&1
+*/5 * * * * cd /path/to/Mirai-Knowledge-Systems/backend/scripts && python3 health_monitor.py >> ../logs/health_check.log 2>&1
 ```
 
 ### 例4: テストスイート実行
@@ -177,29 +177,29 @@ python3 auto_fix_daemon.py --continuous 2>&1 | tee debug.log
 
 ```bash
 # リアルタイム表示
-tail -f /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/auto_fix.log
+tail -f /path/to/Mirai-Knowledge-Systems/backend/logs/auto_fix.log
 
 # 最新100行を表示
-tail -n 100 /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/auto_fix.log
+tail -n 100 /path/to/Mirai-Knowledge-Systems/backend/logs/auto_fix.log
 
 # エラーのみ表示
-grep ERROR /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/auto_fix.log
+grep ERROR /path/to/Mirai-Knowledge-Systems/backend/logs/auto_fix.log
 
 # 修復成功のみ表示
-grep "自動修復完了" /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/auto_fix.log
+grep "自動修復完了" /path/to/Mirai-Knowledge-Systems/backend/logs/auto_fix.log
 ```
 
 ### アラートログ
 
 ```bash
 # アラート一覧
-cat /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/alerts.log | jq .
+cat /path/to/Mirai-Knowledge-Systems/backend/logs/alerts.log | jq .
 
 # クリティカルアラートのみ
-cat /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/alerts.log | jq 'select(.severity=="critical")'
+cat /path/to/Mirai-Knowledge-Systems/backend/logs/alerts.log | jq 'select(.severity=="critical")'
 
 # 今日のアラート数
-grep $(date +%Y-%m-%d) /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/alerts.log | wc -l
+grep $(date +%Y-%m-%d) /path/to/Mirai-Knowledge-Systems/backend/logs/alerts.log | wc -l
 ```
 
 ### systemdログ

@@ -6,8 +6,18 @@
 
 - Linux環境（systemd対応）
 - sudo権限
-- プロジェクトパス: `/mnt/LinuxHDD/Mirai-Knowledge-Systems`
+- プロジェクトパス: `/path/to/Mirai-Knowledge-Systems`
 - サービスポート: **5100**
+
+## 自動セットアップ（推奨）
+
+ルートディレクトリで以下を実行すると、サービス登録から起動まで自動で行います。
+
+```bash
+./setup-systemd.sh
+```
+
+手動で調整したい場合は、以降の手順に従ってください。
 
 ## セットアップ手順
 
@@ -15,7 +25,7 @@
 
 ```bash
 # サービスファイルをsystemdディレクトリにコピー
-sudo cp /mnt/LinuxHDD/Mirai-Knowledge-Systems/mirai-knowledge-system.service /etc/systemd/system/
+sudo cp /path/to/Mirai-Knowledge-Systems/mirai-knowledge-system.service /etc/systemd/system/
 
 # パーミッションを設定
 sudo chmod 644 /etc/systemd/system/mirai-knowledge-system.service
@@ -98,16 +108,18 @@ sudo journalctl -u mirai-knowledge-system.service --since today
 サービスファイル: `/etc/systemd/system/mirai-knowledge-system.service`
 
 主要な設定：
-- **User/Group**: kensan
-- **WorkingDirectory**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend`
-- **EnvironmentFile**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/.env`
-- **Python**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin/python3`
+- **User/Group**: サービス実行ユーザー（`mirai-knowledge-system.service` 内の `User` / `Group` を変更）
+- **WorkingDirectory**: `/path/to/Mirai-Knowledge-Systems/backend`
+- **EnvironmentFile**: `/path/to/Mirai-Knowledge-Systems/backend/.env`
+- **Python**: `/path/to/Mirai-Knowledge-Systems/venv_linux/bin/python3`
 - **Script**: `app_v2.py`
 - **Port**: 5100
 - **Environment**: development（CSP緩和、インラインスタイル許可）
 - **Auto-restart**: 有効（RestartSec=10秒）
 
 > **重要**: `MKS_ENV=development` に設定されています。これにより、Content Security Policy（CSP）でインラインスタイルが許可され、HTTPSが強制されません。本格的な本番環境では、SSL/TLS証明書を設定した上で `MKS_ENV=production` に変更してください。
+
+> **補足**: 本番環境は `mirai-knowledge-production.service` を使用し、Gunicorn起動とログディレクトリの作成を行います。
 
 ## トラブルシューティング
 
@@ -120,14 +132,14 @@ sudo journalctl -u mirai-knowledge-system.service --since today
 
 2. **手動起動でエラーを確認**:
    ```bash
-   cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
-   /mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin/python3 app_v2.py
+   cd /path/to/Mirai-Knowledge-Systems/backend
+   /path/to/Mirai-Knowledge-Systems/venv_linux/bin/python3 app_v2.py
    ```
 
 3. **環境変数を確認**:
    ```bash
    # .envファイルが存在するか確認
-   ls -la /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/.env
+   ls -la /path/to/Mirai-Knowledge-Systems/backend/.env
    ```
 
 4. **ポート5100が使用中でないか確認**:
@@ -139,10 +151,10 @@ sudo journalctl -u mirai-knowledge-system.service --since today
 
 ```bash
 # プロジェクトディレクトリの所有者を確認
-ls -ld /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+ls -ld /path/to/Mirai-Knowledge-Systems/backend
 
 # 必要に応じて所有者を変更
-sudo chown -R kensan:kensan /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+sudo chown -R kensan:kensan /path/to/Mirai-Knowledge-Systems/backend
 ```
 
 ### JWT秘密鍵エラー（MKS_JWT_SECRET_KEY required）
@@ -151,7 +163,7 @@ sudo chown -R kensan:kensan /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
 
 ```bash
 # .envファイルにMKS_JWT_SECRET_KEYを追加
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python3 -c "import secrets; print('MKS_JWT_SECRET_KEY=' + secrets.token_urlsafe(32))" >> .env
 
 # サービスを再起動
@@ -173,7 +185,7 @@ grep MKS_ENV /etc/systemd/system/mirai-knowledge-system.service
 
 # "MKS_ENV=development" になっていることを確認
 # もし "production" の場合は、以下のコマンドで修正：
-sudo cp /mnt/LinuxHDD/Mirai-Knowledge-Systems/mirai-knowledge-system.service /etc/systemd/system/
+sudo cp /path/to/Mirai-Knowledge-Systems/mirai-knowledge-system.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl restart mirai-knowledge-system.service
 ```

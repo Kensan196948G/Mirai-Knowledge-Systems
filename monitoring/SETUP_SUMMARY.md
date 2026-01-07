@@ -3,7 +3,7 @@
 ## 作成されたファイル一覧
 
 ### 1. Prometheus設定
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/prometheus.yml`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/monitoring/prometheus.yml`
 
 - スクレイプ設定（15秒間隔）
 - 以下のターゲットを監視:
@@ -17,7 +17,7 @@
 - 30日間のデータ保持
 
 ### 2. アラートルール設定
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/alert_rules.yml`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/monitoring/alert_rules.yml`
 
 設定されたアラート:
 - **システムアラート**:
@@ -45,7 +45,7 @@
   - ログイン失敗多発
 
 ### 3. Grafanaダッシュボード
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/grafana-dashboard.json`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/monitoring/grafana-dashboard.json`
 
 ダッシュボード構成:
 - **システム概要**: サービス稼働状態、アクティブユーザー、リクエスト数、エラー率
@@ -67,7 +67,7 @@
   - 接続数、クエリ実行時間
 
 ### 4. アプリケーションメトリクスエンドポイント
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/app_v2.py`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/backend/app_v2.py`
 
 追加された機能:
 - **新規エンドポイント**: `GET /api/v1/metrics`
@@ -91,7 +91,7 @@
   - インメモリストレージで集計
 
 ### 5. Docker Compose設定
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/docker-compose.monitoring.yml`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/monitoring/docker-compose.monitoring.yml`
 
 サービス構成:
 - **prometheus**: メトリクス収集（ポート9090）
@@ -106,7 +106,7 @@
 - alertmanager_data: アラート履歴
 
 ### 6. Alertmanager設定
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/alertmanager.yml`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/monitoring/alertmanager.yml`
 
 通知設定:
 - メール通知（SMTP設定）
@@ -118,15 +118,15 @@
 
 ### 7. Grafana自動プロビジョニング
 **ファイル**:
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/grafana-provisioning/datasources/prometheus.yml`
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/grafana-provisioning/dashboards/dashboard-provider.yml`
+- `/path/to/Mirai-Knowledge-Systems/monitoring/grafana-provisioning/datasources/prometheus.yml`
+- `/path/to/Mirai-Knowledge-Systems/monitoring/grafana-provisioning/dashboards/dashboard-provider.yml`
 
 自動設定:
 - Prometheusデータソースの自動追加
 - ダッシュボードの自動ロード
 
 ### 8. セットアップスクリプト
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/setup_monitoring.sh`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/monitoring/setup_monitoring.sh`
 
 機能:
 - OS検出（Ubuntu/Debian/CentOS/RHEL対応）
@@ -138,7 +138,7 @@
 - 自動起動設定
 
 ### 9. クイックスタートスクリプト
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/quick-start.sh`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/monitoring/quick-start.sh`
 
 機能:
 - Docker/Docker Compose環境チェック
@@ -147,7 +147,7 @@
 - 使用方法ガイド表示
 
 ### 10. ドキュメント
-**ファイル**: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/README.md`
+**ファイル**: `/path/to/Mirai-Knowledge-Systems/monitoring/README.md`
 
 内容:
 - セットアップ方法（Docker/ネイティブ）
@@ -166,7 +166,7 @@
 ### クイックスタート（Docker使用）
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring
+cd /path/to/Mirai-Knowledge-Systems/monitoring
 ./quick-start.sh
 ```
 
@@ -174,7 +174,7 @@ cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring
 
 ```bash
 # Docker Composeで起動
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring
+cd /path/to/Mirai-Knowledge-Systems/monitoring
 docker-compose -f docker-compose.monitoring.yml up -d
 
 # または、ネイティブインストール
@@ -184,7 +184,7 @@ sudo ./setup_monitoring.sh
 ### アプリケーション起動
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 
 # psutilをインストール
 pip install psutil

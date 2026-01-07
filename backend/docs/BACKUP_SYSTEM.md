@@ -16,7 +16,7 @@ Mirai Knowledge Systemは、データ損失を防ぐために**自動バック�
 
 ```bash
 # Cronジョブを自動設定（要root権限）
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems
+cd /path/to/Mirai-Knowledge-Systems
 sudo ./backend/scripts/setup-backup-cron.sh
 ```
 

@@ -15,7 +15,7 @@ Mirai Knowledge Systemのログファイルは時間とともに肥大化する�
 ### 自動セットアップ（推奨）
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems
+cd /path/to/Mirai-Knowledge-Systems
 sudo ./backend/scripts/setup-logrotate.sh
 ```
 
@@ -93,10 +93,10 @@ sudo logrotate -f /etc/logrotate.d/mirai-knowledge-system
 
 ```bash
 # ログディレクトリの内容を表示
-ls -lh /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/
+ls -lh /path/to/Mirai-Knowledge-Systems/backend/logs/
 
 # ローテーション済みログの確認
-ls -lh /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/*.gz
+ls -lh /path/to/Mirai-Knowledge-Systems/backend/logs/*.gz
 ```
 
 **出力例**:
@@ -155,7 +155,7 @@ sudo logrotate -d /etc/logrotate.d/mirai-knowledge-system
 **確認方法**:
 ```bash
 # ログディレクトリを確認
-ls -la /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/
+ls -la /path/to/Mirai-Knowledge-Systems/backend/logs/
 
 # 強制ローテーションを実行
 sudo logrotate -f /etc/logrotate.d/mirai-knowledge-system
@@ -181,10 +181,10 @@ sudo kill -USR1 $(cat /var/run/gunicorn-mirai.pid)
 **解決策**:
 ```bash
 # 古いログファイルを手動削除
-find /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/ -name "*.gz" -mtime +30 -delete
+find /path/to/Mirai-Knowledge-Systems/backend/logs/ -name "*.gz" -mtime +30 -delete
 
 # またはディスク使用量を確認
-du -sh /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/
+du -sh /path/to/Mirai-Knowledge-Systems/backend/logs/
 ```
 
 ## ベストプラクティス

@@ -2,18 +2,18 @@
 
 ## ファイル作成確認
 
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/prometheus.yml` - Prometheus設定
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/alert_rules.yml` - アラートルール
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/alertmanager.yml` - Alertmanager設定
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/grafana-dashboard.json` - Grafanaダッシュボード
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/docker-compose.monitoring.yml` - Docker Compose設定
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/setup_monitoring.sh` - セットアップスクリプト
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/quick-start.sh` - クイックスタートスクリプト
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/README.md` - ドキュメント
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/grafana-provisioning/datasources/prometheus.yml` - データソース自動設定
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/grafana-provisioning/dashboards/dashboard-provider.yml` - ダッシュボード自動設定
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/app_v2.py` - メトリクスエンドポイント追加
-- [x] `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/requirements.txt` - psutil追加
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/prometheus.yml` - Prometheus設定
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/alert_rules.yml` - アラートルール
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/alertmanager.yml` - Alertmanager設定
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/grafana-dashboard.json` - Grafanaダッシュボード
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/docker-compose.monitoring.yml` - Docker Compose設定
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/setup_monitoring.sh` - セットアップスクリプト
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/quick-start.sh` - クイックスタートスクリプト
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/README.md` - ドキュメント
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/grafana-provisioning/datasources/prometheus.yml` - データソース自動設定
+- [x] `/path/to/Mirai-Knowledge-Systems/monitoring/grafana-provisioning/dashboards/dashboard-provider.yml` - ダッシュボード自動設定
+- [x] `/path/to/Mirai-Knowledge-Systems/backend/app_v2.py` - メトリクスエンドポイント追加
+- [x] `/path/to/Mirai-Knowledge-Systems/backend/requirements.txt` - psutil追加
 
 ## コード検証
 
@@ -21,7 +21,7 @@
 
 ```bash
 # 構文チェック
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python3 -m py_compile app_v2.py
 ```
 
@@ -44,7 +44,7 @@ python3 -m py_compile app_v2.py
 ### 1. 依存関係インストール
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 pip install psutil
 # または
 pip install -r requirements.txt
@@ -82,7 +82,7 @@ sudo ss -tuln | grep -E ':(3000|8080|9090|9093|9100)'
 ### オプション1: Docker Compose（推奨）
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring
+cd /path/to/Mirai-Knowledge-Systems/monitoring
 
 # クイックスタート
 ./quick-start.sh
@@ -97,7 +97,7 @@ docker-compose -f docker-compose.monitoring.yml logs -f
 ### オプション2: ネイティブインストール
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring
+cd /path/to/Mirai-Knowledge-Systems/monitoring
 
 # セットアップスクリプト実行（root権限必要）
 sudo ./setup_monitoring.sh
@@ -106,7 +106,7 @@ sudo ./setup_monitoring.sh
 ### アプリケーション起動
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 
 # 環境変数設定（オプション）
 export MKS_DEBUG=true
@@ -188,7 +188,7 @@ curl http://localhost:9100/metrics | head -20
 1. Grafana にログイン
 2. 左メニュー > Dashboards > Import
 3. "Upload JSON file" をクリック
-4. `/mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring/grafana-dashboard.json` を選択
+4. `/path/to/Mirai-Knowledge-Systems/monitoring/grafana-dashboard.json` を選択
 5. "Load" をクリック
 6. Prometheus データソースを選択
 7. "Import" をクリック

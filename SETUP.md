@@ -40,7 +40,11 @@ Python 3.8以上がインストールされていることを確認してくだ�
 ### ステップ2: プロジェクトディレクトリへ移動
 
 ```bash
-cd Z:\Mirai-Knowledge-Systems
+# macOS/Linux
+cd /path/to/Mirai-Knowledge-Systems
+
+# Windows (PowerShell)
+cd C:\path\to\Mirai-Knowledge-Systems
 ```
 
 ### ステップ3: 依存パッケージのインストール
@@ -58,11 +62,18 @@ pip install -r requirements.txt
 
 `backend/data/` ディレクトリに以下のファイルが存在することを確認します：
 - `knowledge.json`
+- `knowledge_details.json`
 - `sop.json`
+- `sop_details.json`
 - `regulations.json`
 - `incidents.json`
+- `incidents_details.json`
 - `consultations.json`
+- `consultations_details.json`
 - `approvals.json`
+- `users.json`
+- `notifications.json`
+- `access_logs.json`
 
 これらのファイルは初期データとして既に配置されています。
 
@@ -104,6 +115,26 @@ python app_v2.py
 ```
 
 > **注**: `app.py` は旧版（認証なし）、`app_v2.py` は新版（JWT認証 + RBAC対応）です。
+
+### 開発サーバーの起動（スクリプト）
+
+ルートディレクトリから以下を実行できます：
+
+```bash
+./start_backend.sh
+```
+
+バックグラウンド起動や統合起動が必要な場合は以下を使用します：
+
+```bash
+./start_all.sh --background
+```
+
+停止は以下のスクリプトで行います：
+
+```bash
+./stop_all.sh
+```
 
 ### 本番サーバーの起動（systemd自動起動）
 
@@ -272,12 +303,20 @@ Access to fetch at 'http://localhost:5100/api/...' has been blocked by CORS poli
    MKS_DEBUG=false
    MKS_FORCE_HTTPS=true  # SSL/TLS証明書設定後
    ```
+   `.env.production` を使う場合は `backend/.env.production.example` から作成してください。
 
 3. **SSL/TLS証明書の設定** (HTTPSを使用する場合)
 
 4. **本番用WSGIサーバーの使用** (Gunicorn、uWSGI、Waitressなど)
 
 5. **データベースへの移行** (PostgreSQLを推奨)
+
+6. **自動セットアップスクリプトの利用（任意）**
+   ```bash
+   ./setup-production.sh
+   ```
+
+   `backend/run_production.sh` を利用した手動起動も可能です。
 
 詳細は [Production-Deployment-Guide.md](docs/10_移行・展開(Deployment)/03_Production-Deployment-Guide.md) を参照してください。
 

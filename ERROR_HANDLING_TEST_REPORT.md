@@ -421,31 +421,31 @@ if (response.status === 401) {
 ## 5. 修正ファイル一覧
 
 ### バックエンド
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/app_v2.py`
+- `/path/to/Mirai-Knowledge-Systems/backend/app_v2.py`
   - `load_data()` 関数の強化
   - `save_data()` 関数の強化
   - `error_response()` 関数の追加
   - グローバルエラーハンドラーの追加
 
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/app.py`
+- `/path/to/Mirai-Knowledge-Systems/backend/app.py`
   - `load_data()` 関数の強化
   - `save_data()` 関数の強化
 
 ### フロントエンド
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/webui/app.js`
+- `/path/to/Mirai-Knowledge-Systems/webui/app.js`
   - `fetchAPI()` 関数の強化
   - エラーメッセージの日本語化
   - ステータスコード別のエラーハンドリング
 
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/webui/detail-pages.js`
+- `/path/to/Mirai-Knowledge-Systems/webui/detail-pages.js`
   - `apiCall()` 関数の強化
   - 詳細ページ専用のエラーハンドリング
 
 ### テスト・ドキュメント
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/test_error_handling.py` (新規作成)
+- `/path/to/Mirai-Knowledge-Systems/backend/test_error_handling.py` (新規作成)
   - 単体テストスクリプト
 
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/ERROR_HANDLING_TEST_REPORT.md` (このファイル)
+- `/path/to/Mirai-Knowledge-Systems/ERROR_HANDLING_TEST_REPORT.md` (このファイル)
   - 実装レポート
 
 ---

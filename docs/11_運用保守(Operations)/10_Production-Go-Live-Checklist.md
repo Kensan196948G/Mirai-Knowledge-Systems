@@ -54,8 +54,8 @@
 | # | チェック項目 | コマンド/確認方法 | 状態 |
 |---|-------------|------------------|------|
 | 2.2.1 | Nginx稼働中 | `systemctl status nginx` | ✅ |
-| 2.2.2 | SSL証明書設定 | `curl -v https://172.23.10.109` | ✅ |
-| 2.2.3 | HTTPSリダイレクト | `curl -I http://172.23.10.109` | ✅ |
+| 2.2.2 | SSL証明書設定 | `curl -v https://<your-domain>` | ✅ |
+| 2.2.3 | HTTPSリダイレクト | `curl -I http://<your-domain>` | ✅ |
 | 2.2.4 | Gzip圧縮有効 | レスポンスヘッダー確認 | ✅ |
 | 2.2.5 | アクセスログ設定 | `/var/log/nginx/access.log` | ✅ |
 
@@ -65,7 +65,7 @@
 |---|-------------|------------------|------|
 | 2.3.1 | systemdサービス有効 | `systemctl is-enabled mirai-knowledge-production` | ✅ |
 | 2.3.2 | ワーカー数設定 | `gunicorn.conf.py` (CPUコア数×2+1) | ✅ |
-| 2.3.3 | ヘルスチェック応答 | `curl https://172.23.10.109/api/v1/health` | ✅ |
+| 2.3.3 | ヘルスチェック応答 | `curl https://<your-domain>/api/v1/health` | ✅ |
 
 ---
 

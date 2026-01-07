@@ -86,7 +86,7 @@
 
 ```bash
 # backend ディレクトリで実行
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python3 generate_detailed_data.py
 ```
 
@@ -168,7 +168,7 @@ CATEGORIES = ['施工計画', '品質管理', ..., '新カテゴリ']
 ### ファイルが生成されない
 ```bash
 # data ディレクトリの存在確認
-ls -la /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/data/
+ls -la /path/to/Mirai-Knowledge-Systems/backend/data/
 
 # 権限確認
 chmod +x generate_detailed_data.py

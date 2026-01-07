@@ -27,7 +27,7 @@ load/
 ### 1. 依存パッケージのインストール
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 pip install -r requirements.txt
 ```
 
@@ -36,7 +36,7 @@ pip install -r requirements.txt
 負荷テストを実行する前に、バックエンドサーバーを起動してください。
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python app.py
 ```
 
@@ -45,7 +45,7 @@ python app.py
 ### 統合スクリプトで実行（推奨）
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/load
+cd /path/to/Mirai-Knowledge-Systems/backend/tests/load
 ./run_load_tests.sh
 ```
 
@@ -62,7 +62,7 @@ cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/load
 主要画面の応答時間を測定します。
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/load
+cd /path/to/Mirai-Knowledge-Systems/backend/tests/load
 python3 performance_benchmark.py
 ```
 
@@ -85,7 +85,7 @@ python3 performance_benchmark.py
 **ヘッドレスモード（コマンドライン）:**
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/load
+cd /path/to/Mirai-Knowledge-Systems/backend/tests/load
 locust -f locustfile.py \
     --headless \
     --users 300 \
@@ -99,7 +99,7 @@ locust -f locustfile.py \
 **Webモード（ブラウザUI）:**
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/load
+cd /path/to/Mirai-Knowledge-Systems/backend/tests/load
 locust -f locustfile.py --host http://localhost:5000
 ```
 
@@ -117,7 +117,7 @@ locust -f locustfile.py --host http://localhost:5000
 段階的に負荷を増加させ、システムの限界値を測定します。
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/load
+cd /path/to/Mirai-Knowledge-Systems/backend/tests/load
 python3 stress_test.py
 ```
 
@@ -185,7 +185,7 @@ python3 stress_test.py
 バックエンドサーバーを起動してください。
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python app.py
 ```
 

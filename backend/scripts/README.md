@@ -74,7 +74,7 @@ backend/
 ### 1. 手動実行（1回のみ）
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/scripts
+cd /path/to/Mirai-Knowledge-Systems/backend/scripts
 python3 auto_fix_daemon.py
 ```
 
@@ -272,7 +272,7 @@ python3 health_monitor.py
 sudo journalctl -u auto-fix-daemon -n 50
 
 # 権限を確認
-ls -la /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/scripts/
+ls -la /path/to/Mirai-Knowledge-Systems/backend/scripts/
 
 # 手動実行でエラー確認
 python3 auto_fix_daemon.py
@@ -346,6 +346,6 @@ Mirai Knowledge System の一部として提供されます。
 ## サポート
 
 問題が発生した場合は、以下を確認してください：
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/auto_fix.log`
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/logs/alerts.log`
+- `/path/to/Mirai-Knowledge-Systems/backend/logs/auto_fix.log`
+- `/path/to/Mirai-Knowledge-Systems/backend/logs/alerts.log`
 - `sudo journalctl -u auto-fix-daemon`

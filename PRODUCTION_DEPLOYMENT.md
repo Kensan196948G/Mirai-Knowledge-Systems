@@ -99,11 +99,30 @@
 
 **合計**: 約2時間
 
+## 自動化スクリプト（任意）
+
+手順を簡略化したい場合は、以下のスクリプトを使用できます。
+
+```bash
+./setup-production.sh
+```
+
+手動でGunicornを起動したい場合は `backend/run_production.sh` を利用できます。
+
 ---
 
 ## ステップ1: PostgreSQL環境構築
 
 詳細は [POSTGRESQL_SETUP.md](POSTGRESQL_SETUP.md) を参照してください。
+
+### 1.0 Dockerで簡易構築（任意）
+
+開発/検証用途で簡易に起動する場合は `docker-compose.yml` を使用できます。
+
+```bash
+cd /path/to/Mirai-Knowledge-Systems
+docker-compose up -d
+```
 
 ### 1.1 PostgreSQLインストール
 
@@ -135,7 +154,7 @@ GRANT ALL ON SCHEMA public TO mirai_user;
 ### 1.3 環境変数設定
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 nano .env
 ```
 
@@ -148,7 +167,7 @@ DATABASE_URL=postgresql://mirai_user:your-secure-password-here@localhost:5432/mi
 ### 1.4 データマイグレーション
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 source ../venv_linux/bin/activate
 
 # スキーマ作成
@@ -175,7 +194,7 @@ python3 migrate_json_to_postgres.py
 ### 2.1 Gunicornインストール
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 source ../venv_linux/bin/activate
 
 # Gunicornをインストール
@@ -219,7 +238,7 @@ sudo systemctl enable nginx
 
 ```bash
 # サンプル設定をコピー
-sudo cp /mnt/LinuxHDD/Mirai-Knowledge-Systems/nginx.conf.example \
+sudo cp /path/to/Mirai-Knowledge-Systems/nginx.conf.example \
     /etc/nginx/sites-available/mirai-knowledge-system
 
 # エディタで開く
@@ -289,7 +308,7 @@ sudo systemctl restart nginx
 
 ```bash
 # 本番用サービスファイルをコピー
-sudo cp /mnt/LinuxHDD/Mirai-Knowledge-Systems/mirai-knowledge-production.service \
+sudo cp /path/to/Mirai-Knowledge-Systems/mirai-knowledge-production.service \
     /etc/systemd/system/
 
 # パーミッション設定
@@ -372,7 +391,7 @@ sudo tail -f /var/log/nginx/mirai-knowledge-error.log
 ブラウザで以下のURLにアクセス：
 
 ```
-https://your-domain.com/login.html
+https://<your-domain>/login.html
 ```
 
 - ✅ 緑の鍵マークが表示される
@@ -384,10 +403,10 @@ https://your-domain.com/login.html
 
 ```bash
 # ナレッジ一覧を取得
-curl -k https://your-domain.com/api/v1/knowledge | jq '.data | length'
+curl -k https://<your-domain>/api/v1/knowledge | jq '.data | length'
 
 # ヘルスチェック
-curl -k https://your-domain.com/api/v1/health
+curl -k https://<your-domain>/api/v1/health
 ```
 
 ---
@@ -559,7 +578,7 @@ sudo -u postgres psql -c "SELECT count(*) FROM pg_stat_activity WHERE datname='m
 - [ ] ログが正常に出力されている
 
 ### 動作確認
-- [ ] https://your-domain.com/login.htmlにアクセスできる
+- [ ] https://<your-domain>/login.htmlにアクセスできる
 - [ ] ログインできる
 - [ ] ダッシュボードが表示される
 - [ ] APIが正常に応答する

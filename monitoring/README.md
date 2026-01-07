@@ -38,7 +38,7 @@ monitoring/
 
 ```bash
 # 監視スタックを起動
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/monitoring
+cd /path/to/Mirai-Knowledge-Systems/monitoring
 docker-compose -f docker-compose.monitoring.yml up -d
 
 # ログ確認

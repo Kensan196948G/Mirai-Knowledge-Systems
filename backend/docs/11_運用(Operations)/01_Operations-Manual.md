@@ -112,7 +112,7 @@ sudo tail -f /var/log/nginx/mirai-knowledge-system-access.log
 sudo tail -f /var/log/nginx/mirai-knowledge-system-error.log
 
 # 特定のIPアドレスからのアクセス
-sudo grep "192.168.1.100" /var/log/nginx/mirai-knowledge-system-access.log
+sudo grep "203.0.113.10" /var/log/nginx/mirai-knowledge-system-access.log
 ```
 
 #### システムログ
@@ -934,11 +934,11 @@ sudo ufw status verbose
 1. **即座にアクセスをブロック**:
 ```bash
 # 特定のIPアドレスをブロック
-sudo ufw deny from 192.168.1.100
+sudo ufw deny from 203.0.113.10
 
 # Nginxでブロック
 sudo nano /etc/nginx/sites-available/mirai-knowledge-system
-# deny 192.168.1.100; を追加
+# deny 203.0.113.10; を追加
 sudo systemctl reload nginx
 ```
 
@@ -952,10 +952,10 @@ sudo cp -r /var/log/mirai-knowledge-system /var/backups/incident_$(date +%Y%m%d)
 3. **影響範囲を調査**:
 ```bash
 # 該当IPからのアクセスを確認
-grep "192.168.1.100" /var/log/nginx/mirai-knowledge-system-access.log
+grep "203.0.113.10" /var/log/nginx/mirai-knowledge-system-access.log
 
 # アクセスされたエンドポイントを確認
-grep "192.168.1.100" /var/log/nginx/mirai-knowledge-system-access.log | awk '{print $7}' | sort | uniq -c
+grep "203.0.113.10" /var/log/nginx/mirai-knowledge-system-access.log | awk '{print $7}' | sort | uniq -c
 ```
 
 4. **パスワードをリセット**:

@@ -6,7 +6,7 @@
 
 ```bash
 # E2Eディレクトリに移動
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/e2e
+cd /path/to/Mirai-Knowledge-Systems/backend/tests/e2e
 
 # 依存関係インストール
 npm install

@@ -17,7 +17,7 @@ python3 --version
 
 ```bash
 # 仮想環境を作成（まだの場合）
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python3 -m venv venv
 
 # 仮想環境をアクティベート
@@ -303,7 +303,7 @@ pytest tests/acceptance/ -v --tb=long
 ```bash
 # 問題: collected 0 items
 # 解決策: 正しいディレクトリから実行されているか確認
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 pytest tests/acceptance/
 ```
 

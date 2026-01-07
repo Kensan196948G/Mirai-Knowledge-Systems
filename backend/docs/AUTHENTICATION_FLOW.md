@@ -533,7 +533,7 @@ def log_access(user_id, action, resource=None, resource_id=None):
   "action": "login",
   "resource": null,
   "resource_id": null,
-  "ip_address": "192.168.1.100",
+  "ip_address": "203.0.113.10",
   "user_agent": "Mozilla/5.0...",
   "timestamp": "2024-01-15T10:30:00"
 }

@@ -49,7 +49,7 @@ tags = fields.List(
 ```
 
 **修正ファイル**:
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/schemas.py`
+- `/path/to/Mirai-Knowledge-Systems/backend/schemas.py`
   - `KnowledgeCreateSchema`: 3箇所修正
   - `IncidentCreateSchema`: 2箇所修正
 
@@ -79,9 +79,9 @@ all_permissions = db.scalars(select(Permission)).all()
 ```
 
 **修正ファイル**:
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/seed_data.py`
+- `/path/to/Mirai-Knowledge-Systems/backend/seed_data.py`
   - 役割-権限の関連付け処理を完全移行
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tools/data_migration.py`
+- `/path/to/Mirai-Knowledge-Systems/backend/tools/data_migration.py`
   - データバックアップ処理を最適化
 
 **結果**:
@@ -109,7 +109,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 ```
 
 **修正ファイル**:
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/app_v2.py`
+- `/path/to/Mirai-Knowledge-Systems/backend/app_v2.py`
 
 **効果**:
 - セッション有効期限: 12時間
@@ -147,7 +147,7 @@ elif path.endswith('.html'):
 ```
 
 **修正ファイル**:
-- `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/app_v2.py`
+- `/path/to/Mirai-Knowledge-Systems/backend/app_v2.py`
   - `index()` 関数
   - `serve_static()` 関数
 

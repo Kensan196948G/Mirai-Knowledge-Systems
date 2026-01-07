@@ -21,24 +21,24 @@ Mirai Knowledge Systemにsystemdサービスとしての自動起動機能を追
 主要な設定：
 - サービス名: `mirai-knowledge-system.service`
 - ユーザー: kensan
-- 作業ディレクトリ: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend`
+- 作業ディレクトリ: `/path/to/Mirai-Knowledge-Systems/backend`
 - 実行ファイル: `app_v2.py`
 - ポート: **5100**
 - 環境モード: **development**
 - 自動再起動: 有効（10秒後）
-- 環境ファイル: `/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/.env`
+- 環境ファイル: `/path/to/Mirai-Knowledge-Systems/backend/.env`
 
 ```ini
 [Service]
 Type=simple
 User=kensan
 Group=kensan
-WorkingDirectory=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
-EnvironmentFile=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/.env
-Environment="PATH=/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin:/usr/local/bin:/usr/bin:/bin"
+WorkingDirectory=/path/to/Mirai-Knowledge-Systems/backend
+EnvironmentFile=/path/to/Mirai-Knowledge-Systems/backend/.env
+Environment="PATH=/path/to/Mirai-Knowledge-Systems/venv_linux/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="MKS_ENV=development"
 Environment="MKS_DEBUG=false"
-ExecStart=/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin/python3 app_v2.py
+ExecStart=/path/to/Mirai-Knowledge-Systems/venv_linux/bin/python3 app_v2.py
 Restart=always
 RestartSec=10
 ```

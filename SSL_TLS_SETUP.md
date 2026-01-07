@@ -161,7 +161,7 @@ sudo systemctl reload nginx
 
 ```bash
 # プロジェクトのNginx設定をコピー
-sudo cp /mnt/LinuxHDD/Mirai-Knowledge-Systems/nginx.conf.example \
+sudo cp /path/to/Mirai-Knowledge-Systems/nginx.conf.example \
     /etc/nginx/sites-available/mirai-knowledge-system
 
 # エディタで編集
@@ -197,7 +197,7 @@ sudo systemctl restart nginx
 ### 5. HTTPSアクセス確認
 
 ```
-https://your-domain.com
+https://<your-domain>
 ```
 
 ブラウザで緑の鍵マークが表示されればOK！
@@ -258,6 +258,16 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 ## 🔧 開発環境用自己署名証明書
 
 本番環境でない場合や、テスト用に自己署名証明書を使用できます。
+
+### 0. 自動化スクリプト（任意）
+
+自己署名証明書とNginx設定をまとめて生成する場合は以下を利用します。
+
+```bash
+cd /path/to/Mirai-Knowledge-Systems/backend/scripts
+./setup_ssl_selfsigned.sh generate
+./setup_ssl_selfsigned.sh nginx
+```
 
 ### 1. 自己署名証明書の生成
 
@@ -378,7 +388,7 @@ server {
 ### 3. HSTSヘッダーの確認
 
 ```bash
-curl -I https://your-domain.com | grep Strict-Transport-Security
+curl -I https://<your-domain> | grep Strict-Transport-Security
 ```
 
 出力例：

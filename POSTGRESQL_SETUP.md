@@ -16,6 +16,19 @@
 
 ---
 
+## 🐳 簡易セットアップ（任意）
+
+開発・検証用途では `docker-compose.yml` を使ってPostgreSQLを起動できます。
+
+```bash
+cd /path/to/Mirai-Knowledge-Systems
+docker-compose up -d
+```
+
+Linux環境での初期化を自動化する場合は `backend/scripts/setup_postgres.sh` を利用できます。
+
+---
+
 ## 🔧 PostgreSQLインストール
 
 ### Ubuntu/Debian
@@ -110,7 +123,7 @@ psql -U mirai_user -d mirai_knowledge_db -h localhost
 `backend/.env` ファイルを編集：
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 nano .env
 ```
 
@@ -148,7 +161,7 @@ grep -E "MKS_USE_POSTGRESQL|DATABASE_URL" .env
 ### 1. 依存パッケージの確認
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 
 # 仮想環境をアクティベート
 source ../venv_linux/bin/activate
@@ -238,7 +251,7 @@ sudo systemctl stop mirai-knowledge-system.service
 ### 2. 手動起動でテスト
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 source ../venv_linux/bin/activate
 python3 app_v2.py
 ```
@@ -270,7 +283,7 @@ curl http://localhost:5100/api/v1/knowledge | jq '.data | length'
 ### 4. ブラウザで確認
 
 ```
-http://192.168.0.187:5100/login.html
+http://<server-ip>:5100/login.html
 ```
 
 ログインしてダッシュボードが正常に表示されればOK！
@@ -346,7 +359,7 @@ sudo systemctl enable postgresql
 
 **解決**:
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 source ../venv_linux/bin/activate
 python3 << EOF
 from database import engine, Base
@@ -368,7 +381,7 @@ CREATE DATABASE mirai_knowledge_db OWNER mirai_user;
 \q
 
 # スキーマ作成とマイグレーションを再実行
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python3 << EOF
 from database import engine, Base
 Base.metadata.create_all(bind=engine)
@@ -386,7 +399,7 @@ python3 migrate_json_to_postgres.py
 
 **.envファイルのパーミッション設定**:
 ```bash
-chmod 600 /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/.env
+chmod 600 /path/to/Mirai-Knowledge-Systems/backend/.env
 ```
 
 ### 外部アクセスの制限（本番環境）

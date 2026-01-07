@@ -92,7 +92,7 @@ def create_knowledge():
   "action": "knowledge.view",
   "resource": "knowledge",
   "resource_id": 5,
-  "ip_address": "192.168.0.145",
+  "ip_address": "203.0.113.10",
   "user_agent": "Mozilla/5.0...",
   "timestamp": "2025-12-26T20:00:00Z"
 }

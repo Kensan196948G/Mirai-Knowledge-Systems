@@ -98,7 +98,7 @@
 ### 4.2 API経由での変更
 
 ```bash
-curl -X POST https://172.23.10.109/api/v1/auth/change-password \
+curl -X POST https://<your-domain>/api/v1/auth/change-password \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -110,7 +110,7 @@ curl -X POST https://172.23.10.109/api/v1/auth/change-password \
 ### 4.3 CLI経由での変更（管理者向け）
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 python3 scripts/change_password.py --username <ユーザー名>
 ```
 
@@ -131,7 +131,7 @@ python3 scripts/change_password.py --username <ユーザー名>
 ### 5.2 スクリプトによるリセット
 
 ```bash
-cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+cd /path/to/Mirai-Knowledge-Systems/backend
 
 # パスワードをリセット（ランダムパスワード生成）
 python3 scripts/reset_password.py --username <ユーザー名>
@@ -198,7 +198,7 @@ psql -U mks_user -d mirai_knowledge_system -c "
 
 2. **監査ログを確認**
    ```bash
-   curl https://172.23.10.109/api/v1/logs/access?user=<ユーザー名>&hours=24 \
+   curl https://<your-domain>/api/v1/logs/access?user=<ユーザー名>&hours=24 \
      -H "Authorization: Bearer <ADMIN_TOKEN>"
    ```
 
