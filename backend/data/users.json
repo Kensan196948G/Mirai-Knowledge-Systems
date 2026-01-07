@@ -1,37 +1,37 @@
 [
   {
-    "id": 1,
-    "username": "admin",
-    "email": "admin@example.com",
-    "password_hash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
-    "full_name": "管理者",
-    "department": "システム管理部",
+    "id": 4,
+    "username": "system_admin",
+    "password_hash": "$2b$12$sDnxUPgOGcrIhJ/eIJjmr.E.ceye0X3WG56xOGKOSZBt3vj.QKaT2",
+    "full_name": "システム管理者",
+    "department": "IT部門",
+    "email": "sysadmin@company.local",
     "roles": [
       "admin"
     ],
     "is_active": true
   },
   {
-    "id": 2,
-    "username": "yamada",
-    "email": "yamada@example.com",
-    "password_hash": "ff3f9de78974ea9263dc2e7047867076ae476a5d43696c29b5120540df5b389f",
-    "full_name": "山田太郎",
-    "department": "施工管理",
+    "id": 5,
+    "username": "project_manager",
+    "password_hash": "$2b$12$06BgMdq1I89fjrrMtMJzF.7F.uKYCBZcOKX7hV.lZoavdy793of4S",
+    "full_name": "プロジェクト管理者",
+    "department": "建設部門",
+    "email": "pm@company.local",
     "roles": [
-      "construction_manager"
+      "manager"
     ],
     "is_active": true
   },
   {
-    "id": 3,
-    "username": "partner",
-    "email": "partner@example.com",
-    "password_hash": "d4e870198339c045e84f416cc6a1f15c30f010f68e14c637a9d35366f2e35ba6",
-    "full_name": "協力会社ユーザー",
-    "department": "協力会社",
+    "id": 6,
+    "username": "engineer01",
+    "password_hash": "$2b$12$Dg0zCBSCZJCJcTTuGvwSeukeIQiJgHvULtefD75Y85IOd2.L6bKSK",
+    "full_name": "技術者01",
+    "department": "技術部門",
+    "email": "engineer01@company.local",
     "roles": [
-      "partner_company"
+      "engineer"
     ],
     "is_active": true
   }
