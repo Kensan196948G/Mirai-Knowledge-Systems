@@ -347,6 +347,53 @@
         </tbody>
       </table>
     </div>
+
+    <!-- 監査ログ -->
+    <div class="admin-panel">
+      <h2>監査ログ</h2>
+      <div class="audit-log-filters" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <select id="auditUserFilter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);">
+          <option value="">全ユーザー</option>
+        </select>
+        <select id="auditActionFilter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);">
+          <option value="">全アクション</option>
+          <option value="login">ログイン</option>
+          <option value="knowledge">ナレッジ操作</option>
+          <option value="search">検索</option>
+          <option value="sop">SOP操作</option>
+        </select>
+        <select id="auditStatusFilter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);">
+          <option value="">全ステータス</option>
+          <option value="success">成功</option>
+          <option value="failure">失敗</option>
+        </select>
+        <button onclick="loadAuditLogs()" class="cta ghost" style="padding: 8px 16px;">検索</button>
+        <button onclick="loadAuditLogStats()" class="cta ghost" style="padding: 8px 16px;">統計表示</button>
+      </div>
+      <div id="auditLogStats" style="display: none; margin-bottom: 16px; padding: 16px; background: var(--surface); border-radius: 12px;">
+        <!-- 統計情報がここに表示される -->
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>日時</th>
+            <th>ユーザー</th>
+            <th>アクション</th>
+            <th>リソース</th>
+            <th>ステータス</th>
+            <th>IPアドレス</th>
+          </tr>
+        </thead>
+        <tbody id="auditLogList">
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--muted);">読み込み中...</td>
+          </tr>
+        </tbody>
+      </table>
+      <div id="auditLogPagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;">
+        <!-- ページネーションがここに表示される -->
+      </div>
+    </div>
   </div>
 
   <script>
@@ -891,6 +938,286 @@
     }
 
     // ============================================================
+    // 監査ログ機能
+    // ============================================================
+
+    let currentAuditPage = 1;
+
+    async function loadAuditLogs(page = 1) {
+      currentAuditPage = page;
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const userFilter = document.getElementById('auditUserFilter').value;
+      const actionFilter = document.getElementById('auditActionFilter').value;
+      const statusFilter = document.getElementById('auditStatusFilter').value;
+
+      let url = `${API_BASE}/logs/access?page=${page}&per_page=20`;
+      if (userFilter) url += `&user_id=${userFilter}`;
+      if (actionFilter) url += `&action=${actionFilter}`;
+      if (statusFilter) url += `&status=${statusFilter}`;
+
+      try {
+        const response = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            logger.log('[AUDIT] 管理者権限が必要です');
+            const tbody = document.getElementById('auditLogList');
+            tbody.innerHTML = '';
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 6;
+            td.style.textAlign = 'center';
+            td.style.color = 'var(--muted)';
+            td.textContent = '管理者権限が必要です';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            return;
+          }
+          throw new Error('ログの取得に失敗しました');
+        }
+
+        const data = await response.json();
+        renderAuditLogs(data.logs);
+        renderAuditPagination(data.pagination);
+        logger.log('[AUDIT] ログを取得しました:', data.logs.length, '件');
+
+      } catch (error) {
+        logger.error('[AUDIT] エラー:', error);
+        const tbody = document.getElementById('auditLogList');
+        tbody.innerHTML = '';
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 6;
+        td.style.textAlign = 'center';
+        td.style.color = 'var(--error)';
+        td.textContent = 'エラー: ' + error.message;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderAuditLogs(logs) {
+      const tbody = document.getElementById('auditLogList');
+      tbody.innerHTML = '';
+
+      if (logs.length === 0) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 6;
+        td.style.textAlign = 'center';
+        td.style.color = 'var(--muted)';
+        td.textContent = 'ログがありません';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+
+      logs.forEach(log => {
+        const tr = document.createElement('tr');
+
+        // 日時
+        const tdTime = document.createElement('td');
+        const timestamp = new Date(log.timestamp);
+        tdTime.textContent = timestamp.toLocaleString('ja-JP');
+        tdTime.style.fontSize = '12px';
+        tr.appendChild(tdTime);
+
+        // ユーザー
+        const tdUser = document.createElement('td');
+        tdUser.textContent = log.username || 'Unknown';
+        tr.appendChild(tdUser);
+
+        // アクション
+        const tdAction = document.createElement('td');
+        tdAction.textContent = log.action || '-';
+        tr.appendChild(tdAction);
+
+        // リソース
+        const tdResource = document.createElement('td');
+        tdResource.textContent = log.resource ? `${log.resource}${log.resource_id ? '/' + log.resource_id : ''}` : '-';
+        tr.appendChild(tdResource);
+
+        // ステータス
+        const tdStatus = document.createElement('td');
+        const statusBadge = document.createElement('span');
+        statusBadge.style.padding = '2px 8px';
+        statusBadge.style.borderRadius = '4px';
+        statusBadge.style.fontSize = '11px';
+        if (log.status === 'success') {
+          statusBadge.style.background = 'var(--moss)';
+          statusBadge.style.color = '#fff';
+          statusBadge.textContent = '成功';
+        } else if (log.status === 'failure') {
+          statusBadge.style.background = 'var(--error)';
+          statusBadge.style.color = '#fff';
+          statusBadge.textContent = '失敗';
+        } else {
+          statusBadge.textContent = log.status || '-';
+        }
+        tdStatus.appendChild(statusBadge);
+        tr.appendChild(tdStatus);
+
+        // IPアドレス
+        const tdIp = document.createElement('td');
+        tdIp.textContent = log.ip_address || '-';
+        tdIp.style.fontSize = '12px';
+        tr.appendChild(tdIp);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderAuditPagination(pagination) {
+      const container = document.getElementById('auditLogPagination');
+      container.innerHTML = '';
+
+      if (pagination.total_pages <= 1) return;
+
+      // 前へボタン
+      if (pagination.page > 1) {
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'cta ghost';
+        prevBtn.style.padding = '4px 12px';
+        prevBtn.textContent = '前へ';
+        prevBtn.addEventListener('click', () => loadAuditLogs(pagination.page - 1));
+        container.appendChild(prevBtn);
+      }
+
+      // ページ番号
+      const pageInfo = document.createElement('span');
+      pageInfo.style.padding = '4px 12px';
+      pageInfo.textContent = `${pagination.page} / ${pagination.total_pages}`;
+      container.appendChild(pageInfo);
+
+      // 次へボタン
+      if (pagination.page < pagination.total_pages) {
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'cta ghost';
+        nextBtn.style.padding = '4px 12px';
+        nextBtn.textContent = '次へ';
+        nextBtn.addEventListener('click', () => loadAuditLogs(pagination.page + 1));
+        container.appendChild(nextBtn);
+      }
+    }
+
+    async function loadAuditLogStats() {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/logs/access/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          throw new Error('統計の取得に失敗しました');
+        }
+
+        const data = await response.json();
+        renderAuditStats(data);
+
+      } catch (error) {
+        logger.error('[AUDIT] 統計エラー:', error);
+      }
+    }
+
+    function renderAuditStats(stats) {
+      const container = document.getElementById('auditLogStats');
+      container.style.display = 'block';
+      container.innerHTML = '';
+
+      const grid = document.createElement('div');
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
+      grid.style.gap = '16px';
+
+      const items = [
+        { label: '総ログ数', value: stats.total_logs },
+        { label: '今日のログ', value: stats.today_logs },
+        { label: '今週のログ', value: stats.week_logs },
+        { label: '成功', value: stats.by_status?.success || 0 },
+        { label: '失敗', value: stats.by_status?.failure || 0 }
+      ];
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.style.textAlign = 'center';
+        card.style.padding = '12px';
+        card.style.background = '#fff';
+        card.style.borderRadius = '8px';
+
+        const valueEl = document.createElement('div');
+        valueEl.style.fontSize = '24px';
+        valueEl.style.fontWeight = 'bold';
+        valueEl.style.color = 'var(--accent)';
+        valueEl.textContent = item.value.toLocaleString();
+        card.appendChild(valueEl);
+
+        const labelEl = document.createElement('div');
+        labelEl.style.fontSize = '12px';
+        labelEl.style.color = 'var(--muted)';
+        labelEl.textContent = item.label;
+        card.appendChild(labelEl);
+
+        grid.appendChild(card);
+      });
+
+      container.appendChild(grid);
+
+      // アクティブユーザー
+      if (stats.top_active_users && stats.top_active_users.length > 0) {
+        const userSection = document.createElement('div');
+        userSection.style.marginTop = '16px';
+
+        const userTitle = document.createElement('h4');
+        userTitle.style.margin = '0 0 8px';
+        userTitle.textContent = 'アクティブユーザー（上位5名）';
+        userSection.appendChild(userTitle);
+
+        const userList = document.createElement('ul');
+        userList.style.margin = '0';
+        userList.style.paddingLeft = '20px';
+
+        stats.top_active_users.forEach(user => {
+          const li = document.createElement('li');
+          li.textContent = `${user.username}: ${user.action_count}件`;
+          userList.appendChild(li);
+        });
+
+        userSection.appendChild(userList);
+        container.appendChild(userSection);
+      }
+    }
+
+    async function loadUserList() {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/users`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const users = await response.json();
+          const select = document.getElementById('auditUserFilter');
+          users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = user.username;
+            select.appendChild(option);
+          });
+        }
+      } catch (error) {
+        logger.error('[AUDIT] ユーザーリスト取得エラー:', error);
+      }
+    }
+
+    // ============================================================
     // 初期化
     // ============================================================
 
@@ -908,6 +1235,10 @@
       // データのロード
       loadKnowledge();
       loadApprovals();
+
+      // 監査ログのロード（管理者のみ）
+      loadUserList();
+      loadAuditLogs();
 
       logger.log('管理画面 - 初期化完了！');
     });
