@@ -598,12 +598,21 @@ def log_access(user_id, action, resource=None, resource_id=None, status='success
     except Exception:
         pass
 
+    # resource_idの型チェック（INTEGER型のため）
+    safe_resource_id = None
+    if resource_id is not None:
+        if isinstance(resource_id, int):
+            safe_resource_id = resource_id
+        elif isinstance(resource_id, str) and resource_id.isdigit():
+            safe_resource_id = int(resource_id)
+        # それ以外の場合はNoneのまま（文字列IDはログに記録しない）
+
     log_entry = {
         'id': len(logs) + 1,
         'user_id': user_id,
         'action': action,
         'resource': resource,
-        'resource_id': resource_id,
+        'resource_id': safe_resource_id,
         'status': status,
         'ip_address': request.remote_addr,
         'user_agent': request.headers.get('User-Agent'),
@@ -1598,6 +1607,24 @@ def get_sop():
         'pagination': {'total_items': len(sop_list)}
     })
 
+@app.route('/api/v1/sop/<int:sop_id>', methods=['GET'])
+@check_permission('sop.read')
+def get_sop_detail(sop_id):
+    """SOP詳細取得"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, 'sop.view', 'sop', sop_id)
+
+    sop_list = load_data('sop.json')
+    sop = next((s for s in sop_list if s['id'] == sop_id), None)
+
+    if not sop:
+        return jsonify({'success': False, 'error': 'SOP not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'data': sop
+    })
+
 @app.route('/api/v1/sop/<int:sop_id>/related', methods=['GET'])
 @check_permission('sop.read')
 def get_related_sop(sop_id):
@@ -1654,6 +1681,38 @@ def get_related_sop(sop_id):
             'algorithm': algorithm,
             'count': len(related)
         }
+    })
+
+@app.route('/api/v1/incidents', methods=['GET'])
+@check_permission('incident.read')
+def get_incidents():
+    """事故レポート一覧取得"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, 'incidents.list', 'incidents')
+
+    incidents_list = load_data('incidents.json')
+    return jsonify({
+        'success': True,
+        'data': incidents_list,
+        'pagination': {'total_items': len(incidents_list)}
+    })
+
+@app.route('/api/v1/incidents/<int:incident_id>', methods=['GET'])
+@check_permission('incident.read')
+def get_incident_detail(incident_id):
+    """事故レポート詳細取得"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, 'incidents.view', 'incidents', incident_id)
+
+    incidents_list = load_data('incidents.json')
+    incident = next((i for i in incidents_list if i['id'] == incident_id), None)
+
+    if not incident:
+        return jsonify({'success': False, 'error': 'Incident not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'data': incident
     })
 
 @app.route('/api/v1/dashboard/stats', methods=['GET'])
