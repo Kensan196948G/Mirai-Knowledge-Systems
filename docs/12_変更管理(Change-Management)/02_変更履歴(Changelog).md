@@ -1,13 +1,17 @@
 # 変更履歴
 
 ## 2026-01-07
-- **Phase B-11（本番準備）開始**
+- **Phase B-11（本番準備）進捗: 90%**
   - 本番開発フェーズ現状評価と計画書作成（Phase-B10-Production-Status.md）
   - DB構造設計書作成（論理/物理データモデル完備）
   - 自己署名SSL証明書セットアップスクリプト作成（setup_ssl_selfsigned.sh）
   - Claude Code用プロンプトテンプレート整備（6種類）
   - データインポートスクリプト作成（CSV/Excel/JSON対応）
   - インポート用CSVテンプレート作成
+  - Microsoft 365連携ガイド作成（Azure AD、Graph API）
+  - 負荷テストスクリプト作成・実行（82 req/sec、平均121ms）
+  - 単体/統合テスト319件PASS、カバレッジ87%
+  - Playwrightインストール完了
 
 - **Phase B-10（PostgreSQL移行）完了**
   - データベーススキーマ完全定義（init-db.sql: 375行）
@@ -51,6 +55,7 @@
 ## 変更履歴 (詳細)
 | 日付 | バージョン | 変更内容 | 担当 |
 | --- | --- | --- | --- |
+| 2026-01-07 | 0.9 | Phase B-11進捗、M365連携、負荷テスト、テスト319件PASS | Claude Code |
 | 2026-01-07 | 0.8 | Phase B-11開始、本番準備（SSL、プロンプト、インポート） | Claude Code |
 | 2026-01-07 | 0.7 | Phase B-10完了、PostgreSQL本番稼働 | Claude Code |
 | 2026-01-07 | 0.6 | Phase B-9進捗、監査ログ機能完成 | Claude Code |
