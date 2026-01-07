@@ -574,21 +574,56 @@ def validate_request(schema_class):
 # 監査ログ
 # ============================================================
 
-def log_access(user_id, action, resource=None, resource_id=None):
-    """アクセスログを記録"""
+def log_access(user_id, action, resource=None, resource_id=None, status='success', details=None, old_value=None, new_value=None):
+    """
+    詳細な監査ログを記録
+
+    Args:
+        user_id: ユーザーID
+        action: アクション名（例: 'knowledge.create', 'login'）
+        resource: リソース種別（例: 'knowledge', 'sop'）
+        resource_id: リソースID
+        status: 'success' または 'failure'
+        details: 追加の詳細情報（dict）
+        old_value: 変更前の値（更新操作用）
+        new_value: 変更後の値（更新操作用）
+    """
     logs = load_data('access_logs.json')
-    
+
+    # セッションIDの取得（JWTのjtiまたはリクエストごとのユニークID）
+    session_id = None
+    try:
+        jwt_data = get_jwt()
+        session_id = jwt_data.get('jti', None)
+    except Exception:
+        pass
+
     log_entry = {
         'id': len(logs) + 1,
         'user_id': user_id,
         'action': action,
         'resource': resource,
         'resource_id': resource_id,
+        'status': status,
         'ip_address': request.remote_addr,
         'user_agent': request.headers.get('User-Agent'),
+        'request_method': request.method,
+        'request_path': request.path,
+        'session_id': session_id,
         'timestamp': datetime.now().isoformat()
     }
-    
+
+    # 変更前後の値を記録（データ変更操作用）
+    if old_value is not None or new_value is not None:
+        log_entry['changes'] = {
+            'old_value': old_value,
+            'new_value': new_value
+        }
+
+    # 追加の詳細情報
+    if details:
+        log_entry['details'] = details
+
     logs.append(log_entry)
     save_data('access_logs.json', logs)
 
@@ -2167,7 +2202,7 @@ def update_system_metrics():
         SYSTEM_DISK_USAGE.set(disk.percent)
 
         # ナレッジ総数
-        knowledges = load_knowledges()
+        knowledges = load_data('knowledge.json')
         KNOWLEDGE_TOTAL.set(len(knowledges))
 
         # アクティブユーザー数（セッションベース）
@@ -2215,7 +2250,7 @@ def metrics_summary():
         disk = psutil.disk_usage('/')
 
         # ナレッジ総数
-        knowledges = load_knowledges()
+        knowledges = load_data('knowledge.json')
 
         summary = {
             'system': {
@@ -2250,6 +2285,181 @@ def metrics_summary():
     except Exception as e:
         print(f"[ERROR] Metrics summary error: {e}")
         return jsonify({'error': 'Failed to generate metrics summary'}), 500
+
+# ============================================================
+# 監査ログAPI
+# ============================================================
+
+@app.route('/api/v1/logs/access', methods=['GET'])
+@jwt_required()
+@check_permission('admin')
+def get_access_logs():
+    """
+    監査ログの取得（管理者専用）
+
+    クエリパラメータ:
+        user_id: 特定ユーザーでフィルタ
+        action: 特定アクションでフィルタ（部分一致）
+        resource: リソース種別でフィルタ
+        status: success/failureでフィルタ
+        start_date: 開始日時（ISO形式）
+        end_date: 終了日時（ISO形式）
+        page: ページ番号（デフォルト1）
+        per_page: 1ページあたりの件数（デフォルト50、最大200）
+        sort: 'asc' または 'desc'（デフォルト: desc）
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        logs = load_data('access_logs.json')
+
+        # フィルタパラメータ取得
+        user_id_filter = request.args.get('user_id', type=int)
+        action_filter = request.args.get('action', '')
+        resource_filter = request.args.get('resource', '')
+        status_filter = request.args.get('status', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 200)
+        sort_order = request.args.get('sort', 'desc')
+
+        # フィルタリング
+        filtered_logs = logs
+
+        if user_id_filter:
+            filtered_logs = [l for l in filtered_logs if l.get('user_id') == user_id_filter]
+
+        if action_filter:
+            filtered_logs = [l for l in filtered_logs if action_filter.lower() in str(l.get('action', '')).lower()]
+
+        if resource_filter:
+            filtered_logs = [l for l in filtered_logs if l.get('resource') == resource_filter]
+
+        if status_filter:
+            filtered_logs = [l for l in filtered_logs if l.get('status') == status_filter]
+
+        if start_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                filtered_logs = [l for l in filtered_logs
+                                if datetime.fromisoformat(l.get('timestamp', '')) >= start_dt]
+            except ValueError:
+                pass
+
+        if end_date:
+            try:
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                filtered_logs = [l for l in filtered_logs
+                                if datetime.fromisoformat(l.get('timestamp', '')) <= end_dt]
+            except ValueError:
+                pass
+
+        # ソート
+        filtered_logs.sort(key=lambda x: x.get('timestamp', ''), reverse=(sort_order == 'desc'))
+
+        # ページネーション
+        total = len(filtered_logs)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_logs = filtered_logs[start_idx:end_idx]
+
+        # ユーザー情報の付加
+        users = load_data('users.json')
+        user_map = {u['id']: u.get('username', 'Unknown') for u in users}
+
+        for log in paginated_logs:
+            log['username'] = user_map.get(log.get('user_id'), 'Unknown')
+
+        log_access(current_user_id, 'logs.access.view', 'audit_logs', details={'filters_applied': bool(user_id_filter or action_filter or resource_filter)})
+
+        return jsonify({
+            'logs': paginated_logs,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'total_pages': (total + per_page - 1) // per_page
+            },
+            'filters': {
+                'user_id': user_id_filter,
+                'action': action_filter,
+                'resource': resource_filter,
+                'status': status_filter,
+                'start_date': start_date,
+                'end_date': end_date
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"[ERROR] Access logs error: {e}")
+        return jsonify({'error': 'Failed to retrieve access logs'}), 500
+
+
+@app.route('/api/v1/logs/access/stats', methods=['GET'])
+@jwt_required()
+@check_permission('admin')
+def get_access_logs_stats():
+    """
+    監査ログの統計情報（管理者専用）
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        logs = load_data('access_logs.json')
+
+        # 統計情報の計算
+        now = datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = today_start - timedelta(days=7)
+
+        total_logs = len(logs)
+        today_logs = 0
+        week_logs = 0
+        action_counts = Counter()
+        resource_counts = Counter()
+        status_counts = Counter()
+        user_activity = Counter()
+
+        for log in logs:
+            try:
+                log_time = datetime.fromisoformat(log.get('timestamp', ''))
+
+                if log_time >= today_start:
+                    today_logs += 1
+                if log_time >= week_start:
+                    week_logs += 1
+
+                action_counts[log.get('action', 'unknown')] += 1
+                resource_counts[log.get('resource') or 'none'] += 1
+                status_counts[log.get('status', 'unknown')] += 1
+                user_activity[log.get('user_id', 0)] += 1
+
+            except (ValueError, TypeError):
+                continue
+
+        # 最もアクティブなユーザー（上位5名）
+        users = load_data('users.json')
+        user_map = {u['id']: u.get('username', 'Unknown') for u in users}
+        top_users = [
+            {'user_id': uid, 'username': user_map.get(uid, 'Unknown'), 'action_count': count}
+            for uid, count in user_activity.most_common(5)
+        ]
+
+        log_access(current_user_id, 'logs.access.stats', 'audit_logs')
+
+        return jsonify({
+            'total_logs': total_logs,
+            'today_logs': today_logs,
+            'week_logs': week_logs,
+            'by_action': dict(action_counts.most_common(10)),
+            'by_resource': dict(resource_counts),
+            'by_status': dict(status_counts),
+            'top_active_users': top_users,
+            'generated_at': now.isoformat()
+        }), 200
+
+    except Exception as e:
+        print(f"[ERROR] Access logs stats error: {e}")
+        return jsonify({'error': 'Failed to retrieve access logs stats'}), 500
 
 # ============================================================
 # デコレータ: メトリクス記録
