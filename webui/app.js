@@ -608,6 +608,10 @@ function displayKnowledge(knowledgeList) {
   // 各ナレッジカードを安全に作成
   knowledgeList.forEach(k => {
     const card = createElement('div', {className: 'knowledge-card'}, []);
+    // サンプルデータの場合はオレンジボーダーを追加
+    if (k.title && k.title.includes('[サンプル]')) {
+      card.style.borderLeft = '3px solid #f59e0b';
+    }
 
     // ヘッダー部分（タイトルとアクションボタン）
     const cardHeader = createElement('div', {className: 'knowledge-card-header'}, []);
@@ -621,9 +625,8 @@ function displayKnowledge(knowledgeList) {
     title.style.flex = '1';
     title.onclick = (e) => {
       e.stopPropagation();
-      // 詳細データをlocalStorageに保存
-      localStorage.setItem('knowledge_detail', JSON.stringify(k));
-      window.location.href = 'search-detail.html';
+      // IDベースで詳細ページに遷移
+      window.location.href = `search-detail.html?id=${k.id}`;
     };
     cardHeader.appendChild(title);
 
@@ -682,12 +685,16 @@ function displaySOPs(sopList) {
   // 各SOPカードを安全に作成
   sopList.forEach(sop => {
     const card = createElement('div', {className: 'knowledge-card'}, []);
+    // サンプルデータの場合はオレンジボーダーを追加
+    if (sop.title && sop.title.includes('[サンプル]')) {
+      card.style.borderLeft = '3px solid #f59e0b';
+    }
 
     // カードクリックでSOP詳細画面へ遷移
     card.style.cursor = 'pointer';
     card.onclick = () => {
-      localStorage.setItem('sop_detail', JSON.stringify(sop));
-      window.location.href = 'sop-detail.html';
+      // IDベースで詳細ページに遷移
+      window.location.href = `sop-detail.html?id=${sop.id}`;
     };
 
     const title = createElement('h4', {}, [sop.title || '']);
@@ -724,12 +731,16 @@ function displayIncidents(incidentList) {
   // 各事故レポートカードを安全に作成
   incidentList.forEach(incident => {
     const card = createElement('div', {className: 'knowledge-card'}, []);
+    // サンプルデータの場合はオレンジボーダーを追加
+    if (incident.title && incident.title.includes('[サンプル]')) {
+      card.style.borderLeft = '3px solid #f59e0b';
+    }
 
     // カードクリックで事故レポート詳細画面へ遷移
     card.style.cursor = 'pointer';
     card.onclick = () => {
-      localStorage.setItem('incident_detail', JSON.stringify(incident));
-      window.location.href = 'incident-detail.html';
+      // IDベースで詳細ページに遷移
+      window.location.href = `incident-detail.html?id=${incident.id}`;
     };
 
     const title = createElement('h4', {}, [incident.title || '']);
@@ -1164,8 +1175,8 @@ function displaySearchResults(results) {
     const card = createElement('div', {className: 'knowledge-card'}, []);
     card.style.cursor = 'pointer';
     card.onclick = () => {
-      localStorage.setItem('knowledge_detail', JSON.stringify(item));
-      window.location.href = 'search-detail.html';
+      // IDベースで詳細ページに遷移
+      window.location.href = `search-detail.html?id=${item.id}`;
     };
 
     const title = createElement('h4', {}, [item.title || '']);
@@ -2421,6 +2432,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 初期データのロード
   loadDashboardStats();
   loadKnowledge();
+  loadSOPs();
+  loadIncidents();
   loadApprovals();
   loadNotifications();
 
