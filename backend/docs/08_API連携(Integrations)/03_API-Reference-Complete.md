@@ -16,8 +16,8 @@
 ### バージョン
 
 API Version: v1
-ドキュメントバージョン: 1.0.0
-最終更新日: 2024年12月27日
+ドキュメントバージョン: 1.1.0
+最終更新日: 2026年1月7日
 
 ### プロトコル
 
@@ -185,6 +185,20 @@ HTTPステータスコード: `429 Too Many Requests`
 | メソッド | パス | 説明 | 認証 |
 |---------|------|------|------|
 | GET | /api/v1/metrics | システムメトリクス取得 | 必要 |
+
+### ヘルスチェック（Health Check）
+
+| メソッド | パス | 説明 | 認証 |
+|---------|------|------|------|
+| GET | /api/v1/health | システムヘルスチェック | 不要 |
+| GET | /api/v1/health/db | データベースヘルスチェック | 不要 |
+
+### 監査ログ（Audit Logs）
+
+| メソッド | パス | 説明 | 認証 | 権限 |
+|---------|------|------|------|------|
+| GET | /api/v1/logs/access | アクセスログ一覧取得 | 必要 | admin |
+| GET | /api/v1/logs/access/stats | アクセスログ統計取得 | 必要 | admin |
 
 ---
 
@@ -1055,6 +1069,210 @@ HTTPステータスコード: `200 OK`
 
 ---
 
+## 6. ヘルスチェックAPI
+
+### 6.1 システムヘルスチェック
+
+システム全体のヘルス状態を取得します。監視ツールやロードバランサーからのヘルスチェックに使用します。
+
+**エンドポイント**
+
+```
+GET /api/v1/health
+```
+
+**認証**: 不要
+
+**リクエスト例**
+
+```bash
+curl https://api.example.com/api/v1/health
+```
+
+**成功レスポンス**
+
+HTTPステータスコード: `200 OK`
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-01-07T12:25:56.631934",
+  "version": "2.0.0",
+  "environment": "production",
+  "storage_mode": "postgresql",
+  "database": {
+    "healthy": true,
+    "mode": "postgresql",
+    "details": {
+      "version": "PostgreSQL 16.11...",
+      "pool_size": 10
+    }
+  },
+  "system": {
+    "cpu_percent": 7.5,
+    "memory_percent": 33.3,
+    "memory_available_mb": 21013,
+    "disk_percent": 63.5,
+    "disk_free_gb": 33
+  }
+}
+```
+
+**レスポンスフィールド説明**
+
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| status | string | ヘルス状態（healthy, unhealthy, degraded） |
+| timestamp | datetime | チェック実行日時（ISO 8601形式） |
+| version | string | アプリケーションバージョン |
+| environment | string | 実行環境（development, production） |
+| storage_mode | string | ストレージモード（json, postgresql） |
+| database | object | データベースヘルス情報 |
+| system | object | システムリソース情報 |
+
+---
+
+### 6.2 データベースヘルスチェック
+
+データベース接続のヘルス状態のみを取得します。
+
+**エンドポイント**
+
+```
+GET /api/v1/health/db
+```
+
+**認証**: 不要
+
+**成功レスポンス**
+
+HTTPステータスコード: `200 OK`
+
+```json
+{
+  "healthy": true,
+  "mode": "postgresql",
+  "version": "PostgreSQL 16.11..."
+}
+```
+
+---
+
+## 7. 監査ログAPI
+
+### 7.1 アクセスログ一覧取得
+
+システムへのアクセスログを取得します。管理者専用機能です。
+
+**エンドポイント**
+
+```
+GET /api/v1/logs/access
+```
+
+**認証**: アクセストークン必須
+
+**権限**: `admin` ロールのみ
+
+**クエリパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|---|------|------|
+| user_id | string | × | ユーザーIDでフィルタ |
+| action | string | × | アクション種別でフィルタ |
+| status | string | × | ステータスでフィルタ（success, failure） |
+| start_date | datetime | × | 開始日時 |
+| end_date | datetime | × | 終了日時 |
+| page | integer | × | ページ番号（デフォルト: 1） |
+| per_page | integer | × | 1ページあたりの件数（デフォルト: 50） |
+
+**リクエスト例**
+
+```bash
+curl "https://api.example.com/api/v1/logs/access?action=login&status=success" \
+  -H "Authorization: Bearer {token}"
+```
+
+**成功レスポンス**
+
+HTTPステータスコード: `200 OK`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "user_id": "1",
+      "username": "admin",
+      "action": "login",
+      "resource": "/api/v1/auth/login",
+      "status": "success",
+      "ip_address": "192.168.1.100",
+      "user_agent": "Mozilla/5.0...",
+      "session_id": "abc123",
+      "changes": null,
+      "timestamp": "2026-01-07T09:00:00"
+    }
+  ],
+  "pagination": {
+    "total_items": 1250,
+    "page": 1,
+    "per_page": 50,
+    "total_pages": 25
+  }
+}
+```
+
+---
+
+### 7.2 アクセスログ統計取得
+
+アクセスログの統計情報を取得します。
+
+**エンドポイント**
+
+```
+GET /api/v1/logs/access/stats
+```
+
+**認証**: アクセストークン必須
+
+**権限**: `admin` ロールのみ
+
+**クエリパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|---|------|------|
+| period | string | × | 集計期間（day, week, month。デフォルト: day） |
+
+**成功レスポンス**
+
+HTTPステータスコード: `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "total_requests": 12500,
+    "unique_users": 45,
+    "success_rate": 98.5,
+    "by_action": {
+      "login": 450,
+      "knowledge_read": 8500,
+      "knowledge_create": 120,
+      "search": 3430
+    },
+    "by_hour": [
+      {"hour": 9, "count": 1250},
+      {"hour": 10, "count": 1580}
+    ]
+  }
+}
+```
+
+---
+
 ## エラーコード一覧
 
 ### 認証・認可エラー
@@ -1198,6 +1416,7 @@ async function callAPI(url, options) {
 
 | バージョン | 日付 | 変更内容 |
 |----------|------|---------|
+| 1.1.0 | 2026-01-07 | ヘルスチェックAPI、監査ログAPI追加 |
 | 1.0.0 | 2024-12-27 | 初版リリース |
 
 ---
@@ -1216,6 +1435,6 @@ async function callAPI(url, options) {
 
 ---
 
-**最終更新日**: 2024年12月27日
+**最終更新日**: 2026年1月7日
 **APIバージョン**: v1
-**ドキュメントバージョン**: 1.0.0
+**ドキュメントバージョン**: 1.1.0
