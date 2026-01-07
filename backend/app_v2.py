@@ -2462,6 +2462,90 @@ def get_access_logs_stats():
         return jsonify({'error': 'Failed to retrieve access logs stats'}), 500
 
 # ============================================================
+# データベースヘルスチェック
+# ============================================================
+
+@app.route('/api/v1/health', methods=['GET'])
+def health_check():
+    """
+    システムヘルスチェックエンドポイント
+
+    Returns:
+        JSON: システム状態（データベース、メモリ、CPU等）
+    """
+    try:
+        # データベースヘルスチェック
+        try:
+            from database import check_database_health, get_storage_mode
+            db_health = check_database_health()
+            storage_mode = get_storage_mode()
+        except ImportError:
+            # database.pyが利用できない場合はJSONモード
+            db_health = {'mode': 'json', 'healthy': True}
+            storage_mode = 'json'
+
+        # システムメトリクス
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+
+        return jsonify({
+            'status': 'healthy' if db_health.get('healthy', True) else 'degraded',
+            'timestamp': datetime.now().isoformat(),
+            'version': '2.0.0',
+            'environment': os.environ.get('MKS_ENV', 'development'),
+            'database': db_health,
+            'storage_mode': storage_mode,
+            'system': {
+                'cpu_percent': cpu_percent,
+                'memory_percent': memory.percent,
+                'memory_available_mb': memory.available // (1024 * 1024),
+                'disk_percent': disk.percent,
+                'disk_free_gb': disk.free // (1024 * 1024 * 1024)
+            }
+        }), 200 if db_health.get('healthy', True) else 503
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/api/v1/health/db', methods=['GET'])
+def db_health_check():
+    """
+    データベース専用ヘルスチェック
+
+    Returns:
+        JSON: データベース接続状態の詳細
+    """
+    try:
+        from database import check_database_health, get_storage_mode
+        health = check_database_health()
+        return jsonify({
+            'healthy': health.get('healthy', False),
+            'mode': health.get('mode', 'unknown'),
+            'details': health.get('details', {}),
+            'timestamp': datetime.now().isoformat()
+        }), 200 if health.get('healthy') else 503
+    except ImportError:
+        return jsonify({
+            'healthy': True,
+            'mode': 'json',
+            'details': {'message': 'Using JSON backend'},
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'healthy': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 503
+
+
+# ============================================================
 # デコレータ: メトリクス記録
 # ============================================================
 

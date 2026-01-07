@@ -1,6 +1,23 @@
 # 変更履歴
 
 ## 2026-01-07
+- **Phase B-11（本番準備）開始**
+  - 本番開発フェーズ現状評価と計画書作成（Phase-B10-Production-Status.md）
+  - DB構造設計書作成（論理/物理データモデル完備）
+  - 自己署名SSL証明書セットアップスクリプト作成（setup_ssl_selfsigned.sh）
+  - Claude Code用プロンプトテンプレート整備（6種類）
+  - データインポートスクリプト作成（CSV/Excel/JSON対応）
+  - インポート用CSVテンプレート作成
+
+- **Phase B-10（PostgreSQL移行）完了**
+  - データベーススキーマ完全定義（init-db.sql: 375行）
+  - JSON→PostgreSQLデータ移行スクリプト作成（migrate_json_to_postgres.py）
+  - database.pyをJSON/PostgreSQLデュアルモード対応に拡張
+  - ヘルスチェックAPI追加（/api/v1/health、/api/v1/health/db）
+  - PostgreSQLセットアップスクリプト作成（setup_postgres.sh）
+  - PostgreSQL 16.11 本番稼働中
+  - Alembic設定済み
+
 - **Phase B-9（品質保証）進捗: 95%完了**
   - 監査ログ機能の詳細化（session_id、status、changes記録対応）
   - 監査ログAPIエンドポイント追加（/api/v1/logs/access、/api/v1/logs/access/stats）
@@ -34,6 +51,8 @@
 ## 変更履歴 (詳細)
 | 日付 | バージョン | 変更内容 | 担当 |
 | --- | --- | --- | --- |
+| 2026-01-07 | 0.8 | Phase B-11開始、本番準備（SSL、プロンプト、インポート） | Claude Code |
+| 2026-01-07 | 0.7 | Phase B-10完了、PostgreSQL本番稼働 | Claude Code |
 | 2026-01-07 | 0.6 | Phase B-9進捗、監査ログ機能完成 | Claude Code |
 | 2026-01-06 | 0.5 | Phase B-8完了、セキュリティ強化 | Claude Code |
 | 2026-01-01 | 0.4 | systemd設定、セキュリティヘッダー | Claude Code |
