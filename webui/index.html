@@ -48,6 +48,13 @@
 
   </header>
 
+  <!-- サンプルデータ警告バナー -->
+  <div id="demoDataBanner" style="background: linear-gradient(90deg, #f59e0b, #d97706); color: white; padding: 12px 20px; text-align: center; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px;">
+    <span style="font-size: 1.2em;">⚠️</span>
+    <span>このページには UI デモ用のサンプルデータが含まれています。実際の業務データではありません。</span>
+    <button onclick="this.parentElement.style.display='none'" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-left: 10px;">閉じる</button>
+  </div>
+
   <main class="page">
     <aside class="sidebar reveal delay-1">
       <!-- ハンバーガーメニュートグル（モバイル用） -->
@@ -192,38 +199,38 @@
       </section>
 
       <section class="metrics reveal delay-1">
-        <div class="metric-card">
-          <h3>ナレッジ再利用率</h3>
+        <div class="metric-card" title="サンプルデータ">
+          <h3>ナレッジ再利用率 <small style="color:#f59e0b">[参考値]</small></h3>
           <strong>71%</strong>
         </div>
-        <div class="metric-card">
-          <h3>事故ゼロ継続日数</h3>
+        <div class="metric-card" title="サンプルデータ">
+          <h3>事故ゼロ継続日数 <small style="color:#f59e0b">[参考値]</small></h3>
           <strong>184日</strong>
         </div>
-        <div class="metric-card">
-          <h3>品質監査 実施中</h3>
+        <div class="metric-card" title="サンプルデータ">
+          <h3>品質監査 実施中 <small style="color:#f59e0b">[参考値]</small></h3>
           <strong>6現場</strong>
         </div>
-        <div class="metric-card">
-          <h3>是正期限 遅延</h3>
+        <div class="metric-card" title="サンプルデータ">
+          <h3>是正期限 遅延 <small style="color:#f59e0b">[参考値]</small></h3>
           <strong>3件</strong>
         </div>
       </section>
 
       <section class="grid-two reveal delay-2">
         <div class="panel">
-          <h3>承認フロー / ナレッジ配信</h3>
+          <h3>承認フロー / ナレッジ配信 <small style="color:#f59e0b">[サンプル]</small></h3>
           <div class="flow">
             <div class="flow-step">
-              <div>施工計画変更 砂防堰堤B-03 (工区3-2)</div>
+              <div>[例] 施工計画変更 砂防堰堤B-03 (工区3-2)</div>
               <span class="badge is-wait">所長承認待ち</span>
             </div>
             <div class="flow-step">
-              <div>SOP改訂 高所作業車 点検SOP-0421</div>
+              <div>[例] SOP改訂 高所作業車 点検SOP-0421</div>
               <span class="badge is-info">品質確認中</span>
             </div>
             <div class="flow-step">
-              <div>事故レポート 吊り荷接触未遂 (K-12)</div>
+              <div>[例] 事故レポート 吊り荷接触未遂 (K-12)</div>
               <span class="badge is-hold">安全衛生室レビュー</span>
             </div>
           </div>
@@ -236,20 +243,20 @@
           </div>
         </div>
         <div class="panel">
-          <h3>今週のアクション</h3>
+          <h3>今週のアクション <small style="color:#f59e0b">[サンプル]</small></h3>
           <div class="list-dense">
-            <div>品質監査 6現場の是正期限を7日以内に統一</div>
-            <div>夜間舗装の安全パトロールを全現場で実施</div>
-            <div>ICT出来形の再測定基準を通達</div>
+            <div>[例] 品質監査 6現場の是正期限を7日以内に統一</div>
+            <div>[例] 夜間舗装の安全パトロールを全現場で実施</div>
+            <div>[例] ICT出来形の再測定基準を通達</div>
           </div>
-          <div class="note">要件定義前提: 承認フローと通知先は現場/本社の権限設計に合わせて調整。</div>
+          <div class="note">※ 上記はUIデモ用のサンプルデータです。</div>
         </div>
       </section>
 
       <section class="grid-two reveal delay-3">
         <div class="panel">
           <div class="panel-header">
-            <h3>稼働モニタリング</h3>
+            <h3>稼働モニタリング <small style="color:#f59e0b">[サンプル]</small></h3>
             <div class="panel-actions" data-toggle-group="single">
               <button class="chip-button is-active" type="button" data-toggle>今日</button>
               <button class="chip-button" type="button" data-toggle>今週</button>
@@ -258,17 +265,17 @@
           </div>
           <div class="progress-list">
             <div class="progress-item" data-progress="64">
-              <div class="progress-title">東北橋梁補修 B-03</div>
+              <div class="progress-title">[例] 東北橋梁補修 B-03</div>
               <div class="progress-track"><span class="progress-fill"></span></div>
               <div class="progress-meta"><span>工程 64%</span><span>予定 67%</span></div>
             </div>
             <div class="progress-item" data-progress="38">
-              <div class="progress-title">首都高速更新 K-12</div>
+              <div class="progress-title">[例] 首都高速更新 K-12</div>
               <div class="progress-track"><span class="progress-fill"></span></div>
               <div class="progress-meta"><span>工程 38%</span><span>予定 41%</span></div>
             </div>
             <div class="progress-item" data-progress="81">
-              <div class="progress-title">河川護岸整備 R-07</div>
+              <div class="progress-title">[例] 河川護岸整備 R-07</div>
               <div class="progress-track"><span class="progress-fill"></span></div>
               <div class="progress-meta"><span>工程 81%</span><span>予定 79%</span></div>
             </div>
@@ -299,7 +306,7 @@
         </div>
         <div class="panel">
           <div class="panel-header">
-            <h3>品質・原価リスク</h3>
+            <h3>品質・原価リスク <small style="color:#f59e0b">[サンプル]</small></h3>
             <div class="panel-actions">
               <span class="chip">今週 <span id="weeklyRisks">9</span>件</span>
               <span class="chip">対応中 <span id="activeRisks">4</span>件</span>
@@ -312,26 +319,26 @@
             <div class="alert-item">
               <div class="status-row">
                 <span class="status-dot is-warn"></span>
-                <strong>夜間舗装の原価超過兆候 (K-12)</strong>
+                <strong>[例] 夜間舗装の原価超過兆候 (K-12)</strong>
               </div>
               <div class="alert-meta">原価 +6% / 材料費 / 直近2日</div>
             </div>
             <div class="alert-item">
               <div class="status-row">
                 <span class="status-dot is-danger"></span>
-                <strong>品質監査 是正遅延 (B-03)</strong>
+                <strong>[例] 品質監査 是正遅延 (B-03)</strong>
               </div>
               <div class="alert-meta">是正期限 6/28 / 指摘 2件</div>
             </div>
             <div class="alert-item">
               <div class="status-row">
                 <span class="status-dot is-ok"></span>
-                <strong>出来形確認 合格率向上 (R-07)</strong>
+                <strong>[例] 出来形確認 合格率向上 (R-07)</strong>
               </div>
               <div class="alert-meta">合格率 96% / 先週比 +4%</div>
             </div>
           </div>
-          <div class="note">現場別リスクは毎朝6時に更新、原価は週次で再集計。</div>
+          <div class="note">※ 上記はUIデモ用のサンプルデータです。</div>
         </div>
       </section>
 
@@ -346,8 +353,8 @@
         </div>
         <div class="tab-panel is-active" id="panel-search" role="tabpanel" aria-labelledby="tab-search"
           data-panel="search">
-          <div class="knowledge-card">
-            <h4>砂防堰堤 コンクリート打設の温度管理フロー</h4>
+          <div class="knowledge-card" style="border-left: 3px solid #f59e0b;">
+            <h4>[サンプル] 砂防堰堤 コンクリート打設の温度管理フロー</h4>
             <div class="knowledge-meta">最終更新: 2024/06/19 · 施工計画 · 工区: B-03-3-2 · 担当: 工事技術部</div>
             <div class="knowledge-tags">
               <span class="tag">品質確保</span>
@@ -356,8 +363,8 @@
             </div>
             <div>打設量180m3 / 連続8時間想定。5℃未満時は加熱養生と温度ログの自動通知を必須化。</div>
           </div>
-          <div class="knowledge-card">
-            <h4>橋梁補修 塗膜剥離の選定基準と試験手順</h4>
+          <div class="knowledge-card" style="border-left: 3px solid #f59e0b;">
+            <h4>[サンプル] 橋梁補修 塗膜剥離の選定基準と試験手順</h4>
             <div class="knowledge-meta">最終更新: 2024/06/11 · 品質 · 対象: 鋼橋上部工 · 担当: 構造設計</div>
             <div class="knowledge-tags">
               <span class="tag">鋼橋</span>
@@ -366,8 +373,8 @@
             </div>
             <div>剥離材の選定表と試験片評価に加え、塩害環境での再塗装適合を整理。</div>
           </div>
-          <div class="knowledge-card">
-            <h4>大口径管 路面下空洞検知の現場手順</h4>
+          <div class="knowledge-card" style="border-left: 3px solid #f59e0b;">
+            <h4>[サンプル] 大口径管 路面下空洞検知の現場手順</h4>
             <div class="knowledge-meta">最終更新: 2024/05/28 · 施工管理 · 管径: 1.8m · 担当: 地盤技術</div>
             <div class="knowledge-tags">
               <span class="tag">地中レーダー</span>
@@ -377,8 +384,8 @@
           </div>
         </div>
         <div class="tab-panel" id="panel-sop" role="tabpanel" aria-labelledby="tab-sop" data-panel="sop">
-          <div class="knowledge-card">
-            <h4>高所作業車 乗車前点検SOP</h4>
+          <div class="knowledge-card" style="border-left: 3px solid #f59e0b;">
+            <h4>[サンプル] 高所作業車 乗車前点検SOP</h4>
             <div class="knowledge-meta">改訂: 2024/06/02 · 安全管理 · 対象: 20m級 / 日次</div>
             <div class="knowledge-tags">
               <span class="tag">安全確認</span>
@@ -386,8 +393,8 @@
             </div>
             <div>点検チェックリストと現場別のリスク補正係数、是正報告の提出先を明確化。</div>
           </div>
-          <div class="knowledge-card">
-            <h4>降雨時の地盤改良 施工制限手順</h4>
+          <div class="knowledge-card" style="border-left: 3px solid #f59e0b;">
+            <h4>[サンプル] 降雨時の地盤改良 施工制限手順</h4>
             <div class="knowledge-meta">改訂: 2024/05/17 · 施工計画 · 雨量閾値 20mm/h</div>
             <div class="knowledge-tags">
               <span class="tag">地盤</span>
@@ -398,8 +405,8 @@
           </div>
         </div>
         <div class="tab-panel" id="panel-incident" role="tabpanel" aria-labelledby="tab-incident" data-panel="incident">
-          <div class="knowledge-card">
-            <h4>クレーン吊り荷回転による接触事故未遂</h4>
+          <div class="knowledge-card" style="border-left: 3px solid #f59e0b;">
+            <h4>[サンプル] クレーン吊り荷回転による接触事故未遂</h4>
             <div class="knowledge-meta">報告日: 2024/06/23 · 現場: 東北橋梁補修 B-03</div>
             <div class="knowledge-tags">
               <span class="tag">注意喚起</span>
@@ -407,8 +414,8 @@
             </div>
             <div>風速変化時の合図連携が遅延。合図者追加配置と無線帯域の固定化で再発防止。</div>
           </div>
-          <div class="knowledge-card">
-            <h4>夜間舗装の標識配置不足</h4>
+          <div class="knowledge-card" style="border-left: 3px solid #f59e0b;">
+            <h4>[サンプル] 夜間舗装の標識配置不足</h4>
             <div class="knowledge-meta">報告日: 2024/06/15 · 現場: 首都高速更新 K-12</div>
             <div class="knowledge-tags">
               <span class="tag">交通規制</span>
@@ -421,21 +428,21 @@
 
       <section class="grid-two reveal delay-2">
         <div class="panel">
-          <h3>現場ナレッジフロー</h3>
+          <h3>現場ナレッジフロー <small style="color:#f59e0b">[サンプル]</small></h3>
           <div class="timeline">
             <div class="timeline-item">
               <strong>06/24 08:40</strong>
-              <div>河川護岸整備 R-07 - 施工計画変更の承認待ち</div>
+              <div>[例] 河川護岸整備 R-07 - 施工計画変更の承認待ち</div>
               <small>関連: 河川法改定 / 施工区画 3-2 / 施工数量 1,200m</small>
             </div>
             <div class="timeline-item">
               <strong>06/23 16:05</strong>
-              <div>首都高速更新 K-12 - 夜間点検ルートの最適化案</div>
+              <div>[例] 首都高速更新 K-12 - 夜間点検ルートの最適化案</div>
               <small>関連: ドローン点検 / バッテリ管理 / 走査延長 6.2km</small>
             </div>
             <div class="timeline-item">
               <strong>06/22 11:20</strong>
-              <div>東北橋梁補修 B-03 - 塗装規格の改訂通知</div>
+              <div>[例] 東北橋梁補修 B-03 - 塗装規格の改訂通知</div>
               <small>関連: 旧規格との比較表 / 下地処理 SA2.5</small>
             </div>
           </div>
@@ -462,11 +469,11 @@
     </section>
 
     <aside class="rail reveal delay-1">
-      <div class="alert">
-        <strong>要対応:</strong> 河川護岸整備 R-07 の変更申請 (No.24-031) に追加資料が必要です。
+      <div class="alert" style="border-left: 3px solid #f59e0b;">
+        <strong>[サンプル] 要対応:</strong> 河川護岸整備 R-07 の変更申請 (No.24-031) に追加資料が必要です。
       </div>
       <div>
-        <h3>現場ステータス</h3>
+        <h3>現場ステータス <small style="color:#f59e0b">[サンプル]</small></h3>
         <div class="status-list">
           <div class="status-item">
             <div>東北橋梁補修</div>
