@@ -2,6 +2,16 @@
 // 詳細ページ共通機能
 // ============================================================
 
+// 依存関係チェック
+(function() {
+  const requiredFunctions = ['setSecureChildren', 'createSecureElement', 'escapeHtml', 'createElement'];
+  const missing = requiredFunctions.filter(fn => typeof window[fn] === 'undefined');
+  if (missing.length > 0) {
+    console.error('[DETAIL-PAGES] Missing required functions from dom-helpers.js:', missing);
+    console.error('[DETAIL-PAGES] Please ensure dom-helpers.js is loaded before detail-pages.js');
+  }
+})();
+
 // API_BASEはapp.jsで定義されているため、ここでは定義しない
 // const API_BASE = app.jsで定義済み
 
@@ -172,7 +182,10 @@ async function loadKnowledgeDetail() {
   logger.log('[KNOWLEDGE DETAIL] ID from URL:', id, 'Production mode:', inProduction);
 
   if (!id) {
-    showError('ナレッジIDが指定されていません');
+    showError('ナレッジIDが指定されていません。一覧ページに戻ります...');
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 2000);
     return;
   }
 
@@ -647,7 +660,10 @@ async function loadSOPDetail() {
   logger.log('[SOP DETAIL] ID from URL:', id, 'Production mode:', inProduction);
 
   if (!id) {
-    showError('SOP IDが指定されていません');
+    showError('SOP IDが指定されていません。一覧ページに戻ります...');
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 2000);
     return;
   }
 
@@ -1181,7 +1197,10 @@ async function loadIncidentDetail() {
   logger.log('[INCIDENT DETAIL] ID from URL:', id, 'Production mode:', inProduction);
 
   if (!id) {
-    showError('事故レポートIDが指定されていません');
+    showError('事故レポートIDが指定されていません。一覧ページに戻ります...');
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 2000);
     return;
   }
 
@@ -1824,7 +1843,10 @@ async function loadConsultDetail() {
   logger.log('[CONSULT DETAIL] ID from URL:', id, 'Production mode:', inProduction);
 
   if (!id) {
-    showError('相談IDが指定されていません');
+    showError('相談IDが指定されていません。一覧ページに戻ります...');
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 2000);
     return;
   }
 

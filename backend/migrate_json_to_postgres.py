@@ -9,7 +9,7 @@ from datetime import datetime
 # パスを追加
 sys.path.insert(0, os.path.dirname(__file__))
 
-from database import SessionLocal
+from database import get_session_factory
 from models import Knowledge, SOP, Regulation, Incident, Consultation, Approval
 
 def parse_datetime(date_str):
@@ -31,7 +31,8 @@ def migrate_knowledge():
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
-    db = SessionLocal()
+    session_factory = get_session_factory()
+    db = session_factory()
     count = 0
     
     try:
@@ -79,7 +80,8 @@ def migrate_sop():
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
-    db = SessionLocal()
+    session_factory = get_session_factory()
+    db = session_factory()
     count = 0
     
     try:
@@ -125,7 +127,8 @@ def migrate_regulations():
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
-    db = SessionLocal()
+    session_factory = get_session_factory()
+    db = session_factory()
     count = 0
     
     try:
@@ -172,7 +175,8 @@ def migrate_incidents():
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
-    db = SessionLocal()
+    session_factory = get_session_factory()
+    db = session_factory()
     count = 0
     
     try:
@@ -217,7 +221,8 @@ def migrate_consultations():
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
-    db = SessionLocal()
+    session_factory = get_session_factory()
+    db = session_factory()
     count = 0
     
     try:
@@ -262,7 +267,8 @@ def migrate_approvals():
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
-    db = SessionLocal()
+    session_factory = get_session_factory()
+    db = session_factory()
     count = 0
     
     try:

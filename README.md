@@ -39,8 +39,15 @@
 ```
 Mirai-Knowledge-Systems/
 ├── README.md                    # このファイル
-├── SETUP.md                     # セットアップガイド
 ├── docs/                        # ドキュメント（要件定義、設計書など）
+│   ├── setup/                   # セットアップガイド
+│   │   ├── SETUP.md            # 基本セットアップガイド
+│   │   ├── QUICK_START.md      # クイックスタート
+│   │   └── SYSTEMD_SETUP.md    # systemd設定ガイド
+│   ├── deployment/             # デプロイメント関連
+│   │   ├── PRODUCTION_DEPLOYMENT.md
+│   │   ├── DATABASE_DESIGN_COMPLETE.md
+│   │   └── DATA_MIGRATION_GUIDE.md
 │   ├── 01_概要(Overview)/
 │   ├── 02_要件定義(Requirements)/
 │   ├── 03_機能設計(Functional-Design)/
@@ -126,7 +133,7 @@ Mirai-Knowledge-Systems/
    ./setup-systemd.sh
    ```
 
-   詳細は [SYSTEMD_SETUP.md](SYSTEMD_SETUP.md) を参照してください。
+    詳細は [SYSTEMD_SETUP.md](docs/setup/SYSTEMD_SETUP.md) を参照してください。
 
    > 注: `app.py` は旧版（認証なし）、`app_v2.py` は新版（JWT認証 + RBAC対応）です。
 
@@ -290,7 +297,7 @@ Mirai-Knowledge-Systems/
 
 - 全体構成: `docs/00_リポジトリ構成(Repository-Structure).md`
 - 運用スクリプト: `docs/11_運用保守(Operations)/11_運用スクリプト一覧(Operations-Scripts).md`
-- 本番移行: `PRODUCTION_DEPLOYMENT.md`
+- 本番移行: `docs/deployment/PRODUCTION_DEPLOYMENT.md`
 
 ## 変更履歴
 

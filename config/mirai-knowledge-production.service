@@ -13,18 +13,18 @@ WorkingDirectory=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
 EnvironmentFile=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/.env
 
 # PATH環境変数
-Environment="PATH=/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PATH=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/venv_linux/bin:/usr/local/bin:/usr/bin:/bin"
 
 # 本番環境設定
 Environment="MKS_ENV=production"
 Environment="MKS_DEBUG=false"
 
-# ログディレクトリの作成（起動前）
-ExecStartPre=/bin/mkdir -p /var/log/mirai-knowledge
-ExecStartPre=/bin/chown kensan:kensan /var/log/mirai-knowledge
+# ログディレクトリは事前に手動作成が必要:
+# sudo mkdir -p /var/log/mirai-knowledge
+# sudo chown kensan:kensan /var/log/mirai-knowledge
 
 # Gunicornで起動
-ExecStart=/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin/gunicorn \
+ExecStart=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/venv_linux/bin/gunicorn \
     --config /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/gunicorn.conf.py \
     app_v2:app
 

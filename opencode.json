@@ -1,0 +1,109 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "openrouter": {
+      "npm": "@ai-sdk/openrouter",
+      "name": "OpenRouter",
+      "models": {
+        "sonnet-4-5": {
+          "name": "Claude Sonnet 4.5",
+          "id": "anthropic/claude-sonnet-4-20250514",
+          "enabled": true
+        },
+        "gemini-3-flash": {
+          "name": "Gemini 3.0 Flash Preview",
+          "id": "google/gemini-3-flash-preview"
+        },
+        "gemini-3-pro": {
+          "name": "Gemini 3.0 Pro",
+          "id": "google/gemini-3-pro-preview"
+        },
+        "deepseek-v3.2": {
+          "name": "DeepSeek V3.2",
+          "id": "deepseek/deepseek-chat-v3-0324"
+        }
+      }
+    }
+  },
+  "mcp": {
+    "brave-search": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "brave-search-mcp"
+      ],
+      "environment": {
+        "BRAVE_API_KEY": "BSAg8mI-C1724Gro5K1UHthSdPNurDT"
+      },
+      "enabled": true,
+      "timeout": 10000
+    },
+    "context7": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@upstash/context7-mcp-server"
+      ],
+      "environment": {
+        "CONTEXT7_API_KEY": "ctx7sk-dd513bdf-bd6e-427c-a8e7-c2f556cbed59"
+      },
+      "enabled": true,
+      "timeout": 10000
+    },
+    "github": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "enabled": true,
+      "timeout": 15000
+    },
+    "memory": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "enabled": true
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-playwright"
+      ],
+      "enabled": true,
+      "timeout": 20000
+    },
+    "sequential-thinking": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "enabled": true
+    },
+    "sqlite": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sqlite"
+      ],
+      "environment": {
+        "SQLITE_DB_PATH": "/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/data/mirai_knowledge.db"
+      },
+      "enabled": true
+    }
+  }
+}

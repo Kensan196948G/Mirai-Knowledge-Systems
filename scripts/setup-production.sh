@@ -34,25 +34,25 @@ echo "[0/7] 前提条件を確認中..."
 ERRORS=0
 
 # SSL証明書の確認
-if [ ! -f "$SCRIPT_DIR/ssl/server.crt" ] || [ ! -f "$SCRIPT_DIR/ssl/server.key" ]; then
-    echo "✗ SSL証明書が見つかりません: $SCRIPT_DIR/ssl/"
+if [ ! -f "$SCRIPT_DIR/../backend/ssl/server.crt" ] || [ ! -f "$SCRIPT_DIR/../backend/ssl/server.key" ]; then
+    echo "✗ SSL証明書が見つかりません: $SCRIPT_DIR/../backend/ssl/"
     echo "  以下のコマンドで生成してください:"
-    echo "  openssl req -x509 -newkey rsa:4096 -keyout ssl/server.key -out ssl/server.crt -days 365 -nodes"
+    echo "  openssl req -x509 -newkey rsa:4096 -keyout backend/ssl/server.key -out backend/ssl/server.crt -days 365 -nodes"
     ERRORS=$((ERRORS+1))
 else
     echo "✓ SSL証明書が存在します"
 fi
 
 # Python仮想環境の確認
-if [ ! -f "$SCRIPT_DIR/venv_linux/bin/python3" ]; then
-    echo "✗ Python仮想環境が見つかりません: $SCRIPT_DIR/venv_linux/"
+if [ ! -f "$SCRIPT_DIR/../venv_linux/bin/python3" ]; then
+    echo "✗ Python仮想環境が見つかりません: $SCRIPT_DIR/../venv_linux/"
     ERRORS=$((ERRORS+1))
 else
     echo "✓ Python仮想環境が存在します"
 fi
 
 # 依存関係の確認
-if [ ! -f "$SCRIPT_DIR/venv_linux/bin/gunicorn" ]; then
+if [ ! -f "$SCRIPT_DIR/../venv_linux/bin/gunicorn" ]; then
     echo "✗ Gunicornがインストールされていません"
     ERRORS=$((ERRORS+1))
 else
@@ -83,12 +83,12 @@ echo ""
 
 # ステップ2: 本番環境変数ファイルの確認/作成
 echo "[2/7] 本番環境変数ファイルを確認中..."
-if [ ! -f "$SCRIPT_DIR/backend/.env.production" ]; then
+if [ ! -f "$SCRIPT_DIR/../backend/.env.production" ]; then
     echo "本番環境変数ファイルが存在しません。作成します..."
-    if [ -f "$SCRIPT_DIR/backend/.env.production.example" ]; then
-        cp "$SCRIPT_DIR/backend/.env.production.example" "$SCRIPT_DIR/backend/.env.production"
+    if [ -f "$SCRIPT_DIR/../backend/.env.production.example" ]; then
+        cp "$SCRIPT_DIR/../backend/.env.production.example" "$SCRIPT_DIR/../backend/.env.production"
         echo "✓ .env.production を作成しました（テンプレートからコピー）"
-        echo "⚠ 重要: $SCRIPT_DIR/backend/.env.production を編集して"
+        echo "⚠ 重要: $SCRIPT_DIR/../backend/.env.production を編集して"
         echo "  MKS_JWT_SECRET_KEY と MKS_SECRET_KEY を安全な値に変更してください！"
     else
         echo "✗ テンプレートファイルが見つかりません"
@@ -101,7 +101,7 @@ echo ""
 
 # ステップ3: 本番サービスファイルのコピー
 echo "[3/7] 本番サービスファイルをインストール中..."
-sudo cp "$SCRIPT_DIR/mirai-knowledge-production.service" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/../config/mirai-knowledge-production.service" /etc/systemd/system/
 sudo chmod 644 /etc/systemd/system/mirai-knowledge-production.service
 echo "✓ 本番サービスファイルをインストールしました"
 echo ""
@@ -122,7 +122,7 @@ echo ""
 echo "[6/7] Nginx設定を確認中..."
 if command -v nginx &> /dev/null; then
     if [ -d "/etc/nginx/sites-available" ]; then
-        sudo cp "$SCRIPT_DIR/nginx-production.conf" /etc/nginx/sites-available/mirai-knowledge-production
+        sudo cp "$SCRIPT_DIR/../config/nginx-production.conf" /etc/nginx/sites-available/mirai-knowledge-production
         if [ ! -L "/etc/nginx/sites-enabled/mirai-knowledge-production" ]; then
             sudo ln -s /etc/nginx/sites-available/mirai-knowledge-production /etc/nginx/sites-enabled/
         fi

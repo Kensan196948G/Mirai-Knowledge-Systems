@@ -30,12 +30,27 @@ import urllib.request
 import tempfile
 from prometheus_client import Counter as PrometheusCounter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from recommendation_engine import RecommendationEngine
+from data_access import DataAccessLayer
 
 # 環境変数をロード
 load_dotenv()
 
 # 推薦エンジンインスタンス
 recommendation_engine = RecommendationEngine(cache_ttl=300)  # 5分間キャッシュ
+
+# DataAccessLayerインスタンス（グローバル）
+_dal = None
+
+def get_dal():
+    """DataAccessLayerインスタンスを取得"""
+    global _dal
+    if _dal is None:
+        use_pg = os.environ.get('MKS_USE_POSTGRESQL', 'false').lower() in ('true', '1', 'yes')
+        # テスト環境では強制的にJSONモード
+        if app.config.get('TESTING'):
+            use_pg = False
+        _dal = DataAccessLayer(use_postgresql=use_pg)
+    return _dal
 
 # ============================================================
 # Prometheusメトリクス定義
@@ -304,11 +319,11 @@ def add_security_headers(response):
                 hsts_value += "; includeSubDomains"
             response.headers.setdefault('Strict-Transport-Security', hsts_value)
 
-        # Content Security Policy（本番用: unsafe-inline を削除）
+        # Content Security Policy（本番用: login.htmlのために'unsafe-inline'を許可）
         csp_policy = "; ".join([
             "default-src 'self'",
-            "script-src 'self' https://cdn.jsdelivr.net",  # Chart.js CDN許可
-            "style-src 'self' https://fonts.googleapis.com",   # Google Fonts許可
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",  # Chart.js CDN + インラインスクリプト許可
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",   # Google Fonts + インラインスタイル許可
             "img-src 'self' data: https:",
             "font-src 'self' data: https://fonts.gstatic.com",  # Google Fonts許可
             "connect-src 'self'",
@@ -642,7 +657,7 @@ def log_access(user_id, action, resource=None, resource_id=None, status='success
 
 def load_data(filename):
     """
-    JSONファイルを安全に読み込む
+    JSONファイルまたはPostgreSQLからデータを読み込む（透過的切り替え）
 
     Args:
         filename: 読み込むJSONファイル名
@@ -650,6 +665,29 @@ def load_data(filename):
     Returns:
         list: 読み込んだデータ（失敗時は空リスト）
     """
+    dal = get_dal()
+
+    # ファイル名からエンティティタイプを判定してDAL経由で取得
+    if dal.use_postgresql:
+        try:
+            if filename == 'knowledge.json':
+                return dal.get_knowledge_list()
+            elif filename == 'sop.json':
+                return dal.get_sop_list()
+            elif filename == 'incidents.json':
+                return dal.get_incidents_list()
+            elif filename == 'approvals.json':
+                return dal.get_approvals_list()
+            elif filename == 'notifications.json':
+                return dal.get_notifications()
+            elif filename == 'access_logs.json':
+                return dal.get_access_logs()
+            # 未対応のファイル（users.json等）はJSONフォールバック
+        except Exception as e:
+            print(f'[ERROR] PostgreSQL query error for {filename}: {e}')
+            print(f'[INFO] Falling back to JSON mode for {filename}')
+
+    # JSONモードまたはPostgreSQL未対応ファイル
     filepath = os.path.join(get_data_dir(), filename)
 
     try:

@@ -24,6 +24,19 @@
         <a href="expert-consult.html">専門家相談</a>
       </nav>
       <div class="header-actions reveal delay-2">
+        <button class="icon-button" onclick="window.history.back()" title="戻る">
+          ←
+        </button>
+        <button class="icon-button" onclick="openSearchModal()" title="高度な検索">
+          🔍
+        </button>
+        <button class="icon-button notification-bell" onclick="openNotificationPanel()" title="通知">
+          🔔
+          <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
+        <button class="icon-button" onclick="openSettingsPanel()" title="設定">
+          ⚙️
+        </button>
         <span class="chip">改訂版 2024</span>
         <span class="chip">影響現場 8</span>
         <button class="cta" onclick="recordImpactAssessment()">影響評価を記録</button>

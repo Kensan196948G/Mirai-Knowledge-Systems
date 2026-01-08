@@ -291,7 +291,7 @@ function displayUserInfo() {
 // ============================================================
 
 // 動的にAPIベースURLを設定（localhost、IPアドレス、ホスト名に対応）
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5100'}/api/v1`;
+const API_BASE = `${window.location.origin}/api/v1`;
 
 /**
  * トークンリフレッシュ関数

@@ -8,8 +8,10 @@ import os
 # サーバーソケット設定
 # ==============================================================================
 
-# バインドアドレス（ローカルのみ、Nginxからプロキシ）
-bind = "127.0.0.1:8000"
+# バインドアドレス
+# 外部アクセスを許可する場合: 0.0.0.0:5100
+# Nginxプロキシのみの場合: 127.0.0.1:5100（推奨）
+bind = "0.0.0.0:5100"  # 外部アクセス許可
 
 # バックログ（保留中の接続数）
 backlog = 2048
@@ -173,4 +175,7 @@ raw_env = [
     f"MKS_ENV={os.getenv('MKS_ENV', 'production')}",
     f"DATABASE_URL={os.getenv('DATABASE_URL', '')}",
     f"MKS_JWT_SECRET_KEY={os.getenv('MKS_JWT_SECRET_KEY', '')}",
+    f"MKS_SECRET_KEY={os.getenv('MKS_SECRET_KEY', '')}",
+    f"MKS_USE_POSTGRESQL={os.getenv('MKS_USE_POSTGRESQL', 'true')}",
+    f"MKS_CORS_ORIGINS={os.getenv('MKS_CORS_ORIGINS', '')}",
 ]

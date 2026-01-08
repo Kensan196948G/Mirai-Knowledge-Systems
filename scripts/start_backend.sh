@@ -94,7 +94,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # バックエンドディレクトリに移動
-cd "$SCRIPT_DIR/backend"
+cd "$SCRIPT_DIR/../backend"
 
 # ヘッダー表示
 echo -e "${BLUE}============================================================${NC}"

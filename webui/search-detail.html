@@ -27,6 +27,16 @@
         <button class="icon-button" onclick="window.history.back()" title="戻る">
           ←
         </button>
+        <button class="icon-button" onclick="openSearchModal()" title="高度な検索">
+          🔍
+        </button>
+        <button class="icon-button notification-bell" onclick="openNotificationPanel()" title="通知">
+          🔔
+          <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
+        <button class="icon-button" onclick="openSettingsPanel()" title="設定">
+          ⚙️
+        </button>
         <span class="chip" id="viewCount">閲覧数 --</span>
         <span class="chip" id="lastSyncTime">最終同期 --:--</span>
         <button class="cta ghost" onclick="createNewKnowledge()" title="新規作成">+ 新規</button>
@@ -317,6 +327,7 @@
     <button class="floating" onclick="scrollToTop()">↑ トップへ</button>
 
     <script src="app.js"></script>
+    <script src="dom-helpers.js"></script>
     <script src="detail-pages.js"></script>
     <script src="actions.js"></script>
   </body>

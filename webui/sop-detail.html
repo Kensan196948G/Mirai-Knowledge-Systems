@@ -27,6 +27,16 @@
         <button class="icon-button" onclick="window.history.back()" title="戻る">
           ←
         </button>
+        <button class="icon-button" onclick="openSearchModal()" title="高度な検索">
+          🔍
+        </button>
+        <button class="icon-button notification-bell" onclick="openNotificationPanel()" title="通知">
+          🔔
+          <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
+        <button class="icon-button" onclick="openSettingsPanel()" title="設定">
+          ⚙️
+        </button>
         <span class="chip" id="sopNumber">SOP番号 --</span>
         <span class="chip" id="sopVersion">バージョン --</span>
         <button class="cta" onclick="downloadSOP()">ダウンロード</button>
@@ -361,6 +371,7 @@
     </div>
 
     <script src="app.js"></script>
+    <script src="dom-helpers.js"></script>
     <script src="detail-pages.js"></script>
     <script src="actions.js"></script>
     <script src="sop-detail-functions.js"></script>

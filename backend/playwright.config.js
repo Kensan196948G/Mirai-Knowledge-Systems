@@ -35,7 +35,7 @@ module.exports = defineConfig({
   // Shared settings for all projects
   use: {
     // Base URL for navigation
-    baseURL: process.env.BASE_URL || 'http://localhost:8000',
+    baseURL: process.env.BASE_URL || 'http://localhost:5100',
 
     // Collect trace when retrying the failed test
     trace: 'retain-on-failure',
@@ -75,8 +75,8 @@ module.exports = defineConfig({
 
   // Run local dev server before starting the tests
   webServer: process.env.SKIP_WEBSERVER ? undefined : {
-    command: 'cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend && source venv/bin/activate && python -m uvicorn app_v2:app --host 0.0.0.0 --port 8000',
-    port: 8000,
+    command: 'cd /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend && source venv_linux/bin/activate && python3 app_v2.py',
+    port: 5100,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
     stdout: 'pipe',
@@ -85,4 +85,5 @@ module.exports = defineConfig({
 
   // Global setup/teardown
   globalSetup: process.env.SKIP_SETUP ? undefined : './tests/e2e/global-setup.js',
+  globalTeardown: process.env.SKIP_SETUP ? undefined : './tests/e2e/global-teardown.js',
 });

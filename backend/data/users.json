@@ -1,5 +1,41 @@
 [
   {
+    "id": 1,
+    "username": "admin",
+    "password_hash": "$2b$12$./ZgnZGt52xUhFANhPZRdOJh6aKj8rq3qAdjnQ1/r/INC8pLehQWC",
+    "full_name": "管理者",
+    "department": "システム管理部",
+    "email": "admin@company.local",
+    "roles": [
+      "admin"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 2,
+    "username": "yamada",
+    "password_hash": "$2b$12$./ZgnZGt52xUhFANhPZRdOJh6aKj8rq3qAdjnQ1/r/INC8pLehQWC",
+    "full_name": "山田太郎",
+    "department": "施工管理",
+    "email": "yamada@company.local",
+    "roles": [
+      "construction_manager"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 3,
+    "username": "partner",
+    "password_hash": "$2b$12$./ZgnZGt52xUhFANhPZRdOJh6aKj8rq3qAdjnQ1/r/INC8pLehQWC",
+    "full_name": "協力会社ユーザー",
+    "department": "協力会社",
+    "email": "partner@partner.local",
+    "roles": [
+      "partner_company"
+    ],
+    "is_active": true
+  },
+  {
     "id": 4,
     "username": "system_admin",
     "password_hash": "$2b$12$sDnxUPgOGcrIhJ/eIJjmr.E.ceye0X3WG56xOGKOSZBt3vj.QKaT2",

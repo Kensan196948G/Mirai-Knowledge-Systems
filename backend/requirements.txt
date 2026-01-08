@@ -3,6 +3,9 @@ Flask==3.0.0
 Flask-CORS==4.0.0
 Werkzeug==3.0.1
 
+# WSGI Server (Production)
+gunicorn==23.0.0
+
 # Database
 psycopg2-binary==2.9.9
 SQLAlchemy==2.0.23

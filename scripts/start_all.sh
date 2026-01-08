@@ -166,7 +166,7 @@ echo -e "${GREEN}✓ ポート $BACKEND_PORT は使用可能です${NC}"
 echo ""
 
 # バックエンドディレクトリに移動
-cd "$SCRIPT_DIR/backend"
+cd "$SCRIPT_DIR/../backend"
 
 # 仮想環境確認
 if [ -d "venv" ]; then
