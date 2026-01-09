@@ -241,19 +241,12 @@ jobs:
           pip install -r requirements.txt --break-system-packages
 
       - name: Install Node dependencies
-      - name: Start Backend Server for E2E
-        working-directory: backend
-        run: |
-          python app_v2.py &
-          sleep 10
-          curl -s http://localhost:5100/api/v1/health
-        working-directory: .
         run: |
           npm ci
           npx playwright install --with-deps
 
-      - name: Start Backend Server
-        working-directory: .
+      - name: Start Backend Server for E2E
+        working-directory: backend
         env:
           MKS_ENV: testing
           MKS_USE_POSTGRESQL: false
@@ -262,7 +255,8 @@ jobs:
           MKS_CORS_ORIGINS: http://localhost:5100
         run: |
           python app_v2.py &
-          sleep 5
+          sleep 10
+          curl -s http://localhost:5100/api/v1/health
 
       - name: Run Playwright E2E Tests
         working-directory: .

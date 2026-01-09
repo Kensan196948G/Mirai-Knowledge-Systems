@@ -20,6 +20,16 @@ on:
       - 'backend/package.json'
       - 'backend/jest.config.js'
       - 'backend/playwright.config.js'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Test environment'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
 
 jobs:
   unit-tests:
