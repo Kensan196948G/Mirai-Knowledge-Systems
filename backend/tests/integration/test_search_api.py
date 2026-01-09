@@ -425,7 +425,7 @@ class TestSearchAccessLogging:
         search_logs = [l for l in logs if l['action'] == 'search.unified']
         assert len(search_logs) >= 1
         assert search_logs[-1]['resource'] == 'search'
-        # resource_idは数字でない文字列の場合detailsに格納される
+        # Non-numeric resource_id strings are stored in details['resource_id_str']
         assert 'details' in search_logs[-1]
         assert search_logs[-1]['details']['resource_id_str'] == 'テスト検索'
 

@@ -751,6 +751,8 @@ def log_access(
                 safe_resource_id = None
                 if details is None:
                     details = {}
+                else:
+                    details = details.copy()
                 details['resource_id_str'] = resource_id
 
     log_entry = {
