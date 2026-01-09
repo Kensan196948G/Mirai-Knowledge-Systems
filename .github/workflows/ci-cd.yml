@@ -54,33 +54,39 @@ jobs:
           cache: 'npm'
 
       - name: Install Python dependencies
-        working-directory: backend
+        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install ruff flake8 bandit safety
 
       - name: Install Node dependencies
+      - name: Start Backend Server for E2E
+        working-directory: backend
+        run: |
+          python app_v2.py &
+          sleep 10
+          curl -s http://localhost:5100/api/v1/health
         working-directory: .
         run: |
           npm ci
 
       - name: Run Ruff (Python linter)
-        working-directory: backend
+        working-directory: .
         run: ruff check .
 
       - name: Run Flake8
         continue-on-error: true
-        working-directory: backend
+        working-directory: .
         run: flake8 . --max-line-length=100 --extend-ignore=E203
 
       - name: Run Bandit (Security lint)
         continue-on-error: true
-        working-directory: backend
+        working-directory: .
         run: bandit -r . -f json -o bandit-report.json
 
       - name: Check for vulnerabilities with Safety
         continue-on-error: true
-        working-directory: backend
+        working-directory: .
         run: safety check -r requirements.txt --output text
 
       - name: Upload Bandit report
@@ -108,14 +114,14 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        working-directory: backend
+        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pytest-flask
           pip install -r requirements.txt --break-system-packages
 
       - name: Run Unit Tests
-        working-directory: backend
+        working-directory: .
         env:
           MKS_ENV: test
           MKS_SECRET_KEY: test-secret-key-for-ci
@@ -131,7 +137,7 @@ jobs:
           path: backend/coverage.xml
 
       - name: Check Coverage
-        working-directory: backend
+        working-directory: .
         run: |
           coverage xml
           COVERAGE=$(grep 'coverage' coverage.xml | head -1 | grep -oP '(?<=line-rate=")[^"]*' || echo "0")
@@ -173,21 +179,21 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        working-directory: backend
+        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov requests
           pip install -r requirements.txt --break-system-packages
 
       - name: Setup PostgreSQL
-        working-directory: backend
+        working-directory: .
         run: |
           export PGPASSWORD=postgres
           psql -h localhost -U postgres -c "CREATE DATABASE mirai_knowledge_db;" || true
           psql -h localhost -U postgres -d mirai_knowledge_db -f init-db.sql || true
 
       - name: Run Integration Tests
-        working-directory: backend
+        working-directory: .
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mirai_knowledge_db
           MKS_USE_POSTGRESQL: true
@@ -200,7 +206,7 @@ jobs:
 
       - name: Show Integration Test Results
         if: always()
-        working-directory: backend
+        working-directory: .
         run: |
           echo "Integration tests completed"
           ls -la test-results/ 2>/dev/null || echo "No test results"
@@ -229,19 +235,25 @@ jobs:
           cache: 'npm'
 
       - name: Install Python dependencies
-        working-directory: backend
+        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt --break-system-packages
 
       - name: Install Node dependencies
+      - name: Start Backend Server for E2E
         working-directory: backend
         run: |
+          python app_v2.py &
+          sleep 10
+          curl -s http://localhost:5100/api/v1/health
+        working-directory: .
+        run: |
           npm ci
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps
 
       - name: Start Backend Server
-        working-directory: backend
+        working-directory: .
         env:
           MKS_ENV: testing
           MKS_USE_POSTGRESQL: false
@@ -253,7 +265,7 @@ jobs:
           sleep 5
 
       - name: Run Playwright E2E Tests
-        working-directory: backend
+        working-directory: .
         env:
           BASE_URL: http://localhost:5100
           SKIP_WEBSERVER: true
@@ -292,7 +304,7 @@ jobs:
           cache: 'pip'
 
       - name: Install security tools
-        working-directory: backend
+        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install bandit safety trufflehog
@@ -332,7 +344,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        working-directory: backend
+        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt --break-system-packages
@@ -395,7 +407,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        working-directory: backend
+        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt --break-system-packages

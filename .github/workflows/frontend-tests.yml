@@ -103,6 +103,14 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
+      - name: Start Backend Server
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://mirai_user:test_password@localhost/mirai_test
+        run: |
+          python app_v2.py &
+          sleep 10
+          curl -s http://localhost:5100/api/v1/health
         working-directory: backend
         run: npx playwright install --with-deps chromium
 
@@ -132,7 +140,7 @@ jobs:
       - name: Run E2E tests
         working-directory: backend
         env:
-          BASE_URL: http://localhost:8000
+          BASE_URL: http://localhost:5100
           DATABASE_URL: postgresql://mirai_user:test_password@localhost/mirai_test
           CI: true
         run: npm run test:e2e
