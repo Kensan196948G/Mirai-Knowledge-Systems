@@ -10,12 +10,6 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 
-@pytest.fixture(scope="session")
-def base_url():
-    """ベースURL"""
-    return os.getenv('BASE_URL', 'http://localhost:5010')
-
-
 def login(page: Page, base_url: str, username='admin', password='admin123'):
     """ログインヘルパー関数"""
     page.goto(f"{base_url}/login.html")
