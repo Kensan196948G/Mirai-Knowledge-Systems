@@ -38,6 +38,8 @@ jobs:
         MKS_ENV: test
         MKS_USE_POSTGRESQL: false
         MKS_SKIP_HTTP_CHECK: true
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         python app_v2.py > /tmp/backend.log 2>&1 &
@@ -51,6 +53,8 @@ jobs:
     - name: Run Playwright E2E tests
       env:
         BASE_URL: http://localhost:5100
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         pytest tests/e2e/ -v --tb=short || (cat /tmp/backend.log && exit 1)

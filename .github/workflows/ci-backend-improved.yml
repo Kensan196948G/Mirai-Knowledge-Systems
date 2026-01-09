@@ -35,23 +35,39 @@ jobs:
         pip install pytest pytest-cov pytest-flask pytest-xdist
 
     - name: Run integration tests (parallel)
+      env:
+        MKS_ENV: test
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         pytest tests/integration -v -n auto --cov=app_v2 --cov=schemas --cov-report=xml --cov-report=term-missing
 
     - name: Run security tests
+      env:
+        MKS_ENV: test
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         pytest tests/security -v --tb=short
       continue-on-error: true
 
     - name: Run acceptance tests
+      env:
+        MKS_ENV: test
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         pytest tests/acceptance -v --tb=short
       continue-on-error: true
 
     - name: Generate coverage report
+      env:
+        MKS_ENV: test
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         pytest tests/integration --cov=app_v2 --cov=schemas --cov-report=html --cov-report=term
@@ -71,6 +87,10 @@ jobs:
         path: backend/tests/reports/coverage/
 
     - name: Check coverage threshold
+      env:
+        MKS_ENV: test
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         pytest tests/integration --cov=app_v2 --cov=schemas --cov-fail-under=70
@@ -170,6 +190,10 @@ jobs:
         pip install locust
 
     - name: Run performance benchmarks
+      env:
+        MKS_ENV: test
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         pytest tests/load/performance_benchmark.py -v --tb=short

@@ -42,6 +42,10 @@ jobs:
         pip install pytest pytest-cov pytest-flask
 
     - name: Run tests
+      env:
+        MKS_ENV: test
+        MKS_SECRET_KEY: test-secret-key-for-ci
+        MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
       run: |
         cd backend
         pytest tests/ -v --cov=. --cov-report=xml -k "not e2e"
