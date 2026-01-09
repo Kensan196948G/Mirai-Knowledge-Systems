@@ -41,15 +41,10 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-cov pytest-flask
 
-    - name: Run unit tests
+    - name: Run tests
       run: |
         cd backend
-        pytest tests/unit -v --cov=. --cov-report=xml
-
-    - name: Run integration tests
-      run: |
-        cd backend
-        pytest tests/integration -v
+        pytest tests/ -v --cov=. --cov-report=xml -k "not e2e"
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
