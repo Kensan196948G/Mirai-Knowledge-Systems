@@ -60,15 +60,15 @@ jobs:
           pip install ruff flake8 bandit safety
 
       - name: Install Node dependencies
+        run: |
+          npm ci
+
       - name: Start Backend Server for E2E
         working-directory: backend
         run: |
           python app_v2.py &
           sleep 10
           curl -s http://localhost:5100/api/v1/health
-        working-directory: .
-        run: |
-          npm ci
 
       - name: Run Ruff (Python linter)
         working-directory: .
