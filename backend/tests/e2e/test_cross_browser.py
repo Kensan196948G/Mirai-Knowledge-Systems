@@ -60,14 +60,14 @@ class TestCrossBrowserCompatibility:
             for ctx in contexts.values():
                 ctx.close()
 
-    @pytest.mark.parametrize("browser_name", ["chromium", "firefox", "webkit"])
-    def test_login_page_renders(self, browser_name):
+    @pytest.mark.parametrize("browser_type", ["chromium", "firefox", "webkit"])
+    def test_login_page_renders(self, browser_type):
         """ログインページが各ブラウザで正しくレンダリングされる"""
         if not PLAYWRIGHT_AVAILABLE:
             pytest.skip("Playwright not available")
 
         with sync_playwright() as p:
-            browser = getattr(p, browser_name).launch(headless=True)
+            browser = getattr(p, browser_type).launch(headless=True)
             try:
                 page = browser.new_page()
                 page.goto(f"{self.BASE_URL}/login.html", timeout=10000)
@@ -77,18 +77,18 @@ class TestCrossBrowserCompatibility:
                 assert page.title() != ""
 
             except Exception as e:
-                pytest.skip(f"Browser {browser_name} test failed: {e}")
+                pytest.skip(f"Browser {browser_type} test failed: {e}")
             finally:
                 browser.close()
 
-    @pytest.mark.parametrize("browser_name", ["chromium", "firefox", "webkit"])
-    def test_index_page_renders(self, browser_name):
+    @pytest.mark.parametrize("browser_type", ["chromium", "firefox", "webkit"])
+    def test_index_page_renders(self, browser_type):
         """インデックスページが各ブラウザで正しくレンダリングされる"""
         if not PLAYWRIGHT_AVAILABLE:
             pytest.skip("Playwright not available")
 
         with sync_playwright() as p:
-            browser = getattr(p, browser_name).launch(headless=True)
+            browser = getattr(p, browser_type).launch(headless=True)
             try:
                 page = browser.new_page()
                 response = page.goto(f"{self.BASE_URL}/", timeout=10000)
@@ -98,7 +98,7 @@ class TestCrossBrowserCompatibility:
                 assert response.status in (200, 302)
 
             except Exception as e:
-                pytest.skip(f"Browser {browser_name} test failed: {e}")
+                pytest.skip(f"Browser {browser_type} test failed: {e}")
             finally:
                 browser.close()
 
