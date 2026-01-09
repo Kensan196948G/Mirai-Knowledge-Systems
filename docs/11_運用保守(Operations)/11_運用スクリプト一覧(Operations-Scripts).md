@@ -6,6 +6,21 @@
 ## スクリプト配置場所
 
 ```
+scripts/
+├── deploy-dev.sh                # 開発環境デプロイ
+├── deploy-prod.sh               # 本番環境デプロイ
+├── backup.sh                    # バックアップ
+├── restore.sh                   # リストア
+├── health-check.sh              # ヘルスチェック
+├── new-feature-health-check.sh  # 新機能ヘルスチェック
+├── new-feature-maintenance.sh   # 新機能メンテナンス
+├── backup-postgresql.sh         # PostgreSQLバックアップ
+├── restore-postgresql.sh        # PostgreSQLリストア
+├── setup-production.sh          # 本番環境セットアップ
+├── start_all.sh                 # 全サービス起動
+├── stop_all.sh                  # 全サービス停止
+└── verify-backups.sh            # バックアップ検証
+
 backend/scripts/
 ├── create_production_users.py  # 本番ユーザー作成
 ├── import_data.py               # データインポート
@@ -34,6 +49,12 @@ PostgreSQL初期化（DB/ユーザー/スキーマ/テーブル作成）。
 
 ### health_monitor.py
 システムヘルスチェック。--interval 60 で継続監視。
+
+### new-feature-health-check.sh
+新機能のヘルスチェック。APIエンドポイント、DB接続、パフォーマンスを確認。
+
+### new-feature-maintenance.sh
+新機能のデータメンテナンス。ログクリーンアップ、統計情報更新を実行。
 
 詳細は各スクリプトの --help を参照してください。
 

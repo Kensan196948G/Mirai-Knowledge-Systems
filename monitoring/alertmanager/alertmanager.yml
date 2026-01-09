@@ -1,0 +1,238 @@
+# Alertmanager Configuration for Mirai Knowledge Systems
+# Version: 1.0.0
+# Last Updated: 2026-01-09
+
+global:
+  # アラート解決のタイムアウト（アラートが自動的に解決されるまでの時間）
+  resolve_timeout: 5m
+
+  # SMTP設定（メール通知用）
+  smtp_smarthost: 'localhost:25'
+  smtp_from: 'alerts@company.local'
+  smtp_require_tls: false
+
+# ルーティング設定
+route:
+  # グループ化のキー
+  group_by: ['alertname', 'cluster', 'service', 'component']
+
+  # 最初のアラートが発生してから、グループ化されたアラートを送信するまでの待ち時間
+  group_wait: 10s
+
+  # 同じグループに新しいアラートが追加された際の送信間隔
+  group_interval: 10s
+
+  # 同じアラートの再送信間隔
+  repeat_interval: 12h
+
+  # デフォルトのレシーバー
+  receiver: 'default'
+
+  # サブルート（条件に応じた振り分け）
+  routes:
+    # Critical アラート
+    - match:
+        severity: critical
+      receiver: 'critical'
+      group_wait: 5s
+      group_interval: 5s
+      repeat_interval: 4h
+      continue: true  # 他のレシーバーにも送信
+
+    # Warning アラート
+    - match:
+        severity: warning
+      receiver: 'warning'
+      group_wait: 30s
+      group_interval: 30s
+      repeat_interval: 24h
+
+    # Info アラート
+    - match:
+        severity: info
+      receiver: 'info'
+      group_wait: 1m
+      group_interval: 5m
+      repeat_interval: 48h
+
+    # セキュリティ関連
+    - match:
+        category: security
+      receiver: 'security'
+      group_wait: 5s
+      repeat_interval: 6h
+      continue: true
+
+    # データベース関連
+    - match:
+        component: database
+      receiver: 'database'
+      group_wait: 15s
+      repeat_interval: 8h
+
+    # バックアップ関連
+    - match:
+        component: backup
+      receiver: 'backup'
+      group_wait: 1m
+      repeat_interval: 24h
+
+# レシーバー設定
+receivers:
+  # デフォルトレシーバー（全てのアラート）
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:5100/api/v1/webhook/alerts'
+        send_resolved: true
+        http_config:
+          bearer_token: 'WEBHOOK_TOKEN_PLACEHOLDER'
+
+  # Critical アラート用
+  - name: 'critical'
+    email_configs:
+      - to: 'admin@company.local'
+        from: 'alerts@company.local'
+        smarthost: 'localhost:25'
+        headers:
+          Subject: '[CRITICAL] Mirai Knowledge Systems - {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>⚠️ CRITICAL Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Action Required:</strong> {{ range .Alerts }}{{ .Annotations.action }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ range .Alerts }}{{ .StartsAt.Format "2006-01-02 15:04:05" }}{{ end }}</p>
+          <p><a href="{{ range .Alerts }}{{ .Annotations.dashboard }}{{ end }}">View Dashboard</a></p>
+
+    webhook_configs:
+      - url: 'http://localhost:5100/api/v1/webhook/alerts/critical'
+        send_resolved: true
+
+    # Slack通知（オプション）
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+    #     channel: '#alerts-critical'
+    #     title: '⚠️ CRITICAL: {{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  # Warning アラート用
+  - name: 'warning'
+    email_configs:
+      - to: 'admin@company.local'
+        from: 'alerts@company.local'
+        smarthost: 'localhost:25'
+        headers:
+          Subject: '[WARNING] Mirai Knowledge Systems - {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>⚡ Warning Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ range .Alerts }}{{ .StartsAt.Format "2006-01-02 15:04:05" }}{{ end }}</p>
+
+    webhook_configs:
+      - url: 'http://localhost:5100/api/v1/webhook/alerts/warning'
+        send_resolved: true
+
+  # Info アラート用
+  - name: 'info'
+    webhook_configs:
+      - url: 'http://localhost:5100/api/v1/webhook/alerts/info'
+        send_resolved: true
+
+  # セキュリティアラート用
+  - name: 'security'
+    email_configs:
+      - to: 'security@company.local,admin@company.local'
+        from: 'security-alerts@company.local'
+        smarthost: 'localhost:25'
+        headers:
+          Subject: '[SECURITY] Mirai Knowledge Systems - {{ .GroupLabels.alertname }}'
+          Priority: 'urgent'
+        html: |
+          <h2>🔒 Security Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Action Required:</strong> {{ range .Alerts }}{{ .Annotations.action }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ range .Alerts }}{{ .StartsAt.Format "2006-01-02 15:04:05" }}{{ end }}</p>
+          <p style="color: red;"><strong>Security alerts require immediate attention!</strong></p>
+
+    webhook_configs:
+      - url: 'http://localhost:5100/api/v1/webhook/alerts/security'
+        send_resolved: true
+
+  # データベースアラート用
+  - name: 'database'
+    email_configs:
+      - to: 'dba@company.local,admin@company.local'
+        from: 'alerts@company.local'
+        smarthost: 'localhost:25'
+        headers:
+          Subject: '[DATABASE] Mirai Knowledge Systems - {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>💾 Database Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ range .Alerts }}{{ .StartsAt.Format "2006-01-02 15:04:05" }}{{ end }}</p>
+
+    webhook_configs:
+      - url: 'http://localhost:5100/api/v1/webhook/alerts/database'
+        send_resolved: true
+
+  # バックアップアラート用
+  - name: 'backup'
+    email_configs:
+      - to: 'admin@company.local'
+        from: 'alerts@company.local'
+        smarthost: 'localhost:25'
+        headers:
+          Subject: '[BACKUP] Mirai Knowledge Systems - {{ .GroupLabels.alertname }}'
+        html: |
+          <h2>💿 Backup Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+          <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+          <p><strong>Action Required:</strong> {{ range .Alerts }}{{ .Annotations.action }}{{ end }}</p>
+          <p><strong>Time:</strong> {{ range .Alerts }}{{ .StartsAt.Format "2006-01-02 15:04:05" }}{{ end }}</p>
+
+# 抑制ルール（特定のアラートが発火している時に、他のアラートを抑制）
+inhibit_rules:
+  # Critical アラート発火時は Warning を抑制
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service', 'component']
+
+  # サービス停止時は、他の全てのアラートを抑制
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '.*'
+    equal: ['cluster', 'service']
+
+  # データベース接続プール枯渇時は、スロークエリアラートを抑制
+  - source_match:
+      alertname: 'DatabaseConnectionPoolExhausted'
+    target_match:
+      alertname: 'DatabaseQuerySlow'
+    equal: ['cluster', 'service']
+
+  # メモリ/CPU Criticalアラート発火時は、Warningを抑制
+  - source_match:
+      alertname: 'CriticalMemoryUsage'
+    target_match:
+      alertname: 'HighMemoryUsage'
+    equal: ['cluster', 'service']
+
+  - source_match:
+      alertname: 'CriticalCPUUsage'
+    target_match:
+      alertname: 'HighCPUUsage'
+    equal: ['cluster', 'service']
+
+# テンプレート設定（カスタム通知テンプレート）
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

@@ -1,5 +1,11 @@
 name: Mirai Knowledge Systems CI/CD
 
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  statuses: write
+
 on:
   push:
     branches: [main, develop]

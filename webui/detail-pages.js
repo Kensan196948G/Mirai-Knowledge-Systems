@@ -7,8 +7,10 @@
   const requiredFunctions = ['setSecureChildren', 'createSecureElement', 'escapeHtml', 'createElement'];
   const missing = requiredFunctions.filter(fn => typeof window[fn] === 'undefined');
   if (missing.length > 0) {
-    console.error('[DETAIL-PAGES] Missing required functions from dom-helpers.js:', missing);
-    console.error('[DETAIL-PAGES] Please ensure dom-helpers.js is loaded before detail-pages.js');
+    // loggerが利用可能ならlogger.errorを、そうでなければlogger.errorを使用
+    const log = typeof logger !== 'undefined' ? logger.error : logger.error;
+    log('[DETAIL-PAGES] Missing required functions from dom-helpers.js:', missing);
+    log('[DETAIL-PAGES] Please ensure dom-helpers.js is loaded before detail-pages.js');
   }
 })();
 
@@ -114,7 +116,7 @@ async function apiCall(endpoint, options = {}) {
 
     // 認証エラー
     if (response.status === 401) {
-      console.error('[API] Unauthorized. Redirecting to login...');
+      logger.error('[API] Unauthorized. Redirecting to login...');
       showError('セッションの有効期限が切れました。再度ログインしてください。');
       setTimeout(() => {
         window.location.href = '/login.html';
@@ -134,7 +136,7 @@ async function apiCall(endpoint, options = {}) {
           errorCode = errorData.error.code || errorCode;
         }
       } catch (e) {
-        console.error('[API] Failed to parse error response:', e);
+        logger.error('[API] Failed to parse error response:', e);
       }
 
       // ステータスコード別のエラー表示
@@ -158,7 +160,7 @@ async function apiCall(endpoint, options = {}) {
 
     return await response.json();
   } catch (error) {
-    console.error('[API] Error:', error);
+    logger.error('[API] Error:', error);
 
     // ネットワークエラーの場合
     if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
@@ -202,7 +204,7 @@ async function loadKnowledgeDetail() {
       try {
         data = await apiCall(`/knowledge/${id}`);
       } catch (apiError) {
-        console.warn('[DETAIL] API call failed in production:', apiError);
+        logger.warn('[DETAIL] API call failed in production:', apiError);
         // 本番環境でAPIが失敗した場合はエラー表示（localStorageにフォールバックしない）
       }
     } else {
@@ -238,7 +240,7 @@ async function loadKnowledgeDetail() {
     loadKnowledgeHistoryFromData(data);
     // incrementViewCount(id); // 一旦コメントアウト
   } catch (error) {
-    console.error('[KNOWLEDGE DETAIL] Error:', error);
+    logger.error('[KNOWLEDGE DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
     hideLoading();
@@ -338,7 +340,7 @@ async function loadRelatedKnowledge(tags, currentId) {
       await loadRelatedKnowledgeFromAPI(currentId, 'hybrid', 5);
       return; // 成功したら終了
     } catch (error) {
-      console.warn('API recommendation failed, falling back to localStorage:', error);
+      logger.warn('API recommendation failed, falling back to localStorage:', error);
     }
   }
 
@@ -372,7 +374,7 @@ async function loadRelatedKnowledge(tags, currentId) {
       setSecureChildren(relatedListEl, createEmptyMessage('関連ナレッジが見つかりませんでした'));
     }
   } catch (error) {
-    console.error('Failed to load related knowledge:', error);
+    logger.error('Failed to load related knowledge:', error);
     setSecureChildren(relatedListEl, createErrorMessage('関連ナレッジの読み込みに失敗しました'));
   }
 }
@@ -434,7 +436,7 @@ async function loadKnowledgeComments(knowledgeId) {
       setSecureChildren(commentListEl, createEmptyMessage('コメントがありません'));
     }
   } catch (error) {
-    console.error('Failed to load comments:', error);
+    logger.error('Failed to load comments:', error);
     setSecureChildren(commentListEl, createErrorMessage('コメントの読み込みに失敗しました'));
   }
 }
@@ -459,7 +461,7 @@ async function loadKnowledgeHistory(knowledgeId) {
       setSecureChildren(historyTableEl, createEmptyMessage('履歴がありません', 5));
     }
   } catch (error) {
-    console.error('Failed to load history:', error);
+    logger.error('Failed to load history:', error);
     setSecureChildren(historyTableEl, createErrorMessage('履歴の読み込みに失敗しました', 5));
   }
 }
@@ -680,7 +682,7 @@ async function loadSOPDetail() {
       try {
         data = await apiCall(`/sop/${id}`);
       } catch (apiError) {
-        console.warn('[DETAIL] API call failed in production:', apiError);
+        logger.warn('[DETAIL] API call failed in production:', apiError);
       }
     } else {
       // 開発環境: localStorage優先
@@ -700,7 +702,7 @@ async function loadSOPDetail() {
         try {
           data = await apiCall(`/sop/${id}`);
         } catch (apiError) {
-          console.warn('[DETAIL] API call failed:', apiError);
+          logger.warn('[DETAIL] API call failed:', apiError);
         }
       } else {
         logger.log('[DETAIL] Loading SOP from localStorage...');
@@ -721,7 +723,7 @@ async function loadSOPDetail() {
       updateExecutionStats();
     }
   } catch (error) {
-    console.error('[SOP DETAIL] Error:', error);
+    logger.error('[SOP DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
     hideLoading();
@@ -858,7 +860,7 @@ async function loadRelatedSOP(category, currentId) {
       await loadRelatedSOPFromAPI(currentId, 'hybrid', 5);
       return; // 成功したら終了
     } catch (error) {
-      console.warn('API recommendation failed, falling back to localStorage:', error);
+      logger.warn('API recommendation failed, falling back to localStorage:', error);
     }
   }
 
@@ -892,7 +894,7 @@ async function loadRelatedSOP(category, currentId) {
       setSecureChildren(relatedListEl, createEmptyMessage('関連SOPが見つかりませんでした'));
     }
   } catch (error) {
-    console.error('Failed to load related SOP:', error);
+    logger.error('Failed to load related SOP:', error);
     setSecureChildren(relatedListEl, createErrorMessage('関連SOPの読み込みに失敗しました'));
   }
 }
@@ -1217,7 +1219,7 @@ async function loadIncidentDetail() {
       try {
         data = await apiCall(`/incident/${id}`);
       } catch (apiError) {
-        console.warn('[DETAIL] API call failed in production:', apiError);
+        logger.warn('[DETAIL] API call failed in production:', apiError);
       }
     } else {
       // 開発環境: localStorage優先
@@ -1237,7 +1239,7 @@ async function loadIncidentDetail() {
         try {
           data = await apiCall(`/incident/${id}`);
         } catch (apiError) {
-          console.warn('[DETAIL] API call failed:', apiError);
+          logger.warn('[DETAIL] API call failed:', apiError);
         }
       } else {
         logger.log('[DETAIL] Loading incident from localStorage...');
@@ -1253,7 +1255,7 @@ async function loadIncidentDetail() {
     displayIncidentDetail(data);
     loadCorrectiveActionsFromData(data);
   } catch (error) {
-    console.error('[INCIDENT DETAIL] Error:', error);
+    logger.error('[INCIDENT DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
     hideLoading();
@@ -1409,7 +1411,7 @@ async function loadCorrectiveActions(incidentId) {
       setSecureChildren(tableEl, createEmptyMessage('是正措置がありません', 6));
     }
   } catch (error) {
-    console.error('Failed to load corrective actions:', error);
+    logger.error('Failed to load corrective actions:', error);
     setSecureChildren(tableEl, createErrorMessage('是正措置の読み込みに失敗しました', 6));
   }
 }
@@ -1863,7 +1865,7 @@ async function loadConsultDetail() {
       try {
         data = await apiCall(`/consultation/${id}`);
       } catch (apiError) {
-        console.warn('[DETAIL] API call failed in production:', apiError);
+        logger.warn('[DETAIL] API call failed in production:', apiError);
       }
     } else {
       // 開発環境: localStorage優先
@@ -1883,7 +1885,7 @@ async function loadConsultDetail() {
         try {
           data = await apiCall(`/consultation/${id}`);
         } catch (apiError) {
-          console.warn('[DETAIL] API call failed:', apiError);
+          logger.warn('[DETAIL] API call failed:', apiError);
         }
       } else {
         logger.log('[DETAIL] Loading consultation from localStorage...');
@@ -1900,7 +1902,7 @@ async function loadConsultDetail() {
     loadAnswersFromData(data);
     await loadRelatedQuestions(data.tags || [], id);
   } catch (error) {
-    console.error('[CONSULT DETAIL] Error:', error);
+    logger.error('[CONSULT DETAIL] Error:', error);
     showError(`データの読み込みに失敗しました: ${error.message}`);
   } finally {
     hideLoading();
@@ -2129,7 +2131,7 @@ async function loadAnswers(consultId) {
       setSecureChildren(answerListEl, createEmptyMessage('まだ回答がありません'));
     }
   } catch (error) {
-    console.error('Failed to load answers:', error);
+    logger.error('Failed to load answers:', error);
     setSecureChildren(answerListEl, createErrorMessage('回答の読み込みに失敗しました'));
   }
 }
@@ -2169,7 +2171,7 @@ async function loadRelatedQuestions(tags, currentId) {
       setSecureChildren(relatedEl, createEmptyMessage('関連質問が見つかりませんでした'));
     }
   } catch (error) {
-    console.error('Failed to load related questions:', error);
+    logger.error('Failed to load related questions:', error);
     setSecureChildren(relatedEl, createErrorMessage('関連質問の読み込みに失敗しました'));
   }
 }
@@ -2271,7 +2273,7 @@ function downloadPDF(pageType) {
     // 成功通知
     showNotification(`PDFの印刷ダイアログを開きました`, 'success');
   } catch (error) {
-    console.error('PDF generation error:', error);
+    logger.error('PDF generation error:', error);
     showNotification('PDF保存に失敗しました', 'error');
   }
 }
@@ -2454,7 +2456,10 @@ function shareByEmail() {
  */
 function shareBySlack() {
   showToast('Slack連携機能は準備中です', 'info');
-  // TODO: 実際のSlack API連携を実装
+  // 将来実装: Slack Webhook or Slack APIを利用してナレッジを共有
+  // - バックエンドに /api/v1/integrations/slack/share エンドポイントを追加
+  // - ナレッジのタイトル、URL、概要をSlackチャンネルに投稿
+  // Issue: Phase D機能として実装予定
 }
 
 /**
@@ -2462,7 +2467,10 @@ function shareBySlack() {
  */
 function shareByTeams() {
   showToast('Teams連携機能は準備中です', 'info');
-  // TODO: 実際のTeams API連携を実装
+  // 将来実装: Microsoft Graph APIを利用してナレッジを共有
+  // - バックエンドに /api/v1/integrations/teams/share エンドポイントを追加
+  // - ナレッジのタイトル、URL、概要をTeamsチャンネルに投稿
+  // Issue: Phase D機能として実装予定
 }
 
 // ============================================================
@@ -2613,7 +2621,7 @@ async function submitNewIncident(event) {
       window.location.reload();
     }, 1000);
   } catch (error) {
-    console.error('Failed to create incident:', error);
+    logger.error('Failed to create incident:', error);
     showNotification(`事故レポートの作成に失敗しました: ${error.message}`, 'error');
   }
 }
@@ -2770,7 +2778,7 @@ async function submitNewConsultation(event) {
       window.location.reload();
     }, 1000);
   } catch (error) {
-    console.error('Failed to create consultation:', error);
+    logger.error('Failed to create consultation:', error);
     showNotification(`相談の投稿に失敗しました: ${error.message}`, 'error');
   }
 }

@@ -1,0 +1,230 @@
+# Mirai Knowledge System - ログローテーション設定
+# 配置先: /etc/logrotate.d/mirai-knowledge-system
+#
+# インストール方法:
+#   sudo cp config/logrotate/mirai-knowledge-system /etc/logrotate.d/
+#   sudo chmod 644 /etc/logrotate.d/mirai-knowledge-system
+#   sudo chown root:root /etc/logrotate.d/mirai-knowledge-system
+#
+# 手動テスト:
+#   sudo logrotate -d /etc/logrotate.d/mirai-knowledge-system  # ドライラン
+#   sudo logrotate -f /etc/logrotate.d/mirai-knowledge-system  # 強制実行
+
+# ==============================================================================
+# 一般ログ（app.log, gunicorn.log等）
+# ==============================================================================
+/var/log/mirai-knowledge/*.log {
+    # ローテーション頻度: 毎日
+    daily
+
+    # 保持期間: 30日分のログを保持
+    rotate 30
+
+    # 古いログを圧縮（gzip）
+    compress
+
+    # 最新のログは次回まで圧縮しない（現在参照中の可能性があるため）
+    delaycompress
+
+    # ログが空の場合はローテーションしない
+    notifempty
+
+    # ログファイルが存在しない場合もエラーにしない
+    missingok
+
+    # ローテーション後の新規ログファイルのパーミッション
+    create 0640 kensan kensan
+
+    # 複数ファイルに対してpostrotateスクリプトを1回だけ実行
+    sharedscripts
+
+    # ローテーション後にGunicornにシグナルを送信してログファイルを再オープン
+    postrotate
+        # systemdサービスをリロード（エラーが出ても継続）
+        systemctl reload mirai-knowledge-prod.service > /dev/null 2>&1 || true
+
+        # 古いログファイルの所有者・パーミッションを修正
+        find /var/log/mirai-knowledge/ -name "*.log.*" -exec chown kensan:kensan {} \; 2>/dev/null || true
+    endscript
+}
+
+# ==============================================================================
+# アクセスログ（access.log）
+# サイズが大きくなりやすいため、短期保持・サイズ制限付き
+# ==============================================================================
+/var/log/mirai-knowledge/access.log {
+    # ローテーション頻度: 毎日
+    daily
+
+    # 保持期間: 14日分のログを保持（ディスク容量削減）
+    rotate 14
+
+    # サイズ制限: 100MBを超えたら時刻に関係なくローテーション
+    size 100M
+
+    # 古いログを圧縮
+    compress
+
+    # 最新のログは次回まで圧縮しない
+    delaycompress
+
+    # ログが空の場合はローテーションしない
+    notifempty
+
+    # ログファイルが存在しない場合もエラーにしない
+    missingok
+
+    # ローテーション後の新規ログファイルのパーミッション
+    create 0640 kensan kensan
+
+    # 複数ファイルに対してpostrotateスクリプトを1回だけ実行
+    sharedscripts
+
+    # ローテーション後の処理
+    postrotate
+        systemctl reload mirai-knowledge-prod.service > /dev/null 2>&1 || true
+
+        # アクセスログは統計分析後に圧縮（オプション）
+        # 直近1時間のアクセス統計をメール送信する場合は以下を有効化
+        # /opt/mirai-knowledge/scripts/log-analysis.sh access-report | mail -s "Access Log Summary" admin@example.com
+    endscript
+}
+
+# ==============================================================================
+# エラーログ（error.log）
+# 長期保存が必要（トラブルシューティング・監査用）
+# ==============================================================================
+/var/log/mirai-knowledge/error.log {
+    # ローテーション頻度: 毎日
+    daily
+
+    # 保持期間: 90日分のログを保持（長期トラブルシューティング用）
+    rotate 90
+
+    # 古いログを圧縮
+    compress
+
+    # 最新のログは次回まで圧縮しない
+    delaycompress
+
+    # ログが空の場合はローテーションしない
+    notifempty
+
+    # ログファイルが存在しない場合もエラーにしない
+    missingok
+
+    # ローテーション後の新規ログファイルのパーミッション
+    create 0640 kensan kensan
+
+    # 複数ファイルに対してpostrotateスクリプトを1回だけ実行
+    sharedscripts
+
+    # ローテーション後の処理
+    postrotate
+        systemctl reload mirai-knowledge-prod.service > /dev/null 2>&1 || true
+
+        # エラーログに重大なエラーがあれば通知（オプション）
+        # CRITICAL_COUNT=$(grep -c '"level":"CRITICAL"' /var/log/mirai-knowledge/error.log.1 2>/dev/null || echo 0)
+        # if [ "$CRITICAL_COUNT" -gt 0 ]; then
+        #     echo "CRITICAL errors found: $CRITICAL_COUNT" | mail -s "MKS Critical Errors" admin@example.com
+        # fi
+    endscript
+}
+
+# ==============================================================================
+# 監査ログ（audit.log）- セキュリティ監査用
+# ==============================================================================
+/var/log/mirai-knowledge/audit.log {
+    # ローテーション頻度: 毎日
+    daily
+
+    # 保持期間: 180日分のログを保持（法令遵守・監査対応）
+    rotate 180
+
+    # 古いログを圧縮
+    compress
+
+    # 最新のログは次回まで圧縮しない
+    delaycompress
+
+    # ログが空の場合はローテーションしない
+    notifempty
+
+    # ログファイルが存在しない場合もエラーにしない
+    missingok
+
+    # ローテーション後の新規ログファイルのパーミッション（監査ログは厳格に）
+    create 0600 kensan kensan
+
+    # 複数ファイルに対してpostrotateスクリプトを1回だけ実行
+    sharedscripts
+
+    # ローテーション後の処理
+    postrotate
+        systemctl reload mirai-knowledge-prod.service > /dev/null 2>&1 || true
+
+        # 監査ログのチェックサムを記録（改ざん検知）
+        if [ -f /var/log/mirai-knowledge/audit.log.1 ]; then
+            sha256sum /var/log/mirai-knowledge/audit.log.1 >> /var/log/mirai-knowledge/audit-checksums.log
+        fi
+    endscript
+}
+
+# ==============================================================================
+# アプリケーションログ（app.log）- Flask アプリケーション固有
+# ==============================================================================
+/var/log/mirai-knowledge/app.log {
+    # ローテーション頻度: 毎日
+    daily
+
+    # 保持期間: 30日分のログを保持
+    rotate 30
+
+    # 古いログを圧縮
+    compress
+
+    # 最新のログは次回まで圧縮しない
+    delaycompress
+
+    # ログが空の場合はローテーションしない
+    notifempty
+
+    # ログファイルが存在しない場合もエラーにしない
+    missingok
+
+    # ローテーション後の新規ログファイルのパーミッション
+    create 0640 kensan kensan
+
+    # 複数ファイルに対してpostrotateスクリプトを1回だけ実行
+    sharedscripts
+
+    # ローテーション後の処理
+    postrotate
+        systemctl reload mirai-knowledge-prod.service > /dev/null 2>&1 || true
+    endscript
+}
+
+# ==============================================================================
+# 注意事項
+# ==============================================================================
+#
+# 1. ログディレクトリのパーミッション:
+#    sudo mkdir -p /var/log/mirai-knowledge
+#    sudo chown kensan:kensan /var/log/mirai-knowledge
+#    sudo chmod 750 /var/log/mirai-knowledge
+#
+# 2. logrotateのステータス確認:
+#    cat /var/lib/logrotate/status
+#
+# 3. ディスク容量の監視:
+#    du -sh /var/log/mirai-knowledge/
+#    df -h /var/log
+#
+# 4. ローテーション設定のテスト:
+#    sudo logrotate -d /etc/logrotate.d/mirai-knowledge-system
+#
+# 5. 手動でローテーションを実行:
+#    sudo logrotate -f /etc/logrotate.d/mirai-knowledge-system
+#
+# 6. cronジョブ（通常は自動設定済み）:
+#    /etc/cron.daily/logrotate

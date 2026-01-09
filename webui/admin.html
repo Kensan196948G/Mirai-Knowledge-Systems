@@ -416,8 +416,8 @@
     // セキュアロガー（本番環境ではログ出力を抑制）
     const logger = {
       log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
-      warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
-      error: (...args) => { console.error(...args); },
+      warn: (...args) => { if (!IS_PRODUCTION) logger.warn(...args); },
+      error: (...args) => { logger.error(...args); },
       debug: (...args) => { if (!IS_PRODUCTION) console.debug(...args); }
     };
 
@@ -454,7 +454,7 @@
         try {
           return JSON.parse(userStr);
         } catch (e) {
-          console.error('[AUTH] Failed to parse user data:', e);
+          logger.error('[AUTH] Failed to parse user data:', e);
           return null;
         }
       }
@@ -509,7 +509,7 @@
         logger.log('[AUTH] Token refresh failed');
         return false;
       } catch (error) {
-        console.error('[AUTH] Token refresh error:', error);
+        logger.error('[AUTH] Token refresh error:', error);
         return false;
       }
     }
@@ -573,7 +573,7 @@
 
         // 権限エラー（403）
         if (response.status === 403) {
-          console.error('[API] 403 Forbidden.');
+          logger.error('[API] 403 Forbidden.');
           showMessage('この操作を実行する権限がありません。', 'error');
           throw new Error('Permission denied');
         }
@@ -584,7 +584,7 @@
 
         return await response.json();
       } catch (error) {
-        console.error('[API] Error:', error);
+        logger.error('[API] Error:', error);
         throw error;
       }
     }
@@ -777,7 +777,7 @@
           });
         }
       } catch (error) {
-        console.error('Failed to load knowledge:', error);
+        logger.error('Failed to load knowledge:', error);
       }
     }
 
@@ -857,7 +857,7 @@
           });
         }
       } catch (error) {
-        console.error('Failed to load approvals:', error);
+        logger.error('Failed to load approvals:', error);
       }
     }
 

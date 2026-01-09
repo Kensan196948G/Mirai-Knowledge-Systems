@@ -27,9 +27,10 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
-      issues: write
+      contents: read
       pull-requests: write
+      checks: write
+      statuses: write
 
     steps:
       - name: チェックアウト

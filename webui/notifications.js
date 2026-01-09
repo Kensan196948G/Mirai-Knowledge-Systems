@@ -12,7 +12,7 @@ async function loadUnreadNotificationCount() {
       updateNotificationBadge(result.data.unread_count);
     }
   } catch (error) {
-    console.error('[NOTIFICATION] Failed to load unread count:', error);
+    logger.error('[NOTIFICATION] Failed to load unread count:', error);
   }
 }
 
@@ -28,7 +28,7 @@ async function loadNotifications(status = null) {
       updateNotificationBadge(result.pagination.unread_count);
     }
   } catch (error) {
-    console.error('[NOTIFICATION] Failed to load notifications:', error);
+    logger.error('[NOTIFICATION] Failed to load notifications:', error);
   }
 }
 
@@ -55,7 +55,7 @@ async function markNotificationAsRead(notificationId) {
     await fetchAPI(`/notifications/${notificationId}/read`, { method: 'PUT' });
     loadNotifications(); // リロード
   } catch (error) {
-    console.error('[NOTIFICATION] Failed to mark as read:', error);
+    logger.error('[NOTIFICATION] Failed to mark as read:', error);
   }
 }
 

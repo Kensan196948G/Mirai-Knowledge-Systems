@@ -70,8 +70,11 @@ function submitDistribution(type, data) {
   showToast('配信申請を送信しました', 'success');
   logger.log('[ACTION] Distribution submitted:', type, data);
 
-  // TODO: 実際の配信申請APIを実装
-  // 例: await apiCall('/distribution/submit', { method: 'POST', body: JSON.stringify({ type, data }) });
+  // 将来実装: Microsoft 365連携（SharePoint/OneDrive）と同時実装推奨
+  // - バックエンドに /api/v1/distribution/submit エンドポイントを追加
+  // - type: 'sharepoint' | 'onedrive' | 'email'
+  // - 配信先の管理者承認フローと統合
+  // Issue: Phase D機能として実装予定
 }
 
 /**

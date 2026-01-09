@@ -33,7 +33,7 @@ async function loadRelatedKnowledgeFromAPI(knowledgeId, algorithm = 'hybrid', li
       setSecureChildren(relatedListEl, createEmptyMessage('関連ナレッジが見つかりませんでした'));
     }
   } catch (error) {
-    console.error('Failed to load related knowledge from API:', error);
+    logger.error('Failed to load related knowledge from API:', error);
     // フォールバック: 既存のlocalStorage方式を使用
     const tags = getCurrentKnowledgeTags();
     await loadRelatedKnowledge(tags, knowledgeId);
@@ -71,7 +71,7 @@ async function loadRelatedSOPFromAPI(sopId, algorithm = 'hybrid', limit = 5) {
       setSecureChildren(relatedListEl, createEmptyMessage('関連SOPが見つかりませんでした'));
     }
   } catch (error) {
-    console.error('Failed to load related SOP from API:', error);
+    logger.error('Failed to load related SOP from API:', error);
     // フォールバック: 既存のlocalStorage方式を使用
     const category = getCurrentSOPCategory();
     await loadRelatedSOP(category, sopId);
@@ -132,7 +132,7 @@ async function loadPersonalizedRecommendations(type = 'all', limit = 5, days = 3
       ));
     }
   } catch (error) {
-    console.error('Failed to load personalized recommendations:', error);
+    logger.error('Failed to load personalized recommendations:', error);
     setSecureChildren(recContainerEl, createErrorMessage(
       'パーソナライズ推薦の読み込みに失敗しました'
     ));
@@ -461,7 +461,7 @@ async function initializeDashboardRecommendations() {
       setSecureChildren(widgetContainer, createEmptyMessage('推薦がありません'));
     }
   } catch (error) {
-    console.error('Failed to initialize dashboard recommendations:', error);
+    logger.error('Failed to initialize dashboard recommendations:', error);
     setSecureChildren(widgetContainer, createErrorMessage('推薦の読み込みに失敗しました'));
   }
 }

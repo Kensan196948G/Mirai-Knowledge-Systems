@@ -1,40 +1,112 @@
 # 建設土木ナレッジシステム - 監視システム
 
-Prometheus + Grafana による包括的な監視システム
+Prometheus + Grafana による包括的な監視システム（Phase C完了版）
 
 ## 概要
 
 このディレクトリには、建設土木ナレッジシステムの監視に必要なすべての設定ファイルが含まれています。
 
+**最終更新**: 2026-01-09
+**バージョン**: 2.0.0 (Phase C - 監視アラート設定完了)
+
 ### 監視コンポーネント
 
-- **Prometheus**: メトリクス収集・保存
-- **Grafana**: メトリクス可視化ダッシュボード
+- **Prometheus**: メトリクス収集・保存 + アラートルール（30種類以上）
+- **Grafana**: メトリクス可視化ダッシュボード（11パネル）
+- **Alertmanager**: アラート通知管理（6種類のレシーバー）
 - **Node Exporter**: システムリソースメトリクス
-- **Alertmanager**: アラート通知管理
-- **cAdvisor**: コンテナメトリクス
+- **Health Monitor Script**: ヘルスチェック自動化スクリプト
 
 ## ファイル構成
 
 ```
 monitoring/
-├── prometheus.yml              # Prometheus設定
-├── alert_rules.yml            # アラートルール定義
-├── alertmanager.yml           # Alertmanager設定
-├── grafana-dashboard.json     # Grafanaダッシュボード定義
-├── docker-compose.monitoring.yml  # Docker Compose設定
-├── setup_monitoring.sh        # セットアップスクリプト
-├── grafana-provisioning/      # Grafana自動設定
-│   ├── datasources/
-│   │   └── prometheus.yml
+├── prometheus/
+│   └── alerts.yml              # Prometheusアラートルール（30種類以上）
+├── alertmanager/
+│   └── alertmanager.yml        # Alertmanager設定（6種類のレシーバー）
+├── grafana/
 │   └── dashboards/
-│       └── dashboard-provider.yml
-└── README.md                  # このファイル
+│       └── mirai-knowledge-dashboard.json  # メインダッシュボード（11パネル）
+├── prometheus.yml              # Prometheus基本設定（旧版）
+├── alert_rules.yml             # アラートルール定義（旧版）
+├── alertmanager.yml            # Alertmanager設定（旧版）
+├── grafana-dashboard.json      # Grafanaダッシュボード定義（旧版）
+├── docker-compose.monitoring.yml  # Docker Compose設定
+├── setup_monitoring.sh         # セットアップスクリプト
+└── README.md                   # このファイル
+
+scripts/
+└── health-monitor.sh           # ヘルスチェックスクリプト（Phase C新規追加）
 ```
+
+### Phase C で追加された新機能
+
+1. **包括的なアラートルール** (`prometheus/alerts.yml`)
+   - システムリソース監視（CPU, メモリ, ディスク）
+   - アプリケーション監視（エラー率, 応答時間, HTTP状態）
+   - データベース監視（接続プール, クエリパフォーマンス）
+   - セキュリティ監視（ログイン失敗, CSRF）
+   - バックアップ監視（実行状態, 失敗検知）
+
+2. **高度なアラート通知** (`alertmanager/alertmanager.yml`)
+   - 重要度別レシーバー（critical, warning, info）
+   - コンポーネント別レシーバー（security, database, backup）
+   - 抑制ルール（アラート重複防止）
+   - カスタム通知テンプレート
+
+3. **改善されたGrafanaダッシュボード** (`grafana/dashboards/mirai-knowledge-dashboard.json`)
+   - 11種類のパネル（システム、アプリ、DB、セキュリティ）
+   - パーセンタイル表示（p50, p95, p99）
+   - 自動リフレッシュ（10秒間隔）
+
+4. **ヘルスチェック自動化** (`../scripts/health-monitor.sh`)
+   - 6種類のヘルスチェック
+   - Alertmanager連携
+   - Cron対応
 
 ## セットアップ方法
 
-### 方法1: Dockerを使用（推奨）
+### Phase C 推奨セットアップ
+
+```bash
+# 1. Prometheus Alert Rules をインストール
+sudo cp prometheus/alerts.yml /etc/prometheus/
+
+# 2. Alertmanager設定をインストール
+sudo cp alertmanager/alertmanager.yml /etc/alertmanager/
+
+# 3. Prometheus設定にアラートルールを追加
+sudo nano /etc/prometheus/prometheus.yml
+# 以下を追加:
+# rule_files:
+#   - "alerts.yml"
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['localhost:9093']
+
+# 4. サービスを再起動
+sudo systemctl restart prometheus
+sudo systemctl restart alertmanager
+
+# 5. Grafanaダッシュボードをインポート
+# http://localhost:3000 → Dashboards → Import
+# grafana/dashboards/mirai-knowledge-dashboard.json をアップロード
+
+# 6. ヘルスモニタースクリプトを設定
+chmod +x ../scripts/health-monitor.sh
+sudo cp ../scripts/health-monitor.sh /usr/local/bin/
+
+# 7. Cronで自動実行（5分ごと）
+crontab -e
+# 以下を追加:
+# */5 * * * * /usr/local/bin/health-monitor.sh >> /var/log/mks/health-monitor-cron.log 2>&1
+```
+
+詳細なセットアップ手順は [MONITORING_SETUP_COMPLETE.md](../MONITORING_SETUP_COMPLETE.md) を参照してください。
+
+### 方法1: Dockerを使用（旧版）
 
 ```bash
 # 監視スタックを起動
@@ -48,7 +120,7 @@ docker-compose -f docker-compose.monitoring.yml logs -f
 docker-compose -f docker-compose.monitoring.yml down
 ```
 
-### 方法2: ネイティブインストール
+### 方法2: ネイティブインストール（旧版）
 
 ```bash
 # セットアップスクリプトを実行（root権限必要）

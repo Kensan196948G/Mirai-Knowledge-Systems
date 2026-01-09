@@ -64,7 +64,11 @@ accesslog = os.getenv("MKS_ACCESS_LOG", "/var/log/mirai-knowledge/access.log")
 errorlog = os.getenv("MKS_ERROR_LOG", "/var/log/mirai-knowledge/error.log")
 
 # アクセスログフォーマット
-access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
+# JSON形式で構造化ログを出力（ログ分析ツールとの統合が容易）
+access_log_format = '''{"timestamp":"%(t)s","remote_addr":"%(h)s","method":"%(m)s","path":"%(U)s","query":"%(q)s","protocol":"%(H)s","status":%(s)s,"size":%(b)s,"referer":"%(f)s","user_agent":"%(a)s","response_time_us":%(D)s,"response_time_ms":%(M)s,"process_id":"%(p)s"}'''
+
+# 従来形式（コメントアウト、必要に応じて切り替え可能）
+# access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 # %(h)s - リモートホスト
 # %(l)s - '-' (未使用)
 # %(u)s - ユーザー名
@@ -75,6 +79,21 @@ access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
 # %(f)s - Referer
 # %(a)s - User-Agent
 # %(D)s - 処理時間（マイクロ秒）
+
+# JSON形式のフィールド説明:
+# %(t)s - タイムスタンプ（例: [09/Jan/2026:09:30:00 +0900]）
+# %(h)s - リモートホスト（IPアドレス）
+# %(m)s - HTTPメソッド（GET, POST等）
+# %(U)s - URLパス（クエリ文字列除く）
+# %(q)s - クエリ文字列
+# %(H)s - プロトコル（HTTP/1.1等）
+# %(s)s - ステータスコード（200, 404等）
+# %(b)s - レスポンスサイズ（バイト）
+# %(f)s - Referer
+# %(a)s - User-Agent
+# %(D)s - レスポンス時間（マイクロ秒）
+# %(M)s - レスポンス時間（ミリ秒）
+# %(p)s - プロセスID
 
 # ==============================================================================
 # セキュリティ設定

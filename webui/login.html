@@ -337,13 +337,13 @@
                     }, 100);
                 } else {
                     // エラー表示
-                    console.error('[LOGIN] Login failed:', result.error);
+                    logger.error('[LOGIN] Login failed:', result.error);
                     showAlert(result.error.message || 'ログインに失敗しました');
                     loginButton.classList.remove('loading');
                     loginButton.disabled = false;
                 }
             } catch (error) {
-                console.error('[LOGIN] Login error:', error);
+                logger.error('[LOGIN] Login error:', error);
                 showAlert('サーバーに接続できませんでした。バックエンドが起動しているか確認してください。');
                 loginButton.classList.remove('loading');
                 loginButton.disabled = false;
