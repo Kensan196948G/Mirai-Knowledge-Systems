@@ -31,7 +31,7 @@ jobs:
         cd backend
         pip install -r requirements.txt
         pip install pytest playwright
-        playwright install chromium
+        playwright install --with-deps
 
     - name: Start backend server in background
       env:
