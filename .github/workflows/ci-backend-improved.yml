@@ -39,6 +39,7 @@ jobs:
         MKS_ENV: test
         MKS_SECRET_KEY: test-secret-key-for-ci
         MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+        MKS_CORS_ORIGINS: http://localhost:5100
       run: |
         cd backend
         pytest tests/integration -v -n auto --cov=app_v2 --cov=schemas --cov-report=xml --cov-report=term-missing
@@ -48,6 +49,7 @@ jobs:
         MKS_ENV: test
         MKS_SECRET_KEY: test-secret-key-for-ci
         MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+        MKS_CORS_ORIGINS: http://localhost:5100
       run: |
         cd backend
         pytest tests/security -v --tb=short
@@ -58,6 +60,7 @@ jobs:
         MKS_ENV: test
         MKS_SECRET_KEY: test-secret-key-for-ci
         MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+        MKS_CORS_ORIGINS: http://localhost:5100
       run: |
         cd backend
         pytest tests/acceptance -v --tb=short
@@ -68,6 +71,7 @@ jobs:
         MKS_ENV: test
         MKS_SECRET_KEY: test-secret-key-for-ci
         MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+        MKS_CORS_ORIGINS: http://localhost:5100
       run: |
         cd backend
         pytest tests/integration --cov=app_v2 --cov=schemas --cov-report=html --cov-report=term
@@ -91,6 +95,7 @@ jobs:
         MKS_ENV: test
         MKS_SECRET_KEY: test-secret-key-for-ci
         MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+        MKS_CORS_ORIGINS: http://localhost:5100
       run: |
         cd backend
         pytest tests/integration --cov=app_v2 --cov=schemas --cov-fail-under=70
@@ -194,6 +199,7 @@ jobs:
         MKS_ENV: test
         MKS_SECRET_KEY: test-secret-key-for-ci
         MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+        MKS_CORS_ORIGINS: http://localhost:5100
       run: |
         cd backend
         pytest tests/load/performance_benchmark.py -v --tb=short

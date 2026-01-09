@@ -46,6 +46,7 @@ jobs:
         MKS_ENV: test
         MKS_SECRET_KEY: test-secret-key-for-ci
         MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+        MKS_CORS_ORIGINS: http://localhost:5100
       run: |
         cd backend
         pytest tests/ -v --cov=. --cov-report=xml -k "not e2e"
