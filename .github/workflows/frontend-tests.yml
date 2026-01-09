@@ -113,25 +113,14 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-      - name: Start Backend Server
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://mirai_user:test_password@localhost/mirai_test
-        run: |
-          python app_v2.py &
-          sleep 10
-          curl -s http://localhost:5100/api/v1/health
-        working-directory: backend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps
 
       - name: Setup test database
-        working-directory: backend
         run: |
-          # PostgreSQLをセットアップ（GitHub ActionsにはデフォルトでPostgreSQLがインストール済み）
           sudo systemctl start postgresql.service
-          sudo -u postgres psql -c "CREATE DATABASE mirai_test;"
-          sudo -u postgres psql -c "CREATE USER mirai_user WITH PASSWORD 'test_password';"
-          sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE mirai_test TO mirai_user;"
+          sudo -u postgres psql -c "CREATE DATABASE mirai_test;" || true
+          sudo -u postgres psql -c "CREATE USER mirai_user WITH PASSWORD 'test_password';" || true
+          sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE mirai_test TO mirai_user;" || true
 
       - name: Run database migrations
         working-directory: backend
@@ -147,8 +136,16 @@ jobs:
         run: |
           python seed_data.py || echo "Seeding skipped"
 
-      - name: Run E2E tests
+      - name: Start Backend Server
         working-directory: backend
+        env:
+          DATABASE_URL: postgresql://mirai_user:test_password@localhost/mirai_test
+        run: |
+          python app_v2.py &
+          sleep 10
+          curl -s http://localhost:5100/api/v1/health
+
+      - name: Run E2E tests
         env:
           BASE_URL: http://localhost:5100
           DATABASE_URL: postgresql://mirai_user:test_password@localhost/mirai_test
