@@ -49,11 +49,13 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: npm ci
+        run: |
+          npm ci
+          npm run test:unit:coverage
 
       - name: Run unit tests
         working-directory: backend
-        run: npm run test:unit:coverage
+        run: echo "Unit tests already run above"
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
