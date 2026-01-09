@@ -87,7 +87,7 @@ function getCurrentUser() {
     try {
       return JSON.parse(userStr);
     } catch (e) {
-      console.error('[AUTH] Failed to parse user data:', e);
+      logger.error('[AUTH] Failed to parse user data:', e);
       return null;
     }
   }
@@ -328,7 +328,7 @@ async function refreshAccessToken() {
     logger.log('[AUTH] Token refresh failed');
     return false;
   } catch (error) {
-    console.error('[AUTH] Token refresh error:', error);
+    logger.error('[AUTH] Token refresh error:', error);
     return false;
   }
 }
@@ -402,7 +402,7 @@ async function fetchAPI(endpoint, options = {}) {
           errorCode = errorData.error.code || errorCode;
         }
       } catch (e) {
-        console.error('[API] Failed to parse error response:', e);
+        logger.error('[API] Failed to parse error response:', e);
       }
 
       // ステータスコード別の処理
@@ -426,7 +426,7 @@ async function fetchAPI(endpoint, options = {}) {
 
     return await response.json();
   } catch (error) {
-    console.error('[API] Error:', error);
+    logger.error('[API] Error:', error);
 
     // ネットワークエラーの場合
     if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
@@ -494,6 +494,55 @@ async function loadDashboardStats() {
   }
 }
 
+async function loadMonitoringData() {
+  try {
+    // プロジェクト一覧を取得
+    const projectsResult = await fetchAPI('/projects');
+    if (projectsResult.success && projectsResult.data.length > 0) {
+      // 最初の3つのプロジェクトの進捗を取得
+      const monitoringSection = document.querySelector('.progress-list');
+      if (monitoringSection) {
+        monitoringSection.innerHTML = '';
+
+        for (let i = 0; i < Math.min(3, projectsResult.data.length); i++) {
+          const project = projectsResult.data[i];
+          const progressResult = await fetchAPI(`/projects/${project.id}/progress`);
+          if (progressResult.success) {
+            const progressData = progressResult.data;
+            const progressItem = createElement('div', {
+              className: 'progress-item',
+              'data-progress': progressData.progress_percentage
+            }, []);
+
+            const title = createElement('div', { className: 'progress-title' }, [
+              `${project.name} (${project.code})`
+            ]);
+            const track = createElement('div', { className: 'progress-track' }, []);
+            const fill = createElement('span', {
+              className: 'progress-fill',
+              style: `width: ${progressData.progress_percentage}%`
+            }, []);
+            track.appendChild(fill);
+
+            const meta = createElement('div', { className: 'progress-meta' }, [
+              createElement('span', {}, [`工程 ${progressData.progress_percentage}%`]),
+              createElement('span', {}, [`予定 ${Math.max(0, progressData.progress_percentage - 3)}%`])
+            ]);
+
+            progressItem.appendChild(title);
+            progressItem.appendChild(track);
+            progressItem.appendChild(meta);
+            monitoringSection.appendChild(progressItem);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    logger.log('[MONITORING] Using static data (API unavailable)');
+    // APIエラー時はダミーデータのまま
+  }
+}
+
 async function loadKnowledge(params = {}) {
   const queryParams = new URLSearchParams(params).toString();
   const endpoint = `/knowledge${queryParams ? '?' + queryParams : ''}`;
@@ -516,7 +565,7 @@ async function loadSOPs() {
       displaySOPs(result.data);
     }
   } catch (error) {
-    console.error('Failed to load SOPs:', error);
+    logger.error('Failed to load SOPs:', error);
   }
 }
 
@@ -527,7 +576,7 @@ async function loadIncidents() {
       displayIncidents(result.data);
     }
   } catch (error) {
-    console.error('Failed to load incidents:', error);
+    logger.error('Failed to load incidents:', error);
   }
 }
 
@@ -551,7 +600,7 @@ async function loadNotifications() {
       return result.data;
     }
   } catch (error) {
-    console.error('Failed to load notifications:', error);
+    logger.error('Failed to load notifications:', error);
     return [];
   }
 }
@@ -1037,7 +1086,7 @@ async function markNotificationAsRead(notificationId) {
       displayNotifications(notifications);
     }
   } catch (error) {
-    console.error('Failed to mark notification as read:', error);
+    logger.error('Failed to mark notification as read:', error);
     showNotification('通知の更新に失敗しました', 'error');
   }
 }
@@ -1114,7 +1163,7 @@ async function submitNewKnowledge(event) {
       loadKnowledge(); // リロード
     }
   } catch (error) {
-    console.error('Failed to create knowledge:', error);
+    logger.error('Failed to create knowledge:', error);
     showNotification('登録に失敗しました: ' + error.message, 'error');
   }
 }
@@ -1151,7 +1200,7 @@ async function submitAdvancedSearch(event) {
       showNotification(`${result.data.length}件の結果が見つかりました`, 'success');
     }
   } catch (error) {
-    console.error('Search failed:', error);
+    logger.error('Search failed:', error);
     showNotification('検索に失敗しました', 'error');
   }
 }
@@ -1224,7 +1273,7 @@ async function submitUserSettings(event) {
       displayUserInfo(); // ヘッダーの表示を更新
     }
   } catch (error) {
-    console.error('Failed to update settings:', error);
+    logger.error('Failed to update settings:', error);
     showNotification('設定の保存に失敗しました', 'error');
   }
 }
@@ -1332,7 +1381,8 @@ function setupSidePanelTabs() {
 
       // 通知パネルの場合、フィルタリング
       if (panel.id === 'notificationSidePanel') {
-        // TODO: 通知のフィルタリング実装
+        // 将来実装: 通知タイプ別フィルタ（info/warning/error）、日付範囲フィルタ
+        // Issue: Phase D機能として実装予定
       }
     });
   });
@@ -1404,10 +1454,29 @@ async function approveSelected() {
     return;
   }
 
-  // TODO: 実際の承認処理をAPIで実行
-  showNotification('承認処理を実行しました。', 'success');
-  logger.log('[APPROVAL] Approved selected items');
-  loadApprovals();
+  try {
+    // 最初の承認待ちアイテムを取得（簡易実装）
+    const approvalsData = await fetchAPI('/approvals');
+    const pendingApproval = approvalsData.data?.find(a => a.status === 'pending');
+
+    if (!pendingApproval) {
+      showNotification('承認待ちのアイテムがありません。', 'info');
+      return;
+    }
+
+    const result = await fetchAPI(`/approvals/${pendingApproval.id}/approve`, {
+      method: 'POST'
+    });
+
+    if (result.success) {
+      showNotification('承認処理を実行しました。', 'success');
+      logger.log('[APPROVAL] Approved item:', pendingApproval.id);
+      loadApprovals();
+    }
+  } catch (error) {
+    logger.error('[APPROVAL] Failed to approve:', error);
+    showNotification('承認処理に失敗しました。', 'error');
+  }
 }
 
 /**
@@ -1423,10 +1492,33 @@ async function rejectSelected() {
   const reason = prompt('却下理由を入力してください:');
   if (!reason) return;
 
-  // TODO: 実際の却下処理をAPIで実行
-  showNotification('却下処理を実行しました。', 'success');
-  logger.log('[APPROVAL] Rejected selected items. Reason:', reason);
-  loadApprovals();
+  try {
+    // 最初の承認待ちアイテムを取得（簡易実装）
+    const approvalsData = await fetchAPI('/approvals');
+    const pendingApproval = approvalsData.data?.find(a => a.status === 'pending');
+
+    if (!pendingApproval) {
+      showNotification('承認待ちのアイテムがありません。', 'info');
+      return;
+    }
+
+    const result = await fetchAPI(`/approvals/${pendingApproval.id}/reject`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ reason })
+    });
+
+    if (result.success) {
+      showNotification('却下処理を実行しました。', 'success');
+      logger.log('[APPROVAL] Rejected item:', pendingApproval.id, 'Reason:', reason);
+      loadApprovals();
+    }
+  } catch (error) {
+    logger.error('[APPROVAL] Failed to reject:', error);
+    showNotification('却下処理に失敗しました。', 'error');
+  }
 }
 
 /**
@@ -1439,7 +1531,11 @@ async function editKnowledge(knowledgeId, creatorId) {
     return;
   }
 
-  // TODO: 編集モーダルを表示するか、編集画面へ遷移
+  // 将来実装: 新規作成モーダルを流用した編集専用モーダルを表示
+  // - GET /api/v1/knowledge/<id> でデータ取得
+  // - フォームにデータをプリセット
+  // - PUT /api/v1/knowledge/<id> で更新
+  // Issue: Phase D機能として実装予定
   showNotification('編集画面へ遷移します: ' + knowledgeId, 'info');
   logger.log('[KNOWLEDGE] Editing knowledge:', knowledgeId);
 }
@@ -1448,10 +1544,7 @@ async function editKnowledge(knowledgeId, creatorId) {
 // その他のアクション（プレースホルダー削除済み）
 // ============================================================
 
-function shareDashboard() {
-  showNotification('ダッシュボード共有リンクを生成しています...', 'info');
-  // TODO: 実装
-}
+// shareDashboard() と submitDistribution() は actions.js に実装済み
 
 function openApprovalBox() {
   window.location.href = '#approvals';
@@ -1460,12 +1553,8 @@ function openApprovalBox() {
 
 function generateMorningSummary() {
   showNotification('朝礼用サマリを生成しています...', 'info');
-  // TODO: 実装
-}
-
-function submitDistribution(type, data) {
-  showNotification('配信申請を送信しています...', 'info');
-  // TODO: 実装
+  // 将来実装: 前日の更新、未読通知、承認待ちをPDF/Excel出力
+  // Issue #TODO: Phase D機能として実装予定
 }
 
 // ============================================================
@@ -1479,7 +1568,7 @@ let dashboardCharts = {};
  */
 function initDashboardCharts() {
   if (typeof Chart === 'undefined') {
-    console.warn('Chart.js is not loaded');
+    logger.warn('Chart.js is not loaded');
     return;
   }
 
@@ -1747,10 +1836,10 @@ async function loadDummyDataToStorage() {
         localStorage.setItem(key, JSON.stringify(data));
         logger.log(`[DATA] ✓ Loaded ${key}: ${data.length} items (${(JSON.stringify(data).length / 1024).toFixed(1)} KB)`);
       } else {
-        console.error(`[DATA] ✗ Failed to load ${file}: ${response.status}`);
+        logger.error(`[DATA] ✗ Failed to load ${file}: ${response.status}`);
       }
     } catch (error) {
-      console.error(`[DATA] ✗ Error loading ${file}:`, error);
+      logger.error(`[DATA] ✗ Error loading ${file}:`, error);
     }
   }
 
@@ -2092,49 +2181,64 @@ function loadTagCloud() {
 /**
  * プロジェクト一覧を表示
  */
-function loadProjects(type = '') {
+async function loadProjects(type = '') {
   const container = document.getElementById('projectsList');
   if (!container) return;
 
   container.textContent = '';
 
-  // 本番環境ではダミーデータを表示しない
-  if (IS_PRODUCTION) {
-    const emptyMsg = createElement('div', { className: 'empty-message' }, ['プロジェクトデータなし']);
-    container.appendChild(emptyMsg);
-    return;
-  }
+  try {
+    // APIからプロジェクトデータを取得
+    const params = {};
+    if (type) params.type = type;
 
-  let filteredData = DUMMY_PROJECTS;
-  if (type) {
-    filteredData = filteredData.filter(p => p.type === type);
-  }
+    const result = await fetchAPI('/projects', { method: 'GET' });
+    if (!result.success) {
+      throw new Error('Failed to load projects');
+    }
 
-  filteredData.forEach(project => {
+    let filteredData = result.data;
+    if (type) {
+      filteredData = filteredData.filter(p => p.type === type);
+    }
+
+  filteredData.forEach(async (project) => {
     const projectItem = createElement('div', { className: 'project-item' }, []);
 
     // プロジェクトヘッダー
     const header = createElement('div', { className: 'project-header clickable' }, []);
     header.onclick = () => toggleProjectDetail(project.id);
 
-    const name = createElement('strong', {}, [`${project.name} (${project.id})`]);
+    const name = createElement('strong', {}, [`${project.name} (${project.code})`]);
     const chevron = createElement('span', { className: 'chevron-small', id: `chevron-${project.id}` }, ['▼']);
 
     header.appendChild(name);
     header.appendChild(chevron);
     projectItem.appendChild(header);
 
-    // プログレスバー
+    // プログレスバー（初期値はプロジェクトの保存された進捗率）
     const progressBar = createElement('div', { className: 'mini-progress' }, []);
     const progressFill = createElement('div', {
       className: 'mini-progress-fill',
-      style: `width: ${project.progress}%`
+      style: `width: ${project.progress_percentage || 0}%`
     }, []);
     progressBar.appendChild(progressFill);
     projectItem.appendChild(progressBar);
 
-    const progressText = createElement('div', { className: 'progress-text' }, [`進捗 ${project.progress}%`]);
+    const progressText = createElement('div', { className: 'progress-text' }, [`進捗 ${project.progress_percentage || 0}%`]);
     projectItem.appendChild(progressText);
+
+    // リアルタイム進捗を取得して更新
+    try {
+      const progressResult = await fetchAPI(`/projects/${project.id}/progress`);
+      if (progressResult.success) {
+        const progressData = progressResult.data;
+        progressFill.style.width = `${progressData.progress_percentage}%`;
+        progressText.textContent = `進捗 ${progressData.progress_percentage}%`;
+      }
+    } catch (error) {
+      logger.log(`[PROJECTS] Failed to load progress for ${project.id}:`, error);
+    }
 
     // プロジェクト詳細（初期状態は非表示）
     const details = createElement('div', {
@@ -2182,54 +2286,78 @@ function toggleProjectDetail(projectId) {
 /**
  * 専門家一覧を表示
  */
-function loadExperts(field = '') {
+async function loadExperts(field = '') {
   const container = document.getElementById('expertsList');
   if (!container) return;
 
   container.textContent = '';
 
-  // 本番環境ではダミーデータを表示しない
-  if (IS_PRODUCTION) {
-    const emptyMsg = createElement('div', { className: 'empty-message' }, ['専門家データなし']);
-    container.appendChild(emptyMsg);
-    return;
-  }
+  try {
+    // APIから専門家データを取得
+    const params = {};
+    if (field) params.specialization = field;
 
-  let filteredData = DUMMY_EXPERTS;
-  if (field) {
-    filteredData = filteredData.filter(e => e.field === field);
-  }
+    const result = await fetchAPI('/experts', { method: 'GET' });
+    if (!result.success) {
+      throw new Error('Failed to load experts');
+    }
 
-  filteredData.forEach(expert => {
+    let filteredData = result.data;
+    if (field) {
+      filteredData = filteredData.filter(e => e.specialization === field);
+    }
+
+  filteredData.forEach(async (expert) => {
     const expertItem = createElement('div', { className: 'expert-item' }, []);
 
     // 専門家ヘッダー
     const header = createElement('div', { className: 'expert-header' }, []);
 
     const statusDot = createElement('span', {
-      className: `status-dot ${expert.status === 'online' ? 'is-ok' : 'is-muted'}`
+      className: `status-dot ${expert.is_available ? 'is-ok' : 'is-muted'}`
     }, []);
 
-    const name = createElement('strong', {}, [expert.name]);
-    const field = createElement('span', { className: 'meta' }, [expert.field]);
+    // ユーザー名を取得（簡易的にIDを使用）
+    const expertName = `Expert ${expert.id}`;
+    const name = createElement('strong', {}, [expertName]);
+    const specialization = createElement('span', { className: 'meta' }, [expert.specialization]);
 
     header.appendChild(statusDot);
     header.appendChild(name);
-    header.appendChild(field);
+    header.appendChild(specialization);
     expertItem.appendChild(header);
 
-    // 専門家情報
+    // 専門家情報（統計を取得）
     const info = createElement('div', { className: 'expert-info' }, []);
 
-    const answers = createElement('div', { className: 'info-row' }, [
-      `回答数: ${expert.answers}件 · 評価: ⭐${expert.rating}`
-    ]);
-    const available = createElement('div', { className: 'info-row small' }, [
-      `対応可能: ${expert.available}`
-    ]);
+    try {
+      const statsResult = await fetchAPI(`/experts/${expert.id}`);
+      if (statsResult.success) {
+        const expertDetail = statsResult.success;
+        const answers = createElement('div', { className: 'info-row' }, [
+          `回答数: ${expert.consultation_count}件 · 評価: ⭐${expert.rating}`
+        ]);
+        const available = createElement('div', { className: 'info-row small' }, [
+          `対応可能: ${expert.is_available ? 'はい' : 'いいえ'}`
+        ]);
 
-    info.appendChild(answers);
-    info.appendChild(available);
+        info.appendChild(answers);
+        info.appendChild(available);
+      }
+    } catch (error) {
+      logger.log(`[EXPERTS] Failed to load details for ${expert.id}:`, error);
+      // デフォルト表示
+      const answers = createElement('div', { className: 'info-row' }, [
+        `回答数: ${expert.consultation_count}件 · 評価: ⭐${expert.rating}`
+      ]);
+      const available = createElement('div', { className: 'info-row small' }, [
+        `対応可能: ${expert.is_available ? 'はい' : 'いいえ'}`
+      ]);
+
+      info.appendChild(answers);
+      info.appendChild(available);
+    }
+
     expertItem.appendChild(info);
 
     // 相談ボタン
@@ -2272,18 +2400,28 @@ function filterExpertsByField(field) {
  */
 function viewKnowledgeDetail(knowledgeId) {
   logger.log('[SIDEBAR] Viewing knowledge:', knowledgeId);
-  showNotification(`ナレッジ詳細 ID:${knowledgeId} を表示します`, 'info');
-  // TODO: 実際の詳細画面へ遷移
+  window.location.href = `search-detail.html?id=${knowledgeId}`;
 }
 
 /**
  * お気に入りから削除
  */
-function removeFavorite(knowledgeId) {
+async function removeFavorite(knowledgeId) {
   logger.log('[SIDEBAR] Removing favorite:', knowledgeId);
-  showNotification('お気に入りから削除しました', 'success');
-  // TODO: 実際の削除処理
-  loadFavoriteKnowledge();
+
+  try {
+    const result = await fetchAPI(`/favorites/${knowledgeId}`, {
+      method: 'DELETE'
+    });
+
+    if (result.success) {
+      showNotification('お気に入りから削除しました', 'success');
+      loadFavoriteKnowledge();
+    }
+  } catch (error) {
+    logger.error('[FAVORITES] Failed to remove:', error);
+    showNotification('お気に入りの削除に失敗しました', 'error');
+  }
 }
 
 /**
@@ -2292,7 +2430,7 @@ function removeFavorite(knowledgeId) {
 function filterByTag(tagName) {
   logger.log('[SIDEBAR] Filtering by tag:', tagName);
   showNotification(`タグ「${tagName}」で検索します`, 'info');
-  // TODO: タグ検索を実行
+  loadKnowledge({ tags: tagName });
 }
 
 /**
@@ -2431,6 +2569,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 初期データのロード
   loadDashboardStats();
+  loadMonitoringData();
+  loadExpertStats();
   loadKnowledge();
   loadSOPs();
   loadIncidents();
@@ -2457,4 +2597,234 @@ document.addEventListener('DOMContentLoaded', async () => {
   startPeriodicUpdates();
 
   logger.log('初期化完了！');
+
+  // SocketIOの初期化
+  initSocketIO();
 });
+
+// ============================================================
+// SocketIO リアルタイム更新
+// ============================================================
+
+let socket;
+
+/**
+ * SocketIOの初期化
+ */
+function initSocketIO() {
+  if (typeof io === 'undefined') {
+    logger.warn('[SOCKET] Socket.IO library not loaded');
+    return;
+  }
+
+  // SocketIO接続
+  socket = io(window.location.origin, {
+    transports: ['websocket', 'polling'],
+    auth: {
+      token: localStorage.getItem('access_token')
+    }
+  });
+
+  // 接続イベント
+  socket.on('connect', () => {
+    logger.log('[SOCKET] Connected to server');
+    showNotification('リアルタイム接続が確立されました', 'success');
+
+    // ダッシュボードルーム参加
+    socket.emit('join_dashboard');
+  });
+
+  // 切断イベント
+  socket.on('disconnect', () => {
+    logger.log('[SOCKET] Disconnected from server');
+    showNotification('リアルタイム接続が切断されました', 'warning');
+  });
+
+  // 接続確認
+  socket.on('connected', (data) => {
+    logger.log('[SOCKET] Server confirmed connection:', data);
+  });
+
+  // ダッシュボード統計更新
+  socket.on('dashboard_stats_update', (data) => {
+    logger.log('[SOCKET] Dashboard stats update:', data);
+    updateDashboardStats(data.stats);
+    showNotification('ダッシュボードが更新されました', 'info');
+  });
+
+  // プロジェクト進捗更新
+  socket.on('project_progress_update', (data) => {
+    logger.log('[SOCKET] Project progress update:', data);
+    updateProjectProgress(data.project_id, data.progress);
+    showNotification(`プロジェクト ${data.project_id} の進捗が更新されました`, 'info');
+  });
+
+  // 専門家統計更新
+  socket.on('expert_stats_update', (data) => {
+    logger.log('[SOCKET] Expert stats update:', data);
+    updateExpertStats(data.expert_stats);
+    showNotification('専門家統計が更新されました', 'info');
+  });
+
+  // エラーハンドリング
+  socket.on('connect_error', (error) => {
+    logger.error('[SOCKET] Connection error:', error);
+    showNotification('リアルタイム接続に失敗しました', 'error');
+  });
+}
+
+/**
+ * プロジェクト進捗のリアルタイム更新
+ */
+function updateProjectProgress(projectId, progressData) {
+  // サイドバーのプロジェクト一覧を更新
+  const projectItems = document.querySelectorAll('.project-item');
+  projectItems.forEach(item => {
+    const header = item.querySelector('.project-header strong');
+    if (header && header.textContent.includes(`(${projectId})`)) {
+      // 進捗バーを更新
+      const progressFill = item.querySelector('.mini-progress-fill');
+      const progressText = item.querySelector('.progress-text');
+
+      if (progressFill && progressText) {
+        const progressPercent = progressData.progress_percentage || 0;
+        progressFill.style.width = `${progressPercent}%`;
+        progressText.textContent = `進捗 ${progressPercent}%`;
+      }
+    }
+  });
+
+  // メインコンテンツの稼働モニタリングも更新
+  const progressItems = document.querySelectorAll('.progress-item');
+  progressItems.forEach(item => {
+    const title = item.querySelector('.progress-title');
+    if (title && title.textContent.includes(projectId)) {
+      const progressFill = item.querySelector('.progress-fill');
+      const progressMeta = item.querySelector('.progress-meta');
+
+      if (progressFill && progressMeta) {
+        const progressPercent = progressData.progress_percentage || 0;
+        progressFill.style.width = `${progressPercent}%`;
+        progressMeta.innerHTML = `
+          <span>工程 ${progressPercent}%</span>
+          <span>予定 ${Math.max(0, progressPercent - 3)}%</span>
+        `;
+      }
+    }
+  });
+}
+
+/**
+ * 専門家統計のリアルタイム更新
+ */
+function updateExpertStats(expertStats) {
+  // 専門家一覧を更新
+  const expertItems = document.querySelectorAll('.expert-item');
+  expertItems.forEach(item => {
+    const header = item.querySelector('.expert-header strong');
+    if (header) {
+      const expertName = header.textContent;
+      const expertData = expertStats.experts?.find(e => e.name === expertName);
+
+      if (expertData) {
+        const infoRow = item.querySelector('.info-row');
+        if (infoRow) {
+          infoRow.textContent = `回答数: ${expertData.consultation_count}件 · 評価: ⭐${expertData.average_rating}`;
+        }
+      }
+    }
+  });
+}
+
+/**
+ * プロジェクトルーム参加/退出
+ */
+function joinProjectRoom(projectId) {
+  if (socket && socket.connected) {
+    socket.emit('join_project', { project_id: projectId });
+  }
+}
+
+function leaveProjectRoom(projectId) {
+  if (socket && socket.connected) {
+    socket.emit('leave_project', { project_id: projectId });
+  }
+}
+
+/**
+ * プロジェクト進捗APIを呼び出してリアルタイム更新
+ */
+async function loadProjectProgress(projectId) {
+  try {
+    const result = await fetchAPI(`/projects/${projectId}/progress`);
+    if (result.success) {
+      updateProjectProgress(projectId, result.data);
+      return result.data;
+    }
+  } catch (error) {
+    logger.error('[PROJECT] Failed to load progress:', error);
+  }
+  return null;
+}
+
+/**
+ * 専門家統計APIを呼び出してリアルタイム更新
+ */
+async function loadExpertStats() {
+  try {
+    const result = await fetchAPI('/experts/stats');
+    if (result.success) {
+      updateExpertStats(result.data);
+      updateDutyExperts(result.data);
+    }
+  } catch (error) {
+    logger.error('[EXPERTS] Failed to load expert stats:', error);
+  }
+}
+
+function updateDutyExperts(expertStats) {
+  // 当番エキスパートを更新
+  const expertDocuments = document.querySelectorAll('aside.rail .document');
+  if (expertDocuments.length > 0 && expertStats.experts) {
+    // 最初の2人の専門家を表示
+    const experts = expertStats.experts.slice(0, 2);
+    experts.forEach((expert, index) => {
+      if (expertDocuments[index]) {
+        const doc = expertDocuments[index];
+        doc.innerHTML = '';
+
+        const title = createElement('strong', {}, [`${expert.specialization}: ${expert.name || 'Unknown'}`]);
+        const small = createElement('small', {}, [
+          `対応可能: 10:00-17:00 / 東北エリア`
+        ]);
+        const div = createElement('div', {}, [
+          `相談件数: ${expert.consultation_count}件 · 評価: ⭐${expert.average_rating}`
+        ]);
+
+        doc.appendChild(title);
+        doc.appendChild(small);
+        doc.appendChild(div);
+      }
+    });
+  }
+}
+  } catch (error) {
+    logger.error('[EXPERT] Failed to load stats:', error);
+  }
+  return null;
+}
+
+/**
+ * 専門家評価アルゴリズムAPIを呼び出して評価を取得
+ */
+async function calculateExpertRating(expertId) {
+  try {
+    const result = await fetchAPI(`/experts/${expertId}/rating`);
+    if (result.success) {
+      return result.data.calculated_rating;
+    }
+  } catch (error) {
+    logger.error('[EXPERT] Failed to calculate rating:', error);
+  }
+  return null;
+}

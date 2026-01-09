@@ -25,6 +25,36 @@
       }
     }
   },
+  "agents": {
+    "spec-planner": {
+      "enabled": true,
+      "description": "要件整理・タスク分解専門"
+    },
+    "arch-reviewer": {
+      "enabled": true,
+      "description": "アーキテクチャ・設計レビュー専門"
+    },
+    "code-implementer": {
+      "enabled": true,
+      "description": "コード実装専門"
+    },
+    "test-designer": {
+      "enabled": true,
+      "description": "テスト設計専門"
+    },
+    "ci-specialist": {
+      "enabled": true,
+      "description": "GitHub Actions CI/CD専門"
+    },
+    "sec-auditor": {
+      "enabled": true,
+      "description": "セキュリティ監査専門"
+    },
+    "ops-runbook": {
+      "enabled": true,
+      "description": "運用手順書作成専門"
+    }
+  },
   "mcp": {
     "brave-search": {
       "type": "local",
@@ -44,13 +74,13 @@
       "command": [
         "npx",
         "-y",
-        "@upstash/context7-mcp-server"
+        "@upstash/context7-mcp"
       ],
       "environment": {
         "CONTEXT7_API_KEY": "ctx7sk-dd513bdf-bd6e-427c-a8e7-c2f556cbed59"
       },
-      "enabled": true,
-      "timeout": 10000
+      "enabled": false,
+      "timeout": 30000
     },
     "github": {
       "type": "local",
@@ -72,7 +102,8 @@
         "-y",
         "@modelcontextprotocol/server-memory"
       ],
-      "enabled": true
+      "enabled": true,
+      "timeout": 10000
     },
     "playwright": {
       "type": "local",
@@ -81,7 +112,7 @@
         "-y",
         "@modelcontextprotocol/server-playwright"
       ],
-      "enabled": true,
+      "enabled": false,
       "timeout": 20000
     },
     "sequential-thinking": {
@@ -91,7 +122,8 @@
         "-y",
         "@modelcontextprotocol/server-sequential-thinking"
       ],
-      "enabled": true
+      "enabled": true,
+      "timeout": 10000
     },
     "sqlite": {
       "type": "local",
@@ -101,9 +133,10 @@
         "@modelcontextprotocol/server-sqlite"
       ],
       "environment": {
-        "SQLITE_DB_PATH": "/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/data/mirai_knowledge.db"
+        "SQLITE_DB_PATH": "backend/data/database.db"
       },
-      "enabled": true
+      "enabled": true,
+      "timeout": 30000
     }
   }
 }

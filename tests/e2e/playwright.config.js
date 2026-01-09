@@ -22,8 +22,8 @@ module.exports = defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } }
   ],
   webServer: {
-    command: 'cd backend && python app_v2.py',
-    url: 'http://localhost:5000',
+    command: 'python backend/app_v2.py',
+    url: 'http://localhost:5100',
     timeout: 120000,
     reuseExistingServer: !process.env.CI
   }
