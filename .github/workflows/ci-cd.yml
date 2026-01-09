@@ -60,6 +60,7 @@ jobs:
           pip install ruff flake8 bandit safety
 
       - name: Install Node dependencies
+        working-directory: backend
         run: |
           npm ci
 
