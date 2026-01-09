@@ -134,20 +134,24 @@ jobs:
         pip install flake8 pylint black isort mypy
 
     - name: Run flake8
+      continue-on-error: true
       run: |
-        flake8 backend/app_v2.py backend/schemas.py backend/models.py --max-line-length=120 --exit-zero
+        flake8 backend/app_v2.py backend/schemas.py backend/models.py --max-line-length=120
 
     - name: Run pylint
+      continue-on-error: true
       run: |
-        pylint backend/app_v2.py backend/schemas.py backend/models.py --exit-zero
+        pylint backend/app_v2.py backend/schemas.py backend/models.py
 
     - name: Check code formatting with black
+      continue-on-error: true
       run: |
-        black --check backend/app_v2.py backend/schemas.py backend/models.py --exit-zero
+        black --check backend/app_v2.py backend/schemas.py backend/models.py
 
     - name: Check import sorting with isort
+      continue-on-error: true
       run: |
-        isort --check-only backend/app_v2.py backend/schemas.py backend/models.py --exit-zero
+        isort --check-only backend/app_v2.py backend/schemas.py backend/models.py
 
   performance:
     runs-on: ubuntu-latest
