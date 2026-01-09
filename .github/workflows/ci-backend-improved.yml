@@ -64,7 +64,7 @@ jobs:
         name: backend-coverage-py${{ matrix.python-version }}
 
     - name: Upload coverage HTML report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.python-version == '3.12'
       with:
         name: coverage-report-html
@@ -92,7 +92,7 @@ jobs:
         bandit -r backend/app_v2.py backend/schemas.py backend/models.py -f json -o bandit-report.json || true
 
     - name: Upload Bandit report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: bandit-report
         path: bandit-report.json
@@ -103,7 +103,7 @@ jobs:
         safety check -r backend/requirements.txt --json --output safety-report.json || true
 
     - name: Upload Safety report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: safety-report
         path: safety-report.json
@@ -114,7 +114,7 @@ jobs:
         pip-audit -r backend/requirements.txt --format json --output pip-audit-report.json || true
 
     - name: Upload pip-audit report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: pip-audit-report
         path: pip-audit-report.json
