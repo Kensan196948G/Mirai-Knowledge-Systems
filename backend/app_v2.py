@@ -26,6 +26,7 @@ import pyotp
 from dotenv import load_dotenv
 from marshmallow import ValidationError
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
+from werkzeug.utils import secure_filename
 from schemas import LoginSchema, KnowledgeCreateSchema
 import time
 import psutil
@@ -35,6 +36,7 @@ import ssl
 from email.message import EmailMessage
 import urllib.request
 import tempfile
+import mimetypes
 from prometheus_client import (
     Counter as PrometheusCounter,
     Histogram,
@@ -44,9 +46,74 @@ from prometheus_client import (
 )
 from recommendation_engine import RecommendationEngine
 from data_access import DataAccessLayer
+from config import get_config
+import msal
+
+try:
+    from msgraph.core import GraphClient
+except ImportError:
+    GraphClient = None
 
 # 環境変数をロード
 load_dotenv()
+
+# DEBUG: 環境変数の確認（一時的）
+import sys
+print("=" * 80, file=sys.stderr)
+print("DEBUG: Environment Variables Check", file=sys.stderr)
+print(f"MKS_USE_JSON: {os.getenv('MKS_USE_JSON', 'NOT_SET')}", file=sys.stderr)
+print(f"MKS_USE_POSTGRESQL: {os.getenv('MKS_USE_POSTGRESQL', 'NOT_SET')}", file=sys.stderr)
+print(f"DATABASE_URL: {os.getenv('DATABASE_URL', 'NOT_SET')}", file=sys.stderr)
+print(f"MKS_ENV: {os.getenv('MKS_ENV', 'NOT_SET')}", file=sys.stderr)
+print("=" * 80, file=sys.stderr)
+
+# Redisキャッシュ設定
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+CACHE_TTL = int(os.getenv("CACHE_TTL", 300))  # 5分
+
+try:
+    import redis
+except ImportError:
+    redis = None
+
+if redis is None:
+    redis_client = None
+    CACHE_ENABLED = False
+else:
+    try:
+        redis_client = redis.from_url(REDIS_URL)
+        redis_client.ping()  # 接続テスト
+        CACHE_ENABLED = True
+    except redis.ConnectionError:
+        redis_client = None
+        CACHE_ENABLED = False
+
+
+def get_cache_key(prefix, *args):
+    """キャッシュキー生成"""
+    return f"{prefix}:{':'.join(str(arg) for arg in args)}"
+
+
+def cache_get(key):
+    """キャッシュ取得"""
+    if not CACHE_ENABLED or not redis_client:
+        return None
+    try:
+        data = redis_client.get(key)
+        return json.loads(data) if data else None
+    except Exception:
+        return None
+
+
+def cache_set(key, value, ttl=CACHE_TTL):
+    """キャッシュ設定"""
+    if not CACHE_ENABLED or not redis_client:
+        return
+    try:
+        redis_client.setex(key, ttl, json.dumps(value))
+    except Exception:
+        pass
+
 
 # 推薦エンジンインスタンス
 recommendation_engine = RecommendationEngine(cache_ttl=300)  # 5分間キャッシュ
@@ -155,8 +222,12 @@ class HTTPSRedirectMiddleware:
 
 app = Flask(__name__, static_folder="../webui")
 
-# CORS設定（環境変数ベース）
-allowed_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5100").split(",")
+# Config取得
+AppConfig = get_config()
+
+# CORS設定（Configクラスから取得）
+allowed_origins = getattr(AppConfig, 'CORS_ORIGINS', ['http://localhost:5100'])
+print(f"[INIT] CORS configured for origins: {allowed_origins}", file=sys.stderr)
 
 # SocketIO設定（リアルタイム更新用）
 socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode="threading")
@@ -1665,6 +1736,121 @@ def get_related_knowledge(knowledge_id):
             },
         }
     )
+
+
+@app.route("/api/v1/knowledge/popular", methods=["GET"])
+@check_permission("knowledge.read")
+def get_popular_knowledge():
+    """人気ナレッジTop 10を取得（閲覧数順）"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, "knowledge.popular", "knowledge")
+
+    knowledge_list = load_data("knowledge.json")
+    limit = request.args.get("limit", 10, type=int)
+    limit = min(limit, 50)  # 最大50件
+
+    # 閲覧数でソート
+    sorted_knowledge = sorted(
+        knowledge_list,
+        key=lambda k: k.get("views", 0),
+        reverse=True
+    )[:limit]
+
+    return jsonify({
+        "success": True,
+        "data": sorted_knowledge
+    })
+
+
+@app.route("/api/v1/knowledge/recent", methods=["GET"])
+@check_permission("knowledge.read")
+def get_recent_knowledge():
+    """最近追加されたナレッジを取得（作成日時順）"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, "knowledge.recent", "knowledge")
+
+    knowledge_list = load_data("knowledge.json")
+    limit = request.args.get("limit", 10, type=int)
+    days = request.args.get("days", 7, type=int)  # デフォルト7日以内
+    limit = min(limit, 50)
+
+    from datetime import datetime, timedelta
+    cutoff_date = datetime.now() - timedelta(days=days)
+
+    # 最近追加されたものをフィルタ＆ソート
+    recent_knowledge = []
+    for k in knowledge_list:
+        created_at = k.get("created_at")
+        if created_at:
+            try:
+                created_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                if created_date >= cutoff_date:
+                    recent_knowledge.append(k)
+            except:
+                pass
+
+    # 作成日時でソート
+    sorted_knowledge = sorted(
+        recent_knowledge,
+        key=lambda k: k.get("created_at", ""),
+        reverse=True
+    )[:limit]
+
+    return jsonify({
+        "success": True,
+        "data": sorted_knowledge
+    })
+
+
+@app.route("/api/v1/knowledge/favorites", methods=["GET"])
+@jwt_required()
+def get_favorite_knowledge():
+    """お気に入りナレッジを取得"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, "knowledge.favorites", "knowledge")
+
+    # TODO: 実装時はユーザー毎のお気に入りをusers_favoritesから取得
+    # 現在はダミー実装で空配列を返す
+
+    return jsonify({
+        "success": True,
+        "data": []
+    })
+
+
+@app.route("/api/v1/knowledge/tags", methods=["GET"])
+@check_permission("knowledge.read")
+def get_knowledge_tags():
+    """ナレッジのタグ集計を取得（タグクラウド用）"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, "knowledge.tags", "knowledge")
+
+    knowledge_list = load_data("knowledge.json")
+
+    # タグの使用頻度を集計
+    tag_count = {}
+    for k in knowledge_list:
+        tags = k.get("tags", [])
+        for tag in tags:
+            tag_count[tag] = tag_count.get(tag, 0) + 1
+
+    # 頻度順にソート
+    sorted_tags = sorted(
+        tag_count.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    # タグとカウントの配列に変換
+    tag_list = [
+        {"name": tag, "count": count, "size": min(count // 5 + 1, 5)}
+        for tag, count in sorted_tags
+    ]
+
+    return jsonify({
+        "success": True,
+        "data": tag_list
+    })
 
 
 @app.route("/api/v1/favorites/<int:knowledge_id>", methods=["DELETE"])
@@ -3440,7 +3626,8 @@ if __name__ == "__main__":
     print("=" * 60)
 
     debug = os.environ.get("MKS_DEBUG", "false").lower() in ("1", "true", "yes")
-    app.run(host="0.0.0.0", port=5100, debug=debug)
+    # WebSocketサポートのためsocketio.runを使用
+    socketio.run(app, host="0.0.0.0", port=5100, debug=debug, allow_unsafe_werkzeug=True)
 
 
 # ============================================================

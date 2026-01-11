@@ -182,6 +182,11 @@ function createTableRow(cells, isHeader = false) {
  * @returns {HTMLElement}
  */
 function createDocumentElement(item, detailPageUrl) {
+  // IDパラメータを含む完全なURLを生成
+  const fullUrl = item.id && !detailPageUrl.includes('?')
+    ? `${detailPageUrl}?id=${item.id}`
+    : detailPageUrl;
+
   const doc = createSecureElement('div', {
     className: 'document',
     attributes: {
@@ -190,10 +195,10 @@ function createDocumentElement(item, detailPageUrl) {
   });
 
   doc.addEventListener('click', () => {
-    window.location.href = detailPageUrl;
+    window.location.href = fullUrl;
   });
 
-  const titleLink = createLinkElement(detailPageUrl, item.title || '', {
+  const titleLink = createLinkElement(fullUrl, item.title || '', {
     className: 'document-title'
   });
   const titleStrong = createSecureElement('strong');

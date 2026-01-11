@@ -25,9 +25,9 @@ workers = multiprocessing.cpu_count() * 2 + 1
 
 # ワーカークラス（同期/非同期）
 # - sync: 同期（デフォルト、安定）
-# - gevent: 非同期（高スループット、geventライブラリ必要）
+# - gevent: 非同期（高スループット、geventライブラリ必要） ← Socket.IO用に変更
 # - eventlet: 非同期（高スループット、eventletライブラリ必要）
-worker_class = "sync"
+worker_class = "gevent"
 
 # ワーカーの最大リクエスト処理数（メモリリーク対策）
 # この数を処理したらワーカーを再起動

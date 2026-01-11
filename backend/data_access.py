@@ -163,6 +163,106 @@ class DataAccessLayer:
             data = self._load_json("knowledge.json")
             return next((k for k in data if k["id"] == knowledge_id), None)
 
+    def get_related_knowledge_by_tags(
+        self, tags: List[str], limit: int = 5, exclude_id: Optional[int] = None
+    ) -> List[Dict]:
+        """
+        タグベースで関連ナレッジを取得
+
+        Args:
+            tags: 検索対象のタグリスト
+            limit: 取得件数の上限
+            exclude_id: 除外するナレッジID（自分自身を除外）
+
+        Returns:
+            関連ナレッジのリスト（タグ一致数の多い順）
+        """
+        if self.use_postgresql:
+            factory = get_session_factory()
+            if not factory:
+                return []
+            db = factory()
+            try:
+                # PostgreSQL: タグ配列の重複チェック（ARRAY重複カウントクエリ）
+                from sqlalchemy import func, and_
+
+                query = db.query(Knowledge).filter(Knowledge.status == "approved")
+
+                if exclude_id:
+                    query = query.filter(Knowledge.id != exclude_id)
+
+                # タグが一致するナレッジを取得
+                if tags:
+                    # タグ配列の積集合をチェック
+                    query = query.filter(Knowledge.tags.overlap(tags))
+
+                # 閲覧数順（タグスコアリングは将来実装）
+                query = query.order_by(Knowledge.views.desc())
+
+                knowledge_list = query.limit(limit * 2).all()  # 余裕を持って取得
+
+                # タグ一致数でソート
+                def tag_match_score(k):
+                    if not k.tags or not tags:
+                        return 0
+                    return len(set(k.tags) & set(tags))
+
+                knowledge_list = sorted(
+                    knowledge_list, key=tag_match_score, reverse=True
+                )[:limit]
+
+                # フォールバック: タグ一致が0件なら最近のナレッジを返す
+                if not knowledge_list:
+                    knowledge_list = (
+                        db.query(Knowledge)
+                        .filter(Knowledge.status == "approved")
+                        .filter(Knowledge.id != exclude_id if exclude_id else True)
+                        .order_by(Knowledge.updated_at.desc())
+                        .limit(limit)
+                        .all()
+                    )
+
+                return [self._knowledge_to_dict(k) for k in knowledge_list]
+
+            finally:
+                db.close()
+        else:
+            # JSON: タグベースフィルタリング
+            data = self._load_json("knowledge.json")
+
+            # 自分自身を除外
+            if exclude_id:
+                data = [k for k in data if k["id"] != exclude_id]
+
+            # タグが一致するナレッジをフィルタ
+            related = []
+            if tags:
+                for k in data:
+                    k_tags = k.get("tags", [])
+                    if k_tags:
+                        # タグの一致数を計算
+                        match_count = len(set(k_tags) & set(tags))
+                        if match_count > 0:
+                            related.append({**k, "_tag_match_count": match_count})
+
+                # タグ一致数でソート
+                related.sort(key=lambda x: x.get("_tag_match_count", 0), reverse=True)
+                related = related[:limit]
+
+                # _tag_match_count を削除
+                for item in related:
+                    item.pop("_tag_match_count", None)
+
+            # フォールバック: タグ一致が0件なら最近のナレッジを返す
+            if not related:
+                related = sorted(
+                    data,
+                    key=lambda x: x.get("updated_at", x.get("created_at", "")),
+                    reverse=True,
+                )[:limit]
+
+            return related
+
     def create_knowledge(self, knowledge_data: Dict) -> Dict:
         """
         ナレッジを作成

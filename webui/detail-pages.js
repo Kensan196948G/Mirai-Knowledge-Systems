@@ -197,42 +197,41 @@ async function loadKnowledgeDetail() {
   try {
     let data = null;
 
-    // 本番環境ではAPI優先、開発環境ではlocalStorage優先
-    if (inProduction) {
-      // 本番環境: API優先
-      logger.log('[DETAIL] Production mode - Loading from API first...');
-      try {
-        data = await apiCall(`/knowledge/${id}`);
-      } catch (apiError) {
-        logger.warn('[DETAIL] API call failed in production:', apiError);
-        // 本番環境でAPIが失敗した場合はエラー表示（localStorageにフォールバックしない）
-      }
-    } else {
-      // 開発環境: localStorage優先
+    // 修正: 開発環境でもAPI優先に変更（データ不整合回避）
+    logger.log('[DETAIL] Loading from API (data consistency fix)...');
+    try {
+      const response = await apiCall(`/knowledge/${id}`);
+      logger.log('[DETAIL] API Response:', response);  // 🔍 デバッグログ追加
+
+      // 🔧 修正: APIレスポンスから data プロパティを抽出
+      data = response?.data || response;  // {success: true, data: {...}} から data を取り出す
+
+      logger.log('[DETAIL] Extracted data:', data);  // 🔍 抽出後のデータ
+      logger.log('[DETAIL] Title:', data?.title);
+      logger.log('[DETAIL] Summary:', data?.summary);
+      logger.log('[DETAIL] Successfully loaded from API');
+    } catch (apiError) {
+      logger.error('[DETAIL] API call failed:', apiError);  // warn → error に変更
+
+      // APIが失敗した場合のみlocalStorageにフォールバック
       const knowledgeDataStr = localStorage.getItem('knowledge_details');
-      logger.log('[KNOWLEDGE DETAIL] localStorage data exists:', !!knowledgeDataStr);
-
       if (knowledgeDataStr) {
+        logger.log('[DETAIL] Fallback to localStorage...');
         const knowledgeData = JSON.parse(knowledgeDataStr);
-        logger.log('[KNOWLEDGE DETAIL] Total items in localStorage:', knowledgeData.length);
         data = knowledgeData.find(k => k.id === parseInt(id));
-        logger.log('[KNOWLEDGE DETAIL] Found in localStorage:', !!data);
-      }
-
-      // localStorageにない場合はAPIから取得
-      if (!data) {
-        logger.log('[DETAIL] Loading from API...');
-        data = await apiCall(`/knowledge/${id}`);
-      } else {
-        logger.log('[DETAIL] Loading from localStorage...');
+        if (data) {
+          logger.warn('[DETAIL] Using localStorage data (may be outdated)');
+        }
       }
     }
 
     if (!data) {
+      logger.error('[DETAIL] No data found for ID:', id);  // 🔍 デバッグログ追加
       showError(`ナレッジID ${id} が見つかりません`);
       return;
     }
 
+    logger.log('[KNOWLEDGE DETAIL] Data before display:', JSON.stringify(data, null, 2));  // 🔍 完全なデータをログ
     logger.log('[KNOWLEDGE DETAIL] Displaying data...');
     displayKnowledgeDetail(data);
     await loadRelatedKnowledge(data.tags || [], id);
@@ -248,9 +247,19 @@ async function loadKnowledgeDetail() {
 }
 
 function displayKnowledgeDetail(data) {
+  logger.log('[DISPLAY] displayKnowledgeDetail called with data:', data);  // 🔍 デバッグログ追加
+  logger.log('[DISPLAY] Title:', data?.title);
+  logger.log('[DISPLAY] Summary:', data?.summary);
+  logger.log('[DISPLAY] Content length:', data?.content?.length);
+
   // タイトル
   const titleEl = document.getElementById('knowledgeTitle');
-  if (titleEl) titleEl.textContent = data.title || 'タイトルなし';
+  logger.log('[DISPLAY] titleEl found:', !!titleEl);  // 🔍 要素存在確認
+  if (titleEl) {
+    const titleText = data.title || 'タイトルなし';
+    titleEl.textContent = titleText;
+    logger.log('[DISPLAY] Title set to:', titleText);  // 🔍 設定確認
+  }
 
   // メタ情報
   const metaEl = document.getElementById('knowledgeMeta');
@@ -258,7 +267,7 @@ function displayKnowledgeDetail(data) {
     setSecureChildren(metaEl, createMetaInfoElement({
       category: data.category || 'N/A',
       updated_at: data.updated_at,
-      created_by: data.created_by || data.created_by_name || 'N/A',
+      created_by: data.created_by || data.created_by_name || data.owner || 'N/A',  // 🔧 owner追加
       project: data.project || 'N/A'
     }, 'knowledge'));
   }
@@ -309,12 +318,13 @@ function displayKnowledgeDetail(data) {
     const rows = [
       { label: '作成日', value: formatDate(data.created_at) },
       { label: '最終更新', value: formatDate(data.updated_at) },
-      { label: '作成者', value: data.created_by || data.created_by_name || 'N/A' },
+      { label: '作成者', value: data.created_by || data.created_by_name || data.owner || 'N/A' },  // 🔧 owner追加
       { label: 'カテゴリ', value: data.category || 'N/A' },
       { label: 'プロジェクト', value: data.project || 'N/A' },
       { label: 'ステータス', value: data.status || '公開' }
     ];
-    setSecureChildren(metadataTable, rows.map(row => createTableRow(row.label, row.value)));
+    // 🔧 修正: createTableRowに配列として渡す
+    setSecureChildren(metadataTable, rows.map(row => createTableRow([row.label, row.value])));
   }
 
   // 統計情報
@@ -328,54 +338,114 @@ function displayKnowledgeDetail(data) {
 
   // パンくずリスト更新
   updateBreadcrumb(data.category, data.title);
+
+  // 🆕 パンくずエリアのメタ情報を更新
+  updateBreadcrumbMeta(data);
+
+  // 🆕 左側ナビゲーションの情報を更新
+  updateNavigationInfo(data);
+}
+
+/**
+ * パンくずエリアのメタ情報を更新
+ * @param {Object} data - ナレッジデータ
+ */
+function updateBreadcrumbMeta(data) {
+  // ステータスバッジ（ラベル付き）
+  const statusText = {
+    'approved': '承認状態: ✓ 承認済み',
+    'pending': '承認状態: ⏳ 承認待ち',
+    'draft': '承認状態: 📝 下書き',
+    'archived': '承認状態: 📦 アーカイブ'
+  }[data.status] || `承認状態: ${data.status}` || '承認状態: 承認済み';
+  updateElement('breadcrumbStatus', statusText);
+
+  // 優先度バッジ（ラベル付き）
+  const priorityText = {
+    'high': '優先度: 🔴 高',
+    'medium': '優先度: 🟡 中',
+    'low': '優先度: 🟢 低'
+  }[data.priority] || `優先度: ${data.priority}` || '優先度: 中';
+  const priorityEl = document.getElementById('breadcrumbPriority');
+  if (priorityEl) {
+    priorityEl.textContent = priorityText;
+    priorityEl.setAttribute('data-priority', data.priority || 'medium');
+  }
+
+  // カテゴリ（ラベル付き）
+  updateElement('breadcrumbCategory', data.category ? `📋 ${data.category}` : '📋 カテゴリなし');
+
+  // 最終更新日時（ラベル付き）
+  updateElement('breadcrumbUpdated', data.updated_at ? `📅 最終更新: ${formatDateShort(data.updated_at)}` : '');
+
+  // 閲覧数（新規追加）
+  const viewCount = data.views || data.views_count || 0;
+  updateElement('breadcrumbViews', `👁️ 閲覧: ${viewCount}回`);
+}
+
+/**
+ * 左側ナビゲーションの詳細情報を更新
+ * @param {Object} data - ナレッジデータ
+ */
+function updateNavigationInfo(data) {
+  // 概要の文字数
+  const summaryLength = (data.summary || '').length;
+  updateElement('navSummaryInfo', summaryLength > 0 ? `${summaryLength}文字` : '未記載');
+
+  // 本文の文字数と推定読了時間（日本語：600文字/分）
+  const contentLength = (data.content || '').length;
+  const readingTime = Math.ceil(contentLength / 600);
+  updateElement('navContentInfo',
+    contentLength > 0 ? `${contentLength}文字・約${readingTime}分` : '未記載'
+  );
+
+  // 編集履歴件数
+  const historyCount = (data.history || data.versions || []).length;
+  updateElement('navHistoryInfo', historyCount > 0 ? `${historyCount}件` : 'なし');
+
+  // コメント件数
+  const commentCount = data.comments_count || (data.comments || []).length || 0;
+  updateElement('navCommentsInfo', `${commentCount}件`);
+
+  // 関連ナレッジ件数（後で更新される）
+  updateElement('navRelatedInfo', '読込中...');
 }
 
 async function loadRelatedKnowledge(tags, currentId) {
   const relatedListEl = document.getElementById('relatedKnowledgeList');
   if (!relatedListEl) return;
 
-  // 新しいAPI推薦システムを試行
-  if (typeof loadRelatedKnowledgeFromAPI === 'function') {
-    try {
-      await loadRelatedKnowledgeFromAPI(currentId, 'hybrid', 5);
-      return; // 成功したら終了
-    } catch (error) {
-      logger.warn('API recommendation failed, falling back to localStorage:', error);
-    }
-  }
-
-  // フォールバック: 既存のlocalStorage方式
+  // 🚀 本番環境対応: 専用API使用（パフォーマンス最適化）
   try {
-    // まずlocalStorageから関連ナレッジを取得
-    const knowledgeData = JSON.parse(localStorage.getItem('knowledge_details') || '[]');
-    const currentKnowledge = knowledgeData.find(k => k.id === parseInt(currentId));
+    logger.log('[RELATED] Loading related knowledge from dedicated API...');
 
-    let relatedItems = [];
+    // 専用API: /api/v1/knowledge/{id}/related
+    const response = await apiCall(`/knowledge/${currentId}/related?limit=5`);
+    logger.log('[RELATED] Full API response:', response);
 
-    if (currentKnowledge && currentKnowledge.related_knowledge_ids) {
-      // related_knowledge_idsを使用
-      relatedItems = currentKnowledge.related_knowledge_ids
-        .map(relatedId => knowledgeData.find(k => k.id === relatedId))
-        .filter(item => item)
-        .slice(0, 5);
-    } else if (tags && tags.length > 0) {
-      // タグベースで検索
-      relatedItems = knowledgeData
-        .filter(k => k.id !== parseInt(currentId))
-        .filter(k => k.tags && k.tags.some(tag => tags.includes(tag)))
-        .slice(0, 5);
-    }
+    // 🔧 既存APIのレスポンス構造に対応
+    const responseData = response?.data || response || {};
+    const relatedItems = responseData.related_items || responseData.data || responseData || [];
+
+    logger.log('[RELATED] API returned:', relatedItems.length, 'items');
+    logger.log('[RELATED] Algorithm:', responseData.algorithm);
 
     if (relatedItems.length > 0) {
       setSecureChildren(relatedListEl, relatedItems.map(item =>
         createDocumentElement(item, 'search-detail.html')
       ));
+      // 🆕 関連ナレッジ件数を更新
+      updateElement('navRelatedInfo', `${relatedItems.length}件`);
+      logger.log('[RELATED] Successfully displayed', relatedItems.length, 'related items');
     } else {
       setSecureChildren(relatedListEl, createEmptyMessage('関連ナレッジが見つかりませんでした'));
+      updateElement('navRelatedInfo', '0件');
+      logger.log('[RELATED] No related items found');
     }
   } catch (error) {
-    logger.error('Failed to load related knowledge:', error);
+    logger.error('[RELATED] Failed to load related knowledge:', error);
     setSecureChildren(relatedListEl, createErrorMessage('関連ナレッジの読み込みに失敗しました'));
+    updateElement('navRelatedInfo', 'エラー');
   }
 }
 
@@ -675,34 +745,28 @@ async function loadSOPDetail() {
   try {
     let data = null;
 
-    // 本番環境ではAPI優先、開発環境ではlocalStorage優先
-    if (inProduction) {
-      // 本番環境: API優先
-      logger.log('[DETAIL] Production mode - Loading SOP from API first...');
-      try {
-        data = await apiCall(`/sop/${id}`);
-      } catch (apiError) {
-        logger.warn('[DETAIL] API call failed in production:', apiError);
-      }
-    } else {
-      // 開発環境: localStorage優先
+    // 🔧 修正: 開発環境でもAPI優先に変更（ナレッジと統一）
+    logger.log('[DETAIL] Loading SOP from API (data consistency fix)...');
+    try {
+      const response = await apiCall(`/sop/${id}`);
+      logger.log('[DETAIL] API Response:', response);
+
+      // 🔧 修正: APIレスポンスから data プロパティを抽出
+      data = response?.data || response;
+
+      logger.log('[DETAIL] Extracted data:', data);
+      logger.log('[DETAIL] Successfully loaded from API');
+    } catch (apiError) {
+      logger.error('[DETAIL] API call failed:', apiError);
+
+      // APIが失敗した場合のみlocalStorageにフォールバック
       const sopDataStr = localStorage.getItem('sop_details');
-      logger.log('[SOP DETAIL] localStorage data exists:', !!sopDataStr);
-
       if (sopDataStr) {
+        logger.log('[DETAIL] Fallback to localStorage...');
         const sopData = JSON.parse(sopDataStr);
-        logger.log('[SOP DETAIL] Total items in localStorage:', sopData.length);
         data = sopData.find(s => s.id === parseInt(id));
-        logger.log('[SOP DETAIL] Found in localStorage:', !!data);
-      }
-
-      // localStorageにない場合はAPIから取得
-      if (!data) {
-        logger.log('[DETAIL] Loading SOP from API...');
-        try {
-          data = await apiCall(`/sop/${id}`);
-        } catch (apiError) {
-          logger.warn('[DETAIL] API call failed:', apiError);
+        if (data) {
+          logger.warn('[DETAIL] Using localStorage data (may be outdated)');
         }
       } else {
         logger.log('[DETAIL] Loading SOP from localStorage...');
@@ -769,7 +833,8 @@ function displaySOPDetail(data) {
       { label: '改訂日', value: formatDateShort(data.revision_date || data.updated_at) },
       { label: '次回改訂予定', value: formatDateShort(data.next_revision_date) || 'N/A' }
     ];
-    setSecureChildren(versionInfoEl, rows.map(row => createTableRow(row.label, row.value)));
+    // 🔧 修正: createTableRowに配列として渡す
+    setSecureChildren(versionInfoEl, rows.map(row => createTableRow([row.label, row.value])));
   }
 
   // 手順（localStorageデータはsteps配列を持つ）
@@ -1212,37 +1277,29 @@ async function loadIncidentDetail() {
   try {
     let data = null;
 
-    // 本番環境ではAPI優先、開発環境ではlocalStorage優先
-    if (inProduction) {
-      // 本番環境: API優先
-      logger.log('[DETAIL] Production mode - Loading incident from API first...');
-      try {
-        data = await apiCall(`/incident/${id}`);
-      } catch (apiError) {
-        logger.warn('[DETAIL] API call failed in production:', apiError);
-      }
-    } else {
-      // 開発環境: localStorage優先
+    // 🔧 修正: 開発環境でもAPI優先に変更（ナレッジと統一）
+    logger.log('[DETAIL] Loading incident from API (data consistency fix)...');
+    try {
+      const response = await apiCall(`/incident/${id}`);
+      logger.log('[DETAIL] API Response:', response);
+
+      // 🔧 修正: APIレスポンスから data プロパティを抽出
+      data = response?.data || response;
+
+      logger.log('[DETAIL] Extracted data:', data);
+      logger.log('[DETAIL] Successfully loaded from API');
+    } catch (apiError) {
+      logger.error('[DETAIL] API call failed:', apiError);
+
+      // APIが失敗した場合のみlocalStorageにフォールバック
       const incidentDataStr = localStorage.getItem('incidents_details');
-      logger.log('[INCIDENT DETAIL] localStorage data exists:', !!incidentDataStr);
-
       if (incidentDataStr) {
+        logger.log('[DETAIL] Fallback to localStorage...');
         const incidentData = JSON.parse(incidentDataStr);
-        logger.log('[INCIDENT DETAIL] Total items in localStorage:', incidentData.length);
         data = incidentData.find(i => i.id === parseInt(id));
-        logger.log('[INCIDENT DETAIL] Found in localStorage:', !!data);
-      }
-
-      // localStorageにない場合はAPIから取得
-      if (!data) {
-        logger.log('[DETAIL] Loading incident from API...');
-        try {
-          data = await apiCall(`/incident/${id}`);
-        } catch (apiError) {
-          logger.warn('[DETAIL] API call failed:', apiError);
+        if (data) {
+          logger.warn('[DETAIL] Using localStorage data (may be outdated)');
         }
-      } else {
-        logger.log('[DETAIL] Loading incident from localStorage...');
       }
     }
 
@@ -1301,7 +1358,8 @@ function displayIncidentDetail(data) {
       { label: '重大度', value: data.severity || 'N/A' },
       { label: 'ステータス', value: data.status || 'N/A' }
     ];
-    setSecureChildren(incidentInfoEl, rows.map(row => createTableRow(row.label, row.value)));
+    // 🔧 修正: createTableRowに配列として渡す
+    setSecureChildren(incidentInfoEl, rows.map(row => createTableRow([row.label, row.value])));
   }
 
   // タイムライン（localStorageデータはtimeline配列を持つ）
@@ -1858,37 +1916,29 @@ async function loadConsultDetail() {
   try {
     let data = null;
 
-    // 本番環境ではAPI優先、開発環境ではlocalStorage優先
-    if (inProduction) {
-      // 本番環境: API優先
-      logger.log('[DETAIL] Production mode - Loading consultation from API first...');
-      try {
-        data = await apiCall(`/consultation/${id}`);
-      } catch (apiError) {
-        logger.warn('[DETAIL] API call failed in production:', apiError);
-      }
-    } else {
-      // 開発環境: localStorage優先
+    // 🔧 修正: 開発環境でもAPI優先に変更（ナレッジと統一）
+    logger.log('[DETAIL] Loading consultation from API (data consistency fix)...');
+    try {
+      const response = await apiCall(`/consultation/${id}`);
+      logger.log('[DETAIL] API Response:', response);
+
+      // 🔧 修正: APIレスポンスから data プロパティを抽出
+      data = response?.data || response;
+
+      logger.log('[DETAIL] Extracted data:', data);
+      logger.log('[DETAIL] Successfully loaded from API');
+    } catch (apiError) {
+      logger.error('[DETAIL] API call failed:', apiError);
+
+      // APIが失敗した場合のみlocalStorageにフォールバック
       const consultDataStr = localStorage.getItem('consultations_details');
-      logger.log('[CONSULT DETAIL] localStorage data exists:', !!consultDataStr);
-
       if (consultDataStr) {
+        logger.log('[DETAIL] Fallback to localStorage...');
         const consultData = JSON.parse(consultDataStr);
-        logger.log('[CONSULT DETAIL] Total items in localStorage:', consultData.length);
         data = consultData.find(c => c.id === parseInt(id));
-        logger.log('[CONSULT DETAIL] Found in localStorage:', !!data);
-      }
-
-      // localStorageにない場合はAPIから取得
-      if (!data) {
-        logger.log('[DETAIL] Loading consultation from API...');
-        try {
-          data = await apiCall(`/consultation/${id}`);
-        } catch (apiError) {
-          logger.warn('[DETAIL] API call failed:', apiError);
+        if (data) {
+          logger.warn('[DETAIL] Using localStorage data (may be outdated)');
         }
-      } else {
-        logger.log('[DETAIL] Loading consultation from localStorage...');
       }
     }
 
@@ -1953,7 +2003,8 @@ function displayConsultDetail(data) {
       { label: 'プロジェクト', value: data.project || 'N/A' },
       { label: 'ステータス', value: statusText }
     ];
-    setSecureChildren(consultInfoEl, rows.map(row => createTableRow(row.label, row.value)));
+    // 🔧 修正: createTableRowに配列として渡す
+    setSecureChildren(consultInfoEl, rows.map(row => createTableRow([row.label, row.value])));
   }
 
   // 優先度・期限

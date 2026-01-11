@@ -1848,72 +1848,41 @@ async function loadDummyDataToStorage() {
 
 /**
  * 詳細ページへ遷移（ナレッジ）
+ * 修正: localStorageを使わず、APIに完全依存
  */
 function viewKnowledgeDetail(knowledgeId) {
   logger.log('[NAVIGATION] Viewing knowledge detail:', knowledgeId);
 
-  // localStorageからナレッジデータを取得
-  const knowledgeData = JSON.parse(localStorage.getItem('knowledge_details') || '[]');
-  const knowledge = knowledgeData.find(k => k.id === knowledgeId);
-
-  if (knowledge) {
-    // 選択されたナレッジをlocalStorageに保存
-    localStorage.setItem('current_knowledge', JSON.stringify(knowledge));
-    window.location.href = `search-detail.html?id=${knowledgeId}`;
-  } else {
-    showNotification(`ナレッジID ${knowledgeId} が見つかりません`, 'error');
-  }
+  // URLパラメータ付きで詳細ページに遷移
+  // 詳細データはloadKnowledgeDetail()がAPIから取得
+  window.location.href = `search-detail.html?id=${knowledgeId}`;
 }
 
 /**
  * 詳細ページへ遷移（SOP）
+ * 修正: localStorageを使わず、APIに完全依存
  */
 function viewSOPDetail(sopId) {
   logger.log('[NAVIGATION] Viewing SOP detail:', sopId);
-
-  const sopData = JSON.parse(localStorage.getItem('sop_details') || '[]');
-  const sop = sopData.find(s => s.id === sopId);
-
-  if (sop) {
-    localStorage.setItem('current_sop', JSON.stringify(sop));
-    window.location.href = `sop-detail.html?id=${sopId}`;
-  } else {
-    showNotification(`SOP ID ${sopId} が見つかりません`, 'error');
-  }
+  window.location.href = `sop-detail.html?id=${sopId}`;
 }
 
 /**
  * 詳細ページへ遷移（事故レポート）
+ * 修正: localStorageを使わず、APIに完全依存
  */
 function viewIncidentDetail(incidentId) {
   logger.log('[NAVIGATION] Viewing incident detail:', incidentId);
-
-  const incidentData = JSON.parse(localStorage.getItem('incidents_details') || '[]');
-  const incident = incidentData.find(i => i.id === incidentId);
-
-  if (incident) {
-    localStorage.setItem('current_incident', JSON.stringify(incident));
-    window.location.href = `incident-detail.html?id=${incidentId}`;
-  } else {
-    showNotification(`事故レポートID ${incidentId} が見つかりません`, 'error');
-  }
+  window.location.href = `incident-detail.html?id=${incidentId}`;
 }
 
 /**
  * 詳細ページへ遷移（専門家相談）
+ * 修正: localStorageを使わず、APIに完全依存
  */
 function viewConsultationDetail(consultId) {
   logger.log('[NAVIGATION] Viewing consultation detail:', consultId);
-
-  const consultData = JSON.parse(localStorage.getItem('consultations_details') || '[]');
-  const consultation = consultData.find(c => c.id === consultId);
-
-  if (consultation) {
-    localStorage.setItem('current_consultation', JSON.stringify(consultation));
-    window.location.href = `expert-consult.html?id=${consultId}`;
-  } else {
-    showNotification(`相談ID ${consultId} が見つかりません`, 'error');
-  }
+  window.location.href = `expert-consult.html?id=${consultId}`;
 }
 
 // ============================================================
@@ -2043,139 +2012,180 @@ const DUMMY_EXPERTS = [
 /**
  * 人気ナレッジを表示
  */
-function loadPopularKnowledge(category = '') {
+async function loadPopularKnowledge(category = '') {
   const container = document.getElementById('popularKnowledgeList');
   if (!container) return;
 
   container.textContent = '';
 
-  // 本番環境ではダミーデータを表示しない
-  if (IS_PRODUCTION) {
-    const emptyMsg = createElement('div', { className: 'empty-message' }, ['人気ナレッジデータなし']);
-    container.appendChild(emptyMsg);
-    return;
+  try {
+    // APIから人気ナレッジを取得
+    const result = await fetchAPI('/knowledge/popular?limit=10');
+
+    if (!result.success || !result.data || result.data.length === 0) {
+      const emptyMsg = createElement('div', { className: 'empty-message' }, ['人気ナレッジデータなし']);
+      container.appendChild(emptyMsg);
+      return;
+    }
+
+    let filteredData = result.data;
+    if (category) {
+      filteredData = filteredData.filter(k => k.category === category);
+    }
+
+    filteredData.forEach((item, index) => {
+      const navItem = createElement('div', { className: 'nav-item clickable' }, []);
+      navItem.onclick = () => viewKnowledgeDetail(item.id);
+
+      const rank = createElement('span', { className: 'rank' }, [`${index + 1}`]);
+      const title = createElement('strong', {}, [item.title]);
+      const views = createElement('span', { className: 'meta' }, [`${item.views || 0} views`]);
+
+      navItem.appendChild(rank);
+      navItem.appendChild(title);
+      navItem.appendChild(views);
+
+      container.appendChild(navItem);
+    });
+  } catch (error) {
+    logger.error('[KNOWLEDGE] Failed to load popular knowledge:', error);
+    const errorMsg = createElement('div', { className: 'empty-message' }, ['読み込みエラー']);
+    container.appendChild(errorMsg);
   }
-
-  let filteredData = DUMMY_POPULAR_KNOWLEDGE;
-  if (category) {
-    filteredData = filteredData.filter(k => k.category === category);
-  }
-
-  filteredData.forEach((item, index) => {
-    const navItem = createElement('div', { className: 'nav-item clickable' }, []);
-    navItem.onclick = () => viewKnowledgeDetail(item.id);
-
-    const rank = createElement('span', { className: 'rank' }, [`${index + 1}`]);
-    const title = createElement('strong', {}, [item.title]);
-    const views = createElement('span', { className: 'meta' }, [`${item.views} views`]);
-
-    navItem.appendChild(rank);
-    navItem.appendChild(title);
-    navItem.appendChild(views);
-
-    container.appendChild(navItem);
-  });
 }
 
 /**
  * 最近追加されたナレッジを表示
  */
-function loadRecentKnowledge(category = '') {
+async function loadRecentKnowledge(category = '') {
   const container = document.getElementById('recentKnowledgeList');
   if (!container) return;
 
   container.textContent = '';
 
-  // 本番環境ではダミーデータを表示しない
-  if (IS_PRODUCTION) {
-    const emptyMsg = createElement('div', { className: 'empty-message' }, ['最近のナレッジデータなし']);
-    container.appendChild(emptyMsg);
-    return;
+  try {
+    // APIから最近追加されたナレッジを取得
+    const result = await fetchAPI('/knowledge/recent?limit=10&days=7');
+
+    if (!result.success || !result.data || result.data.length === 0) {
+      const emptyMsg = createElement('div', { className: 'empty-message' }, ['最近のナレッジデータなし']);
+      container.appendChild(emptyMsg);
+      return;
+    }
+
+    let filteredData = result.data;
+    if (category) {
+      filteredData = filteredData.filter(k => k.category === category);
+    }
+
+    filteredData.forEach(item => {
+      const navItem = createElement('div', { className: 'nav-item clickable' }, []);
+      navItem.onclick = () => viewKnowledgeDetail(item.id);
+
+      const title = createElement('strong', {}, [item.title]);
+
+      // 作成日時から経過日数を計算
+      let daysAgo = '?';
+      if (item.created_at) {
+        try {
+          const created = new Date(item.created_at);
+          const now = new Date();
+          const diffTime = Math.abs(now - created);
+          daysAgo = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        } catch (e) {}
+      }
+
+      const meta = createElement('span', { className: 'meta' }, [`${daysAgo}日前`]);
+
+      navItem.appendChild(title);
+      navItem.appendChild(meta);
+
+      container.appendChild(navItem);
+    });
+  } catch (error) {
+    logger.error('[KNOWLEDGE] Failed to load recent knowledge:', error);
+    const errorMsg = createElement('div', { className: 'empty-message' }, ['読み込みエラー']);
+    container.appendChild(errorMsg);
   }
-
-  let filteredData = DUMMY_RECENT_KNOWLEDGE;
-  if (category) {
-    filteredData = filteredData.filter(k => k.category === category);
-  }
-
-  filteredData.forEach(item => {
-    const navItem = createElement('div', { className: 'nav-item clickable' }, []);
-    navItem.onclick = () => viewKnowledgeDetail(item.id);
-
-    const title = createElement('strong', {}, [item.title]);
-    const meta = createElement('span', { className: 'meta' }, [`${item.daysAgo}日前`]);
-
-    navItem.appendChild(title);
-    navItem.appendChild(meta);
-
-    container.appendChild(navItem);
-  });
 }
 
 /**
  * お気に入りナレッジを表示
  */
-function loadFavoriteKnowledge() {
+async function loadFavoriteKnowledge() {
   const container = document.getElementById('favoriteKnowledgeList');
   if (!container) return;
 
   container.textContent = '';
 
-  // 本番環境ではダミーデータを表示しない
-  if (IS_PRODUCTION) {
-    const emptyMsg = createElement('div', { className: 'empty-message' }, ['お気に入りデータなし']);
-    container.appendChild(emptyMsg);
-    return;
-  }
+  try {
+    // APIからお気に入りナレッジを取得
+    const result = await fetchAPI('/knowledge/favorites');
 
-  if (DUMMY_FAVORITE_KNOWLEDGE.length === 0) {
+    if (!result.success || !result.data || result.data.length === 0) {
+      const emptyMsg = createElement('div', { className: 'empty-message' }, ['お気に入りはありません']);
+      container.appendChild(emptyMsg);
+      return;
+    }
+
+    result.data.forEach(item => {
+      const navItem = createElement('div', { className: 'nav-item clickable' }, []);
+      navItem.onclick = () => viewKnowledgeDetail(item.id);
+
+      const title = createElement('strong', {}, [item.title]);
+      const removeFav = createElement('button', { className: 'icon-btn-small' }, ['★']);
+      removeFav.onclick = (e) => {
+        e.stopPropagation();
+        removeFavorite(item.id);
+      };
+
+      navItem.appendChild(title);
+      navItem.appendChild(removeFav);
+
+      container.appendChild(navItem);
+    });
+  } catch (error) {
+    logger.error('[KNOWLEDGE] Failed to load favorites:', error);
     const emptyMsg = createElement('div', { className: 'empty-message' }, ['お気に入りはありません']);
     container.appendChild(emptyMsg);
-    return;
   }
-
-  DUMMY_FAVORITE_KNOWLEDGE.forEach(item => {
-    const navItem = createElement('div', { className: 'nav-item clickable' }, []);
-    navItem.onclick = () => viewKnowledgeDetail(item.id);
-
-    const title = createElement('strong', {}, [item.title]);
-    const removeFav = createElement('button', { className: 'icon-btn-small' }, ['★']);
-    removeFav.onclick = (e) => {
-      e.stopPropagation();
-      removeFavorite(item.id);
-    };
-
-    navItem.appendChild(title);
-    navItem.appendChild(removeFav);
-
-    container.appendChild(navItem);
-  });
 }
 
 /**
  * タグクラウドを表示
  */
-function loadTagCloud() {
+async function loadTagCloud() {
   const container = document.getElementById('tagCloud');
   if (!container) return;
 
   container.textContent = '';
 
-  // 本番環境ではダミーデータを表示しない
-  if (IS_PRODUCTION) {
-    const emptyMsg = createElement('div', { className: 'empty-message' }, ['タグデータなし']);
-    container.appendChild(emptyMsg);
-    return;
+  try {
+    // APIからタグクラウドデータを取得
+    const result = await fetchAPI('/knowledge/tags');
+
+    if (!result.success || !result.data || result.data.length === 0) {
+      const emptyMsg = createElement('div', { className: 'empty-message' }, ['タグデータなし']);
+      container.appendChild(emptyMsg);
+      return;
+    }
+
+    // 上位20タグのみ表示
+    const topTags = result.data.slice(0, 20);
+
+    topTags.forEach(tag => {
+      const tagBtn = createElement('button', {
+        className: `tag-btn tag-${tag.size || 1}`,
+        onclick: () => filterByTag(tag.name)
+      }, [`${tag.name} (${tag.count})`]);
+
+      container.appendChild(tagBtn);
+    });
+  } catch (error) {
+    logger.error('[KNOWLEDGE] Failed to load tags:', error);
+    const errorMsg = createElement('div', { className: 'empty-message' }, ['タグデータなし']);
+    container.appendChild(errorMsg);
   }
-
-  DUMMY_TAGS.forEach(tag => {
-    const tagBtn = createElement('button', {
-      className: `tag-btn tag-${tag.size}`,
-      onclick: () => filterByTag(tag.name)
-    }, [tag.name]);
-
-    container.appendChild(tagBtn);
-  });
 }
 
 /**
@@ -2197,19 +2207,32 @@ async function loadProjects(type = '') {
       throw new Error('Failed to load projects');
     }
 
-    let filteredData = result.data;
+    let filteredData = Array.isArray(result.data) ? result.data : [];
     if (type) {
       filteredData = filteredData.filter(p => p.type === type);
     }
 
-  filteredData.forEach(async (project) => {
+    if (!filteredData.length && !IS_PRODUCTION) {
+      filteredData = DUMMY_PROJECTS;
+    }
+
+    if (!filteredData.length) {
+      const emptyMsg = createElement('div', { className: 'empty-message' }, ['プロジェクトデータなし']);
+      container.appendChild(emptyMsg);
+      return;
+    }
+
+    filteredData.forEach(async (project) => {
     const projectItem = createElement('div', { className: 'project-item' }, []);
 
     // プロジェクトヘッダー
     const header = createElement('div', { className: 'project-header clickable' }, []);
     header.onclick = () => toggleProjectDetail(project.id);
 
-    const name = createElement('strong', {}, [`${project.name} (${project.code})`]);
+    const projectCode = project.code || project.project_code || project.id || '';
+    const projectName = project.name || project.title || 'プロジェクト';
+    const nameLabel = projectCode ? `${projectName} (${projectCode})` : projectName;
+    const name = createElement('strong', {}, [nameLabel]);
     const chevron = createElement('span', { className: 'chevron-small', id: `chevron-${project.id}` }, ['▼']);
 
     header.appendChild(name);
@@ -2217,15 +2240,16 @@ async function loadProjects(type = '') {
     projectItem.appendChild(header);
 
     // プログレスバー（初期値はプロジェクトの保存された進捗率）
+    const progressPercentage = project.progress_percentage ?? project.progress ?? 0;
     const progressBar = createElement('div', { className: 'mini-progress' }, []);
     const progressFill = createElement('div', {
       className: 'mini-progress-fill',
-      style: `width: ${project.progress_percentage || 0}%`
+      style: `width: ${progressPercentage}%`
     }, []);
     progressBar.appendChild(progressFill);
     projectItem.appendChild(progressBar);
 
-    const progressText = createElement('div', { className: 'progress-text' }, [`進捗 ${project.progress_percentage || 0}%`]);
+    const progressText = createElement('div', { className: 'progress-text' }, [`進捗 ${progressPercentage}%`]);
     projectItem.appendChild(progressText);
 
     // リアルタイム進捗を取得して更新
@@ -2247,17 +2271,21 @@ async function loadProjects(type = '') {
       style: 'display: none;'
     }, []);
 
+    const phaseValue = project.phase || project.work_section || project.work_type || '未設定';
+    const managerValue = project.manager || project.owner || project.members?.[0]?.name || '未設定';
+    const milestoneValue = project.milestone || project.milestones?.[0]?.title || '未設定';
+
     const phase = createElement('div', { className: 'detail-row' }, [
       createElement('span', { className: 'detail-label' }, ['工区:']),
-      createElement('span', {}, [project.phase])
+      createElement('span', {}, [phaseValue])
     ]);
     const manager = createElement('div', { className: 'detail-row' }, [
       createElement('span', { className: 'detail-label' }, ['担当:']),
-      createElement('span', {}, [project.manager])
+      createElement('span', {}, [managerValue])
     ]);
     const milestone = createElement('div', { className: 'detail-row' }, [
       createElement('span', { className: 'detail-label' }, ['マイルストーン:']),
-      createElement('span', {}, [project.milestone])
+      createElement('span', {}, [milestoneValue])
     ]);
 
     details.appendChild(phase);
@@ -2267,6 +2295,11 @@ async function loadProjects(type = '') {
 
     container.appendChild(projectItem);
   });
+  } catch (error) {
+    logger.error('[PROJECTS] Failed to load projects:', error);
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['プロジェクトデータなし']);
+    container.appendChild(emptyMsg);
+  }
 }
 
 /**
@@ -2302,25 +2335,40 @@ async function loadExperts(field = '') {
       throw new Error('Failed to load experts');
     }
 
-    let filteredData = result.data;
+    let filteredData = Array.isArray(result.data) ? result.data : [];
     if (field) {
-      filteredData = filteredData.filter(e => e.specialization === field);
+      filteredData = filteredData.filter(e => (e.specialization || e.field || e.specialties?.[0]) === field);
     }
 
-  filteredData.forEach(async (expert) => {
+    if (!filteredData.length && !IS_PRODUCTION) {
+      filteredData = DUMMY_EXPERTS;
+    }
+
+    if (!filteredData.length) {
+      const emptyMsg = createElement('div', { className: 'empty-message' }, ['専門家データなし']);
+      container.appendChild(emptyMsg);
+      return;
+    }
+
+    filteredData.forEach(async (expert) => {
     const expertItem = createElement('div', { className: 'expert-item' }, []);
 
     // 専門家ヘッダー
     const header = createElement('div', { className: 'expert-header' }, []);
 
+    const isAvailable = expert.is_available ?? expert.online ?? false;
+    const consultationCount = expert.consultation_count ?? expert.answer_count ?? 0;
+    const rating = expert.rating ?? expert.average_rating ?? 0;
+    const specializationValue = expert.specialization || expert.field || expert.specialties?.[0] || '未設定';
+
     const statusDot = createElement('span', {
-      className: `status-dot ${expert.is_available ? 'is-ok' : 'is-muted'}`
+      className: `status-dot ${isAvailable ? 'is-ok' : 'is-muted'}`
     }, []);
 
-    // ユーザー名を取得（簡易的にIDを使用）
-    const expertName = `Expert ${expert.id}`;
+    // ユーザー名を取得
+    const expertName = expert.name || `Expert ${expert.id}`;
     const name = createElement('strong', {}, [expertName]);
-    const specialization = createElement('span', { className: 'meta' }, [expert.specialization]);
+    const specialization = createElement('span', { className: 'meta' }, [specializationValue]);
 
     header.appendChild(statusDot);
     header.appendChild(name);
@@ -2333,12 +2381,11 @@ async function loadExperts(field = '') {
     try {
       const statsResult = await fetchAPI(`/experts/${expert.id}`);
       if (statsResult.success) {
-        const expertDetail = statsResult.success;
         const answers = createElement('div', { className: 'info-row' }, [
-          `回答数: ${expert.consultation_count}件 · 評価: ⭐${expert.rating}`
+          `回答数: ${consultationCount}件 · 評価: ⭐${rating}`
         ]);
         const available = createElement('div', { className: 'info-row small' }, [
-          `対応可能: ${expert.is_available ? 'はい' : 'いいえ'}`
+          `対応可能: ${isAvailable ? 'はい' : 'いいえ'}`
         ]);
 
         info.appendChild(answers);
@@ -2348,10 +2395,10 @@ async function loadExperts(field = '') {
       logger.log(`[EXPERTS] Failed to load details for ${expert.id}:`, error);
       // デフォルト表示
       const answers = createElement('div', { className: 'info-row' }, [
-        `回答数: ${expert.consultation_count}件 · 評価: ⭐${expert.rating}`
+        `回答数: ${consultationCount}件 · 評価: ⭐${rating}`
       ]);
       const available = createElement('div', { className: 'info-row small' }, [
-        `対応可能: ${expert.is_available ? 'はい' : 'いいえ'}`
+        `対応可能: ${isAvailable ? 'はい' : 'いいえ'}`
       ]);
 
       info.appendChild(answers);
@@ -2371,6 +2418,11 @@ async function loadExperts(field = '') {
     expertItem.appendChild(consultBtn);
     container.appendChild(expertItem);
   });
+  } catch (error) {
+    logger.error('[EXPERTS] Failed to load experts:', error);
+    const emptyMsg = createElement('div', { className: 'empty-message' }, ['専門家データなし']);
+    container.appendChild(emptyMsg);
+  }
 }
 
 /**
@@ -2395,13 +2447,7 @@ function filterExpertsByField(field) {
   loadExperts(field);
 }
 
-/**
- * ナレッジ詳細を表示
- */
-function viewKnowledgeDetail(knowledgeId) {
-  logger.log('[SIDEBAR] Viewing knowledge:', knowledgeId);
-  window.location.href = `search-detail.html?id=${knowledgeId}`;
-}
+// viewKnowledgeDetail関数は1852-1866行目で定義済み（重複削除）
 
 /**
  * お気に入りから削除
@@ -2571,19 +2617,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadDashboardStats();
   loadMonitoringData();
   loadExpertStats();
-  loadKnowledge();
-  loadSOPs();
-  loadIncidents();
-  loadApprovals();
-  loadNotifications();
 
-  // サイドバーデータのロード
+  // KNOWLEDGE HUBとサイドバーのデータロード
   loadPopularKnowledge();
   loadRecentKnowledge();
   loadFavoriteKnowledge();
   loadTagCloud();
   loadProjects();
   loadExperts();
+
+  // メインコンテンツのロード
+  loadKnowledge();
+  loadSOPs();
+  loadIncidents();
+  loadApprovals();
+  loadNotifications();
 
   // Chart.js グラフの初期化
   if (typeof Chart !== 'undefined') {
@@ -2807,11 +2855,6 @@ function updateDutyExperts(expertStats) {
       }
     });
   }
-}
-  } catch (error) {
-    logger.error('[EXPERT] Failed to load stats:', error);
-  }
-  return null;
 }
 
 /**

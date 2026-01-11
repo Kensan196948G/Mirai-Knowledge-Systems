@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ファイルアップロード - Mirai Knowledge Systems</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <h1>Mirai Knowledge Systems</h1>
+                <ul>
+                    <li><a href="/dashboard.html">ダッシュボード</a></li>
+                    <li><a href="/knowledge.html">ナレッジ</a></li>
+                    <li><a href="/files.html">ファイル</a></li>
+                    <li><a href="/upload.html" class="active">アップロード</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>ファイルアップロード</h2>
+
+            <div class="upload-form">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="file">ファイルを選択:</label>
+                        <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif" required>
+                        <small>許可されたファイルタイプ: PDF, Word, Excel, PowerPoint, テキスト, 画像 (最大10MB)</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">アップロード</button>
+                </form>
+            </div>
+
+            <div id="uploadStatus" class="status-message" style="display: none;"></div>
+
+            <div class="upload-info">
+                <h3>アップロード情報</h3>
+                <ul>
+                    <li>最大ファイルサイズ: 10MB</li>
+                    <li>許可された拡張子: .pdf, .doc, .docx, .xls, .xlsx, .ppt, .pptx, .txt, .jpg, .jpeg, .png, .gif</li>
+                    <li>セキュリティチェック: ファイルタイプ検証とウイルススキャンを実施</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/upload.js"></script>
+</body>
+</html>

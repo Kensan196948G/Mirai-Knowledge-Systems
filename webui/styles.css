@@ -210,6 +210,7 @@ a {
   max-height: calc(100vh - 48px);
   overflow-y: scroll;  /* 常にスクロールバーを表示 */
   overflow-x: hidden;
+  grid-column: 1;  /* 左カラム（280px）に固定 */
 }
 
 .nav-section + .nav-section {
@@ -245,9 +246,19 @@ a {
   color: var(--muted);
 }
 
+.nav-meta {
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(155, 181, 176, 0.15);
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
 .main {
   display: grid;
   gap: 20px;
+  grid-column: 2;  /* 中央カラム（1fr）に固定 */
 }
 
 .hero {
@@ -476,6 +487,7 @@ a {
   overflow-x: hidden;
   display: grid;
   gap: 16px;
+  grid-column: 3;  /* 右カラム（320px）に固定 */
 }
 
 .alert {
@@ -728,6 +740,7 @@ a {
 .detail-grid {
   display: grid;
   gap: 16px;
+  margin-top: 20px;  /* タイトルセクションとの間隔を調整 */
 }
 
 .detail-card {
@@ -1084,6 +1097,29 @@ select:focus-visible {
   background: rgba(255, 255, 255, 1);
   border-color: var(--accent);
   transform: scale(1.05);
+}
+
+.icon-button-with-text {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(216, 210, 200, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--steel);
+}
+
+.icon-button-with-text:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateX(-2px);
 }
 
 .notification-badge {
@@ -2317,6 +2353,62 @@ select:focus-visible {
   background: linear-gradient(120deg, rgba(255, 255, 255, 0.98), rgba(249, 246, 239, 0.9));
   border-bottom: 2px solid rgba(212, 102, 47, 0.2);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  grid-column: 1 / -1;  /* 全幅（3カラムすべてにまたがる） */
+  display: flex;  /* フレックスボックスで3分割 */
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.breadcrumb-meta-left,
+.breadcrumb-meta-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(78, 108, 91, 0.15), rgba(78, 108, 91, 0.08));
+  color: var(--moss);
+  border: 1px solid rgba(78, 108, 91, 0.3);
+}
+
+.priority-badge {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.priority-badge[data-priority="high"],
+.priority-badge:contains("高") {
+  background: linear-gradient(135deg, rgba(212, 102, 47, 0.15), rgba(212, 102, 47, 0.08));
+  color: var(--accent-strong);
+  border: 1px solid rgba(212, 102, 47, 0.3);
+}
+
+.priority-badge[data-priority="medium"],
+.priority-badge:contains("中") {
+  background: linear-gradient(135deg, rgba(224, 139, 62, 0.15), rgba(224, 139, 62, 0.08));
+  color: var(--warning);
+  border: 1px solid rgba(224, 139, 62, 0.3);
+}
+
+.priority-badge[data-priority="low"],
+.priority-badge:contains("低") {
+  background: linear-gradient(135deg, rgba(155, 181, 176, 0.15), rgba(155, 181, 176, 0.08));
+  color: var(--sky);
+  border: 1px solid rgba(155, 181, 176, 0.3);
+}
+
+.breadcrumb-info {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .breadcrumb-enhanced {
@@ -2328,6 +2420,8 @@ select:focus-visible {
   font-size: 15px;
   align-items: center;
   flex-wrap: wrap;
+  flex: 1;  /* 中央を可変幅に */
+  justify-content: center;  /* 中央揃え */
 }
 
 .breadcrumb-enhanced li {

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft 365ファイル - Mirai Knowledge Systems</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <h1>Mirai Knowledge Systems</h1>
+                <ul>
+                    <li><a href="/dashboard.html">ダッシュボード</a></li>
+                    <li><a href="/knowledge.html">ナレッジ</a></li>
+                    <li><a href="/files.html">ファイル</a></li>
+                    <li><a href="/microsoft365.html">Microsoft 365</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>Microsoft 365ファイル</h2>
+
+            <div class="service-selector">
+                <button class="service-btn active" data-service="onedrive">OneDrive</button>
+                <button class="service-btn" data-service="sharepoint">SharePoint</button>
+            </div>
+
+            <div class="breadcrumb">
+                <span id="currentPath">/</span>
+            </div>
+
+            <div class="file-list-container">
+                <div id="fileList" class="file-list">
+                    <div class="loading">読み込み中...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/microsoft365-files.js"></script>
+</body>
+</html>
