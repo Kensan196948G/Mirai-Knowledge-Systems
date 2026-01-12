@@ -60,12 +60,12 @@ jobs:
             console.log(`トリガー元: ${workflowRun.name}`);
             console.log(`状態: ${workflowRun.conclusion}`);
             console.log(`URL: ${workflowRun.html_url}`);
-            
+
             core.setOutput('workflow_name', workflowRun.name);
             core.setOutput('workflow_conclusion', workflowRun.conclusion);
             core.setOutput('workflow_url', workflowRun.html_url);
             core.setOutput('workflow_run_id', workflowRun.id);
-            
+
             // 失敗したワークフローの場合は警告を出力
             if (workflowRun.conclusion === 'failure') {
               core.warning(`ワークフロー "${workflowRun.name}" が失敗しました。自動修復を試行します。`);
@@ -260,9 +260,9 @@ jobs:
           # ワークフロートリガーの場合、トリガー元情報を追加
           if [ "${{ github.event_name }}" == "workflow_run" ]; then
             cat >> "$REPORT_FILE" << 'TRIGGER_EOF'
-          
+
           ## 🔔 トリガー元ワークフロー
-          
+
           | 項目 | 値 |
           |------|-----|
           | ワークフロー名 | ${{ steps.check_trigger.outputs.workflow_name }} |
