@@ -330,12 +330,12 @@ jobs:
             }
 
             // Issueタイトル
-            // ワークフロー名をサニタイズ（特殊文字をエスケープ）
-            const sanitizedWorkflowName = workflowName.replace(/[<>:"\/\\|?*]/g, '-');
             const dateStr = new Date().toISOString().split('T')[0];
 
             let title;
             if (eventName === 'workflow_run' && (workflowConclusion === 'failure' || workflowConclusion === 'timed_out')) {
+              // ワークフロー名をサニタイズ（特殊文字をエスケープ）
+              const sanitizedWorkflowName = (workflowName || 'Unknown').replace(/[<>:"\/\\|?*]/g, '-');
               title = `[自動修復] ${sanitizedWorkflowName} 失敗検知・修復試行 (${dateStr})`;
             } else if (errorCount > 0) {
               title = `[自動修復] エラー${errorCount}件検出・修復${fixCount}件実行 (${dateStr})`;
@@ -381,7 +381,7 @@ jobs:
           docker rm postgres redis || true
 
       - name: 次回実行までスリープ（オプション）
-        if: false  # 通常は無効（cronで30分後に再実行）
+        if: false  # 通常は無効（cronで5分後に再実行）
         run: |
-          echo "次回実行まで30分待機..."
-          sleep 1800
+          echo "次回実行まで5分待機..."
+          sleep 300

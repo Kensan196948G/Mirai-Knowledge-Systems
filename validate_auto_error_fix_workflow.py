@@ -85,8 +85,8 @@ def validate_workflow():
     # 3. 環境変数
     if 'env' in workflow:
         env = workflow['env']
-        checks.append(('MAX_LOOPS', env.get('MAX_LOOPS'), env.get('MAX_LOOPS') == 15))
-        checks.append(('PYTHON_VERSION', env.get('PYTHON_VERSION'), env.get('PYTHON_VERSION') == '3.12'))
+        checks.append(('MAX_LOOPS', str(env.get('MAX_LOOPS')), str(env.get('MAX_LOOPS')) == '15'))
+        checks.append(('PYTHON_VERSION', str(env.get('PYTHON_VERSION')), str(env.get('PYTHON_VERSION')) == '3.12'))
     else:
         checks.append(('環境変数', 'なし', False))
 
