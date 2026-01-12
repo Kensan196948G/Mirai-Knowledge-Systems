@@ -2494,6 +2494,11 @@ def get_dashboard_stats():
     incidents = load_data("incidents.json")
     approvals = load_data("approvals.json")
 
+    # 🔧 修正: ヘッダー表示用フィールドを追加
+    from datetime import datetime
+
+    pending_approvals_count = len([a for a in approvals if a.get("status") == "pending"])
+
     stats = {
         "kpis": {
             "knowledge_reuse_rate": 71,
@@ -2507,10 +2512,13 @@ def get_dashboard_stats():
             "recent_incidents": len(
                 [i for i in incidents if i.get("status") == "reported"]
             ),
-            "pending_approvals": len(
-                [a for a in approvals if a.get("status") == "pending"]
-            ),
+            "pending_approvals": pending_approvals_count,
         },
+        # 🔧 ヘッダー表示用フィールド（トップレベルに追加）
+        "last_sync_time": datetime.now().isoformat(),
+        "active_workers": 0,  # TODO: Socket.IO接続数を取得（現在は固定値）
+        "total_workers": 100,  # 想定最大ユーザー数
+        "pending_approvals": pending_approvals_count,  # フラット構造でも提供
     }
 
     return jsonify({"success": True, "data": stats})

@@ -2439,6 +2439,7 @@ select:focus-visible {
   transform: translateY(-1px);
 }
 
+/* 🔧 修正: パンくずリストの区切り文字「›」を削除（ユーザー要望）
 .breadcrumb-enhanced li:not(:last-child)::after {
   content: '›';
   margin-left: 8px;
@@ -2446,6 +2447,7 @@ select:focus-visible {
   font-size: 18px;
   font-weight: 700;
 }
+*/
 
 .breadcrumb-icon {
   font-size: 16px;

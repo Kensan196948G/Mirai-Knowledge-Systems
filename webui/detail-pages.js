@@ -1919,7 +1919,8 @@ async function loadConsultDetail() {
     // 🔧 修正: 開発環境でもAPI優先に変更（ナレッジと統一）
     logger.log('[DETAIL] Loading consultation from API (data consistency fix)...');
     try {
-      const response = await apiCall(`/consultation/${id}`);
+      // 🔧 修正: 複数形のエンドポイントに修正（/consultation/ → /consultations/）
+      const response = await apiCall(`/consultations/${id}`);
       logger.log('[DETAIL] API Response:', response);
 
       // 🔧 修正: APIレスポンスから data プロパティを抽出

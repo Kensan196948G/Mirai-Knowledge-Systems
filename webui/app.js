@@ -514,8 +514,9 @@ async function loadMonitoringData() {
               'data-progress': progressData.progress_percentage
             }, []);
 
+            // 🔧 修正: project.codeフィールドは存在しない（nameに既に含まれている）
             const title = createElement('div', { className: 'progress-title' }, [
-              `${project.name} (${project.code})`
+              `${project.name}`
             ]);
             const track = createElement('div', { className: 'progress-track' }, []);
             const fill = createElement('span', {
