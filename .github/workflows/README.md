@@ -3,10 +3,11 @@
 ## 自動エラー検知・修復システム
 
 ### ファイル
-- `auto-error-fix-continuous.yml` - 30分間隔で無限ループ実行
+- `auto-error-fix-continuous.yml` - 5分間隔で無限ループ実行 + 他ワークフロー監視
 
 ### 実行スケジュール
-- **自動実行:** 30分ごと（cron: `*/30 * * * *`）
+- **自動実行:** 5分ごと（cron: `*/5 * * * *`）
+- **他ワークフロー監視:** E2E Tests、Backend CI、Backend CI (Improved)、Mirai Knowledge Systems CI/CD の完了時に自動起動
 - **手動実行:** GitHub Actions画面から「Run workflow」をクリック
 
 ### 機能
@@ -24,12 +25,14 @@
 - Python 3.12
 - PostgreSQL 16（Docker）
 - Redis 7（Docker）
+- 他ワークフローの監視・自動応答機能
 
 #### 3. 結果レポート
 - GitHub Issueに自動投稿
 - エラー検出時: `[自動修復] エラーX件検出・修復Y件実行`
 - 正常時: `[自動修復] 正常動作確認`
-- ラベル: `auto-fix`, `error-detected` または `healthy`
+- ワークフロー失敗検知時: `[自動修復] [ワークフロー名] 失敗検知・修復試行`
+- ラベル: `auto-fix`, `error-detected` / `healthy`, `workflow-triggered`, `ci-failure`
 
 #### 4. Artifact保存
 - エラー検知・修復ログ
@@ -39,9 +42,14 @@
 
 ### 使用方法
 
-#### 自動実行
-- GitHubにpush後、30分ごとに自動実行される
+#### 自動実行（定期監視）
+- GitHubにpush後、5分ごとに自動実行される
 - 何もする必要なし
+
+#### 自動実行（ワークフロー監視）
+- E2E Tests、Backend CI、Backend CI (Improved)、Mirai Knowledge Systems CI/CD のいずれかが完了すると自動起動
+- 失敗したワークフローを検知すると自動修復を試行
+- 成功したワークフローでも健全性チェックを実行
 
 #### 手動実行
 1. GitHubリポジトリのActionsタブを開く
@@ -107,7 +115,8 @@ git push
 `auto-error-fix-continuous.yml`の`cron`を編集：
 ```yaml
 schedule:
-  - cron: '*/30 * * * *'  # 30分ごと
+  - cron: '*/5 * * * *'   # 5分ごと（デフォルト）
+  # - cron: '*/30 * * * *' # 30分ごと
   # - cron: '0 * * * *'    # 1時間ごと
   # - cron: '0 */6 * * *'  # 6時間ごと
   # - cron: '0 0 * * *'    # 毎日0時
