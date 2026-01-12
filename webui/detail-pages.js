@@ -1991,8 +1991,8 @@ function displayConsultDetail(data) {
     setSecureChildren(tagsEl, data.tags.map(tag => createTagElement(tag)));
   }
 
-  // 質問内容
-  updateElement('questionContent', data.content || '質問内容がありません');
+  // 質問内容（🔧 修正：questionとcontentの両方に対応）
+  updateElement('questionContent', data.question || data.content || '質問内容がありません');
 
   // 相談情報
   const consultInfoEl = document.getElementById('consultInfo');
@@ -2046,18 +2046,34 @@ function displayConsultDetail(data) {
 /**
  * エキスパート情報を表示
  */
-function displayExpertInfoConsult(data) {
+async function displayExpertInfoConsult(data) {
   const expertInfoEl = document.getElementById('expertInfo');
   if (!expertInfoEl) return;
 
-  const expert = data.expert_info || {
-    name: '佐藤 健太',
-    title: '技術顧問',
-    department: '技術部門',
-    specialties: ['コンクリート工学', '品質管理', '構造設計'],
-    response_count: 127,
-    rating: 4.8
-  };
+  let expert = data.expert_info;
+
+  // 🔧 修正：expert_idからexperts.jsonのデータを取得
+  if (!expert && data.expert_id) {
+    try {
+      // APIからエキスパート情報を取得
+      const response = await apiCall(`/experts/${data.expert_id}`);
+      expert = response?.data || response;
+    } catch (error) {
+      logger.warn('[EXPERT] Failed to load expert data:', error);
+    }
+  }
+
+  // フォールバック：データがない場合はプレースホルダー
+  if (!expert) {
+    expert = {
+      name: data.expert || 'エキスパート未割当',
+      title: '-',
+      department: '-',
+      specialties: [],
+      response_count: 0,
+      rating: 0
+    };
+  }
 
   setSecureChildren(expertInfoEl, createExpertInfoElement(expert));
 }

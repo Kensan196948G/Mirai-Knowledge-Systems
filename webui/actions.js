@@ -67,6 +67,18 @@ window.showToast = showToast;
  * 配信申請処理
  */
 function submitDistribution(type, data) {
+  // 🔧 修正: 確認ダイアログを追加
+  const confirmed = confirm(
+    '現場に共有申請を送信しますか？\n\n' +
+    '承認者にメール通知が送信されます。\n' +
+    '※現在はサンプル実装です（Phase Dで完全実装予定）'
+  );
+
+  if (!confirmed) {
+    logger.log('[ACTION] Distribution cancelled by user');
+    return;
+  }
+
   showToast('配信申請を送信しました', 'success');
   logger.log('[ACTION] Distribution submitted:', type, data);
 

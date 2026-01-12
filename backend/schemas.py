@@ -121,3 +121,79 @@ class IncidentCreateSchema(Schema):
         validate=validate.Length(max=100),
         allow_none=True
     )
+
+# ============================================================
+# Consultation Schemas
+# ============================================================
+
+class ConsultationCreateSchema(Schema):
+    """専門家相談作成リクエスト検証"""
+    title = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=500),
+        error_messages={'required': 'タイトルは必須です'}
+    )
+    question = fields.Str(
+        required=True,
+        validate=validate.Length(min=10, max=5000),
+        error_messages={'required': '相談内容は必須です（最小10文字）'}
+    )
+    category = fields.Str(
+        required=True,
+        validate=validate.OneOf([
+            '技術相談', '安全対策', '品質管理', '工程計画',
+            '法令規格', '資材調達', 'その他'
+        ]),
+        error_messages={'required': 'カテゴリは必須です'}
+    )
+    priority = fields.Str(
+        validate=validate.OneOf(['緊急', '高', '通常', '低']),
+        load_default='通常'
+    )
+    tags = fields.List(
+        fields.Str(validate=validate.Length(max=30)),
+        validate=validate.Length(max=20),
+        load_default=[]
+    )
+    project = fields.Str(
+        validate=validate.Length(max=100),
+        allow_none=True
+    )
+
+class ConsultationUpdateSchema(Schema):
+    """専門家相談更新リクエスト検証"""
+    title = fields.Str(validate=validate.Length(min=1, max=500))
+    question = fields.Str(validate=validate.Length(min=10, max=5000))
+    category = fields.Str(
+        validate=validate.OneOf([
+            '技術相談', '安全対策', '品質管理', '工程計画',
+            '法令規格', '資材調達', 'その他'
+        ])
+    )
+    priority = fields.Str(
+        validate=validate.OneOf(['緊急', '高', '通常', '低'])
+    )
+    tags = fields.List(
+        fields.Str(validate=validate.Length(max=30)),
+        validate=validate.Length(max=20)
+    )
+    status = fields.Str(
+        validate=validate.OneOf(['pending', 'answered', 'resolved', 'closed'])
+    )
+
+class ConsultationAnswerSchema(Schema):
+    """専門家相談回答投稿リクエスト検証"""
+    content = fields.Str(
+        required=True,
+        validate=validate.Length(min=10, max=10000),
+        error_messages={'required': '回答内容は必須です（最小10文字）'}
+    )
+    references = fields.Str(
+        validate=validate.Length(max=1000),
+        allow_none=True
+    )
+    is_best_answer = fields.Bool(load_default=False)
+    attachments = fields.List(
+        fields.Str(validate=validate.Length(max=500)),
+        load_default=[]
+    )

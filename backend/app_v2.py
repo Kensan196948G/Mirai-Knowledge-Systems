@@ -27,7 +27,13 @@ from dotenv import load_dotenv
 from marshmallow import ValidationError
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from werkzeug.utils import secure_filename
-from schemas import LoginSchema, KnowledgeCreateSchema
+from schemas import (
+    LoginSchema,
+    KnowledgeCreateSchema,
+    ConsultationCreateSchema,
+    ConsultationUpdateSchema,
+    ConsultationAnswerSchema,
+)
 import time
 import psutil
 from collections import defaultdict, Counter
@@ -3598,6 +3604,307 @@ def init_demo_users():
         print("   - admin / admin123 (管理者)")
         print("   - yamada / yamada123 (施工管理)")
         print("   - partner / partner123 (協力会社)")
+
+
+# ============================================================
+# 専門家相談API（Consultation Endpoints）
+# ============================================================
+
+
+@app.route("/api/v1/consultations", methods=["GET"])
+@check_permission("consultation.read")
+def get_consultations():
+    """専門家相談一覧取得"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, "consultations.list", "consultation")
+
+    consultations = load_data("consultations.json")
+
+    # クエリパラメータでのフィルタリング
+    category = request.args.get("category")
+    status = request.args.get("status")
+
+    filtered = consultations
+
+    if category:
+        filtered = [c for c in filtered if c.get("category") == category]
+
+    if status:
+        filtered = [c for c in filtered if c.get("status") == status]
+
+    # ページネーション
+    total_items = len(filtered)
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 50, type=int)
+
+    # per_pageの上限を設定
+    per_page = min(per_page, 100)
+
+    # ページ計算
+    total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_data = filtered[start_idx:end_idx]
+
+    return jsonify(
+        {
+            "success": True,
+            "data": paginated_data,
+            "pagination": {
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "current_page": page,
+                "per_page": per_page,
+            },
+        }
+    )
+
+
+@app.route("/api/v1/consultations/<int:consultation_id>", methods=["GET"])
+@check_permission("consultation.read")
+def get_consultation_detail(consultation_id):
+    """専門家相談詳細取得"""
+    current_user_id = get_jwt_identity()
+    log_access(current_user_id, "consultation.view", "consultation", consultation_id)
+
+    consultations = load_data("consultations.json")
+    consultation = next(
+        (c for c in consultations if c["id"] == consultation_id), None
+    )
+
+    if not consultation:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "NOT_FOUND", "message": "Consultation not found"},
+                }
+            ),
+            404,
+        )
+
+    # 閲覧数をインクリメント
+    consultation["views"] = consultation.get("views", 0) + 1
+    save_data("consultations.json", consultations)
+
+    return jsonify({"success": True, "data": consultation})
+
+
+@app.route("/api/v1/consultations", methods=["POST"])
+@check_permission("consultation.create")
+@validate_request(ConsultationCreateSchema)
+def create_consultation():
+    """新規相談作成"""
+    current_user_id = get_jwt_identity()
+    data = request.validated_data
+    consultations = load_data("consultations.json")
+
+    # ID自動採番
+    new_id = max([c["id"] for c in consultations], default=0) + 1
+
+    # ユーザー情報取得
+    users = load_users()
+    current_user = next((u for u in users if u["id"] == int(current_user_id)), None)
+
+    new_consultation = {
+        "id": new_id,
+        "title": data.get("title"),
+        "question": data.get("question"),
+        "category": data.get("category"),
+        "priority": data.get("priority", "通常"),
+        "status": "pending",
+        "requester_id": int(current_user_id),
+        "requester": current_user.get("full_name", "Unknown") if current_user else "Unknown",
+        "expert_id": None,
+        "expert": None,
+        "project": data.get("project"),
+        "tags": data.get("tags", []),
+        "views": 0,
+        "follower_count": 0,
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+        "answered_at": None,
+    }
+
+    consultations.append(new_consultation)
+    save_data("consultations.json", consultations)
+
+    log_access(current_user_id, "consultation.create", "consultation", new_id)
+
+    # 通知作成（専門家に通知）
+    create_notification(
+        title="新しい相談が投稿されました",
+        message=f"{new_consultation['requester']}さんから「{new_consultation['title']}」の相談が投稿されました。",
+        type="consultation_created",
+        target_roles=["admin", "expert"],
+        priority="normal",
+        related_entity_type="consultation",
+        related_entity_id=new_id,
+    )
+
+    return jsonify({"success": True, "data": new_consultation}), 201
+
+
+@app.route("/api/v1/consultations/<int:consultation_id>", methods=["PUT"])
+@check_permission("consultation.update")
+def update_consultation(consultation_id):
+    """相談更新"""
+    current_user_id = int(get_jwt_identity())
+    data = request.get_json()
+
+    if not data:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_INPUT",
+                        "message": "Request body is required",
+                    },
+                }
+            ),
+            400,
+        )
+
+    consultations = load_data("consultations.json")
+    consultation_index = next(
+        (i for i, c in enumerate(consultations) if c["id"] == consultation_id), None
+    )
+
+    if consultation_index is None:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "NOT_FOUND", "message": "Consultation not found"},
+                }
+            ),
+            404,
+        )
+
+    consultation = consultations[consultation_index]
+
+    # 所有権チェック: 管理者または相談投稿者のみ更新可能
+    users = load_users()
+    current_user = next((u for u in users if u["id"] == current_user_id), None)
+    user_permissions = get_user_permissions(current_user) if current_user else []
+    is_admin = "*" in user_permissions
+    is_owner = consultation.get("requester_id") == current_user_id
+
+    if not is_admin and not is_owner:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You can only update your own consultations",
+                    },
+                }
+            ),
+            403,
+        )
+
+    # 更新可能なフィールド
+    updatable_fields = [
+        "title",
+        "question",
+        "category",
+        "priority",
+        "tags",
+        "status",
+    ]
+
+    for field in updatable_fields:
+        if field in data:
+            consultations[consultation_index][field] = data[field]
+
+    consultations[consultation_index]["updated_at"] = datetime.now().isoformat()
+
+    save_data("consultations.json", consultations)
+    log_access(current_user_id, "consultation.update", "consultation", consultation_id)
+
+    return jsonify({"success": True, "data": consultations[consultation_index]})
+
+
+@app.route("/api/v1/consultations/<int:consultation_id>/answers", methods=["POST"])
+@check_permission("consultation.answer")
+@validate_request(ConsultationAnswerSchema)
+def post_consultation_answer(consultation_id):
+    """相談に回答を投稿"""
+    current_user_id = get_jwt_identity()
+    data = request.validated_data
+    consultations = load_data("consultations.json")
+
+    consultation_index = next(
+        (i for i, c in enumerate(consultations) if c["id"] == consultation_id), None
+    )
+
+    if consultation_index is None:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "NOT_FOUND", "message": "Consultation not found"},
+                }
+            ),
+            404,
+        )
+
+    # ユーザー情報取得
+    users = load_users()
+    current_user = next((u for u in users if u["id"] == int(current_user_id)), None)
+
+    # 新しい回答オブジェクト
+    new_answer = {
+        "id": int(time.time() * 1000),  # ミリ秒タイムスタンプをIDとして使用
+        "content": data.get("content"),
+        "references": data.get("references"),
+        "is_best_answer": data.get("is_best_answer", False),
+        "expert": current_user.get("full_name", "Unknown") if current_user else "Unknown",
+        "expert_id": int(current_user_id),
+        "expert_title": current_user.get("department", "専門家") if current_user else "専門家",
+        "author_name": current_user.get("full_name", "Unknown") if current_user else "Unknown",
+        "created_at": datetime.now().isoformat(),
+        "helpful_count": 0,
+        "attachments": data.get("attachments", []),
+    }
+
+    # answersフィールドがない場合は初期化
+    if "answers" not in consultations[consultation_index]:
+        consultations[consultation_index]["answers"] = []
+
+    consultations[consultation_index]["answers"].append(new_answer)
+
+    # ステータスを pending → answered に更新
+    if consultations[consultation_index]["status"] == "pending":
+        consultations[consultation_index]["status"] = "answered"
+        consultations[consultation_index]["answered_at"] = datetime.now().isoformat()
+
+    # expert情報を更新（最初の回答者を専門家として設定）
+    if consultations[consultation_index].get("expert_id") is None:
+        consultations[consultation_index]["expert_id"] = int(current_user_id)
+        consultations[consultation_index]["expert"] = current_user.get("full_name", "Unknown") if current_user else "Unknown"
+
+    consultations[consultation_index]["updated_at"] = datetime.now().isoformat()
+
+    save_data("consultations.json", consultations)
+    log_access(current_user_id, "consultation.answer", "consultation", consultation_id)
+
+    # 通知作成（相談投稿者に通知）
+    requester_id = consultations[consultation_index].get("requester_id")
+    if requester_id:
+        create_notification(
+            title="相談に回答がありました",
+            message=f"{new_answer['expert']}さんが「{consultations[consultation_index]['title']}」に回答しました。",
+            type="consultation_answered",
+            target_users=[requester_id],
+            priority="normal",
+            related_entity_type="consultation",
+            related_entity_id=consultation_id,
+        )
+
+    return jsonify({"success": True, "data": new_answer}), 201
 
 
 # HTTPS強制リダイレクトミドルウェアを適用（本番環境用）

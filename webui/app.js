@@ -949,6 +949,158 @@ function closeNewKnowledgeModal() {
 }
 
 /**
+ * 新規相談モーダルを開く
+ */
+function openNewConsultModal() {
+  // expert-consult-actions.js の submitNewConsultation 関数を呼び出す
+  if (typeof submitNewConsultation === 'function') {
+    submitNewConsultation();
+  } else {
+    logger.warn('[MODAL] submitNewConsultation function not found, creating modal directly');
+    // フォールバック: 直接モーダルを作成
+    createNewConsultModalFallback();
+  }
+}
+
+/**
+ * 新規相談モーダルを作成（フォールバック）
+ */
+function createNewConsultModalFallback() {
+  const existingModal = document.getElementById('newConsultModal');
+  if (existingModal) {
+    existingModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+
+  const modalHTML = `
+    <div id="newConsultModal" class="modal" style="display: flex;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>専門家に相談</h2>
+          <button class="modal-close" onclick="closeNewConsultModalFallback()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="newConsultForm">
+            <div class="field">
+              <label>相談タイトル <span class="required">*</span></label>
+              <input type="text" id="newConsultTitle" required placeholder="相談の概要を簡潔に入力してください">
+            </div>
+            <div class="field">
+              <label>カテゴリ <span class="required">*</span></label>
+              <select id="newConsultCategory" required>
+                <option value="">選択してください</option>
+                <option value="技術相談">技術相談</option>
+                <option value="安全対策">安全対策</option>
+                <option value="品質管理">品質管理</option>
+                <option value="工程計画">工程計画</option>
+                <option value="法令規格">法令規格</option>
+                <option value="資材調達">資材調達</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>優先度 <span class="required">*</span></label>
+              <select id="newConsultPriority" required>
+                <option value="通常" selected>通常</option>
+                <option value="高">高</option>
+                <option value="緊急">緊急</option>
+                <option value="低">低</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>相談内容 <span class="required">*</span></label>
+              <textarea id="newConsultContent" rows="6" required placeholder="具体的な相談内容を入力してください（最小10文字）"></textarea>
+            </div>
+            <div class="field">
+              <label>タグ（カンマ区切り）</label>
+              <input type="text" id="newConsultTags" placeholder="例: コンクリート, 品質管理, 養生">
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="cta ghost" onclick="closeNewConsultModalFallback()">キャンセル</button>
+              <button type="submit" class="cta">相談を投稿</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  document.body.style.overflow = 'hidden';
+
+  // フォーム送信イベント
+  const form = document.getElementById('newConsultForm');
+  if (form) {
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      await submitNewConsultationAPI();
+    });
+  }
+}
+
+/**
+ * 新規相談をAPI経由で投稿
+ */
+async function submitNewConsultationAPI() {
+  const title = document.getElementById('newConsultTitle').value;
+  const category = document.getElementById('newConsultCategory').value;
+  const priority = document.getElementById('newConsultPriority').value;
+  const content = document.getElementById('newConsultContent').value;
+  const tagsInput = document.getElementById('newConsultTags').value;
+  const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()) : [];
+
+  if (content.length < 10) {
+    showNotification('相談内容は10文字以上で入力してください', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/consultations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      },
+      body: JSON.stringify({
+        title: title,
+        question: content,
+        category: category,
+        priority: priority,
+        tags: tags
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      showNotification('相談を投稿しました', 'success');
+      closeNewConsultModalFallback();
+      // 詳細ページにリダイレクト
+      setTimeout(() => {
+        window.location.href = `expert-consult.html?id=${result.data.id}`;
+      }, 1000);
+    } else {
+      showNotification(result.error?.message || '相談の投稿に失敗しました', 'error');
+    }
+  } catch (error) {
+    logger.error('[API] Error submitting consultation:', error);
+    showNotification('相談の投稿に失敗しました', 'error');
+  }
+}
+
+/**
+ * 新規相談モーダルを閉じる（フォールバック）
+ */
+function closeNewConsultModalFallback() {
+  const modal = document.getElementById('newConsultModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+/**
  * 検索モーダルを開く
  */
 function openSearchModal() {

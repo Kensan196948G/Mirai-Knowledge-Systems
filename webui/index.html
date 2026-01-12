@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>建設土木ナレッジシステム - 現場ダッシュボード</title>
-  <link rel="stylesheet" href="styles.css?v=20260112154522" />
+  <link rel="stylesheet" href="styles.css?v=20260112193018" />
 </head>
 
 <body>
@@ -20,6 +20,7 @@
     <nav class="top-nav reveal delay-1">
       <a class="is-active" href="index.html" aria-current="page">現場ダッシュボード</a>
       <a href="#" onclick="openSearchModal(); return false;">ナレッジ検索</a>
+      <a href="#" onclick="openNewConsultModal(); return false;">専門家に相談</a>
       <a href="admin.html" data-required-role="admin">管理画面</a>
     </nav>
     <div class="header-actions reveal delay-2">
@@ -39,8 +40,9 @@
       <div class="user-info"></div>
       <!-- 新規登録ボタン: construction_manager以上のみ表示 -->
       <button class="cta" data-required-role="construction_manager" onclick="openNewKnowledgeModal()">新規ナレッジ登録</button>
-      <!-- 管理画面リンク: adminのみ表示 -->
-      <a href="admin.html" class="cta secondary" data-required-role="admin">管理画面</a>
+      <!-- 新規相談ボタン: 全ユーザーが利用可能 -->
+      <button class="cta ghost" onclick="openNewConsultModal()">専門家に相談</button>
+      <!-- 🔧 修正: 管理画面リンクはトップナビにあるため削除（重複回避） -->
     </div>
 
   </header>
@@ -688,9 +690,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- Socket.IO CDN -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="app.js?v=20260112130654"></script>
-  <script src="notifications.js?v=20260112130654"></script>
-  <script src="actions.js?v=20260112130654"></script>
+  <script src="app.js?v=20260112193018"></script>
+  <script src="notifications.js?v=20260112193018"></script>
+  <script src="actions.js?v=20260112193018"></script>
 </body>
 
 </html>
