@@ -66,15 +66,33 @@ jobs:
             core.setOutput('workflow_url', workflowRun.html_url);
             core.setOutput('workflow_run_id', workflowRun.id);
 
-            // 失敗したワークフローの場合は警告を出力
-            if (workflowRun.conclusion === 'failure') {
-              core.warning(`ワークフロー "${workflowRun.name}" が失敗しました。自動修復を試行します。`);
-              return 'failure';
-            } else if (workflowRun.conclusion === 'success') {
-              core.info(`ワークフロー "${workflowRun.name}" は成功しました。`);
-              return 'success';
+            // ワークフローの結果に応じて処理
+            switch (workflowRun.conclusion) {
+              case 'failure':
+                core.warning(`ワークフロー "${workflowRun.name}" が失敗しました。自動修復を試行します。`);
+                return 'failure';
+              case 'success':
+                core.info(`ワークフロー "${workflowRun.name}" は成功しました。`);
+                return 'success';
+              case 'cancelled':
+                core.info(`ワークフロー "${workflowRun.name}" はキャンセルされました。`);
+                return 'cancelled';
+              case 'skipped':
+                core.info(`ワークフロー "${workflowRun.name}" はスキップされました。`);
+                return 'skipped';
+              case 'timed_out':
+                core.warning(`ワークフロー "${workflowRun.name}" はタイムアウトしました。`);
+                return 'timed_out';
+              case 'action_required':
+                core.warning(`ワークフロー "${workflowRun.name}" はアクションが必要です。`);
+                return 'action_required';
+              case 'neutral':
+                core.info(`ワークフロー "${workflowRun.name}" は中立的な結果です。`);
+                return 'neutral';
+              default:
+                core.warning(`ワークフロー "${workflowRun.name}" の結果が不明です: ${workflowRun.conclusion}`);
+                return workflowRun.conclusion;
             }
-            return workflowRun.conclusion;
 
       - name: Python環境セットアップ
         uses: actions/setup-python@v5
@@ -312,20 +330,24 @@ jobs:
             }
 
             // Issueタイトル
+            // ワークフロー名をサニタイズ（特殊文字をエスケープ）
+            const sanitizedWorkflowName = workflowName.replace(/[<>:"\/\\|?*]/g, '-');
+            const dateStr = new Date().toISOString().split('T')[0];
+
             let title;
-            if (eventName === 'workflow_run' && workflowConclusion === 'failure') {
-              title = `[自動修復] ${workflowName} 失敗検知・修復試行 (${new Date().toISOString().split('T')[0]})`;
+            if (eventName === 'workflow_run' && (workflowConclusion === 'failure' || workflowConclusion === 'timed_out')) {
+              title = `[自動修復] ${sanitizedWorkflowName} 失敗検知・修復試行 (${dateStr})`;
             } else if (errorCount > 0) {
-              title = `[自動修復] エラー${errorCount}件検出・修復${fixCount}件実行 (${new Date().toISOString().split('T')[0]})`;
+              title = `[自動修復] エラー${errorCount}件検出・修復${fixCount}件実行 (${dateStr})`;
             } else {
-              title = `[自動修復] 正常動作確認 (${new Date().toISOString().split('T')[0]})`;
+              title = `[自動修復] 正常動作確認 (${dateStr})`;
             }
 
             // Issueラベル
             let labels = errorCount > 0 ? ['auto-fix', 'error-detected'] : ['auto-fix', 'healthy'];
             if (eventName === 'workflow_run') {
               labels.push('workflow-triggered');
-              if (workflowConclusion === 'failure') {
+              if (workflowConclusion === 'failure' || workflowConclusion === 'timed_out') {
                 labels.push('ci-failure');
               }
             }

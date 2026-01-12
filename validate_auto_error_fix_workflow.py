@@ -49,7 +49,8 @@ def validate_workflow():
         checks.append(('ワークフロー名', 'なし', False))
 
     # 2. トリガー設定
-    # Note: 'on' can be loaded as True (boolean) in YAML, so check both
+    # Note: In YAML, 'on' is a reserved word and can be loaded as boolean True
+    # by some parsers. We check both 'on' (string key) and True (boolean key) for compatibility.
     on_config = workflow.get('on') or workflow.get(True)
 
     if on_config:
