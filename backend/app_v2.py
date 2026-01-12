@@ -798,7 +798,7 @@ def log_access(
         user_id: ユーザーID
         action: アクション名（例: 'knowledge.create', 'login'）
         resource: リソース種別（例: 'knowledge', 'sop'）
-        resource_id: リソースID
+        resource_id: リソースID（intまたはstr）
         status: 'success' または 'failure'
         details: 追加の詳細情報（dict）
         old_value: 変更前の値（更新操作用）
@@ -814,14 +814,23 @@ def log_access(
     except Exception:
         pass
 
-    # resource_idの型チェック（INTEGER型のため）
+    # resource_idの処理を修正
+    # 検索クエリなどの文字列IDもサポートする
     safe_resource_id = None
     if resource_id is not None:
         if isinstance(resource_id, int):
             safe_resource_id = resource_id
-        elif isinstance(resource_id, str) and resource_id.isdigit():
-            safe_resource_id = int(resource_id)
-        # それ以外の場合はNoneのまま（文字列IDはログに記録しない）
+        elif isinstance(resource_id, str):
+            if resource_id.isdigit():
+                safe_resource_id = int(resource_id)
+            else:
+                # 数字でない文字列の場合、detailsに保存
+                safe_resource_id = None
+                if details is None:
+                    details = {}
+                else:
+                    details = details.copy()
+                details['resource_id_str'] = resource_id
 
     log_entry = {
         "id": len(logs) + 1,
