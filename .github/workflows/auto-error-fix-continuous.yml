@@ -56,7 +56,12 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const workflowRun = context.payload.workflow_run;
+            const workflowRun = context.payload?.workflow_run;
+            if (!workflowRun) {
+              core.setFailed('workflow_run情報がペイロードに見つかりません');
+              return;
+            }
+
             console.log(`トリガー元: ${workflowRun.name}`);
             console.log(`状態: ${workflowRun.conclusion}`);
             console.log(`URL: ${workflowRun.html_url}`);

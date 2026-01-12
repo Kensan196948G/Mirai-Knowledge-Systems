@@ -31,8 +31,14 @@ def validate_workflow():
     try:
         with open(workflow_path, 'r', encoding='utf-8') as f:
             workflow = yaml.safe_load(f)
-    except Exception as e:
-        print(f"❌ エラー: YAMLの読み込みに失敗: {e}")
+    except FileNotFoundError:
+        print(f"❌ エラー: ファイルが見つかりません: {workflow_path}")
+        return False
+    except yaml.YAMLError as e:
+        print(f"❌ エラー: YAML構文エラー: {e}")
+        return False
+    except IOError as e:
+        print(f"❌ エラー: ファイルの読み込みに失敗: {e}")
         return False
 
     print("✓ YAML構文: 正常")
@@ -162,8 +168,21 @@ if __name__ == '__main__':
     try:
         success = validate_workflow()
         sys.exit(0 if success else 1)
+    except KeyboardInterrupt:
+        print("\n❌ 実行が中断されました")
+        sys.exit(130)
+    except yaml.YAMLError as e:
+        print(f"❌ YAML処理エラー: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    except (IOError, OSError) as e:
+        print(f"❌ ファイルI/Oエラー: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
     except Exception as e:
-        print(f"❌ 予期しないエラー: {e}")
+        print(f"❌ 予期しないエラー ({type(e).__name__}): {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
