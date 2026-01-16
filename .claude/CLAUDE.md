@@ -177,6 +177,52 @@ Mirai-Knowledge-Systems/
 - **JavaScript**: ESLint設定に従う、console.logは本番で削除
 - **コミットメッセージ**: 「機能: 」「修正: 」等のプレフィックス使用
 
+## 🤖 SubAgent自動起動ルール（必須遵守）
+
+### 基本原則
+
+すべての開発タスクで、以下のルールに従ってSubAgentを自動起動すること。
+
+### 自動並列実行トリガー
+
+#### 1. 複数の独立タスク
+- 複数のバグ修正
+- 複数の独立機能実装
+- 自動起動: 複数のcode-implementerを単一メッセージで並列起動
+- 制約: ファイルコンフリクトなし確認
+
+#### 2. 新機能実装
+- 検出条件: 「機能追加」「実装」「新規エンドポイント」
+- 並列起動: spec-planner + arch-reviewer + test-designer
+- 順次起動: code-implementer（設計完了後）
+- 制約: 編集はcode-implementerのみ
+
+#### 3. セキュリティ監査
+- 検出条件: 「セキュリティチェック」「脆弱性スキャン」
+- 順次起動: sec-auditor → code-implementer → test-designer
+- MCP必須: brave-search（CVE情報）
+
+#### 4. コードベース調査
+- 検出条件: 「実装状況確認」「コードベース調査」
+- 起動: arch-reviewer（Explore agent, thoroughness: medium）
+- 制約: 編集禁止（調査のみ）
+
+#### 5. ドキュメント整備
+- 検出条件: 「運用手順書」「ドキュメント作成」
+- 起動: ops-runbook（単独）
+- 制約: docs/ またはrunbook/ のみ編集
+
+### 並列実行の必須ルール
+
+**CRITICAL**: 並列実行時は必ず単一メッセージで複数Task tool呼び出しを実行
+
+### MCP使用ルール
+
+- memory: 過去の設計決定を必ず初動で確認
+- github: 類似実装の検索に使用
+- context7: ライブラリドキュメント確認
+- brave-search: 最新情報・CVE検索
+
 ---
 
 **このファイルはClaude Codeが自動的に読み込みます。**
