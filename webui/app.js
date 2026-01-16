@@ -1359,6 +1359,39 @@ async function submitAdvancedSearch(event) {
 }
 
 /**
+ * ヒーローセクションの検索を実行
+ */
+async function performHeroSearch() {
+  const input = document.getElementById('heroSearchInput');
+  if (!input) return;
+
+  const keyword = input.value.trim();
+  if (!keyword) {
+    showNotification('検索キーワードを入力してください', 'warning');
+    return;
+  }
+
+  try {
+    const result = await fetchAPI(`/knowledge/search?keyword=${encodeURIComponent(keyword)}`);
+
+    if (result.success) {
+      // 検索結果タブに切り替え
+      const searchTab = document.querySelector('.tab-btn[data-tab="search"]');
+      if (searchTab) {
+        searchTab.click();
+      }
+
+      // 検索結果を表示
+      displayKnowledge(result.data);
+      showNotification(`${result.data.length}件の結果が見つかりました`, 'success');
+    }
+  } catch (error) {
+    logger.error('Hero search failed:', error);
+    showNotification('検索に失敗しました', 'error');
+  }
+}
+
+/**
  * 検索結果を表示
  */
 function displaySearchResults(results) {
@@ -3024,3 +3057,27 @@ async function calculateExpertRating(expertId) {
   }
   return null;
 }
+
+// ============================================================
+// グローバル関数の明示的な公開（onclick属性から呼び出し可能）
+// ============================================================
+
+window.performHeroSearch = performHeroSearch;
+window.openSearchModal = openSearchModal;
+window.closeSearchModal = closeSearchModal;
+window.resetSearchForm = resetSearchForm;
+window.openNewKnowledgeModal = openNewKnowledgeModal;
+window.closeNewKnowledgeModal = closeNewKnowledgeModal;
+window.openNewConsultModal = openNewConsultModal;
+window.closeNewConsultModalFallback = closeNewConsultModalFallback;
+window.openNotificationPanel = openNotificationPanel;
+window.closeNotificationPanel = closeNotificationPanel;
+window.openSettingsPanel = openSettingsPanel;
+window.closeSettingsPanel = closeSettingsPanel;
+window.approveSelected = approveSelected;
+window.rejectSelected = rejectSelected;
+window.filterKnowledgeByCategory = filterKnowledgeByCategory;
+window.filterProjectsByType = filterProjectsByType;
+window.filterExpertsByField = filterExpertsByField;
+window.toggleSection = toggleSection;
+window.toggleSidebar = toggleSidebar;

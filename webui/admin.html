@@ -240,7 +240,7 @@
     <div id="message" class="message"></div>
 
     <!-- 新規ナレッジ登録 -->
-    <div class="admin-panel">
+    <div id="new-knowledge" class="admin-panel">
       <h2>新規ナレッジ登録</h2>
       <form id="knowledgeForm">
         <div class="form-group">
@@ -305,7 +305,7 @@
     </div>
 
     <!-- ナレッジ一覧 -->
-    <div class="admin-panel">
+    <div id="knowledge-list" class="admin-panel">
       <h2>ナレッジ一覧</h2>
       <table class="data-table">
         <thead>
@@ -327,7 +327,7 @@
     </div>
 
     <!-- 承認待ちアイテム -->
-    <div class="admin-panel">
+    <div id="approvals" class="admin-panel">
       <h2>承認待ちアイテム</h2>
       <table class="data-table">
         <thead>
@@ -349,7 +349,7 @@
     </div>
 
     <!-- 監査ログ -->
-    <div class="admin-panel">
+    <div id="audit-logs" class="admin-panel">
       <h2>監査ログ</h2>
       <div class="audit-log-filters" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
         <select id="auditUserFilter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);">
@@ -1241,7 +1241,29 @@
       loadAuditLogs();
 
       logger.log('管理画面 - 初期化完了！');
+
+      // URLハッシュをチェックして該当セクションにスクロール
+      handleHashNavigation();
     });
+
+    // ハッシュ変更時も対応
+    window.addEventListener('hashchange', handleHashNavigation);
+
+    /**
+     * URLハッシュに基づいてセクションにスクロール
+     */
+    function handleHashNavigation() {
+      const hash = window.location.hash.substring(1); // '#approvals' -> 'approvals'
+      if (hash) {
+        const targetElement = document.getElementById(hash);
+        if (targetElement) {
+          setTimeout(() => {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            logger.log(`セクション「${hash}」にスクロールしました`);
+          }, 1500); // データロード完了を待つ（1.5秒）
+        }
+      }
+    }
   </script>
   <script src="actions.js"></script>
 </body>
