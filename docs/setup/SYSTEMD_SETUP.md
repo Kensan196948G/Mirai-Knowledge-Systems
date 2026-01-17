@@ -6,8 +6,16 @@
 
 - Linux環境（systemd対応）
 - sudo権限
-- プロジェクトパス: `/path/to/Mirai-Knowledge-Systems`
-- サービスポート: **5100**
+- プロジェクトパス: `/mnt/LinuxHDD/Mirai-Knowledge-Systems`
+
+## ポート番号（固定）
+
+| 環境 | HTTP | HTTPS | サービスファイル |
+|------|------|-------|-----------------|
+| 開発 | 5100 | 5443 | `mirai-knowledge-app-dev.service` |
+| 本番 | 8100 | 8443 | `mirai-knowledge-app.service` |
+
+> **注意**: 開発環境と本番環境で異なるサービスファイルを使用します。
 
 ## 自動セットアップ（推奨）
 
@@ -21,14 +29,42 @@
 
 ## セットアップ手順
 
-### 1. サービスファイルのインストール
+### 開発環境のセットアップ
+
+#### 1. サービスファイルのインストール
 
 ```bash
-# サービスファイルをsystemdディレクトリにコピー
-sudo cp /path/to/Mirai-Knowledge-Systems/mirai-knowledge-system.service /etc/systemd/system/
+# 開発環境用サービスファイルをsystemdディレクトリにコピー
+sudo cp /mnt/LinuxHDD/Mirai-Knowledge-Systems/mirai-knowledge-app-dev.service /etc/systemd/system/
 
 # パーミッションを設定
-sudo chmod 644 /etc/systemd/system/mirai-knowledge-system.service
+sudo chmod 644 /etc/systemd/system/mirai-knowledge-app-dev.service
+```
+
+#### 2. サービスの有効化と起動
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable mirai-knowledge-app-dev.service
+sudo systemctl start mirai-knowledge-app-dev.service
+```
+
+#### 3. アクセス確認
+
+ブラウザで `http://localhost:5100/login.html` にアクセス
+
+---
+
+### 本番環境のセットアップ
+
+#### 1. サービスファイルのインストール
+
+```bash
+# 本番環境用サービスファイルをsystemdディレクトリにコピー
+sudo cp /mnt/LinuxHDD/Mirai-Knowledge-Systems/mirai-knowledge-app.service /etc/systemd/system/
+
+# パーミッションを設定
+sudo chmod 644 /etc/systemd/system/mirai-knowledge-app.service
 ```
 
 ### 2. systemdデーモンの再読み込み
@@ -243,9 +279,19 @@ sudo systemctl restart mirai-knowledge-system.service
 以上の設定により、Mirai Knowledge Systemは：
 
 ✅ サーバー再起動時に自動起動
-✅ クラッシュ時に自動再起動（10秒後）
-✅ ポート5100で待ち受け
+✅ クラッシュ時に自動再起動（5〜10秒後）
+✅ 開発環境: ポート5100/5443、本番環境: ポート8100/8443で待ち受け
 ✅ journaldでログ管理
 ✅ セキュリティ強化設定適用
+✅ PostgreSQL連携（本番環境）
 
 システムの安定運用が可能になります。
+
+---
+
+## 変更履歴
+
+| 日付 | バージョン | 変更内容 | 担当 |
+| --- | --- | --- | --- |
+| 2026-01-17 | 2.0 | 開発/本番サービス分離、ポート番号固定化 | Claude Code |
+| 2026-01-01 | 1.0 | 初版作成 | System |

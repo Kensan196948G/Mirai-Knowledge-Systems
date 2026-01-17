@@ -58,7 +58,32 @@ pip install -r requirements.txt
 - `pip`を最新版にアップグレード: `python -m pip install --upgrade pip`
 - 再度インストールを試してください
 
-### ステップ4: データディレクトリの確認
+### ステップ4: Node.jsモジュールのセットアップ（フロントエンド開発時）
+
+Windows/Linux間で共有フォルダを使用している場合、Node.jsモジュールはOS別に分離する必要があります。
+
+#### Windows環境（PowerShell）
+
+```powershell
+.\scripts\windows\setup-node-modules.ps1 -Install
+```
+
+#### Linux環境（Bash）
+
+```bash
+./scripts/linux/setup-node-modules.sh --install
+```
+
+#### Python版（OS自動判定）
+
+```bash
+python scripts/common/setup-node-modules.py --install
+```
+
+> **注意**: ネットワークドライブではジャンクション/シンボリックリンクが使用できないため、
+> Windows版は自動的に `--no-bin-links` オプションで動作します。
+
+### ステップ5: データディレクトリの確認
 
 `backend/data/` ディレクトリに以下のファイルが存在することを確認します：
 - `knowledge.json`
@@ -138,14 +163,29 @@ python app_v2.py
 
 ### 本番サーバーの起動（systemd自動起動）
 
-**Linux環境のみ**: systemdサービスとして登録することで、サーバー再起動時に自動起動できます：
+**Linux環境のみ**: systemdサービスとして登録することで、サーバー再起動時に自動起動できます。
+
+#### 開発環境用サービス（ポート5100/5443）
 
 ```bash
-# プロジェクトルートディレクトリで実行
-./setup-systemd.sh
+sudo cp mirai-knowledge-app-dev.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable mirai-knowledge-app-dev.service
+sudo systemctl start mirai-knowledge-app-dev.service
 ```
 
-詳細は [SYSTEMD_SETUP.md](SYSTEMD_SETUP.md) を参照してください。
+#### 本番環境用サービス（ポート8100/8443）
+
+```bash
+sudo cp mirai-knowledge-app.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable mirai-knowledge-app.service
+sudo systemctl start mirai-knowledge-app.service
+```
+
+> **ポート番号**:
+> - 開発環境: HTTP 5100, HTTPS 5443
+> - 本番環境: HTTP 8100, HTTPS 8443
 
 ### ブラウザでアクセス
 
@@ -333,6 +373,16 @@ Access to fetch at 'http://localhost:5100/api/...' has been blocked by CORS poli
 - エラーメッセージの全文
 - 実行したコマンド
 - ブラウザの種類とバージョン
+
+---
+
+## 変更履歴
+
+| 日付 | バージョン | 変更内容 | 担当 |
+| --- | --- | --- | --- |
+| 2026-01-17 | 1.2 | Node.jsモジュールOS別セットアップ手順追加、systemd開発/本番分離 | Claude Code |
+| 2026-01-07 | 1.1 | PostgreSQL設定、SSL/HTTPS手順追加 | Claude Code |
+| 2025-12-26 | 1.0 | 初版作成 | System |
 
 ---
 

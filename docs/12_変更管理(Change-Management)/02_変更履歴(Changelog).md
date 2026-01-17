@@ -1,5 +1,26 @@
 # 変更履歴
 
+## 2026-01-17
+- **Phase E（クロスプラットフォーム対応）完了: 100%** ✅
+  - **E-1: Node.jsモジュールOS分離**
+    - scripts/common/setup-node-modules.py（Python版、OS自動判定）
+    - scripts/windows/setup-node-modules.ps1（PowerShell版、ネットワークドライブ対応）
+    - scripts/linux/setup-node-modules.sh（Bash版、シンボリックリンク対応）
+    - node_modules.windows / node_modules.linux で完全分離
+    - 共有フォルダ（ネットワークドライブ）でのジャンクション問題を解決
+    - npm --no-bin-links オプションで symlink エラー回避
+  - **E-2: WebUIタイトル環境表示**
+    - ブラウザタイトル/ブックマークに [開発] / [本番] 環境表示
+    - ポート番号で環境自動判定（5100=開発、8100=本番）
+  - **E-3: 本番環境空状態表示**
+    - データ未登録時「○○データなし」表示機能追加
+    - showEmptyState / checkAndShowEmptyState 関数実装
+    - webui/app.js に統合（displayKnowledge, displaySOPs, displayIncidents, displayApprovals）
+  - **E-4: systemdサービス分離**
+    - mirai-knowledge-app.service（本番用、Gunicorn、ポート8100/8443）
+    - mirai-knowledge-app-dev.service（開発用、直接実行、ポート5100/5443）
+    - 環境変数による設定分離（MKS_ENV, MKS_HTTP_PORT, MKS_HTTPS_PORT等）
+
 ## 2026-01-07
 - **Phase B-11（本番準備）完了: 100%** ✅
   - 本番開発フェーズ現状評価と計画書作成（Phase-B10-Production-Status.md）
@@ -59,6 +80,7 @@
 ## 変更履歴 (詳細)
 | 日付 | バージョン | 変更内容 | 担当 |
 | --- | --- | --- | --- |
+| 2026-01-17 | 1.1.0 | Phase E完了、クロスプラットフォーム対応（Win/Linux両対応、systemd分離） | Claude Code |
 | 2026-01-07 | 1.0.0 | Phase B-11完了、SSL/HTTPS設定、E2E環境構築、本番準備完了 | Claude Code |
 | 2026-01-07 | 0.9 | Phase B-11進捗、M365連携、負荷テスト、テスト319件PASS | Claude Code |
 | 2026-01-07 | 0.8 | Phase B-11開始、本番準備（SSL、プロンプト、インポート） | Claude Code |
