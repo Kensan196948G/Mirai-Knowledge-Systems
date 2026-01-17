@@ -38131,5 +38131,47 @@
     "request_path": "/api/v1/dashboard/stats",
     "session_id": "57405396-1fac-4a11-9d07-5e517f747a3e",
     "timestamp": "2026-01-17T21:11:11.032043"
+  },
+  {
+    "id": 2866,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "status": "success",
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "request_method": "GET",
+    "request_path": "/api/v1/dashboard/stats",
+    "session_id": "942c38fa-66e4-4e60-9992-7785aca359f3",
+    "timestamp": "2026-01-17T21:14:57.724934"
+  },
+  {
+    "id": 2867,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "status": "success",
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "request_method": "GET",
+    "request_path": "/api/v1/dashboard/stats",
+    "session_id": "942c38fa-66e4-4e60-9992-7785aca359f3",
+    "timestamp": "2026-01-17T21:19:57.764162"
+  },
+  {
+    "id": 2868,
+    "user_id": "1",
+    "action": "dashboard.view",
+    "resource": "dashboard",
+    "resource_id": null,
+    "status": "success",
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+    "request_method": "GET",
+    "request_path": "/api/v1/dashboard/stats",
+    "session_id": "942c38fa-66e4-4e60-9992-7785aca359f3",
+    "timestamp": "2026-01-17T21:24:57.675511"
   }
 ]
