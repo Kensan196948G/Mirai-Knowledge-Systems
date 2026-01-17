@@ -648,6 +648,83 @@ async function loadNotifications() {
 }
 
 // ============================================================
+// 空データ表示（本番環境用）
+// ============================================================
+
+/**
+ * 空データ状態を表示するヘルパー関数
+ * 本番環境でデータがない場合に「○○データなし」メッセージを表示
+ *
+ * @param {HTMLElement} container - 表示先のコンテナ要素
+ * @param {string} dataType - データの種類（ナレッジ、SOP、事故レポート等）
+ * @param {string} [icon='📭'] - 表示するアイコン
+ */
+function showEmptyState(container, dataType, icon = '📭') {
+  if (!container) return;
+
+  // コンテナをクリア
+  container.textContent = '';
+
+  // 空状態メッセージを作成
+  const emptyState = createElement('div', { className: 'empty-state' }, []);
+  emptyState.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: #64748b;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+  `;
+
+  // アイコン
+  const iconEl = createElement('div', { className: 'empty-state-icon' }, [icon]);
+  iconEl.style.cssText = 'font-size: 48px; margin-bottom: 16px; opacity: 0.6;';
+  emptyState.appendChild(iconEl);
+
+  // メッセージ
+  const messageEl = createElement('div', { className: 'empty-state-message' }, [
+    `${dataType}データなし`
+  ]);
+  messageEl.style.cssText = 'font-size: 16px; font-weight: 500; margin-bottom: 8px;';
+  emptyState.appendChild(messageEl);
+
+  // 補足説明（本番環境のみ）
+  if (IS_PRODUCTION) {
+    const hintEl = createElement('div', { className: 'empty-state-hint' }, [
+      'データが登録されていません。'
+    ]);
+    hintEl.style.cssText = 'font-size: 14px; color: #94a3b8;';
+    emptyState.appendChild(hintEl);
+  }
+
+  container.appendChild(emptyState);
+}
+
+/**
+ * データがあるかどうかをチェックし、なければ空状態を表示
+ * @param {Array} data - チェックするデータ配列
+ * @param {HTMLElement} container - 表示先のコンテナ
+ * @param {string} dataType - データの種類
+ * @returns {boolean} - データがある場合はtrue
+ */
+function checkAndShowEmptyState(data, container, dataType) {
+  if (!data || data.length === 0) {
+    // 本番環境では空状態を表示
+    if (IS_PRODUCTION) {
+      showEmptyState(container, dataType);
+      return false;
+    }
+    // 開発環境ではサンプルデータ表示のためtrueを返す（既存のダミーデータを維持）
+    return true;
+  }
+  return true;
+}
+
+// ============================================================
 // データ表示関数
 // ============================================================
 
@@ -695,6 +772,11 @@ function displayKnowledge(knowledgeList) {
 
   // パネルをクリア（XSS対策）
   panel.textContent = '';
+
+  // 空データチェック（本番環境で空の場合は「ナレッジデータなし」を表示）
+  if (!checkAndShowEmptyState(knowledgeList, panel, 'ナレッジ')) {
+    return;
+  }
 
   // 各ナレッジカードを安全に作成
   knowledgeList.forEach(k => {
@@ -773,6 +855,11 @@ function displaySOPs(sopList) {
   // パネルをクリア（XSS対策）
   panel.textContent = '';
 
+  // 空データチェック（本番環境で空の場合は「標準作業手順書データなし」を表示）
+  if (!checkAndShowEmptyState(sopList, panel, '標準作業手順書')) {
+    return;
+  }
+
   // 各SOPカードを安全に作成
   sopList.forEach(sop => {
     const card = createElement('div', {className: 'knowledge-card'}, []);
@@ -819,6 +906,11 @@ function displayIncidents(incidentList) {
   // パネルをクリア（XSS対策）
   panel.textContent = '';
 
+  // 空データチェック（本番環境で空の場合は「事故・ヒヤリハットデータなし」を表示）
+  if (!checkAndShowEmptyState(incidentList, panel, '事故・ヒヤリハット')) {
+    return;
+  }
+
   // 各事故レポートカードを安全に作成
   incidentList.forEach(incident => {
     const card = createElement('div', {className: 'knowledge-card'}, []);
@@ -861,6 +953,11 @@ function displayIncidents(incidentList) {
 function displayApprovals(approvalList) {
   const flowContainer = document.querySelector('.flow');
   if (!flowContainer) return;
+
+  // 空データチェック（本番環境で空の場合は「承認待ちデータなし」を表示）
+  if (!checkAndShowEmptyState(approvalList, flowContainer, '承認待ち')) {
+    return;
+  }
 
   const statusBadgeClass = {
     'pending': 'is-wait',
