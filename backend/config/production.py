@@ -29,12 +29,12 @@ class ProductionConfig:
 
     # 秘密鍵（必須: 環境変数から取得）
     SECRET_KEY = os.environ.get('MKS_SECRET_KEY')
-    if not SECRET_KEY:
+    if os.environ.get('MKS_ENV', 'development').lower() == 'production' and not SECRET_KEY:
         raise ValueError("MKS_SECRET_KEY environment variable is required in production")
 
     # JWT設定
     JWT_SECRET_KEY = os.environ.get('MKS_JWT_SECRET_KEY')
-    if not JWT_SECRET_KEY:
+    if os.environ.get('MKS_ENV', 'development').lower() == 'production' and not JWT_SECRET_KEY:
         raise ValueError("MKS_JWT_SECRET_KEY environment variable is required in production")
 
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(
@@ -104,7 +104,7 @@ class ProductionConfig:
 
     # 許可オリジン（環境変数から取得）
     CORS_ORIGINS = os.environ.get('MKS_CORS_ORIGINS', '').split(',')
-    if not CORS_ORIGINS or CORS_ORIGINS == ['']:
+    if os.environ.get('MKS_ENV', 'development').lower() == 'production' and (not CORS_ORIGINS or CORS_ORIGINS == ['']):
         raise ValueError("MKS_CORS_ORIGINS environment variable is required in production")
 
     CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
@@ -197,7 +197,14 @@ class DevelopmentConfig:
     TRUST_PROXY_HEADERS = False
     HSTS_ENABLED = False
 
-    CORS_ORIGINS = ['http://localhost:5000', 'http://127.0.0.1:5000']
+    CORS_ORIGINS = [
+        'http://localhost:5000',
+        'http://127.0.0.1:5000',
+        'http://localhost:5100',
+        'http://127.0.0.1:5100',
+        'http://192.168.0.187:5100',
+        'https://192.168.0.187:8445'
+    ]
 
     RATELIMIT_ENABLED = True
     RATELIMIT_DEFAULT = "1000 per hour"

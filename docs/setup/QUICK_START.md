@@ -9,7 +9,7 @@
 ## ✅ 現在の状態
 
 - ✅ PostgreSQL 16.11 稼働中
-- ✅ Nginx 稼働中（HTTPS port 8443）
+- ✅ Nginx 稼働中（HTTPS port 8445）
 - ✅ Flask API 手動起動中（port 5100）
 - ✅ gunicorn インストール済み
 - ✅ systemdサービスファイル準備済み
@@ -45,7 +45,7 @@ sudo systemctl status mirai-knowledge-system
 
 ```bash
 # ヘルスチェック
-curl -k https://localhost:8443/api/v1/health | jq .
+curl -k https://localhost:8445/api/v1/health | jq .
 
 # アプリケーション統計
 curl http://localhost:5100/api/v1/health | jq .

@@ -27,11 +27,16 @@ MANIFEST
 .venv/
 venv/
 venv_linux/
+venv_linux_new/
+venv_linux_old/
+venv_windows/
 ENV/
 env/
 
-# Node.js
+# Node.js (Cross-platform)
 node_modules/
+node_modules.windows/
+node_modules.linux/
 npm-debug.log
 yarn-error.log
 
@@ -48,6 +53,12 @@ yarn-error.log
 .env.local
 .env.*.local
 .env.mcp
+
+# Cross-platform Environment Files (keep templates, ignore actual configs)
+envs/production/.env.production
+envs/development/.env.development
+!envs/production/.env.production.example
+!envs/development/.env.development.example
 
 # Claude Code (API keys in settings.local.json)
 .claude/settings.local.json

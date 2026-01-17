@@ -3,14 +3,25 @@
 // ============================================================
 
 /**
+ * 環境ポート番号定義（固定 - 変更不可）
+ * 開発環境: HTTP 5100, HTTPS 5443
+ * 本番環境: HTTP 8100, HTTPS 8443
+ */
+const ENV_PORTS = {
+  development: { http: 5100, https: 5443 },
+  production: { http: 8100, https: 8443 }
+};
+
+/**
  * 本番環境フラグ
  * true: 本番環境（ダミーデータを表示しない、APIからデータ取得）
  * false: 開発環境（ダミーデータを表示、開発用データ使用）
  *
- * 本番環境では以下の方法で切り替え:
+ * 本番環境では以下の方法で切り替え（優先順位順）:
  * 1. URLパラメータ: ?env=production
  * 2. localStorage: localStorage.setItem('MKS_ENV', 'production')
- * 3. ホスト名が localhost/127.0.0.1 以外の場合は自動的に本番モード
+ * 3. ポート番号: 8100/8443 = 本番、5100/5443 = 開発
+ * 4. ホスト名: localhost/127.0.0.1 以外は本番モード
  */
 const IS_PRODUCTION = (() => {
   // URLパラメータをチェック
@@ -23,6 +34,15 @@ const IS_PRODUCTION = (() => {
   if (envSetting === 'production') return true;
   if (envSetting === 'development') return false;
 
+  // ポート番号で判定（最も信頼性が高い）
+  const port = parseInt(window.location.port || (window.location.protocol === 'https:' ? '443' : '80'));
+  if (port === ENV_PORTS.production.http || port === ENV_PORTS.production.https) {
+    return true;
+  }
+  if (port === ENV_PORTS.development.http || port === ENV_PORTS.development.https) {
+    return false;
+  }
+
   // ホスト名で判定（localhost以外は本番）
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -32,6 +52,25 @@ const IS_PRODUCTION = (() => {
   // デフォルトは開発環境
   return false;
 })();
+
+/**
+ * 現在の環境名を取得
+ */
+const ENV_NAME = IS_PRODUCTION ? '本番' : '開発';
+
+/**
+ * ブックマークタイトルの設定
+ * 環境名をタイトルに含めて識別しやすくする
+ */
+const BASE_TITLE = 'Mirai Knowledge Systems';
+document.title = `[${ENV_NAME}] ${BASE_TITLE}`;
+
+// グローバルに環境情報を公開
+window.MKS_ENV = {
+  isProduction: IS_PRODUCTION,
+  envName: ENV_NAME,
+  ports: ENV_PORTS
+};
 
 // ============================================================
 // セキュアロガー（本番環境ではログ出力を抑制）
@@ -52,7 +91,9 @@ const logger = {
 // グローバルに公開（他のファイルからも使用可能）
 window.logger = logger;
 
-logger.log('[ENV] 環境モード:', IS_PRODUCTION ? '本番' : '開発');
+logger.log(`[ENV] 環境モード: ${ENV_NAME}`);
+logger.log(`[ENV] ポート: ${window.location.port || 'default'}`);
+logger.log(`[ENV] タイトル: ${document.title}`);
 
 // ============================================================
 // 認証管理

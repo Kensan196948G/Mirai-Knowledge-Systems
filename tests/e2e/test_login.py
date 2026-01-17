@@ -27,9 +27,9 @@ test('login with invalid credentials', async ({ page }) => {
   await page.fill('#password', 'wrong');
 
   // ログインボタンをクリック
-  await page.click('#login-button');
+  await page.click('#loginButton');
 
   // エラーメッセージが表示されることを確認
-  await expect(page.locator('.error-message')).toBeVisible();
-  await expect(page.locator('.error-message')).toContainText('Invalid username or password');
+  await expect(page.locator('#loginAlert')).toBeVisible();
+  await expect(page.locator('#loginAlert')).toContainText('Invalid username or password');
 });

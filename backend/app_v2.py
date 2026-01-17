@@ -3929,20 +3929,29 @@ if __name__ == "__main__":
     else:
         print("[DEVELOPMENT] 開発環境設定が有効です")
 
-    # デモユーザー初期化
-    init_demo_users()
+    # デモユーザー初期化（開発環境のみ or 環境変数で明示的に有効化）
+    create_demo_users = os.environ.get("MKS_CREATE_DEMO_USERS", "true" if not IS_PRODUCTION else "false").lower() in ("true", "1", "yes")
+    if create_demo_users:
+        init_demo_users()
+    else:
+        print("[PRODUCTION] デモユーザー作成をスキップ（MKS_CREATE_DEMO_USERS=false）")
+
+    # ポート番号を環境変数から取得（固定値: 開発5100、本番8100）
+    http_port = int(os.environ.get("MKS_HTTP_PORT", "5100"))
 
     protocol = (
         "https"
         if os.environ.get("MKS_FORCE_HTTPS", "false").lower() in ("true", "1", "yes")
         else "http"
     )
-    print(f"アクセスURL: {protocol}://localhost:5100")
+    print(f"アクセスURL: {protocol}://localhost:{http_port}")
+    print(f"環境: {os.environ.get('MKS_ENV', 'development')}")
+    print(f"ポート: HTTP={http_port}")
     print("=" * 60)
 
     debug = os.environ.get("MKS_DEBUG", "false").lower() in ("1", "true", "yes")
     # WebSocketサポートのためsocketio.runを使用
-    socketio.run(app, host="0.0.0.0", port=5100, debug=debug, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=http_port, debug=debug, allow_unsafe_werkzeug=True)
 
 
 # ============================================================

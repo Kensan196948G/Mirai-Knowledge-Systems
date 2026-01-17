@@ -2,15 +2,16 @@
 ナレッジ検索フローのE2Eテスト
 検索から詳細表示までの一連の流れをテスト
 """
+
 import pytest
 from playwright.sync_api import Page, expect
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
-def login(page: Page, base_url: str, username='admin', password='admin123'):
+def login(page: Page, base_url: str, username="admin", password="admin123"):
     """ログインヘルパー関数"""
     page.goto(f"{base_url}/login.html")
     page.fill('input[name="username"]', username)
@@ -31,8 +32,8 @@ class TestKnowledgeSearch:
             'input[type="search"]',
             'input[name="search"]',
             'input[placeholder*="検索"]',
-            '.search-input',
-            '#search-input'
+            ".search-input",
+            "#search-input",
         ]
 
         found = False
@@ -49,12 +50,29 @@ class TestKnowledgeSearch:
         """キーワード検索で結果が表示される"""
         login(page, base_url)
 
+        # 検索モーダルを開く
+        search_trigger_selectors = [
+            'a:has-text("ナレッジ検索")',
+            'button[title="高度な検索"]',
+            '.icon-button[title="高度な検索"]',
+        ]
+
+        for trigger_selector in search_trigger_selectors:
+            if page.locator(trigger_selector).count() > 0:
+                page.click(trigger_selector)
+                break
+        else:
+            pytest.skip("検索モーダルを開くトリガーが見つかりません")
+
+        # 検索モーダルが開くまで待つ
+        page.wait_for_timeout(500)
+
         # 検索ボックスを探す
         search_selectors = [
             'input[type="search"]',
             'input[name="search"]',
             'input[placeholder*="検索"]',
-            '.search-input'
+            ".search-input",
         ]
 
         search_input = None
@@ -67,13 +85,13 @@ class TestKnowledgeSearch:
             pytest.skip("検索ボックスが見つかりません")
 
         # 検索実行
-        search_input.fill('安全')
+        search_input.fill("安全")
 
         # 検索ボタンをクリック（存在する場合）
         search_button_selectors = [
             'button[type="submit"]',
-            '.search-btn',
-            'button:has-text("検索")'
+            ".search-btn",
+            'button:has-text("検索")',
         ]
 
         for btn_selector in search_button_selectors:
@@ -82,17 +100,17 @@ class TestKnowledgeSearch:
                 break
         else:
             # ボタンがない場合はEnterキーを押す
-            search_input.press('Enter')
+            search_input.press("Enter")
 
         # 検索結果が表示されるまで待つ
         page.wait_for_timeout(1000)
 
         # 検索結果エリアの確認
         result_selectors = [
-            '.search-results',
-            '.results',
-            '.knowledge-list',
-            '[data-component="search-results"]'
+            ".search-results",
+            ".results",
+            ".knowledge-list",
+            '[data-component="search-results"]',
         ]
 
         found_results = False
@@ -113,7 +131,7 @@ class TestKnowledgeSearch:
         search_selectors = [
             'input[type="search"]',
             'input[name="search"]',
-            '.search-input'
+            ".search-input",
         ]
 
         search_input = None
@@ -126,12 +144,12 @@ class TestKnowledgeSearch:
             pytest.skip("検索ボックスが見つかりません")
 
         # 存在しないキーワードで検索
-        search_input.fill('存在しない検索ワード12345xyz')
+        search_input.fill("存在しない検索ワード12345xyz")
 
         search_button_selectors = [
             'button[type="submit"]',
-            '.search-btn',
-            'button:has-text("検索")'
+            ".search-btn",
+            'button:has-text("検索")',
         ]
 
         for btn_selector in search_button_selectors:
@@ -139,7 +157,7 @@ class TestKnowledgeSearch:
                 page.click(btn_selector)
                 break
         else:
-            search_input.press('Enter')
+            search_input.press("Enter")
 
         page.wait_for_timeout(1000)
 
@@ -147,8 +165,8 @@ class TestKnowledgeSearch:
         no_result_selectors = [
             ':has-text("結果が見つかりません")',
             ':has-text("該当するナレッジはありません")',
-            '.no-results',
-            '.empty-state'
+            ".no-results",
+            ".empty-state",
         ]
 
         # いずれかのメッセージが表示されればOK
@@ -174,7 +192,7 @@ class TestKnowledgeDetailView:
         search_selectors = [
             'input[type="search"]',
             'input[name="search"]',
-            '.search-input'
+            ".search-input",
         ]
 
         search_input = None
@@ -186,16 +204,16 @@ class TestKnowledgeDetailView:
         if not search_input:
             pytest.skip("検索ボックスが見つかりません")
 
-        search_input.fill('施工')
-        search_input.press('Enter')
+        search_input.fill("施工")
+        search_input.press("Enter")
         page.wait_for_timeout(1000)
 
         # 検索結果の最初の項目をクリック
         result_item_selectors = [
-            '.search-results .result-item:first-child',
-            '.results-list .item:first-child',
-            '.knowledge-list .knowledge-item:first-child',
-            'a[href*="detail"]'
+            ".search-results .result-item:first-child",
+            ".results-list .item:first-child",
+            ".knowledge-list .knowledge-item:first-child",
+            'a[href*="detail"]',
         ]
 
         clicked = False
@@ -213,10 +231,10 @@ class TestKnowledgeDetailView:
         # 詳細ページに遷移したことを確認
         # URLパターンまたは詳細コンテンツの存在を確認
         detail_indicators = [
-            '.detail-content',
-            '.knowledge-detail',
+            ".detail-content",
+            ".knowledge-detail",
             '[data-component="detail"]',
-            'article'
+            "article",
         ]
 
         found_detail = False
@@ -239,7 +257,7 @@ class TestKnowledgeDetailView:
         detail_urls = [
             f"{base_url}/search-detail.html?id=1",
             f"{base_url}/knowledge/1",
-            f"{base_url}/detail.html?id=1"
+            f"{base_url}/detail.html?id=1",
         ]
 
         page_loaded = False
@@ -256,11 +274,11 @@ class TestKnowledgeDetailView:
 
         # コンテンツエリアの確認
         content_selectors = [
-            '.content',
-            '.knowledge-content',
-            'article',
-            '.detail-content',
-            'main'
+            ".content",
+            ".knowledge-content",
+            "article",
+            ".detail-content",
+            "main",
         ]
 
         found_content = False
@@ -283,8 +301,8 @@ class TestSearchFiltering:
         # カテゴリフィルタの確認
         category_selectors = [
             'select[name="category"]',
-            '#category-filter',
-            '.category-select'
+            "#category-filter",
+            ".category-select",
         ]
 
         category_filter = None
@@ -311,9 +329,9 @@ class TestSearchFiltering:
         # タグフィルタの確認
         tag_selectors = [
             'select[name="tags"]',
-            '#tag-filter',
-            '.tag-select',
-            'input[name="tags"]'
+            "#tag-filter",
+            ".tag-select",
+            'input[name="tags"]',
         ]
 
         tag_filter = None
@@ -326,8 +344,8 @@ class TestSearchFiltering:
             pytest.skip("タグフィルタが見つかりません")
 
         # タグを選択または入力
-        if tag_filter.get_attribute('type') == 'text':
-            tag_filter.fill('安全')
+        if tag_filter.get_attribute("type") == "text":
+            tag_filter.fill("安全")
         else:
             tag_filter.select_option(index=1)
 
@@ -347,7 +365,7 @@ class TestSearchPerformance:
         search_selectors = [
             'input[type="search"]',
             'input[name="search"]',
-            '.search-input'
+            ".search-input",
         ]
 
         search_input = None
@@ -361,10 +379,11 @@ class TestSearchPerformance:
 
         # 検索実行と時間測定
         import time
+
         start_time = time.time()
 
-        search_input.fill('検索')
-        search_input.press('Enter')
+        search_input.fill("検索")
+        search_input.press("Enter")
 
         # 結果が表示されるまで待つ（最大3秒）
         page.wait_for_timeout(1000)

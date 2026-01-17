@@ -13,7 +13,7 @@ module.exports = defineConfig({
     ['json', { outputFile: 'tests/reports/test-results.json' }]
   ],
   use: {
-    baseURL: 'http://localhost:5000',
+    baseURL: 'http://localhost:5100',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure'

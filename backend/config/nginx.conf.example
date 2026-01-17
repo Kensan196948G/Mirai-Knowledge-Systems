@@ -44,14 +44,14 @@ server {
 
     # その他全てのリクエストをHTTPSにリダイレクト
     location / {
-        return 301 https://$host$request_uri;
+        return 301 https://$host:8445$request_uri;
     }
 }
 
 # HTTPS設定
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 8445 ssl http2;
+    listen [::]:8445 ssl http2;
     server_name api.example.com;
 
     # ==========================================================

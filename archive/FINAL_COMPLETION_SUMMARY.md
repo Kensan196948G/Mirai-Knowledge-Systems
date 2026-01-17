@@ -94,7 +94,7 @@
 |--------------|------|------|
 | systemd | ✅ 稼働 | 自動起動有効 |
 | gunicorn | ✅ 稼働 | 34ワーカー、port 5100 |
-| Nginx | ✅ 稼働 | HTTPS port 8443 |
+| Nginx | ✅ 稼働 | HTTPS port 8445 |
 | PostgreSQL | ✅ 稼働 | v16.11、10接続プール |
 
 ### データベース
@@ -139,7 +139,7 @@ cd backend && pytest tests/ -v
 ### ブラウザで確認
 
 ```
-https://192.168.0.187:8443/login.html
+https://192.168.0.187:8445/login.html
 ```
 
 1. ログイン（admin / admin123）
@@ -438,10 +438,10 @@ sudo systemctl status mirai-knowledge-prod
 
 ```bash
 # ヘルスチェック
-curl -s https://192.168.0.187:8443/api/v1/health | python3 -m json.tool
+curl -s https://192.168.0.187:8445/api/v1/health | python3 -m json.tool
 
 # ブラウザで確認
-# https://192.168.0.187:8443/
+# https://192.168.0.187:8445/
 ```
 
 ### ステップ3: テスト実行

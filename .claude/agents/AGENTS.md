@@ -1,3 +1,9 @@
+---
+name: agents-reference
+description: SubAgent公式名簿 - 7つの専門SubAgentの役割定義と起動原則
+icon: 🤖
+---
+
 # 🤖 Mirai Knowledge Systems - SubAgent公式名簿
 
 **作成日**: 2026-01-12

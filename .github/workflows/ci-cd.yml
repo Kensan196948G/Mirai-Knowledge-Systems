@@ -284,11 +284,16 @@ jobs:
   # ========================================
   # Job 5: Security Scan
   # ========================================
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
+   security-scan:
+     name: Security Scan
+     runs-on: ubuntu-latest
+     needs: lint
+     steps:
+       - name: Cache security tools
+         uses: actions/cache@v3
+         with:
+           path: ~/.cache/security-tools
+           key: ${{ runner.os }}-security-tools-${{ hashFiles('**/requirements.txt') }}
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -320,15 +325,25 @@ jobs:
   # ========================================
   # Job 6: Build & Deploy (Development)
   # ========================================
-  deploy-development:
-    name: Deploy to Development
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, e2e-tests]
-    if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
-    environment:
-      name: development
-      url: http://localhost:5100
-    steps:
+   deploy-development:
+     name: Deploy to Development
+     runs-on: ubuntu-latest
+     needs: [unit-tests, integration-tests, e2e-tests]
+     if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
+     environment:
+       name: development
+       url: http://localhost:5100
+     steps:
+       - name: Cache dependencies
+         uses: actions/cache@v3
+         with:
+           path: |
+             ~/.npm
+             ~/.cache/pip
+             backend/venv_linux/
+           key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json', '**/requirements.txt') }}
+           restore-keys: |
+             ${{ runner.os }}-deps-
       - name: Checkout repository
         uses: actions/checkout@v4
 

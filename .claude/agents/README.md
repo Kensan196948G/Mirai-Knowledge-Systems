@@ -1,3 +1,9 @@
+---
+name: subagent-guide
+description: SubAgent即応システム運用ガイド - AI組織運用の実践マニュアル
+icon: 🚀
+---
+
 # 🤖 SubAgent即応システム - 運用ガイド
 
 **プロジェクト**: Mirai Knowledge Systems

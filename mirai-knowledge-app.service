@@ -1,0 +1,19 @@
+[Unit]
+Description=Mirai Knowledge Systems Flask Application
+After=network.target
+
+[Service]
+Type=simple
+User=kensan
+WorkingDirectory=/mnt/LinuxHDD/Mirai-Knowledge-Systems
+ExecStart=/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin/python /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/app_v2.py
+Restart=always
+RestartSec=5
+Environment=MKS_ENV=production
+Environment=MKS_USE_POSTGRESQL=true
+Environment=MKS_SECRET_KEY=prod-secret-key-2026
+Environment=MKS_JWT_SECRET_KEY=prod-jwt-secret-key-2026
+Environment=MKS_CORS_ORIGINS=https://192.168.0.187:8445
+
+[Install]
+WantedBy=multi-user.target

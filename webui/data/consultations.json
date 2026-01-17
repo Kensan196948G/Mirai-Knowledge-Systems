@@ -1,0 +1,73 @@
+[
+  {
+    "id": 1,
+    "title": "コンクリート打設時の養生期間について",
+    "question": "現場の気温が低い中でのコンクリート打設を予定しています。通常の養生期間は7日間ですが、低温環境下での最適な養生期間と対策方法について教えてください。",
+    "category": "技術相談",
+    "priority": "高",
+    "status": "answered",
+    "requester_id": 3,
+    "requester": "現場太郎",
+    "expert_id": 5,
+    "expert": "技術顧問 山田",
+    "project": "現場12",
+    "tags": [
+      "コンクリート",
+      "養生",
+      "低温対策"
+    ],
+    "views": 47,
+    "follower_count": 8,
+    "created_at": "2026-01-10T09:30:00Z",
+    "updated_at": "2026-01-11T14:20:00Z",
+    "answered_at": "2026-01-11T14:20:00Z"
+  },
+  {
+    "id": 2,
+    "title": "足場点検チェックリストの運用方法",
+    "question": "新しい安全基準に基づいた足場点検チェックリストの運用を開始したいのですが、具体的な点検頻度と記録保管方法について推奨される方法を教えてください。",
+    "category": "品質管理",
+    "priority": "通常",
+    "status": "pending",
+    "requester_id": 4,
+    "requester": "安全太郎",
+    "expert_id": null,
+    "expert": null,
+    "project": "現場08",
+    "tags": [
+      "足場",
+      "点検",
+      "安全管理",
+      "チェックリスト"
+    ],
+    "views": 23,
+    "follower_count": 5,
+    "created_at": "2026-01-11T10:15:00Z",
+    "updated_at": "2026-01-11T10:15:00Z",
+    "answered_at": null
+  },
+  {
+    "id": 3,
+    "title": "建設業法改正に伴う書類作成の変更点",
+    "question": "2026年1月から施行された建設業法の改正により、契約書類の記載事項が変更されたと聞きました。具体的にどの項目が追加・変更されたのか、また既存の契約への影響について教えてください。",
+    "category": "法令規格",
+    "priority": "緊急",
+    "status": "answered",
+    "requester_id": 6,
+    "requester": "管理花子",
+    "expert_id": 7,
+    "expert": "法務担当 佐藤",
+    "project": "本社",
+    "tags": [
+      "建設業法",
+      "法改正",
+      "契約書類",
+      "コンプライアンス"
+    ],
+    "views": 67,
+    "follower_count": 15,
+    "created_at": "2026-01-08T08:00:00Z",
+    "updated_at": "2026-01-09T16:45:00Z",
+    "answered_at": "2026-01-09T16:45:00Z"
+  }
+]

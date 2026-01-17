@@ -9,7 +9,7 @@ Mirai Knowledge Systemを本番環境にデプロイする前の最終確認チ�
 ### インフラストラクチャ
 
 - ✅ **PostgreSQL 16.11** インストール・稼働中
-- ✅ **Nginx** インストール・設定完了（port 8080 → 8443リダイレクト）
+- ✅ **Nginx** インストール・設定完了（port 8080 → 8445リダイレクト）
 - ✅ **SSL/TLS証明書** 配置完了（/etc/ssl/mks/）
 - ✅ **gunicorn 23.0.0** インストール済み
 - ✅ **systemdサービスファイル** 準備完了
@@ -104,7 +104,7 @@ ls -la /etc/ssl/mks/mks.key
 
 ```nginx
 server {
-    listen 8443 ssl http2;
+    listen 8445 ssl http2;
     server_name _;
 
     ssl_certificate /etc/ssl/mks/mks.crt;
@@ -175,12 +175,12 @@ grep "log" backend/gunicorn.conf.py
 ### 5. ファイアウォール設定
 
 ```bash
-# UFWでHTTPS（8443）を許可
-sudo ufw allow 8443/tcp
+# UFWでHTTPS（8445）を許可
+sudo ufw allow 8445/tcp
 sudo ufw status
 
 # または iptables
-sudo iptables -A INPUT -p tcp --dport 8443 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 8445 -j ACCEPT
 ```
 
 ### 6. バックアップ設定確認
@@ -327,23 +327,23 @@ sudo systemctl restart mirai-knowledge-prod
 
 # 5. 状態確認
 sudo systemctl status mirai-knowledge-prod
-curl -k https://localhost:8443/api/v1/health
+curl -k https://localhost:8445/api/v1/health
 ```
 
 ### 3. 動作確認
 
 ```bash
 # ヘルスチェック
-curl -k https://localhost:8443/api/v1/health | jq .
+curl -k https://localhost:8445/api/v1/health | jq .
 
 # ログイン動作確認
-curl -k -X POST https://localhost:8443/api/v1/auth/login \
+curl -k -X POST https://localhost:8445/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}'
 
 # ダッシュボード統計取得
 curl -k -H "Authorization: Bearer <TOKEN>" \
-  https://localhost:8443/api/v1/dashboard/stats
+  https://localhost:8445/api/v1/dashboard/stats
 ```
 
 ## ⚠️ トラブルシューティング

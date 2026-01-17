@@ -240,7 +240,7 @@ Mirai Knowledge Systemsの本番環境への移行準備が完了しました。
 |--------------|------|----------------|
 | **systemd** | ✅ 稼働中 | mirai-knowledge-prod.service |
 | **gunicorn** | ✅ 稼働中 | 34ワーカープロセス、port 5100 |
-| **Nginx** | ✅ 稼働中 | port 8443（HTTPS）、SSL/TLS設定済み |
+| **Nginx** | ✅ 稼働中 | port 8445（HTTPS）、SSL/TLS設定済み |
 | **PostgreSQL** | ✅ 稼働中 | version 16.11 |
 | **Flask API** | ✅ 稼働中 | version 2.0.0、production環境 |
 
@@ -250,7 +250,7 @@ Mirai Knowledge Systemsの本番環境への移行準備が完了しました。
 |------|------|------|
 | **ログイン** | ✅ 動作 | admin/yamada/partner + 3名 |
 | **JWT認証** | ✅ 動作 | トークン発行・検証 |
-| **HTTPS** | ✅ 動作 | port 8443、HTTP/2対応 |
+| **HTTPS** | ✅ 動作 | port 8445、HTTP/2対応 |
 | **CSP** | ✅ 設定済み | `'unsafe-inline'`許可 |
 | **セキュリティヘッダー** | ✅ 設定済み | 6種類のヘッダー |
 
@@ -521,7 +521,7 @@ sudo systemctl restart mirai-knowledge-prod
 curl -s http://localhost:5100/api/v1/health | python3 -m json.tool
 
 # 3. ブラウザで動作確認
-# https://192.168.0.187:8443/login.html
+# https://192.168.0.187:8445/login.html
 # ログイン後、ナレッジ一覧・詳細が表示されるか確認
 ```
 

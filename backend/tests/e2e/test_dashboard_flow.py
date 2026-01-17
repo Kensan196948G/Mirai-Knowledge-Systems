@@ -2,25 +2,26 @@
 ダッシュボードフローのE2Eテスト
 Playwrightを使用したブラウザテスト
 """
+
 import pytest
 from playwright.sync_api import Page, expect
 import os
 import sys
 
 # プロジェクトルートをパスに追加
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
-def login(page: Page, base_url: str, username='admin', password='admin123'):
+def login(page: Page, base_url: str, username="admin", password="admin123"):
     """ログインヘルパー関数（タイムアウト延長版）"""
     page.goto(f"{base_url}/login.html", timeout=10000)
-    page.wait_for_load_state('networkidle')  # ネットワーク安定待機
+    page.wait_for_load_state("networkidle")  # ネットワーク安定待機
     page.fill('input[name="username"]', username)
     page.fill('input[name="password"]', password)
     page.click('button[type="submit"]')
     # ダッシュボードへのリダイレクトを待つ（タイムアウト延長）
     page.wait_for_url(f"{base_url}/index.html", timeout=10000)
-    page.wait_for_load_state('networkidle')  # リダイレクト後も待機
+    page.wait_for_load_state("networkidle")  # リダイレクト後も待機
 
 
 class TestLoginToDashboard:
@@ -29,15 +30,15 @@ class TestLoginToDashboard:
     def test_successful_login_redirects_to_dashboard(self, page: Page, base_url):
         """ログイン成功後ダッシュボードへリダイレクト"""
         page.goto(f"{base_url}/login.html", timeout=10000)
-        page.wait_for_load_state('networkidle')
+        page.wait_for_load_state("networkidle")
 
         # ログインフォーム要素の確認
         expect(page.locator('input[name="username"]')).to_be_visible(timeout=10000)
         expect(page.locator('input[name="password"]')).to_be_visible(timeout=10000)
 
         # ログイン実行
-        page.fill('input[name="username"]', 'admin')
-        page.fill('input[name="password"]', 'admin123')
+        page.fill('input[name="username"]', "admin")
+        page.fill('input[name="password"]', "admin123")
         page.click('button[type="submit"]')
 
         # ダッシュボードへリダイレクト確認
@@ -46,16 +47,16 @@ class TestLoginToDashboard:
     def test_failed_login_shows_error_message(self, page: Page, base_url):
         """ログイン失敗時エラーメッセージ表示"""
         page.goto(f"{base_url}/login.html", timeout=10000)
-        page.wait_for_load_state('networkidle')
+        page.wait_for_load_state("networkidle")
 
         # 無効な認証情報でログイン
-        page.fill('input[name="username"]', 'admin')
-        page.fill('input[name="password"]', 'wrongpassword')
+        page.fill('input[name="username"]', "admin")
+        page.fill('input[name="password"]', "wrongpassword")
         page.click('button[type="submit"]')
 
         # エラーメッセージ表示確認（タイムアウト延長）
-        page.wait_for_load_state('networkidle')  # レスポンス待機
-        error_selector = '.error-message, .alert-danger, [role="alert"]'
+        page.wait_for_load_state("networkidle")  # レスポンス待機
+        error_selector = '#loginAlert, .error-message, .alert-danger, [role="alert"]'
         expect(page.locator(error_selector).first).to_be_visible(timeout=10000)
 
     def test_dashboard_displays_key_elements(self, page: Page, base_url):
@@ -65,12 +66,12 @@ class TestLoginToDashboard:
         # ダッシュボード要素の確認（存在する可能性のある要素）
         # 少なくとも1つは表示されるはず
         dashboard_elements = [
-            '.dashboard',
-            '#dashboard',
-            '.dashboard-stats',
-            '.knowledge-list',
-            '.main-content',
-            'main'
+            ".dashboard",
+            "#dashboard",
+            ".dashboard-stats",
+            ".knowledge-list",
+            ".main-content",
+            "main",
         ]
 
         found = False
@@ -94,7 +95,7 @@ class TestDashboardNavigation:
             'button:has-text("ログアウト")',
             'a:has-text("ログアウト")',
             '[data-action="logout"]',
-            '.logout-btn'
+            ".logout-btn",
         ]
 
         for selector in logout_selectors:
@@ -112,13 +113,7 @@ class TestDashboardNavigation:
         login(page, base_url)
 
         # ナビゲーションメニューの確認
-        nav_selectors = [
-            'nav',
-            '.navbar',
-            '.navigation',
-            '#nav-menu',
-            '.sidebar'
-        ]
+        nav_selectors = ["nav", ".navbar", ".navigation", "#nav-menu", ".sidebar"]
 
         found = False
         for selector in nav_selectors:
@@ -136,22 +131,22 @@ class TestDashboardContent:
     def test_dashboard_shows_statistics(self, page: Page, base_url):
         """ダッシュボードに統計情報が表示される"""
         login(page, base_url)
-        page.wait_for_load_state('domcontentloaded')  # DOM読み込み完了待機
+        page.wait_for_load_state("networkidle")  # ネットワーク安定待機
 
         # 統計情報エリアの確認（タイムアウト延長）
         stats_selectors = [
-            '.stats',
-            '.dashboard-stats',
-            '.statistics',
-            '.metrics',
-            '[data-component="stats"]'
+            ".stats",
+            ".dashboard-stats",
+            ".statistics",
+            ".metrics",
+            '[data-component="stats"]',
         ]
 
         found = False
         for selector in stats_selectors:
             try:
                 # 各セレクタで10秒待機
-                page.wait_for_selector(selector, state='visible', timeout=10000)
+                page.wait_for_selector(selector, state="visible", timeout=10000)
                 found = True
                 break
             except:
@@ -166,21 +161,21 @@ class TestDashboardContent:
     def test_dashboard_shows_recent_knowledge(self, page: Page, base_url):
         """ダッシュボードに最近のナレッジが表示される"""
         login(page, base_url)
-        page.wait_for_load_state('domcontentloaded')  # DOM読み込み完了待機
+        page.wait_for_load_state("networkidle")  # ネットワーク安定待機
 
         # ナレッジリストの確認（タイムアウト延長）
         knowledge_selectors = [
-            '.knowledge-list',
-            '.recent-knowledge',
+            ".knowledge-list",
+            ".recent-knowledge",
             '[data-component="knowledge-list"]',
-            '.items-list'
+            ".items-list",
         ]
 
         found = False
         for selector in knowledge_selectors:
             try:
                 # 各セレクタで10秒待機
-                page.wait_for_selector(selector, state='visible', timeout=10000)
+                page.wait_for_selector(selector, state="visible", timeout=10000)
                 found = True
                 break
             except:
@@ -201,7 +196,7 @@ class TestResponsiveDesign:
         page.set_viewport_size({"width": 375, "height": 667})
 
         login(page, base_url)
-        page.wait_for_load_state('networkidle')  # レンダリング完了待機
+        page.wait_for_load_state("networkidle")  # レンダリング完了待機
 
         # ページが正常に読み込まれることを確認（タイムアウト延長）
         expect(page).to_have_url(f"{base_url}/index.html", timeout=10000)
@@ -212,7 +207,7 @@ class TestResponsiveDesign:
         page.set_viewport_size({"width": 768, "height": 1024})
 
         login(page, base_url)
-        page.wait_for_load_state('networkidle')  # レンダリング完了待機
+        page.wait_for_load_state("networkidle")  # レンダリング完了待機
 
         # ページが正常に読み込まれることを確認（タイムアウト延長）
         expect(page).to_have_url(f"{base_url}/index.html", timeout=10000)

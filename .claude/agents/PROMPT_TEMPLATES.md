@@ -1,3 +1,9 @@
+---
+name: prompt-templates
+description: 即応型プロンプトテンプレート集 - SubAgent即起動用の実践テンプレート
+icon: 📝
+---
+
 # 📝 即応型プロンプトテンプレート集
 
 **作成日**: 2026-01-12
