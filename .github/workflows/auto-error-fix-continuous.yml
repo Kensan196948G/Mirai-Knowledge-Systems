@@ -5,6 +5,16 @@ on:
   schedule:
     - cron: '*/5 * * * *'  # 毎5分（無限ループシステム）
 
+  # 他のワークフロー完了時にトリガー（エラー検知用）
+  workflow_run:
+    workflows:
+      - "E2E Tests"
+      - "Backend CI"
+      - "Backend CI (Improved)"
+      - "Mirai Knowledge Systems CI/CD"
+    types:
+      - completed
+
   # 手動トリガー
   workflow_dispatch:
     inputs:
@@ -32,12 +42,62 @@ jobs:
       checks: write
       statuses: write
       issues: write  # Issueの作成に必要
+      actions: read  # ワークフロー状態の読み取りに必要
 
     steps:
       - name: チェックアウト
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: トリガー元ワークフロー状態確認
+        if: github.event_name == 'workflow_run'
+        id: check_trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowRun = context.payload?.workflow_run;
+            if (!workflowRun) {
+              core.setFailed('workflow_run情報がペイロードに見つかりません');
+              return;
+            }
+
+            console.log(`トリガー元: ${workflowRun.name}`);
+            console.log(`状態: ${workflowRun.conclusion}`);
+            console.log(`URL: ${workflowRun.html_url}`);
+
+            core.setOutput('workflow_name', workflowRun.name);
+            core.setOutput('workflow_conclusion', workflowRun.conclusion);
+            core.setOutput('workflow_url', workflowRun.html_url);
+            core.setOutput('workflow_run_id', workflowRun.id);
+
+            // ワークフローの結果に応じて処理
+            switch (workflowRun.conclusion) {
+              case 'failure':
+                core.warning(`ワークフロー "${workflowRun.name}" が失敗しました。自動修復を試行します。`);
+                return 'failure';
+              case 'success':
+                core.info(`ワークフロー "${workflowRun.name}" は成功しました。`);
+                return 'success';
+              case 'cancelled':
+                core.info(`ワークフロー "${workflowRun.name}" はキャンセルされました。`);
+                return 'cancelled';
+              case 'skipped':
+                core.info(`ワークフロー "${workflowRun.name}" はスキップされました。`);
+                return 'skipped';
+              case 'timed_out':
+                core.warning(`ワークフロー "${workflowRun.name}" はタイムアウトしました。`);
+                return 'timed_out';
+              case 'action_required':
+                core.warning(`ワークフロー "${workflowRun.name}" はアクションが必要です。`);
+                return 'action_required';
+              case 'neutral':
+                core.info(`ワークフロー "${workflowRun.name}" は中立的な結果です。`);
+                return 'neutral';
+              default:
+                core.warning(`ワークフロー "${workflowRun.name}" の結果が不明です: ${workflowRun.conclusion}`);
+                return workflowRun.conclusion;
+            }
 
       - name: Python環境セットアップ
         uses: actions/setup-python@v5
@@ -217,6 +277,24 @@ jobs:
           **実行日時:** $(date '+%Y-%m-%d %H:%M:%S UTC')
           **ワークフローRun:** #${{ github.run_number }}
           **コミット:** ${{ github.sha }}
+          **トリガー:** ${{ github.event_name }}
+          REPORT_EOF
+
+          # ワークフロートリガーの場合、トリガー元情報を追加
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            cat >> "$REPORT_FILE" << 'TRIGGER_EOF'
+
+          ## 🔔 トリガー元ワークフロー
+
+          | 項目 | 値 |
+          |------|-----|
+          | ワークフロー名 | ${{ steps.check_trigger.outputs.workflow_name }} |
+          | 実行結果 | ${{ steps.check_trigger.outputs.workflow_conclusion }} |
+          | URL | ${{ steps.check_trigger.outputs.workflow_url }} |
+          TRIGGER_EOF
+          fi
+
+          cat >> "$REPORT_FILE" << 'REPORT_EOF'
 
           ## 📊 実行結果
 
@@ -244,6 +322,9 @@ jobs:
             const errorCount = '${{ steps.error_fix_loop.outputs.error_count }}';
             const fixCount = '${{ steps.error_fix_loop.outputs.fix_count }}';
             const loopCount = '${{ steps.error_fix_loop.outputs.loop_count }}';
+            const eventName = '${{ github.event_name }}';
+            const workflowName = '${{ steps.check_trigger.outputs.workflow_name }}';
+            const workflowConclusion = '${{ steps.check_trigger.outputs.workflow_conclusion }}';
 
             // レポートファイルを読み込み
             let reportBody = '詳細ログは添付のアーティファクトを確認してください。';
@@ -254,12 +335,27 @@ jobs:
             }
 
             // Issueタイトル
-            const title = errorCount > 0
-              ? `[自動修復] エラー${errorCount}件検出・修復${fixCount}件実行 (${new Date().toISOString().split('T')[0]})`
-              : `[自動修復] 正常動作確認 (${new Date().toISOString().split('T')[0]})`;
+            const dateStr = new Date().toISOString().split('T')[0];
+
+            let title;
+            if (eventName === 'workflow_run' && (workflowConclusion === 'failure' || workflowConclusion === 'timed_out')) {
+              // ワークフロー名をサニタイズ（特殊文字をエスケープ）
+              const sanitizedWorkflowName = (workflowName || 'Unknown').replace(/[<>:"\/\\|?*]/g, '-');
+              title = `[自動修復] ${sanitizedWorkflowName} 失敗検知・修復試行 (${dateStr})`;
+            } else if (errorCount > 0) {
+              title = `[自動修復] エラー${errorCount}件検出・修復${fixCount}件実行 (${dateStr})`;
+            } else {
+              title = `[自動修復] 正常動作確認 (${dateStr})`;
+            }
 
             // Issueラベル
-            const labels = errorCount > 0 ? ['auto-fix', 'error-detected'] : ['auto-fix', 'healthy'];
+            let labels = errorCount > 0 ? ['auto-fix', 'error-detected'] : ['auto-fix', 'healthy'];
+            if (eventName === 'workflow_run') {
+              labels.push('workflow-triggered');
+              if (workflowConclusion === 'failure' || workflowConclusion === 'timed_out') {
+                labels.push('ci-failure');
+              }
+            }
 
             // Issue作成
             const issue = await github.rest.issues.create({
@@ -290,7 +386,7 @@ jobs:
           docker rm postgres redis || true
 
       - name: 次回実行までスリープ（オプション）
-        if: false  # 通常は無効（cronで30分後に再実行）
+        if: false  # 通常は無効（cronで5分後に再実行）
         run: |
-          echo "次回実行まで30分待機..."
-          sleep 1800
+          echo "次回実行まで5分待機..."
+          sleep 300
