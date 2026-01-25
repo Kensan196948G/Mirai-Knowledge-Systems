@@ -1,0 +1,359 @@
+# Prometheus Alert Rules for Mirai Knowledge Systems
+# Version: 1.0.0
+# Last Updated: 2026-01-09
+
+groups:
+  - name: mirai_knowledge_system_alerts
+    interval: 30s
+    rules:
+      # =============================================
+      # システムリソース監視
+      # =============================================
+
+      - alert: HighMemoryUsage
+        expr: mks_system_memory_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+          category: resource
+        annotations:
+          summary: "メモリ使用率が高い"
+          description: "メモリ使用率が90%を超えています (現在: {{ $value | humanizePercentage }})"
+          dashboard: "https://grafana.company.local/d/mirai-knowledge"
+          runbook: "https://docs.company.local/runbooks/high-memory"
+
+      - alert: CriticalMemoryUsage
+        expr: mks_system_memory_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+          category: resource
+        annotations:
+          summary: "⚠️ メモリ使用率が危険水準"
+          description: "メモリ使用率が95%を超えています (現在: {{ $value | humanizePercentage }})"
+          action: "不要なプロセスを停止するか、サーバーを再起動してください"
+
+      - alert: HighCPUUsage
+        expr: mks_system_cpu_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+          category: resource
+        annotations:
+          summary: "CPU使用率が高い"
+          description: "CPU使用率が80%を超えています (現在: {{ $value | humanizePercentage }})"
+          dashboard: "https://grafana.company.local/d/mirai-knowledge"
+
+      - alert: CriticalCPUUsage
+        expr: mks_system_cpu_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+          category: resource
+        annotations:
+          summary: "⚠️ CPU使用率が危険水準"
+          description: "CPU使用率が90%を超えています (現在: {{ $value | humanizePercentage }})"
+          action: "負荷の高いプロセスを特定し、最適化を検討してください"
+
+      - alert: DiskSpaceLow
+        expr: mks_system_disk_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+          category: storage
+        annotations:
+          summary: "ディスク容量が少ない"
+          description: "ディスク使用率が85%を超えています (現在: {{ $value | humanizePercentage }})"
+          action: "不要なログファイルやバックアップを削除してください"
+
+      - alert: DiskSpaceCritical
+        expr: mks_system_disk_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+          category: storage
+        annotations:
+          summary: "⚠️ ディスク容量が危機的"
+          description: "ディスク使用率が95%を超えています (現在: {{ $value | humanizePercentage }})"
+          action: "即座にディスク容量を確保してください。システムが停止する可能性があります"
+
+      # =============================================
+      # アプリケーション監視
+      # =============================================
+
+      - alert: HighErrorRate
+        expr: rate(mks_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: application
+          category: reliability
+        annotations:
+          summary: "エラー発生率が高い"
+          description: "エラー発生率が高くなっています (5分間の平均: {{ $value | humanize }}/秒)"
+          action: "ログを確認し、エラーの原因を特定してください"
+
+      - alert: SlowAPIResponse
+        expr: histogram_quantile(0.95, rate(mks_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+          category: performance
+        annotations:
+          summary: "API応答が遅い"
+          description: "API応答時間の95パーセンタイルが2秒を超えています (現在: {{ $value | humanizeDuration }})"
+          action: "スロークエリやN+1クエリを確認してください"
+
+      - alert: VerySlowAPIResponse
+        expr: histogram_quantile(0.95, rate(mks_http_request_duration_seconds_bucket[5m])) > 5
+        for: 3m
+        labels:
+          severity: critical
+          component: application
+          category: performance
+        annotations:
+          summary: "⚠️ API応答が非常に遅い"
+          description: "API応答時間の95パーセンタイルが5秒を超えています (現在: {{ $value | humanizeDuration }})"
+          action: "データベース接続やクエリのパフォーマンスを確認してください"
+
+      - alert: HighHTTP5xxRate
+        expr: rate(mks_http_requests_total{status=~"5.."}[5m]) / rate(mks_http_requests_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          component: application
+          category: reliability
+        annotations:
+          summary: "HTTP 5xxエラー率が高い"
+          description: "5xxエラーが全リクエストの5%を超えています (現在: {{ $value | humanizePercentage }})"
+          action: "アプリケーションログとスタックトレースを確認してください"
+
+      - alert: HighHTTP4xxRate
+        expr: rate(mks_http_requests_total{status=~"4.."}[5m]) / rate(mks_http_requests_total[5m]) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          component: application
+          category: reliability
+        annotations:
+          summary: "HTTP 4xxエラー率が高い"
+          description: "4xxエラーが全リクエストの20%を超えています (現在: {{ $value | humanizePercentage }})"
+          action: "認証エラーや不正なリクエストが増加していないか確認してください"
+
+      # =============================================
+      # データベース監視
+      # =============================================
+
+      - alert: DatabaseConnectionPoolHigh
+        expr: mks_database_connections > 8
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+          category: resource
+        annotations:
+          summary: "データベース接続プールが高い"
+          description: "データベース接続数が上限に近づいています (現在: {{ $value }}/10)"
+          action: "接続リークがないか確認してください"
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: mks_database_connections >= 10
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          category: resource
+        annotations:
+          summary: "⚠️ データベース接続プールが枯渇"
+          description: "データベース接続数が上限に到達しています ({{ $value }}/10)"
+          action: "即座に接続リークを調査し、必要に応じて接続プールサイズを増やしてください"
+
+      - alert: DatabaseQuerySlow
+        expr: histogram_quantile(0.95, rate(mks_database_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          category: performance
+        annotations:
+          summary: "データベースクエリが遅い"
+          description: "データベースクエリの95パーセンタイルが1秒を超えています (現在: {{ $value | humanizeDuration }})"
+          action: "スロークエリログを確認し、インデックスの最適化を検討してください"
+
+      - alert: DatabaseQueryVerySlow
+        expr: histogram_quantile(0.95, rate(mks_database_query_duration_seconds_bucket[5m])) > 3
+        for: 3m
+        labels:
+          severity: critical
+          component: database
+          category: performance
+        annotations:
+          summary: "⚠️ データベースクエリが非常に遅い"
+          description: "データベースクエリの95パーセンタイルが3秒を超えています (現在: {{ $value | humanizeDuration }})"
+          action: "データベースのロックやデッドロックを確認してください"
+
+      - alert: HighDatabaseErrorRate
+        expr: rate(mks_database_errors_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          component: database
+          category: reliability
+        annotations:
+          summary: "データベースエラー率が高い"
+          description: "データベースエラーが発生しています (5分間の平均: {{ $value | humanize }}/秒)"
+          action: "データベースログとPostgreSQLステータスを確認してください"
+
+      # =============================================
+      # サービス稼働監視
+      # =============================================
+
+      - alert: ServiceDown
+        expr: up{job="mirai-knowledge"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: service
+          category: availability
+        annotations:
+          summary: "⚠️ サービスが停止しています"
+          description: "Mirai Knowledge Systemsが応答しません"
+          action: "systemctl status mks-backend を実行し、サービスを再起動してください"
+
+      - alert: ServiceRestarted
+        expr: changes(process_start_time_seconds[5m]) > 0
+        for: 1m
+        labels:
+          severity: info
+          component: service
+          category: availability
+        annotations:
+          summary: "サービスが再起動されました"
+          description: "Mirai Knowledge Systemsが過去5分間に再起動されました"
+
+      - alert: HighRequestRate
+        expr: rate(mks_http_requests_total[1m]) > 100
+        for: 5m
+        labels:
+          severity: info
+          component: application
+          category: traffic
+        annotations:
+          summary: "リクエスト数が通常より多い"
+          description: "1分あたりのリクエスト数が100を超えています (現在: {{ $value | humanize }}/分)"
+          note: "DDoS攻撃や異常なトラフィックでない場合は、スケールアップを検討してください"
+
+      - alert: NoRequestsReceived
+        expr: rate(mks_http_requests_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: application
+          category: availability
+        annotations:
+          summary: "リクエストが受信されていません"
+          description: "過去10分間、HTTPリクエストがありません"
+          action: "ネットワーク設定やNginx/Gunicornの状態を確認してください"
+
+      # =============================================
+      # 認証・セキュリティ監視
+      # =============================================
+
+      - alert: HighLoginFailureRate
+        expr: rate(mks_login_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+          category: authentication
+        annotations:
+          summary: "ログイン失敗率が高い"
+          description: "ログイン失敗が頻発しています (5分間の平均: {{ $value | humanize }}/秒)"
+          action: "ブルートフォース攻撃の可能性があります。IPアドレスを確認してください"
+
+      - alert: SuspiciousLoginAttempts
+        expr: rate(mks_login_failures_total[1m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: security
+          category: authentication
+        annotations:
+          summary: "⚠️ 不審なログイン試行を検出"
+          description: "短時間に多数のログイン失敗が発生しています ({{ $value | humanize }}/秒)"
+          action: "即座にIPアドレスをブロックし、fail2banログを確認してください"
+
+      - alert: HighCSRFFailureRate
+        expr: rate(mks_csrf_failures_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+          category: csrf
+        annotations:
+          summary: "CSRF検証失敗が多い"
+          description: "CSRF検証失敗が発生しています (5分間の平均: {{ $value | humanize }}/秒)"
+          action: "クライアントアプリケーションのトークン処理を確認してください"
+
+      # =============================================
+      # ビジネスメトリクス監視
+      # =============================================
+
+      - alert: LowActiveUserCount
+        expr: mks_active_users < 1
+        for: 30m
+        labels:
+          severity: info
+          component: business
+          category: usage
+        annotations:
+          summary: "アクティブユーザーが少ない"
+          description: "過去30分間、アクティブユーザーが1人未満です"
+          note: "営業時間外や休日の場合は正常です"
+
+      - alert: SearchPerformanceDegraded
+        expr: histogram_quantile(0.95, rate(mks_search_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+          category: performance
+        annotations:
+          summary: "検索パフォーマンスが低下"
+          description: "検索処理の95パーセンタイルが5秒を超えています (現在: {{ $value | humanizeDuration }})"
+          action: "Elasticsearchインデックスの最適化や、データベースクエリのチューニングを検討してください"
+
+      # =============================================
+      # バックアップ監視
+      # =============================================
+
+      - alert: BackupNotRunning
+        expr: time() - mks_last_backup_timestamp > 86400
+        for: 1h
+        labels:
+          severity: warning
+          component: backup
+          category: data
+        annotations:
+          summary: "バックアップが実行されていません"
+          description: "最後のバックアップから24時間以上経過しています"
+          action: "バックアップスクリプトとcron設定を確認してください"
+
+      - alert: BackupFailed
+        expr: mks_backup_failures_total > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: backup
+          category: data
+        annotations:
+          summary: "⚠️ バックアップが失敗しました"
+          description: "バックアップ処理に失敗しています (失敗回数: {{ $value }})"
+          action: "バックアップログを確認し、ディスク容量やアクセス権限を確認してください"

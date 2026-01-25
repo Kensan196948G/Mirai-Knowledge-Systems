@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "password_hash": "$2b$12$./ZgnZGt52xUhFANhPZRdOJh6aKj8rq3qAdjnQ1/r/INC8pLehQWC",
+    "full_name": "管理者",
+    "department": "システム管理部",
+    "email": "admin@company.local",
+    "roles": [
+      "admin"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 2,
+    "username": "yamada",
+    "password_hash": "$2b$12$./ZgnZGt52xUhFANhPZRdOJh6aKj8rq3qAdjnQ1/r/INC8pLehQWC",
+    "full_name": "山田太郎",
+    "department": "施工管理",
+    "email": "yamada@company.local",
+    "roles": [
+      "construction_manager"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 3,
+    "username": "partner",
+    "password_hash": "$2b$12$./ZgnZGt52xUhFANhPZRdOJh6aKj8rq3qAdjnQ1/r/INC8pLehQWC",
+    "full_name": "協力会社ユーザー",
+    "department": "協力会社",
+    "email": "partner@partner.local",
+    "roles": [
+      "partner_company"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 4,
+    "username": "system_admin",
+    "password_hash": "$2b$12$sDnxUPgOGcrIhJ/eIJjmr.E.ceye0X3WG56xOGKOSZBt3vj.QKaT2",
+    "full_name": "システム管理者",
+    "department": "IT部門",
+    "email": "sysadmin@company.local",
+    "roles": [
+      "admin"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 5,
+    "username": "project_manager",
+    "password_hash": "$2b$12$06BgMdq1I89fjrrMtMJzF.7F.uKYCBZcOKX7hV.lZoavdy793of4S",
+    "full_name": "プロジェクト管理者",
+    "department": "建設部門",
+    "email": "pm@company.local",
+    "roles": [
+      "manager"
+    ],
+    "is_active": true
+  },
+  {
+    "id": 6,
+    "username": "engineer01",
+    "password_hash": "$2b$12$Dg0zCBSCZJCJcTTuGvwSeukeIQiJgHvULtefD75Y85IOd2.L6bKSK",
+    "full_name": "技術者01",
+    "department": "技術部門",
+    "email": "engineer01@company.local",
+    "roles": [
+      "engineer"
+    ],
+    "is_active": true
+  }
+]

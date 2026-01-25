@@ -1,0 +1,21 @@
+{
+  "name": "mirai-e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E compatibility tests for Mirai Knowledge System",
+  "scripts": {
+    "test": "playwright test",
+    "test:browsers": "playwright test compatibility/browsers.spec.js",
+    "test:responsive": "playwright test compatibility/responsive.spec.js",
+    "test:compatibility": "bash compatibility/run_compatibility_tests.sh",
+    "test:debug": "playwright test --debug",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "keywords": ["e2e", "playwright", "compatibility"],
+  "author": "Mirai Knowledge System",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.40.1"
+  }
+}

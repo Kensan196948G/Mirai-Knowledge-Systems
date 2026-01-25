@@ -1,0 +1,82 @@
+# Mirai Knowledge Systems - Prometheus設定
+# Phase C-3: 運用監視体制構築
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: production
+    service: mirai-knowledge-systems
+
+# アラートマネージャー設定
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - localhost:9093
+
+# アラートルールファイル
+rule_files:
+  - "rules.yml"
+
+# スクレイプ設定
+scrape_configs:
+  # Prometheus自身
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+
+  # MKS Backend API
+  - job_name: 'mks-backend'
+    static_configs:
+      - targets: ['localhost:8100']
+    metrics_path: /api/v1/metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    scheme: http
+    tls_config:
+      insecure_skip_verify: true
+
+  # Node Exporter (システムメトリクス)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'mks-production'
+
+  # PostgreSQL Exporter
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['localhost:9187']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'mks-postgresql'
+
+  # Nginx Exporter
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['localhost:9113']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'mks-nginx'
+
+  # Gunicorn (StatsD Exporter経由)
+  - job_name: 'gunicorn'
+    static_configs:
+      - targets: ['localhost:9125']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'mks-gunicorn'
+
+# リモートストレージ設定（オプション）
+# remote_write:
+#   - url: "http://prometheus-remote:9201/write"
+#
+# remote_read:
+#   - url: "http://prometheus-remote:9201/read"

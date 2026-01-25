@@ -1,0 +1,2195 @@
+openapi: 3.0.3
+info:
+  title: Mirai Knowledge Systems API
+  description: |
+    建設土木ナレッジシステムのREST API
+
+    ## 認証
+    すべてのAPIエンドポイントはJWT認証が必要です。AuthorizationヘッダーにBearerトークンを含めてください。
+
+    ## レート制限
+    - 認証済みリクエスト: 1000/分、10000/時、100000/日
+    - ファイルアップロード: 10/分
+    - Microsoft 365連携: 50/分
+
+    ## エラーレスポンス
+    ```json
+    {
+      "success": false,
+      "message": "エラーメッセージ",
+      "error_code": "ERROR_CODE"
+    }
+    ```
+  version: "2.0.0"
+  contact:
+    name: Mirai Knowledge Systems Support
+    email: support@mirai-knowledge.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:5100
+    description: 開発環境
+  - url: https://api.mirai-knowledge.com
+    description: 本番環境
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "エラーメッセージ"
+        error_code:
+          type: string
+          example: "VALIDATION_ERROR"
+
+    Success:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "操作が成功しました"
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "yamada"
+        role:
+          type: string
+          enum: [admin, construction_manager, quality_assurance, partner]
+          example: "construction_manager"
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["knowledge.create", "knowledge.read"]
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "yamada"
+        password:
+          type: string
+          minLength: 6
+          maxLength: 100
+          example: "password123"
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        access_token:
+          type: string
+          example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+        refresh_token:
+          type: string
+          example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+
+    Knowledge:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "橋梁施工における品質管理手法"
+        summary:
+          type: string
+          example: "橋梁施工時の品質管理のベストプラクティス"
+        content:
+          type: string
+          example: "詳細な施工手順と品質管理ポイント..."
+        category:
+          type: string
+          enum: [施工計画, 品質管理, 安全衛生, 環境対策, 原価管理, 出来形管理, その他]
+          example: "品質管理"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["橋梁", "品質管理", "施工"]
+        status:
+          type: string
+          enum: [draft, pending, approved, archived]
+          example: "approved"
+        owner:
+          type: string
+          example: "yamada"
+        project:
+          type: string
+          nullable: true
+          example: "東京高速道路建設プロジェクト"
+        priority:
+          type: string
+          enum: [low, medium, high]
+          example: "high"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+        view_count:
+          type: integer
+          example: 150
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+          example: 4.5
+
+    KnowledgeCreate:
+      type: object
+      required:
+        - title
+        - summary
+        - content
+        - category
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "橋梁施工における品質管理手法"
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: "橋梁施工時の品質管理のベストプラクティス"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          example: "詳細な施工手順と品質管理ポイント..."
+        category:
+          type: string
+          enum: [施工計画, 品質管理, 安全衛生, 環境対策, 原価管理, 出来形管理, その他]
+          example: "品質管理"
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+          example: ["橋梁", "品質管理", "施工"]
+        owner:
+          type: string
+          maxLength: 100
+          example: "yamada"
+        project:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "東京高速道路建設プロジェクト"
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+          example: "high"
+
+    KnowledgeUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "橋梁施工における品質管理手法（改訂版）"
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: "改訂版：橋梁施工時の品質管理のベストプラクティス"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          example: "改訂版の詳細な施工手順と品質管理ポイント..."
+        category:
+          type: string
+          enum: [施工計画, 品質管理, 安全衛生, 環境対策, 原価管理, 出来形管理, その他]
+          example: "品質管理"
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+          example: ["橋梁", "品質管理", "施工", "改訂"]
+        status:
+          type: string
+          enum: [draft, pending, approved, archived]
+          example: "approved"
+
+    Incident:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "足場崩落事故"
+        description:
+          type: string
+          example: "高層ビル建設現場での足場崩落事故"
+        incident_date:
+          type: string
+          format: date
+          example: "2025-01-01"
+        location:
+          type: string
+          example: "東京建設現場A"
+        severity:
+          type: string
+          enum: [軽微, 中程度, 重大, 致命的]
+          example: "重大"
+        status:
+          type: string
+          enum: [調査中, 原因特定, 対策実施中, 完了]
+          example: "完了"
+        root_cause:
+          type: string
+          example: "足場固定ボルトの緩み"
+        countermeasures:
+          type: string
+          example: "定期点検の強化、二重確認体制の導入"
+        created_by:
+          type: string
+          example: "yamada"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+
+    Consultation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "特殊土壌での基礎施工に関する相談"
+        description:
+          type: string
+          example: "軟弱地盤での基礎施工方法について"
+        status:
+          type: string
+          enum: [open, assigned, in_progress, resolved, closed]
+          example: "resolved"
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          example: "high"
+        requester:
+          type: string
+          example: "yamada"
+        assigned_expert:
+          type: string
+          nullable: true
+          example: "expert1"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-01-02T15:00:00Z"
+
+    SOP:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "鉄筋コンクリート施工標準手順"
+        content:
+          type: string
+          example: "鉄筋コンクリート施工の標準手順書"
+        category:
+          type: string
+          example: "施工管理"
+        version:
+          type: string
+          example: "2.1"
+        status:
+          type: string
+          enum: [draft, approved, deprecated]
+          example: "approved"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+
+    Regulation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "建設業法第19条施工体制台帳作成要領"
+        content:
+          type: string
+          example: "施工体制台帳の作成要領と記載事項"
+        category:
+          type: string
+          example: "法令"
+        effective_date:
+          type: string
+          format: date
+          example: "2025-01-01"
+        status:
+          type: string
+          enum: [有効, 失効, 改正予定]
+          example: "有効"
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "東京高速道路建設プロジェクト"
+        description:
+          type: string
+          example: "首都高速道路の拡張工事プロジェクト"
+        status:
+          type: string
+          enum: [計画中, 施工中, 完了, 中止]
+          example: "施工中"
+        start_date:
+          type: string
+          format: date
+          example: "2024-01-01"
+        end_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-12-31"
+        manager:
+          type: string
+          example: "yamada"
+
+    Expert:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "田中 太郎"
+        specialization:
+          type: string
+          example: "土木構造物設計"
+        experience_years:
+          type: integer
+          example: 15
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+          example: 4.8
+        status:
+          type: string
+          enum: [active, inactive]
+          example: "active"
+        consultation_count:
+          type: integer
+          example: 45
+
+    DashboardStats:
+      type: object
+      properties:
+        total_knowledge:
+          type: integer
+          example: 1250
+        total_incidents:
+          type: integer
+          example: 23
+        total_consultations:
+          type: integer
+          example: 89
+        active_projects:
+          type: integer
+          example: 12
+        knowledge_by_category:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            "施工計画": 300
+            "品質管理": 250
+            "安全衛生": 200
+        recent_activity:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [knowledge_created, incident_reported, consultation_opened]
+              count:
+                type: integer
+              period:
+                type: string
+          example:
+            - type: "knowledge_created"
+              count: 15
+              period: "last_7_days"
+
+    SearchResult:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 25
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 10
+        results:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/Knowledge'
+              - $ref: '#/components/schemas/Incident'
+              - $ref: '#/components/schemas/Consultation'
+              - $ref: '#/components/schemas/SOP'
+              - $ref: '#/components/schemas/Regulation'
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "新しいナレッジが承認されました"
+        message:
+          type: string
+          example: "橋梁施工における品質管理手法が承認されました"
+        type:
+          type: string
+          enum: [info, warning, error, success]
+          example: "info"
+        read:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+        related_id:
+          type: integer
+          nullable: true
+          example: 123
+        related_type:
+          type: string
+          nullable: true
+          example: "knowledge"
+
+    Approval:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        item_type:
+          type: string
+          enum: [knowledge, incident, consultation]
+          example: "knowledge"
+        item_id:
+          type: integer
+          example: 123
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          example: "pending"
+        requested_by:
+          type: string
+          example: "yamada"
+        approved_by:
+          type: string
+          nullable: true
+          example: "admin"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-01-01T11:00:00Z"
+
+    HealthCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+        version:
+          type: string
+          example: "2.0.0"
+        services:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [up, down]
+                  example: "up"
+                response_time:
+                  type: number
+                  example: 0.023
+            redis:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [up, down]
+                  example: "up"
+                response_time:
+                  type: number
+                  example: 0.005
+            filesystem:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [up, down]
+                  example: "up"
+                free_space_gb:
+                  type: number
+                  example: 50.5
+
+    Metrics:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+        uptime_seconds:
+          type: number
+          example: 86400
+        system:
+          type: object
+          properties:
+            cpu_percent:
+              type: number
+              example: 15.5
+            memory_percent:
+              type: number
+              example: 45.2
+            disk_percent:
+              type: number
+              example: 60.8
+        application:
+          type: object
+          properties:
+            active_users:
+              type: integer
+              example: 12
+            total_knowledge:
+              type: integer
+              example: 1250
+            total_requests:
+              type: integer
+              example: 15420
+            error_rate:
+              type: number
+              example: 0.02
+            avg_response_time:
+              type: number
+              example: 0.125
+
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: ユーザー認証
+      description: ユーザー名とパスワードでログインし、JWTトークンを取得します
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 認証失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: レート制限超過
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/refresh:
+    post:
+      summary: トークンリフレッシュ
+      description: リフレッシュトークンを使用して新しいアクセストークンを取得します
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+      responses:
+        '200':
+          description: トークンリフレッシュ成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: 無効なリフレッシュトークン
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/me:
+    get:
+      summary: 現在のユーザー情報取得
+      description: 現在認証されているユーザーの情報を取得します
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ユーザー情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/knowledge:
+    get:
+      summary: ナレッジ一覧取得
+      description: ナレッジの一覧を取得します。フィルタリングとページングに対応しています。
+      tags:
+        - Knowledge Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [施工計画, 品質管理, 安全衛生, 環境対策, 原価管理, 出来形管理, その他]
+          description: カテゴリでフィルタリング
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, pending, approved, archived]
+          description: ステータスでフィルタリング
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: 検索キーワード
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: ナレッジ一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 1250
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Knowledge'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: ナレッジ作成
+      description: 新しいナレッジを作成します
+      tags:
+        - Knowledge Management
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeCreate'
+      responses:
+        '201':
+          description: ナレッジ作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Knowledge'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 権限なし
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/knowledge/{knowledge_id}:
+    get:
+      summary: ナレッジ詳細取得
+      description: 指定したIDのナレッジの詳細情報を取得します
+      tags:
+        - Knowledge Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: knowledge_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ナレッジID
+      responses:
+        '200':
+          description: ナレッジ詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Knowledge'
+        '404':
+          description: ナレッジが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: ナレッジ更新
+      description: 指定したIDのナレッジを更新します
+      tags:
+        - Knowledge Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: knowledge_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ナレッジID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeUpdate'
+      responses:
+        '200':
+          description: ナレッジ更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Knowledge'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 権限なし
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: ナレッジが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: ナレッジ削除
+      description: 指定したIDのナレッジを削除します
+      tags:
+        - Knowledge Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: knowledge_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ナレッジID
+      responses:
+        '200':
+          description: ナレッジ削除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '403':
+          description: 権限なし
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: ナレッジが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/knowledge/{knowledge_id}/related:
+    get:
+      summary: 関連ナレッジ取得
+      description: 指定したナレッジに関連するナレッジを取得します
+      tags:
+        - Knowledge Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: knowledge_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ナレッジID
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+          description: 取得件数
+      responses:
+        '200':
+          description: 関連ナレッジ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Knowledge'
+        '404':
+          description: ナレッジが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/incidents:
+    get:
+      summary: 事故レポート一覧取得
+      description: 事故レポートの一覧を取得します
+      tags:
+        - Incident Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [調査中, 原因特定, 対策実施中, 完了]
+          description: ステータスでフィルタリング
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [軽微, 中程度, 重大, 致命的]
+          description: 重大度でフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: 事故レポート一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 23
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Incident'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/incidents/{incident_id}:
+    get:
+      summary: 事故レポート詳細取得
+      description: 指定したIDの事故レポートの詳細情報を取得します
+      tags:
+        - Incident Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 事故レポートID
+      responses:
+        '200':
+          description: 事故レポート詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '404':
+          description: 事故レポートが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/consultations:
+    get:
+      summary: 専門家相談一覧取得
+      description: 専門家相談の一覧を取得します
+      tags:
+        - Expert Consultation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, assigned, in_progress, resolved, closed]
+          description: ステータスでフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: 専門家相談一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 89
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Consultation'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/consultations/{consultation_id}:
+    get:
+      summary: 専門家相談詳細取得
+      description: 指定したIDの専門家相談の詳細情報を取得します
+      tags:
+        - Expert Consultation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: consultation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 相談ID
+      responses:
+        '200':
+          description: 専門家相談詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consultation'
+        '404':
+          description: 相談が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/sop:
+    get:
+      summary: SOP一覧取得
+      description: 標準施工手順書(SOP)の一覧を取得します
+      tags:
+        - SOP Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: カテゴリでフィルタリング
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, approved, deprecated]
+          description: ステータスでフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: SOP一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 45
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SOP'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/sop/{sop_id}:
+    get:
+      summary: SOP詳細取得
+      description: 指定したIDのSOPの詳細情報を取得します
+      tags:
+        - SOP Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sop_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: SOP ID
+      responses:
+        '200':
+          description: SOP詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SOP'
+        '404':
+          description: SOPが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/regulations:
+    get:
+      summary: 法令一覧取得
+      description: 法令・規格の一覧を取得します
+      tags:
+        - Regulation Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: カテゴリでフィルタリング
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [有効, 失効, 改正予定]
+          description: ステータスでフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: 法令一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 156
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Regulation'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/regulations/{reg_id}:
+    get:
+      summary: 法令詳細取得
+      description: 指定したIDの法令の詳細情報を取得します
+      tags:
+        - Regulation Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reg_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 法令ID
+      responses:
+        '200':
+          description: 法令詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Regulation'
+        '404':
+          description: 法令が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/projects:
+    get:
+      summary: プロジェクト一覧取得
+      description: プロジェクトの一覧を取得します
+      tags:
+        - Project Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [計画中, 施工中, 完了, 中止]
+          description: ステータスでフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: プロジェクト一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 12
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/projects/{project_id}:
+    get:
+      summary: プロジェクト詳細取得
+      description: 指定したIDのプロジェクトの詳細情報を取得します
+      tags:
+        - Project Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: プロジェクトID
+      responses:
+        '200':
+          description: プロジェクト詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: プロジェクトが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/projects/{project_id}/progress:
+    get:
+      summary: プロジェクト進捗取得
+      description: 指定したプロジェクトの進捗情報を取得します
+      tags:
+        - Project Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: プロジェクトID
+      responses:
+        '200':
+          description: プロジェクト進捗
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  project_id:
+                    type: integer
+                    example: 1
+                  overall_progress:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                    example: 75.5
+                  milestones:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "基礎工事完了"
+                        completed:
+                          type: boolean
+                          example: true
+                        completion_date:
+                          type: string
+                          format: date
+                          nullable: true
+                          example: "2025-01-15"
+                  tasks_completed:
+                    type: integer
+                    example: 45
+                  total_tasks:
+                    type: integer
+                    example: 60
+        '404':
+          description: プロジェクトが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/experts:
+    get:
+      summary: 専門家一覧取得
+      description: 専門家の一覧を取得します
+      tags:
+        - Expert Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: specialization
+          in: query
+          schema:
+            type: string
+          description: 専門分野でフィルタリング
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+            default: active
+          description: ステータスでフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: 専門家一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 25
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Expert'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/experts/{expert_id}:
+    get:
+      summary: 専門家詳細取得
+      description: 指定したIDの専門家の詳細情報を取得します
+      tags:
+        - Expert Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: expert_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 専門家ID
+      responses:
+        '200':
+          description: 専門家詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expert'
+        '404':
+          description: 専門家が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/experts/stats:
+    get:
+      summary: 専門家統計取得
+      description: 専門家の統計情報を取得します
+      tags:
+        - Expert Management
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 専門家統計
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_experts:
+                    type: integer
+                    example: 25
+                  active_experts:
+                    type: integer
+                    example: 22
+                  specialization_distribution:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    example:
+                      "土木構造物設計": 8
+                      "地盤工学": 6
+                      "施工管理": 5
+                  average_rating:
+                    type: number
+                    example: 4.6
+                  total_consultations:
+                    type: integer
+                    example: 342
+
+  /api/v1/dashboard/stats:
+    get:
+      summary: ダッシュボード統計取得
+      description: システム全体の統計情報を取得します
+      tags:
+        - Dashboard
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ダッシュボード統計
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/search/unified:
+    get:
+      summary: 統合検索
+      description: ナレッジ、事故レポート、相談などを横断的に検索します
+      tags:
+        - Search
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: 検索クエリ
+        - name: types
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [knowledge, incidents, consultations, sop, regulations]
+          description: 検索対象タイプ（複数指定可）
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: 検索結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResult'
+        '400':
+          description: 検索クエリが無効
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/notifications:
+    get:
+      summary: 通知一覧取得
+      description: ユーザーの通知一覧を取得します
+      tags:
+        - Notifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: read
+          in: query
+          schema:
+            type: boolean
+          description: 既読/未読でフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: 通知一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 15
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/notifications/{notification_id}/read:
+    put:
+      summary: 通知既読化
+      description: 指定した通知を既読にします
+      tags:
+        - Notifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 通知ID
+      responses:
+        '200':
+          description: 既読化成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: 通知が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/notifications/unread/count:
+    get:
+      summary: 未読通知数取得
+      description: 未読通知の件数を取得します
+      tags:
+        - Notifications
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 未読通知数
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 5
+
+  /api/v1/approvals:
+    get:
+      summary: 承認フロー一覧取得
+      description: 承認待ちの項目一覧を取得します
+      tags:
+        - Approvals
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+            default: pending
+          description: ステータスでフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: 承認フロー一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 8
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Approval'
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/approvals/{approval_id}/approve:
+    post:
+      summary: 承認実行
+      description: 指定した承認項目を承認します
+      tags:
+        - Approvals
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: approval_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 承認ID
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  maxLength: 500
+                  description: 承認コメント
+                  example: "内容を確認しました。承認します。"
+      responses:
+        '200':
+          description: 承認成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '403':
+          description: 承認権限なし
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 承認項目が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/approvals/{approval_id}/reject:
+    post:
+      summary: 承認却下
+      description: 指定した承認項目を却下します
+      tags:
+        - Approvals
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: approval_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 承認ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                  description: 却下理由
+                  example: "追加の情報が必要です。"
+      responses:
+        '200':
+          description: 却下成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: 却下理由が必須
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 承認権限なし
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 承認項目が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/recommendations/personalized:
+    get:
+      summary: パーソナライズ推薦取得
+      description: 現在のユーザーにパーソナライズされた推薦項目を取得します
+      tags:
+        - Recommendations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+          description: 取得件数
+      responses:
+        '200':
+          description: パーソナライズ推薦
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recommendations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum: [knowledge, incident, consultation]
+                          example: "knowledge"
+                        item:
+                          oneOf:
+                            - $ref: '#/components/schemas/Knowledge'
+                            - $ref: '#/components/schemas/Incident'
+                            - $ref: '#/components/schemas/Consultation'
+                        score:
+                          type: number
+                          minimum: 0
+                          maximum: 1
+                          example: 0.85
+                        reason:
+                          type: string
+                          example: "閲覧履歴に基づく推薦"
+        '401':
+          description: 未認証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/health:
+    get:
+      summary: ヘルスチェック
+      description: システムの健全性をチェックします
+      tags:
+        - System
+      responses:
+        '200':
+          description: システム正常
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+        '503':
+          description: システム異常
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+
+  /api/v1/health/db:
+    get:
+      summary: データベースヘルスチェック
+      description: データベース接続の健全性をチェックします
+      tags:
+        - System
+      responses:
+        '200':
+          description: データベース正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy]
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2025-01-01T10:00:00Z"
+                  response_time:
+                    type: number
+                    example: 0.023
+        '503':
+          description: データベース異常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy]
+                    example: "unhealthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2025-01-01T10:00:00Z"
+                  error:
+                    type: string
+                    example: "Connection timeout"
+
+  /metrics:
+    get:
+      summary: Prometheusメトリクス
+      description: Prometheus形式のシステムメトリクスを取得します
+      tags:
+        - System
+      responses:
+        '200':
+          description: メトリクス
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP mks_http_requests_total Total HTTP requests
+                  # TYPE mks_http_requests_total counter
+                  mks_http_requests_total{method="GET",endpoint="/api/v1/knowledge",status="200"} 15420
+
+  /api/v1/logs/access:
+    get:
+      summary: アクセスログ取得
+      description: システムのアクセスログを取得します（管理者権限が必要）
+      tags:
+        - System
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: 開始日
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: 終了日
+        - name: user
+          in: query
+          schema:
+            type: string
+          description: ユーザーでフィルタリング
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+          description: 取得件数
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: オフセット
+      responses:
+        '200':
+          description: アクセスログ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 15420
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestamp:
+                          type: string
+                          format: date-time
+                          example: "2025-01-01T10:00:00Z"
+                        user:
+                          type: string
+                          example: "yamada"
+                        method:
+                          type: string
+                          example: "GET"
+                        path:
+                          type: string
+                          example: "/api/v1/knowledge/123"
+                        status:
+                          type: integer
+                          example: 200
+                        ip_address:
+                          type: string
+                          example: "192.168.1.100"
+                        user_agent:
+                          type: string
+                          example: "Mozilla/5.0..."
+        '403':
+          description: 管理者権限が必要
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/docs:
+    get:
+      summary: APIドキュメント（Swagger UI）
+      description: Swagger UIでAPIドキュメントを表示します
+      tags:
+        - System
+      responses:
+        '200':
+          description: Swagger UI
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/openapi.yaml:
+    get:
+      summary: OpenAPI仕様
+      description: OpenAPI 3.0仕様のYAMLファイルを取得します
+      tags:
+        - System
+      responses:
+        '200':
+          description: OpenAPI仕様
+          content:
+            application/yaml:
+              schema:
+                type: string

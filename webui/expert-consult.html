@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>専門家相談詳細 - 建設土木ナレッジシステム</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand reveal">
+        <div class="brand-mark">MK</div>
+        <div>
+          <h1>Mirai Construction Knowledge</h1>
+          <span>○○○○建設工業株式会社 技術本部 / 全支店・管轄施工現場</span>
+        </div>
+      </div>
+      <nav class="top-nav">
+        <a href="index.html">現場ダッシュボード</a>
+        <a href="#" onclick="openSearchModal(); return false;">ナレッジ検索</a>
+        <a href="admin.html" data-required-role="admin">管理画面</a>
+      </nav>
+      <div class="header-actions reveal delay-2">
+        <button class="icon-button" onclick="window.history.back()" title="戻る">
+          ←
+        </button>
+        <button class="icon-button" onclick="openSearchModal()" title="高度な検索">
+          🔍
+        </button>
+        <button class="icon-button notification-bell" onclick="openNotificationPanel()" title="通知">
+          🔔
+          <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
+        <button class="icon-button" onclick="openSettingsPanel()" title="設定">
+          ⚙️
+        </button>
+        <span class="chip" id="consultStatus">ステータス --</span>
+        <span class="chip" id="responseTime">回答時間 --</span>
+        <button class="cta" onclick="submitNewConsultation()">新規相談</button>
+      </div>
+    </header>
+
+    <main class="page">
+      <!-- パンくずリスト -->
+      <nav class="breadcrumb-nav-enhanced reveal" aria-label="パンくずリスト">
+        <ol class="breadcrumb-enhanced" id="breadcrumbList">
+          <li>
+            <span class="breadcrumb-icon">🏠</span>
+            <a href="index.html">ホーム</a>
+          </li>
+          <li>
+            <span class="breadcrumb-icon">💬</span>
+            <a href="index.html#consult">専門家相談一覧</a>
+          </li>
+          <li class="breadcrumb-current" aria-current="page">
+            <span class="breadcrumb-icon">📄</span>
+            <span>詳細</span>
+          </li>
+        </ol>
+      </nav>
+
+      <aside class="sidebar reveal delay-1">
+        <div class="nav-section">
+          <div class="nav-title">ナビゲーション</div>
+          <div class="nav-item">
+            <a href="#question"><strong>質問詳細</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#answers"><strong>回答一覧</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#new-answer"><strong>新規回答</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#attachments"><strong>添付ファイル</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#related"><strong>関連質問</strong></a>
+          </div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-title">アクション</div>
+          <button class="cta ghost" onclick="toggleFollow()">
+            <span id="followIcon">☆</span> フォロー
+          </button>
+          <button class="cta ghost" onclick="downloadPDF('consult')">
+            📥 PDF保存
+          </button>
+          <button class="cta ghost" onclick="shareConsult()">
+            🔗 共有
+          </button>
+        </div>
+      </aside>
+
+      <section class="main">
+        <!-- ローディング表示 -->
+        <div id="loadingIndicator" class="loading-overlay">
+          <div class="loading-spinner"></div>
+          <p>読み込み中...</p>
+        </div>
+
+        <!-- エラー表示 -->
+        <div id="errorMessage" class="error-message" style="display: none;">
+          <strong>エラー:</strong> <span id="errorText"></span>
+          <button onclick="retryLoadConsult()">再試行</button>
+        </div>
+
+        <!-- 質問詳細 -->
+        <section class="detail-hero reveal" id="question">
+          <h2 class="detail-title" id="consultTitle">相談タイトル</h2>
+          <div class="meta-row" id="consultMeta">
+            <!-- 動的に挿入 -->
+          </div>
+          <div class="knowledge-tags" id="consultTags">
+            <!-- 動的に挿入 -->
+          </div>
+          <div class="cta-group">
+            <button class="cta ghost" onclick="window.history.back()">← 戻る</button>
+            <button class="cta secondary" onclick="editConsult()" id="editBtn">編集</button>
+            <button class="cta" onclick="closeConsult()" id="closeBtn" data-required-role="quality_assurance">解決済みにする</button>
+          </div>
+        </section>
+
+        <!-- 質問内容 -->
+        <section class="detail-grid reveal delay-1">
+          <div class="detail-card" style="grid-column: 1 / -1;">
+            <h4>質問内容</h4>
+            <div id="questionContent" style="padding: 15px; background: #f9f9f9; border-radius: 4px; line-height: 1.8;">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 相談情報 -->
+          <div class="detail-card">
+            <h4>相談情報</h4>
+            <table class="table">
+              <tbody id="consultInfo">
+                <!-- 動的に挿入 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 優先度・期限 -->
+          <div class="detail-card">
+            <h4>優先度・期限</h4>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div>優先度</div>
+                <strong id="priority">--</strong>
+              </div>
+              <div class="stat-card">
+                <div>回答期限</div>
+                <strong id="deadline">--</strong>
+              </div>
+              <div class="stat-card">
+                <div>経過時間</div>
+                <strong id="elapsedTime">--</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- 添付ファイル -->
+          <div class="detail-card" id="attachments" style="grid-column: 1 / -1;">
+            <h4>添付ファイル</h4>
+            <div id="attachmentList" class="attachment-gallery">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 回答一覧 -->
+          <div class="detail-card" id="answers" style="grid-column: 1 / -1;">
+            <h4>回答一覧 (<span id="answerCount">0</span>件)</h4>
+            <div id="answerList">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 新規回答フォーム -->
+          <div class="detail-card" id="new-answer" style="grid-column: 1 / -1;">
+            <h4>回答を投稿</h4>
+            <form id="answerForm">
+              <div class="field">
+                <label>回答内容 <span class="required">*</span></label>
+                <textarea id="answerContent" required rows="6" placeholder="詳細な回答を入力してください..."></textarea>
+                <small>Markdown記法が使用できます</small>
+              </div>
+              <div class="field">
+                <label>参照資料・根拠</label>
+                <textarea id="answerReferences" rows="3" placeholder="参照したSOP、法令、過去事例など"></textarea>
+              </div>
+              <div class="field">
+                <label>添付ファイル</label>
+                <input type="file" id="answerAttachment" multiple>
+                <small>画像、PDF、Excelファイルなど（最大10MB）</small>
+              </div>
+              <div class="field">
+                <label>
+                  <input type="checkbox" id="markAsBest">
+                  この回答をベストアンサーとして推奨する
+                </label>
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="cta ghost" onclick="resetAnswerForm()">リセット</button>
+                <button type="submit" class="cta">回答を投稿</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- ステータス履歴 -->
+          <div class="detail-card">
+            <h4>ステータス履歴</h4>
+            <div id="statusHistory" class="timeline">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 統計情報 -->
+          <div class="detail-card">
+            <h4>エンゲージメント</h4>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div>回答数</div>
+                <strong id="totalAnswers">0</strong>
+                <small>件</small>
+              </div>
+              <div class="stat-card">
+                <div>閲覧数</div>
+                <strong id="viewCount">0</strong>
+                <small>回</small>
+              </div>
+              <div class="stat-card">
+                <div>フォロー</div>
+                <strong id="followerCount">0</strong>
+                <small>人</small>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- 右サイドバー -->
+      <aside class="rail reveal delay-1">
+        <div>
+          <h3>担当エキスパート</h3>
+          <div id="expertInfo" class="document">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <h3>ベストアンサー</h3>
+          <div id="bestAnswer" class="document">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <h3 id="related">関連質問</h3>
+          <div id="relatedQuestions">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <h3>回答状況</h3>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div>回答率</div>
+              <strong id="responseRate">0</strong>
+              <small>%</small>
+            </div>
+            <div class="stat-card">
+              <div>平均回答時間</div>
+              <strong id="avgResponseTime">0</strong>
+              <small>時間</small>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <h3>参考SOP</h3>
+          <div id="referenceSOP">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- 回答詳細モーダル -->
+    <div id="answerDetailModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>回答詳細</h2>
+          <button class="modal-close" onclick="closeAnswerDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="answerDetailContent">
+            <!-- 動的に挿入 -->
+          </div>
+          <div class="modal-actions">
+            <button class="cta secondary" onclick="selectBestAnswer()" id="bestAnswerBtn">ベストアンサーに選択</button>
+            <button class="cta ghost" onclick="closeAnswerDetailModal()">閉じる</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 共有モーダル（動的に作成される） -->
+
+    <!-- 新規専門家相談モーダル（動的に作成される） -->
+
+    <button class="floating" onclick="scrollToTop()">↑ トップへ</button>
+
+    <!-- Socket.IO Client Library (jsDelivr経由 - CSP対応) -->
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
+    <script src="app.js"></script>
+    <script src="dom-helpers.js"></script>
+    <script src="detail-pages.js"></script>
+    <script src="actions.js"></script>
+    <script src="expert-consult-actions.js"></script>
+  </body>
+</html>

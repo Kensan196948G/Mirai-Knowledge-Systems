@@ -1,0 +1,210 @@
+# Prometheusアラートルール
+# 建設土木ナレッジシステム監視アラート
+
+groups:
+  # システムリソースアラート
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # CPU使用率が80%を超えた場合
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "高CPU使用率検出 (instance {{ $labels.instance }})"
+          description: "CPU使用率が {{ $value | humanize }}% です（閾値: 80%）"
+
+      # CPU使用率が95%を超えた場合（クリティカル）
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "危機的CPU使用率検出 (instance {{ $labels.instance }})"
+          description: "CPU使用率が {{ $value | humanize }}% です（閾値: 95%）"
+
+      # メモリ使用率が90%を超えた場合
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "高メモリ使用率検出 (instance {{ $labels.instance }})"
+          description: "メモリ使用率が {{ $value | humanize }}% です（閾値: 90%）"
+
+      # ディスク使用率が85%を超えた場合
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"} / node_filesystem_size_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "高ディスク使用率検出 (instance {{ $labels.instance }}, mountpoint {{ $labels.mountpoint }})"
+          description: "ディスク使用率が {{ $value | humanize }}% です（閾値: 85%）"
+
+      # ディスク使用率が95%を超えた場合（クリティカル）
+      - alert: CriticalDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"} / node_filesystem_size_bytes)) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "危機的ディスク使用率検出 (instance {{ $labels.instance }}, mountpoint {{ $labels.mountpoint }})"
+          description: "ディスク使用率が {{ $value | humanize }}% です（閾値: 95%）"
+
+      # ディスクI/O待機が高い場合
+      - alert: HighDiskIOWait
+        expr: rate(node_cpu_seconds_total{mode="iowait"}[5m]) * 100 > 20
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "高ディスクI/O待機検出 (instance {{ $labels.instance }})"
+          description: "I/O待機時間が {{ $value | humanize }}% です（閾値: 20%）"
+
+  # アプリケーションパフォーマンスアラート
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # エラー率が5%を超えた場合
+      - alert: HighErrorRate
+        expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          category: application
+        annotations:
+          summary: "高エラー率検出"
+          description: "HTTPエラー率が {{ $value | humanize }}% です（閾値: 5%）"
+
+      # 応答時間が3秒を超えた場合
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 3
+        for: 5m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "高応答時間検出"
+          description: "95パーセンタイル応答時間が {{ $value | humanize }}秒です（閾値: 3秒）"
+
+      # 応答時間が5秒を超えた場合（クリティカル）
+      - alert: CriticalResponseTime
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: application
+        annotations:
+          summary: "危機的応答時間検出"
+          description: "95パーセンタイル応答時間が {{ $value | humanize }}秒です（閾値: 5秒）"
+
+      # リクエスト数が急増した場合
+      - alert: RequestSurge
+        expr: rate(http_requests_total[5m]) > 100
+        for: 3m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "リクエスト数急増検出"
+          description: "リクエスト数が {{ $value | humanize }}/秒です（閾値: 100/秒）"
+
+      # アクティブユーザー数が急減した場合
+      - alert: ActiveUsersDropped
+        expr: active_users_count < 5 and active_users_count offset 1h > 20
+        for: 10m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "アクティブユーザー数急減検出"
+          description: "アクティブユーザー数が {{ $value | humanize }}人です（1時間前から大幅減少）"
+
+  # データベースアラート
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # データベース接続数が多い場合
+      - alert: HighDatabaseConnections
+        expr: pg_stat_database_numbackends > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "高データベース接続数検出"
+          description: "データベース接続数が {{ $value | humanize }}です（閾値: 80）"
+
+      # データベースが停止している場合
+      - alert: DatabaseDown
+        expr: up{job="postgres_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "データベースダウン検出"
+          description: "PostgreSQLデータベースに接続できません"
+
+  # サービス可用性アラート
+  - name: availability_alerts
+    interval: 30s
+    rules:
+      # サービスがダウンしている場合
+      - alert: ServiceDown
+        expr: up{job="mirai_knowledge_app"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "サービスダウン検出 ({{ $labels.job }})"
+          description: "{{ $labels.job }} サービスに接続できません"
+
+      # Prometheusターゲットがダウンしている場合
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: monitoring
+        annotations:
+          summary: "監視ターゲットダウン ({{ $labels.job }} - {{ $labels.instance }})"
+          description: "{{ $labels.job }} の {{ $labels.instance }} に接続できません"
+
+  # ビジネスメトリクスアラート
+  - name: business_alerts
+    interval: 60s
+    rules:
+      # ナレッジ作成数が異常に少ない場合
+      - alert: LowKnowledgeCreationRate
+        expr: rate(knowledge_created_total[1h]) < 1 and hour() >= 9 and hour() <= 17
+        for: 30m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "ナレッジ作成数低下検出"
+          description: "過去1時間のナレッジ作成数が {{ $value | humanize }}/時です（営業時間中の異常な低下）"
+
+      # ログインエラーが多発している場合
+      - alert: HighLoginFailureRate
+        expr: rate(login_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "ログイン失敗多発検出"
+          description: "ログイン失敗率が {{ $value | humanize }}/秒です（セキュリティリスクの可能性）"

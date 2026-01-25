@@ -1,0 +1,486 @@
+{
+  "dashboard": {
+    "title": "建設土木ナレッジシステム - 総合監視ダッシュボード",
+    "tags": ["mirai-knowledge", "monitoring", "production"],
+    "timezone": "Asia/Tokyo",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"],
+      "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "システム概要",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "サービス稼働状態",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"mirai_knowledge_app\"}",
+            "legendFormat": "アプリケーション"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "0", "text": "停止"},
+              {"type": "value", "value": "1", "text": "稼働中"}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "アクティブユーザー数",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "active_users_count",
+            "legendFormat": "アクティブユーザー"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "users",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "yellow"},
+                {"value": 5, "color": "green"},
+                {"value": 50, "color": "orange"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "総リクエスト数（5分間）",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(http_requests_total[5m]))",
+            "legendFormat": "リクエスト数"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "エラー率",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))) * 100",
+            "legendFormat": "エラー率"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "システムリソース",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}
+      },
+      {
+        "id": 11,
+        "title": "CPU使用率",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "CPU使用率 - {{instance}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 6},
+        "yaxes": [
+          {"format": "percent", "min": 0, "max": 100},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [80], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "name": "CPU使用率アラート"
+        }
+      },
+      {
+        "id": 12,
+        "title": "メモリ使用率",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+            "legendFormat": "メモリ使用率 - {{instance}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 6},
+        "yaxes": [
+          {"format": "percent", "min": 0, "max": 100},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 13,
+        "title": "ディスク使用率",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(1 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|fuse.lxcfs|squashfs|vfat\"} / node_filesystem_size_bytes)) * 100",
+            "legendFormat": "{{mountpoint}} - {{instance}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 6},
+        "yaxes": [
+          {"format": "percent", "min": 0, "max": 100},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 20,
+        "title": "アプリケーションメトリクス",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14}
+      },
+      {
+        "id": 21,
+        "title": "リクエスト数（RPS）",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[1m])) by (method, endpoint)",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
+        "yaxes": [
+          {"format": "reqps", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 22,
+        "title": "応答時間（P50/P95/P99）",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 15},
+        "yaxes": [
+          {"format": "s", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 23,
+        "title": "HTTPステータスコード分布",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m])) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 23},
+        "yaxes": [
+          {"format": "reqps", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 24,
+        "title": "エンドポイント別応答時間",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint))",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 23},
+        "yaxes": [
+          {"format": "s", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 30,
+        "title": "ユーザーアクティビティ",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 31}
+      },
+      {
+        "id": 31,
+        "title": "アクティブユーザー数推移",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "active_users_count",
+            "legendFormat": "アクティブユーザー"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+        "yaxes": [
+          {"format": "users", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 32,
+        "title": "ログイン成功/失敗",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(login_attempts_total{status=\"success\"}[5m])",
+            "legendFormat": "成功"
+          },
+          {
+            "expr": "rate(login_attempts_total{status=\"failure\"}[5m])",
+            "legendFormat": "失敗"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+        "yaxes": [
+          {"format": "ops", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 33,
+        "title": "ユーザー別リクエスト数（Top 10）",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "topk(10, sum(rate(http_requests_total[5m])) by (user))",
+            "legendFormat": "{{user}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40},
+        "yaxes": [
+          {"format": "reqps", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 34,
+        "title": "セッション数推移",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "active_sessions_count",
+            "legendFormat": "アクティブセッション"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40},
+        "yaxes": [
+          {"format": "short", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 40,
+        "title": "ナレッジ統計",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 48}
+      },
+      {
+        "id": 41,
+        "title": "総ナレッジ数",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "knowledge_total_count",
+            "legendFormat": "総ナレッジ数"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 49},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 42,
+        "title": "ナレッジ作成数（1時間）",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(knowledge_created_total[1h]))",
+            "legendFormat": "作成数"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 49},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 43,
+        "title": "ナレッジ検索数（1時間）",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(knowledge_searches_total[1h]))",
+            "legendFormat": "検索数"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 49},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 44,
+        "title": "ナレッジ閲覧数（1時間）",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(knowledge_views_total[1h]))",
+            "legendFormat": "閲覧数"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 49},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 45,
+        "title": "ナレッジ作成数推移",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(knowledge_created_total[5m])",
+            "legendFormat": "作成率"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 53},
+        "yaxes": [
+          {"format": "ops", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 46,
+        "title": "カテゴリ別ナレッジ数",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum(knowledge_by_category) by (category)",
+            "legendFormat": "{{category}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 53}
+      },
+      {
+        "id": 50,
+        "title": "データベースメトリクス",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 61}
+      },
+      {
+        "id": 51,
+        "title": "データベース接続数",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pg_stat_database_numbackends",
+            "legendFormat": "接続数"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 62},
+        "yaxes": [
+          {"format": "short", "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 52,
+        "title": "クエリ実行時間",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(pg_stat_statements_total_time[5m])",
+            "legendFormat": "クエリ実行時間"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 62},
+        "yaxes": [
+          {"format": "ms", "min": 0},
+          {"format": "short"}
+        ]
+      }
+    ]
+  },
+  "overwrite": true,
+  "folderId": 0,
+  "message": "建設土木ナレッジシステム監視ダッシュボード"
+}

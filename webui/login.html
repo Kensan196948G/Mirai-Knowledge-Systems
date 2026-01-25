@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - 建設土木ナレッジシステム</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ログイン画面専用スタイル */
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 48px 40px;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .login-logo {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .login-logo svg {
+            width: 32px;
+            height: 32px;
+            color: white;
+            display: block;
+        }
+
+        .login-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0 0 8px;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-input.error {
+            border-color: #ef4444;
+        }
+
+        .error-message {
+            display: none;
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .login-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        .login-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        .login-button.loading .button-text {
+            display: none;
+        }
+
+        .login-button.loading .loading-spinner {
+            display: block;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* MFA入力画面 */
+        .mfa-section {
+            display: none;
+        }
+
+        .mfa-section.show {
+            display: block;
+        }
+
+        .mfa-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .mfa-icon svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+
+        .mfa-code-input {
+            text-align: center;
+            font-size: 24px;
+            letter-spacing: 8px;
+            font-weight: 600;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #64748b;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .back-link:hover {
+            color: #3b82f6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <h1 class="login-title">建設土木ナレッジシステム</h1>
+                <p class="login-subtitle">アカウント情報を入力してログインしてください</p>
+            </div>
+
+            <div id="loginAlert" class="alert alert-error">
+                <span id="alertMessage"></span>
+            </div>
+
+            <!-- ログインフォーム -->
+            <form id="loginForm" class="login-section">
+                <div class="form-group">
+                    <label class="form-label" for="username">ユーザー名</label>
+                    <input type="text" id="username" name="username" class="form-input" placeholder="yamada" required
+                        autocomplete="username">
+                    <div class="error-message" id="usernameError">ユーザー名を入力してください</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">パスワード</label>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••"
+                        required autocomplete="current-password">
+                    <div class="error-message" id="passwordError">パスワードを入力してください</div>
+                </div>
+
+                <button type="submit" class="login-button" id="loginButton">
+                    <span class="button-text">ログイン</span>
+                    <div class="loading-spinner"></div>
+                </button>
+            </form>
+
+            <!-- MFAコード入力フォーム -->
+            <form id="mfaForm" class="mfa-section">
+                <div class="mfa-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <p style="text-align: center; color: #64748b; margin-bottom: 24px;">
+                    認証アプリに表示されている6桁のコードを入力してください
+                </p>
+                <div class="form-group">
+                    <label class="form-label" for="mfaCode">認証コード</label>
+                    <input type="text" id="mfaCode" name="mfaCode" class="form-input mfa-code-input"
+                        placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric"
+                        autocomplete="one-time-code">
+                    <div class="error-message" id="mfaCodeError">6桁の数字を入力してください</div>
+                </div>
+
+                <button type="submit" class="login-button" id="mfaButton">
+                    <span class="button-text">認証</span>
+                    <div class="loading-spinner"></div>
+                </button>
+
+                <a class="back-link" id="backToLogin">ログイン画面に戻る</a>
+            </form>
+
+            <!-- デモアカウント表示は本番環境では削除済み -->
+        </div>
+    </div>
+
+    <script>
+        // 動的にAPIベースURLを設定（現在のホストを使用）
+        const API_BASE = `${window.location.origin}/api/v1`;
+
+        // 本番環境判定
+        const IS_PRODUCTION = (() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('env') === 'production') return true;
+            if (urlParams.get('env') === 'development') return false;
+            const envSetting = localStorage.getItem('MKS_ENV');
+            if (envSetting === 'production') return true;
+            if (envSetting === 'development') return false;
+            const hostname = window.location.hostname;
+            return hostname !== 'localhost' && hostname !== '127.0.0.1';
+        })();
+
+        // セキュアロガー（本番環境ではログ出力を抑制）
+        const logger = {
+            log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+            error: (...args) => { console.error(...args); }
+        };
+
+        // MFA一時トークン保持用
+        let mfaToken = null;
+
+        // ログインフォーム送信
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const loginButton = document.getElementById('loginButton');
+
+            // バリデーション
+            let hasError = false;
+
+            if (!username) {
+                showFieldError('username');
+                hasError = true;
+            }
+
+            if (!password) {
+                showFieldError('password');
+                hasError = true;
+            }
+
+            if (hasError) return;
+
+            // ローディング開始
+            loginButton.classList.add('loading');
+            loginButton.disabled = true;
+            hideAlert();
+
+            try {
+                logger.log('[LOGIN] Sending login request...');
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                logger.log('[LOGIN] Response status:', response.status);
+                const result = await response.json();
+                logger.log('[LOGIN] Response data:', result);
+
+                if (result.success) {
+                    // MFAが必要かどうかチェック
+                    if (result.data.mfa_required) {
+                        logger.log('[LOGIN] MFA required, showing MFA form...');
+                        mfaToken = result.data.mfa_token;
+                        showMfaForm();
+                        loginButton.classList.remove('loading');
+                        loginButton.disabled = false;
+                        return;
+                    }
+
+                    // 通常ログイン（MFA不要）
+                    logger.log('[LOGIN] Saving tokens to localStorage...');
+                    localStorage.setItem('access_token', result.data.access_token);
+                    localStorage.setItem('refresh_token', result.data.refresh_token);
+                    localStorage.setItem('user', JSON.stringify(result.data.user));
+
+                    // 保存確認
+                    logger.log('[LOGIN] Token saved:', localStorage.getItem('access_token') ? 'YES' : 'NO');
+                    logger.log('[LOGIN] User saved:', localStorage.getItem('user') ? 'YES' : 'NO');
+
+                    // 少し待ってからリダイレクト（localStorageの保存を確実にするため）
+                    logger.log('[LOGIN] Redirecting to dashboard...');
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 100);
+                } else {
+                    // エラー表示
+                    logger.error('[LOGIN] Login failed:', result.error);
+                    showAlert(result.error.message || 'ログインに失敗しました');
+                    loginButton.classList.remove('loading');
+                    loginButton.disabled = false;
+                }
+            } catch (error) {
+                logger.error('[LOGIN] Login error:', error);
+                showAlert('サーバーに接続できませんでした。バックエンドが起動しているか確認してください。');
+                loginButton.classList.remove('loading');
+                loginButton.disabled = false;
+            }
+        });
+
+        // MFAフォーム送信
+        document.getElementById('mfaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const mfaCode = document.getElementById('mfaCode').value.trim();
+            const mfaButton = document.getElementById('mfaButton');
+
+            // バリデーション
+            if (!mfaCode || !/^\d{6}$/.test(mfaCode)) {
+                showFieldError('mfaCode');
+                return;
+            }
+
+            // ローディング開始
+            mfaButton.classList.add('loading');
+            mfaButton.disabled = true;
+            hideAlert();
+
+            try {
+                logger.log('[MFA] Sending MFA verification request...');
+                const response = await fetch(`${API_BASE}/auth/login/mfa`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        mfa_token: mfaToken,
+                        code: mfaCode
+                    })
+                });
+
+                logger.log('[MFA] Response status:', response.status);
+                const result = await response.json();
+                logger.log('[MFA] Response data:', result);
+
+                if (result.success) {
+                    // トークンとユーザー情報を保存
+                    logger.log('[MFA] Saving tokens to localStorage...');
+                    localStorage.setItem('access_token', result.data.access_token);
+                    localStorage.setItem('refresh_token', result.data.refresh_token);
+                    localStorage.setItem('user', JSON.stringify(result.data.user));
+
+                    // 少し待ってからリダイレクト
+                    logger.log('[MFA] Redirecting to dashboard...');
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 100);
+                } else {
+                    // エラー表示
+                    logger.error('[MFA] Verification failed:', result.error);
+                    showAlert(result.error.message || '認証コードが正しくありません');
+                    mfaButton.classList.remove('loading');
+                    mfaButton.disabled = false;
+                    document.getElementById('mfaCode').value = '';
+                    document.getElementById('mfaCode').focus();
+                }
+            } catch (error) {
+                logger.error('[MFA] Verification error:', error);
+                showAlert('サーバーに接続できませんでした。');
+                mfaButton.classList.remove('loading');
+                mfaButton.disabled = false;
+            }
+        });
+
+        // MFAフォーム表示
+        function showMfaForm() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('mfaForm').classList.add('show');
+            document.querySelector('.login-subtitle').textContent = '2要素認証';
+            document.getElementById('mfaCode').focus();
+        }
+
+        // ログイン画面に戻る
+        document.getElementById('backToLogin').addEventListener('click', () => {
+            mfaToken = null;
+            document.getElementById('mfaForm').classList.remove('show');
+            document.getElementById('loginForm').style.display = 'block';
+            document.querySelector('.login-subtitle').textContent = 'アカウント情報を入力してログインしてください';
+            document.getElementById('mfaCode').value = '';
+            hideAlert();
+        });
+
+        // MFAコード入力時の自動送信（6桁入力完了時）
+        document.getElementById('mfaCode').addEventListener('input', (e) => {
+            const value = e.target.value.replace(/\D/g, '');
+            e.target.value = value;
+            if (value.length === 6) {
+                document.getElementById('mfaForm').requestSubmit();
+            }
+        });
+
+        // フィールドエラー表示
+        function showFieldError(fieldName) {
+            const field = document.getElementById(fieldName);
+            const error = document.getElementById(`${fieldName}Error`);
+
+            field.classList.add('error');
+            error.classList.add('show');
+
+            field.addEventListener('input', () => {
+                field.classList.remove('error');
+                error.classList.remove('show');
+            }, { once: true });
+        }
+
+        // アラート表示
+        function showAlert(message) {
+            const alert = document.getElementById('loginAlert');
+            const alertMessage = document.getElementById('alertMessage');
+
+            alertMessage.textContent = message;
+            alert.classList.add('show');
+        }
+
+        // アラート非表示
+        function hideAlert() {
+            const alert = document.getElementById('loginAlert');
+            alert.classList.remove('show');
+        }
+
+        // 入力フィールドのエラークリア
+        document.getElementById('username').addEventListener('input', () => {
+            hideAlert();
+        });
+
+        document.getElementById('password').addEventListener('input', () => {
+            hideAlert();
+        });
+    </script>
+</body>
+
+</html>

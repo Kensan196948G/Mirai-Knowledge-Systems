@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>建設土木ナレッジシステム - 現場ダッシュボード</title>
+  <link rel="stylesheet" href="styles.css?v=20260112193018" />
+</head>
+
+<body>
+  <header class="header">
+    <div class="brand reveal">
+      <div class="brand-mark">MK</div>
+      <div>
+        <h1>Mirai Construction Knowledge</h1>
+        <span>○○○○建設工業株式会社 技術本部 / 全支店・管轄施工現場</span>
+      </div>
+    </div>
+    <nav class="top-nav reveal delay-1">
+      <a class="is-active" href="index.html" aria-current="page">現場ダッシュボード</a>
+      <a href="#" onclick="openSearchModal(); return false;">ナレッジ検索</a>
+      <a href="#" onclick="openNewConsultModal(); return false;">専門家に相談</a>
+      <a href="admin.html" data-required-role="admin">管理画面</a>
+    </nav>
+    <div class="header-actions reveal delay-2">
+      <button class="icon-button" onclick="openSearchModal()" title="高度な検索">
+        🔍
+      </button>
+      <button class="icon-button notification-bell" onclick="openNotificationPanel()" title="通知">
+        🔔
+        <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+      </button>
+      <button class="icon-button" onclick="openSettingsPanel()" title="設定">
+        ⚙️
+      </button>
+      <span class="chip">最新同期 <span id="lastSyncTime">--:--</span></span>
+      <span class="chip">稼働 <span id="activeWorkers">--</span> / <span id="totalWorkers">--</span></span>
+      <span class="chip">承認待ち <span id="pendingApprovals">--</span>件</span>
+      <div class="user-info"></div>
+      <!-- 新規登録ボタン: construction_manager以上のみ表示 -->
+      <button class="cta" data-required-role="construction_manager" onclick="openNewKnowledgeModal()">新規ナレッジ登録</button>
+      <!-- 新規相談ボタン: 全ユーザーが利用可能 -->
+      <button class="cta ghost" onclick="openNewConsultModal()">専門家に相談</button>
+      <!-- 🔧 修正: 管理画面リンクはトップナビにあるため削除（重複回避） -->
+    </div>
+
+  </header>
+
+  <!-- サンプルデータ警告バナー -->
+  <div id="demoDataBanner" style="background: linear-gradient(90deg, #f59e0b, #d97706); color: white; padding: 12px 20px; text-align: center; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px;">
+    <span style="font-size: 1.2em;">⚠️</span>
+    <span>このページには UI デモ用のサンプルデータが含まれています。実際の業務データではありません。</span>
+    <button onclick="this.parentElement.style.display='none'" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-left: 10px;">閉じる</button>
+  </div>
+
+  <main class="page">
+    <aside class="sidebar reveal delay-1">
+      <!-- ハンバーガーメニュートグル（モバイル用） -->
+      <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="サイドバー切替">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <!-- KNOWLEDGE HUB セクション -->
+      <div class="nav-section">
+        <div class="nav-title collapsible" onclick="toggleSection(this)">
+          <span>KNOWLEDGE HUB</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="nav-content">
+          <!-- カテゴリフィルター -->
+          <div class="sidebar-filter">
+            <select id="knowledgeCategoryFilter" onchange="filterKnowledgeByCategory(this.value)">
+              <option value="">全カテゴリ</option>
+              <option value="施工計画">施工計画</option>
+              <option value="品質管理">品質管理</option>
+              <option value="安全衛生">安全衛生</option>
+              <option value="原価管理">原価管理</option>
+              <option value="工程管理">工程管理</option>
+              <option value="環境対策">環境対策</option>
+              <option value="技術基準">技術基準</option>
+            </select>
+          </div>
+
+          <!-- 人気ナレッジTop 10 -->
+          <div class="nav-subsection">
+            <div class="nav-subtitle">人気ナレッジ Top 10</div>
+            <div id="popularKnowledgeList" class="nav-list">
+              <!-- JavaScriptで動的生成 -->
+            </div>
+          </div>
+
+          <!-- 最近追加されたナレッジ -->
+          <div class="nav-subsection">
+            <div class="nav-subtitle">最近追加 (7日以内)</div>
+            <div id="recentKnowledgeList" class="nav-list">
+              <!-- JavaScriptで動的生成 -->
+            </div>
+          </div>
+
+          <!-- お気に入りナレッジ -->
+          <div class="nav-subsection">
+            <div class="nav-subtitle">お気に入り</div>
+            <div id="favoriteKnowledgeList" class="nav-list">
+              <!-- JavaScriptで動的生成 -->
+            </div>
+          </div>
+
+          <!-- タグクラウド -->
+          <div class="nav-subsection">
+            <div class="nav-subtitle">人気タグ</div>
+            <div id="tagCloud" class="tag-cloud">
+              <!-- JavaScriptで動的生成 -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROJECTS セクション -->
+      <div class="nav-section">
+        <div class="nav-title collapsible" onclick="toggleSection(this)">
+          <span>PROJECTS</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="nav-content">
+          <!-- プロジェクトフィルター -->
+          <div class="sidebar-filter">
+            <select id="projectTypeFilter" onchange="filterProjectsByType(this.value)">
+              <option value="">全プロジェクト</option>
+              <option value="橋梁">橋梁</option>
+              <option value="道路">道路</option>
+              <option value="河川">河川</option>
+              <option value="砂防">砂防</option>
+              <option value="トンネル">トンネル</option>
+            </select>
+          </div>
+
+          <!-- 進行中プロジェクト一覧 -->
+          <div id="projectsList" class="nav-list">
+            <!-- JavaScriptで動的生成 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPERTS セクション -->
+      <div class="nav-section">
+        <div class="nav-title collapsible" onclick="toggleSection(this)">
+          <span>EXPERTS</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="nav-content">
+          <!-- 専門分野フィルター -->
+          <div class="sidebar-filter">
+            <select id="expertFieldFilter" onchange="filterExpertsByField(this.value)">
+              <option value="">全専門分野</option>
+              <option value="構造設計">構造設計</option>
+              <option value="地盤技術">地盤技術</option>
+              <option value="安全管理">安全管理</option>
+              <option value="品質管理">品質管理</option>
+              <option value="施工管理">施工管理</option>
+              <option value="環境対策">環境対策</option>
+            </select>
+          </div>
+
+          <!-- 専門家一覧 -->
+          <div id="expertsList" class="nav-list">
+            <!-- JavaScriptで動的生成 -->
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="main">
+      <section class="hero reveal">
+        <div class="hero-row">
+          <div>
+            <h2>現場の知見を一つに集約し、次の施工判断を速く。</h2>
+            <p>施工計画・品質・安全・原価・出来形を横断検索し、協力会社も含めたナレッジの標準化を推進します。</p>
+          </div>
+          <div class="hero-actions">
+            <button class="cta ghost" onclick="shareDashboard()">ダッシュボード共有</button>
+            <button class="cta secondary" onclick="openApprovalBox()">承認箱へ</button>
+            <button class="cta" onclick="generateMorningSummary()">朝礼用サマリ生成</button>
+          </div>
+        </div>
+        <div class="search">
+          <input type="search" id="heroSearchInput" placeholder="例: 砂防堰堤 温度管理 / 鋼橋 塗膜剥離 / 施工計画書の承認手順" />
+          <button class="cta" onclick="performHeroSearch()">検索</button>
+        </div>
+        <div class="filters" data-toggle-group="multi">
+          <button class="filter is-active" type="button" data-toggle aria-pressed="true">工種: 道路・橋梁</button>
+          <button class="filter is-active" type="button" data-toggle aria-pressed="true">工区: B-03 / 3-2</button>
+          <button class="filter" type="button" data-toggle aria-pressed="false">発注者: 国土交通省</button>
+          <button class="filter" type="button" data-toggle aria-pressed="false">更新日: 30日以内</button>
+        </div>
+      </section>
+
+      <section class="metrics reveal delay-1">
+        <div class="metric-card" title="サンプルデータ">
+          <h3>ナレッジ再利用率 <small style="color:#f59e0b">[参考値]</small></h3>
+          <strong>71%</strong>
+        </div>
+        <div class="metric-card" title="サンプルデータ">
+          <h3>事故ゼロ継続日数 <small style="color:#f59e0b">[参考値]</small></h3>
+          <strong>184日</strong>
+        </div>
+        <div class="metric-card" title="サンプルデータ">
+          <h3>品質監査 実施中 <small style="color:#f59e0b">[参考値]</small></h3>
+          <strong>6現場</strong>
+        </div>
+        <div class="metric-card" title="サンプルデータ">
+          <h3>是正期限 遅延 <small style="color:#f59e0b">[参考値]</small></h3>
+          <strong>3件</strong>
+        </div>
+      </section>
+
+      <section class="grid-two reveal delay-2">
+        <div class="panel">
+          <h3>承認フロー / ナレッジ配信 <small style="color:#f59e0b">[サンプル]</small></h3>
+          <div class="flow">
+            <div class="flow-step">
+              <div>[例] 施工計画変更 砂防堰堤B-03 (工区3-2)</div>
+              <span class="badge is-wait">所長承認待ち</span>
+            </div>
+            <div class="flow-step">
+              <div>[例] SOP改訂 高所作業車 点検SOP-0421</div>
+              <span class="badge is-info">品質確認中</span>
+            </div>
+            <div class="flow-step">
+              <div>[例] 事故レポート 吊り荷接触未遂 (K-12)</div>
+              <span class="badge is-hold">安全衛生室レビュー</span>
+            </div>
+          </div>
+          <div class="cta-group">
+            <button class="cta ghost" onclick="openApprovalBox()">承認箱を開く</button>
+            <!-- 承認/却下ボタン: quality_assurance以上のみ表示 -->
+            <button class="cta" data-required-role="quality_assurance" onclick="approveSelected()">承認</button>
+            <button class="cta secondary" data-required-role="quality_assurance" onclick="rejectSelected()">却下</button>
+            <button class="cta secondary" onclick="alert('差戻しメモ機能は今後実装予定です。')">差戻しメモ</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>今週のアクション <small style="color:#f59e0b">[サンプル]</small></h3>
+          <div class="list-dense">
+            <div>[例] 品質監査 6現場の是正期限を7日以内に統一</div>
+            <div>[例] 夜間舗装の安全パトロールを全現場で実施</div>
+            <div>[例] ICT出来形の再測定基準を通達</div>
+          </div>
+          <div class="note">※ 上記はUIデモ用のサンプルデータです。</div>
+        </div>
+      </section>
+
+      <section class="grid-two reveal delay-3">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>稼働モニタリング <small style="color:#f59e0b">[サンプル]</small></h3>
+            <div class="panel-actions" data-toggle-group="single">
+              <button class="chip-button is-active" type="button" data-toggle>今日</button>
+              <button class="chip-button" type="button" data-toggle>今週</button>
+              <button class="chip-button" type="button" data-toggle>今月</button>
+            </div>
+          </div>
+          <div class="progress-list">
+            <div class="progress-item" data-progress="64">
+              <div class="progress-title">[例] 東北橋梁補修 B-03</div>
+              <div class="progress-track"><span class="progress-fill"></span></div>
+              <div class="progress-meta"><span>工程 64%</span><span>予定 67%</span></div>
+            </div>
+            <div class="progress-item" data-progress="38">
+              <div class="progress-title">[例] 首都高速更新 K-12</div>
+              <div class="progress-track"><span class="progress-fill"></span></div>
+              <div class="progress-meta"><span>工程 38%</span><span>予定 41%</span></div>
+            </div>
+            <div class="progress-item" data-progress="81">
+              <div class="progress-title">[例] 河川護岸整備 R-07</div>
+              <div class="progress-track"><span class="progress-fill"></span></div>
+              <div class="progress-meta"><span>工程 81%</span><span>予定 79%</span></div>
+            </div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div>労務稼働</div>
+              <strong>24/28</strong>
+              <small>夜間 4 / 応援 2</small>
+            </div>
+            <div class="stat-card">
+              <div>重機稼働</div>
+              <strong>18/22</strong>
+              <small>点検予定 3</small>
+            </div>
+            <div class="stat-card">
+              <div>来週の集中作業</div>
+              <strong>5班</strong>
+              <small>舗装 / 橋梁補修</small>
+            </div>
+          </div>
+          <div>
+            <div class="alert-meta">日別出来高 (直近7日)</div>
+            <div style="position: relative; height: 120px;">
+              <canvas id="dailyProgressChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3>品質・原価リスク <small style="color:#f59e0b">[サンプル]</small></h3>
+            <div class="panel-actions">
+              <span class="chip">今週 <span id="weeklyRisks">9</span>件</span>
+              <span class="chip">対応中 <span id="activeRisks">4</span>件</span>
+            </div>
+          </div>
+          <div style="position: relative; height: 180px; margin-bottom: 20px;">
+            <canvas id="riskTrendChart"></canvas>
+          </div>
+          <div class="alert-list">
+            <div class="alert-item">
+              <div class="status-row">
+                <span class="status-dot is-warn"></span>
+                <strong>[例] 夜間舗装の原価超過兆候 (K-12)</strong>
+              </div>
+              <div class="alert-meta">原価 +6% / 材料費 / 直近2日</div>
+            </div>
+            <div class="alert-item">
+              <div class="status-row">
+                <span class="status-dot is-danger"></span>
+                <strong>[例] 品質監査 是正遅延 (B-03)</strong>
+              </div>
+              <div class="alert-meta">是正期限 6/28 / 指摘 2件</div>
+            </div>
+            <div class="alert-item">
+              <div class="status-row">
+                <span class="status-dot is-ok"></span>
+                <strong>[例] 出来形確認 合格率向上 (R-07)</strong>
+              </div>
+              <div class="alert-meta">合格率 96% / 先週比 +4%</div>
+            </div>
+          </div>
+          <div class="note">※ 上記はUIデモ用のサンプルデータです。</div>
+        </div>
+      </section>
+
+      <section class="panel reveal delay-2">
+        <div class="tabs" role="tablist" aria-label="ナレッジ切替">
+          <button class="tab-btn is-active" id="tab-search" role="tab" aria-selected="true" aria-controls="panel-search"
+            data-tab="search">検索結果</button>
+          <button class="tab-btn" id="tab-sop" role="tab" aria-selected="false" aria-controls="panel-sop"
+            data-tab="sop">標準施工</button>
+          <button class="tab-btn" id="tab-incident" role="tab" aria-selected="false" aria-controls="panel-incident"
+            data-tab="incident">事故・ヒヤリ</button>
+        </div>
+        <div class="tab-panel is-active" id="panel-search" role="tabpanel" aria-labelledby="tab-search"
+          data-panel="search">
+          <!-- ナレッジはAPIから動的に読み込み -->
+        </div>
+        <div class="tab-panel" id="panel-sop" role="tabpanel" aria-labelledby="tab-sop" data-panel="sop">
+          <!-- SOPはAPIから動的に読み込み -->
+        </div>
+        <div class="tab-panel" id="panel-incident" role="tabpanel" aria-labelledby="tab-incident" data-panel="incident">
+          <!-- 事故レポートはAPIから動的に読み込み -->
+        </div>
+      </section>
+
+      <section class="grid-two reveal delay-2">
+        <div class="panel">
+          <h3>現場ナレッジフロー <small style="color:#f59e0b">[サンプル]</small></h3>
+          <div class="timeline">
+            <div class="timeline-item">
+              <strong>06/24 08:40</strong>
+              <div>[例] 河川護岸整備 R-07 - 施工計画変更の承認待ち</div>
+              <small>関連: 河川法改定 / 施工区画 3-2 / 施工数量 1,200m</small>
+            </div>
+            <div class="timeline-item">
+              <strong>06/23 16:05</strong>
+              <div>[例] 首都高速更新 K-12 - 夜間点検ルートの最適化案</div>
+              <small>関連: ドローン点検 / バッテリ管理 / 走査延長 6.2km</small>
+            </div>
+            <div class="timeline-item">
+              <strong>06/22 11:20</strong>
+              <div>[例] 東北橋梁補修 B-03 - 塗装規格の改訂通知</div>
+              <small>関連: 旧規格との比較表 / 下地処理 SA2.5</small>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>法令・規格の即時チェック</h3>
+          <div class="document">
+            <strong>道路土工指針 2024改訂 (国総研)</strong>
+            <small>該当範囲: 盛土 / 切土 / 斜面安定</small>
+            <div>設計含水比の改定点を自動マーキング。</div>
+          </div>
+          <div class="document">
+            <strong>建設副産物適正処理ガイド 2024</strong>
+            <small>該当範囲: 産廃マニフェスト / 電子化</small>
+            <div>電子マニフェスト運用の追加手順と提出期限。</div>
+          </div>
+          <div class="document">
+            <strong>労働安全衛生規則 2024改正</strong>
+            <small>該当範囲: 高所作業 / 足場</small>
+            <div>点検頻度と記録様式の統一。</div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="rail reveal delay-1">
+      <div class="alert" style="border-left: 3px solid #f59e0b;">
+        <strong>[サンプル] 要対応:</strong> 河川護岸整備 R-07 の変更申請 (No.24-031) に追加資料が必要です。
+      </div>
+      <div>
+        <h3>現場ステータス <small style="color:#f59e0b">[サンプル]</small></h3>
+        <div class="status-list">
+          <div class="status-item">
+            <div>東北橋梁補修</div>
+            <span>安全評価 A / 原価 92%</span>
+          </div>
+          <div class="status-item">
+            <div>首都高速更新</div>
+            <span>品質監査中 / 是正 2件</span>
+          </div>
+          <div class="status-item">
+            <div>河川護岸整備</div>
+            <span>変更申請 / 工期延伸</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>マップスナップ</h3>
+        <div class="map">現場分布 / 地盤リスク重ね合わせ</div>
+      </div>
+      <div>
+        <h3>現場通知フィード</h3>
+        <div class="activity-list">
+          <div class="activity-item">
+            <strong>R-07 施工計画変更が差戻し</strong>
+            <small>提出資料に水位計測結果が不足。</small>
+          </div>
+          <div class="activity-item">
+            <strong>B-03 打設前安全会議が完了</strong>
+            <small>参加 18名 / 重点項目 3件。</small>
+          </div>
+          <div class="activity-item">
+            <strong>K-12 夜間規制の許可更新</strong>
+            <small>許可番号: K12-2024-06。</small>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>当番エキスパート</h3>
+        <div class="document">
+          <strong>安全管理: 斎藤</strong>
+          <small>対応可能 10:00-17:00 / 東北エリア</small>
+          <div>夜間規制と高所作業の相談が集中。</div>
+        </div>
+        <div class="document">
+          <strong>地盤技術: 吉岡</strong>
+          <small>対応可能 13:00-19:00 / 河川・砂防</small>
+          <div>地中空洞検知 / 地盤改良の支援。</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <button class="floating" onclick="submitDistribution('dashboard', {})">現場に共有申請</button>
+
+  <!-- 新規ナレッジ登録モーダル -->
+  <div id="newKnowledgeModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>新規ナレッジ登録</h2>
+        <button class="modal-close" onclick="closeNewKnowledgeModal()">&times;</button>
+      </div>
+      <form id="newKnowledgeForm" class="form">
+        <div class="field">
+          <label for="knowledgeTitle">タイトル <span class="required">*</span></label>
+          <input type="text" id="knowledgeTitle" name="title" required maxlength="200"
+                 placeholder="例: 砂防堰堤 コンクリート打設の温度管理フロー">
+        </div>
+        <div class="field">
+          <label for="knowledgeCategory">カテゴリ <span class="required">*</span></label>
+          <select id="knowledgeCategory" name="category" required>
+            <option value="">選択してください</option>
+            <option value="施工計画">施工計画</option>
+            <option value="品質管理">品質管理</option>
+            <option value="安全衛生">安全衛生</option>
+            <option value="原価管理">原価管理</option>
+            <option value="工程管理">工程管理</option>
+            <option value="環境対策">環境対策</option>
+            <option value="技術基準">技術基準</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="knowledgePriority">優先度 <span class="required">*</span></label>
+          <select id="knowledgePriority" name="priority" required>
+            <option value="normal">通常</option>
+            <option value="high">高</option>
+            <option value="urgent">緊急</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="knowledgeProject">対象プロジェクト</label>
+          <input type="text" id="knowledgeProject" name="project" placeholder="例: B-03-3-2">
+        </div>
+        <div class="field">
+          <label for="knowledgeSummary">概要 <span class="required">*</span></label>
+          <textarea id="knowledgeSummary" name="summary" required maxlength="500"
+                    placeholder="ナレッジの概要を入力してください（500文字以内）"></textarea>
+        </div>
+        <div class="field">
+          <label for="knowledgeContent">詳細内容 <span class="required">*</span></label>
+          <textarea id="knowledgeContent" name="content" required
+                    placeholder="詳細な内容を入力してください"></textarea>
+        </div>
+        <div class="field">
+          <label for="knowledgeTags">タグ</label>
+          <input type="text" id="knowledgeTags" name="tags"
+                 placeholder="カンマ区切りで入力（例: 品質確保, 寒冷地施工, 温度センサー）">
+          <small>複数のタグをカンマ（,）で区切って入力してください</small>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cta ghost" onclick="closeNewKnowledgeModal()">キャンセル</button>
+          <button type="submit" class="cta">登録</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 検索詳細モーダル -->
+  <div id="searchModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>高度な検索</h2>
+        <button class="modal-close" onclick="closeSearchModal()">&times;</button>
+      </div>
+      <form id="advancedSearchForm" class="form">
+        <div class="field">
+          <label for="searchKeyword">キーワード</label>
+          <input type="text" id="searchKeyword" name="keyword" placeholder="検索キーワードを入力">
+        </div>
+        <div class="field">
+          <label for="searchCategory">カテゴリフィルター</label>
+          <select id="searchCategory" name="category">
+            <option value="">すべて</option>
+            <option value="施工計画">施工計画</option>
+            <option value="品質管理">品質管理</option>
+            <option value="安全衛生">安全衛生</option>
+            <option value="原価管理">原価管理</option>
+            <option value="工程管理">工程管理</option>
+            <option value="環境対策">環境対策</option>
+            <option value="技術基準">技術基準</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="searchDateFrom">更新日（開始）</label>
+          <input type="date" id="searchDateFrom" name="dateFrom">
+        </div>
+        <div class="field">
+          <label for="searchDateTo">更新日（終了）</label>
+          <input type="date" id="searchDateTo" name="dateTo">
+        </div>
+        <div class="field">
+          <label for="searchTags">タグ</label>
+          <input type="text" id="searchTags" name="tags" placeholder="タグで絞り込み">
+        </div>
+        <div class="field">
+          <label for="searchProject">プロジェクト</label>
+          <input type="text" id="searchProject" name="project" placeholder="プロジェクトコード">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cta ghost" onclick="closeSearchModal()">キャンセル</button>
+          <button type="button" class="cta secondary" onclick="resetSearchForm()">リセット</button>
+          <button type="submit" class="cta">検索実行</button>
+        </div>
+      </form>
+      <div id="searchResults" class="search-results"></div>
+    </div>
+  </div>
+
+  <!-- 通知詳細パネル（サイドパネル） -->
+  <div id="notificationSidePanel" class="side-panel">
+    <div class="side-panel-header">
+      <h2>通知センター</h2>
+      <button class="modal-close" onclick="closeNotificationPanel()">&times;</button>
+    </div>
+    <div class="side-panel-tabs">
+      <button class="side-tab-btn is-active" data-tab="all">すべて</button>
+      <button class="side-tab-btn" data-tab="unread">未読</button>
+      <button class="side-tab-btn" data-tab="important">重要</button>
+    </div>
+    <div class="side-panel-content" id="notificationList">
+      <!-- 通知アイテムが動的に表示される -->
+    </div>
+  </div>
+
+  <!-- 設定パネル（サイドパネル） -->
+  <div id="settingsPanel" class="side-panel">
+    <div class="side-panel-header">
+      <h2>設定</h2>
+      <button class="modal-close" onclick="closeSettingsPanel()">&times;</button>
+    </div>
+    <div class="side-panel-tabs">
+      <button class="side-tab-btn is-active" data-tab="user">ユーザー設定</button>
+      <button class="side-tab-btn" data-tab="security">セキュリティ</button>
+      <button class="side-tab-btn" data-tab="notification">通知設定</button>
+      <button class="side-tab-btn" data-tab="display">表示設定</button>
+    </div>
+    <div class="side-panel-content">
+      <div id="userSettings" class="settings-section is-active">
+        <form id="userSettingsForm" class="form">
+          <div class="field">
+            <label for="userFullName">氏名</label>
+            <input type="text" id="userFullName" name="fullName">
+          </div>
+          <div class="field">
+            <label for="userDepartment">所属部署</label>
+            <input type="text" id="userDepartment" name="department">
+          </div>
+          <div class="field">
+            <label for="userEmail">メールアドレス</label>
+            <input type="email" id="userEmail" name="email">
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="cta">保存</button>
+          </div>
+        </form>
+      </div>
+      <div id="securitySettings" class="settings-section">
+        <div class="mfa-settings">
+          <h3>2要素認証 (MFA)</h3>
+          <p class="settings-description">
+            認証アプリ（Google Authenticator、Microsoft Authenticator等）を使用した追加のセキュリティ層を設定できます。
+          </p>
+          <div class="mfa-status-row">
+            <span>現在の状態:</span>
+            <span id="mfaStatus" class="mfa-status disabled">無効</span>
+          </div>
+          <div class="mfa-actions">
+            <button id="mfaSetupBtn" class="cta" onclick="startMFASetup()">MFAを有効にする</button>
+            <button id="mfaDisableBtn" class="btn-danger" onclick="disableMFA()" style="display: none;">MFAを無効にする</button>
+          </div>
+        </div>
+        <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
+        <div class="password-settings">
+          <h3>パスワード変更</h3>
+          <p class="settings-description">
+            パスワードを定期的に変更することでセキュリティを高められます。
+          </p>
+          <button class="btn-secondary" onclick="showNotification('パスワード変更機能は準備中です', 'info')">パスワードを変更</button>
+        </div>
+      </div>
+      <div id="notificationSettings" class="settings-section">
+        <form id="notificationSettingsForm" class="form">
+          <div class="field">
+            <label>
+              <input type="checkbox" id="notifyApproval" name="notifyApproval" checked>
+              承認待ち通知を受け取る
+            </label>
+          </div>
+          <div class="field">
+            <label>
+              <input type="checkbox" id="notifyKnowledge" name="notifyKnowledge" checked>
+              新規ナレッジ通知を受け取る
+            </label>
+          </div>
+          <div class="field">
+            <label>
+              <input type="checkbox" id="notifyIncident" name="notifyIncident" checked>
+              事故・ヒヤリ通知を受け取る
+            </label>
+          </div>
+          <div class="field">
+            <label>
+              <input type="checkbox" id="notifyEmail" name="notifyEmail">
+              メール通知を有効にする
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="cta">保存</button>
+          </div>
+        </form>
+      </div>
+      <div id="displaySettings" class="settings-section">
+        <form id="displaySettingsForm" class="form">
+          <div class="field">
+            <label for="itemsPerPage">1ページあたりの表示件数</label>
+            <select id="itemsPerPage" name="itemsPerPage">
+              <option value="10">10件</option>
+              <option value="20" selected>20件</option>
+              <option value="50">50件</option>
+              <option value="100">100件</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>
+              <input type="checkbox" id="enableAnimations" name="enableAnimations" checked>
+              アニメーションを有効にする
+            </label>
+          </div>
+          <div class="field">
+            <label>
+              <input type="checkbox" id="compactMode" name="compactMode">
+              コンパクト表示モード
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="cta">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MFAセットアップモーダル -->
+  <div id="mfaSetupModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeMFASetupModal()"></div>
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3>2要素認証のセットアップ</h3>
+        <button class="modal-close" onclick="closeMFASetupModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="mfa-setup-steps">
+          <div class="mfa-step">
+            <span class="step-number">1</span>
+            <span>認証アプリ（Google Authenticator等）をスマートフォンにインストール</span>
+          </div>
+          <div class="mfa-step">
+            <span class="step-number">2</span>
+            <span>以下のQRコードをスキャン、または手動でキーを入力</span>
+          </div>
+        </div>
+        <div id="mfaQRCode" class="mfa-qrcode"></div>
+        <div class="mfa-secret">
+          <span>シークレットキー:</span>
+          <code id="mfaSecretKey">-</code>
+        </div>
+        <div class="mfa-step">
+          <span class="step-number">3</span>
+          <span>認証アプリに表示される6桁のコードを入力して確認</span>
+        </div>
+        <div class="field" style="margin-top: 16px;">
+          <label for="mfaVerifyCode">認証コード</label>
+          <input type="text" id="mfaVerifyCode" class="mfa-code-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeMFASetupModal()">キャンセル</button>
+        <button class="cta" onclick="verifyAndEnableMFA()">有効化</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Socket.IO CDN (jsDelivr経由 - CSP対応) -->
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
+  <!-- QRCode.js CDN (MFA用) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="app.js?v=20260112193018"></script>
+  <script src="notifications.js?v=20260112193018"></script>
+  <script src="actions.js?v=20260112193018"></script>
+</body>
+
+</html>

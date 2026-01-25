@@ -1,0 +1,1364 @@
+openapi: 3.0.3
+info:
+  title: Mirai Knowledge System API
+  description: |
+    建設土木ナレッジシステムの包括的なREST APIドキュメント
+
+    ## 概要
+    このAPIは建設・土木業界向けのナレッジ管理システムを提供します。
+    ナレッジ共有、SOP管理、事故レポート、専門家相談、承認フロー、通知配信などの機能を含みます。
+
+    ## 認証
+    すべてのAPIエンドポイント（一部公開エンドポイントを除く）はJWT Bearer認証を使用します。
+
+    1. `/api/v1/auth/login`でログインしてaccess_tokenを取得
+    2. すべてのリクエストのAuthorizationヘッダーに`Bearer {access_token}`を含める
+    3. トークンの有効期限は1時間（3600秒）
+    4. `/api/v1/auth/refresh`でトークンをリフレッシュ可能
+
+    ## 認可・権限管理
+    システムは役割ベースのアクセス制御（RBAC）を実装しています：
+
+    - **admin**: 全権限
+    - **construction_manager**: ナレッジ作成・更新、事故レポート、相談作成
+    - **quality_assurance**: ナレッジ承認、SOP更新、承認実行
+    - **safety_officer**: ナレッジ・SOP閲覧、事故レポート作成・更新
+    - **partner_company**: ナレッジ・SOP・事故レポート閲覧のみ
+
+    ## レート制限
+    - 本番環境: 1000リクエスト/分、10000リクエスト/時、100000リクエスト/日
+    - ログインエンドポイント: 5リクエスト/分、20リクエスト/時
+    - 開発環境: レート制限無効
+
+    ## エラーハンドリング
+    すべてのエラーレスポンスは統一された形式を使用します：
+    ```json
+    {
+      "success": false,
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "人間が読めるエラーメッセージ",
+        "details": {}
+      }
+    }
+    ```
+
+    ## ページネーション
+    リスト取得エンドポイントはページネーション情報を含みます：
+    ```json
+    {
+      "success": true,
+      "data": [...],
+      "pagination": {
+        "total_items": 100,
+        "unread_count": 5
+      }
+    }
+    ```
+  version: 2.0.0
+  contact:
+    name: Mirai Knowledge System Support
+    email: support@example.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:5100
+    description: Development server
+  - url: https://api.mks.example.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: 認証・認可関連のエンドポイント
+  - name: Knowledge
+    description: ナレッジ管理
+  - name: SOP
+    description: 標準施工手順管理
+  - name: Regulations
+    description: 法令・規格管理
+  - name: Incidents
+    description: 事故・ヒヤリレポート管理
+  - name: Consultations
+    description: 専門家相談管理
+  - name: Approvals
+    description: 承認フロー管理
+  - name: Notifications
+    description: 通知配信管理
+  - name: Search
+    description: 横断検索機能
+  - name: Dashboard
+    description: ダッシュボード・統計情報
+  - name: Metrics
+    description: システムメトリクス・監視
+  - name: Users
+    description: ユーザー管理
+
+paths:
+  # ============================================================
+  # 認証 API
+  # ============================================================
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: ログイン
+      description: |
+        ユーザー名とパスワードでログインし、JWTトークンを取得します。
+
+        **レート制限**: 5リクエスト/分、20リクエスト/時
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              admin:
+                summary: 管理者でログイン
+                value:
+                  username: admin
+                  password: admin123
+              manager:
+                summary: 施工管理者でログイン
+                value:
+                  username: yamada
+                  password: yamada123
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                success:
+                  summary: 成功レスポンス
+                  value:
+                    success: true
+                    data:
+                      access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      token_type: Bearer
+                      expires_in: 3600
+                      user:
+                        id: 1
+                        username: admin
+                        email: admin@example.com
+                        full_name: 管理者
+                        department: システム管理部
+                        roles:
+                          - admin
+                        is_active: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: トークンリフレッシュ
+      description: リフレッシュトークンを使用して新しいアクセストークンを取得します
+      operationId: refreshToken
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: トークンリフレッシュ成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: 現在のユーザー情報取得
+      description: ログイン中のユーザーの詳細情報と権限を取得します
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ユーザー情報取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # ナレッジ管理 API
+  # ============================================================
+  /api/v1/knowledge:
+    get:
+      tags:
+        - Knowledge
+      summary: ナレッジ一覧取得
+      description: |
+        ナレッジの一覧を取得します。カテゴリ、検索キーワード、タグでフィルタリング可能。
+
+        **必要権限**: knowledge.read
+      operationId: listKnowledge
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          description: カテゴリでフィルタ
+          schema:
+            type: string
+            enum:
+              - 施工計画
+              - 品質管理
+              - 安全衛生
+              - 環境対策
+              - 原価管理
+              - 出来形管理
+              - その他
+        - name: search
+          in: query
+          description: タイトル・概要・内容から全文検索
+          schema:
+            type: string
+        - name: tags
+          in: query
+          description: タグでフィルタ（カンマ区切りで複数指定可能）
+          schema:
+            type: string
+          example: "基礎工事,品質管理"
+        - name: highlight
+          in: query
+          description: 検索結果をハイライト表示するか
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: ナレッジ一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Knowledge
+      summary: 新規ナレッジ作成
+      description: |
+        新しいナレッジを作成します。作成後は承認待ち状態になります。
+
+        **必要権限**: knowledge.create
+      operationId: createKnowledge
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeCreateRequest'
+            examples:
+              basic:
+                summary: 基本的なナレッジ作成
+                value:
+                  title: 基礎コンクリート打設時の品質管理ポイント
+                  summary: 基礎コンクリート打設における品質確保のためのチェックリスト
+                  content: |
+                    ## 打設前チェック
+                    1. 配筋検査の完了確認
+                    2. 型枠の清掃状態確認
+                    3. 天候・気温の確認
+
+                    ## 打設中の管理
+                    1. スランプ値の測定（18±2.5cm）
+                    2. 打設速度の管理
+                    3. バイブレーター締固めの実施
+                  category: 品質管理
+                  tags:
+                    - 基礎工事
+                    - コンクリート
+                    - 品質管理
+                  owner: 山田太郎
+                  project: 東京タワー建設プロジェクト
+                  priority: high
+      responses:
+        '201':
+          description: ナレッジ作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/knowledge/{knowledgeId}:
+    get:
+      tags:
+        - Knowledge
+      summary: ナレッジ詳細取得
+      description: |
+        指定されたIDのナレッジ詳細を取得します。
+
+        **必要権限**: knowledge.read
+      operationId: getKnowledge
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: knowledgeId
+          in: path
+          required: true
+          description: ナレッジID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: ナレッジ詳細取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # SOP管理 API
+  # ============================================================
+  /api/v1/sop:
+    get:
+      tags:
+        - SOP
+      summary: SOP一覧取得
+      description: |
+        標準施工手順（SOP）の一覧を取得します。
+
+        **必要権限**: sop.read
+      operationId: listSOP
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: SOP一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SOPListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ============================================================
+  # 横断検索 API
+  # ============================================================
+  /api/v1/search/unified:
+    get:
+      tags:
+        - Search
+      summary: 横断検索
+      description: |
+        ナレッジ、SOP、事故レポート、相談など複数のエンティティを横断的に検索します。
+        検索結果はスコアリングされ、関連度順にソートされます。
+
+        **必要権限**: 各エンティティの読み取り権限
+      operationId: unifiedSearch
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: 検索クエリ
+          schema:
+            type: string
+            minLength: 1
+          example: "コンクリート品質"
+        - name: types
+          in: query
+          description: 検索対象タイプ（カンマ区切り）
+          schema:
+            type: string
+            default: "knowledge,sop,incidents"
+          example: "knowledge,sop,incidents,consultations,regulations"
+        - name: highlight
+          in: query
+          description: 検索結果をハイライト表示するか
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: 検索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedSearchResponse'
+              examples:
+                success:
+                  summary: 検索成功例
+                  value:
+                    success: true
+                    data:
+                      knowledge:
+                        items:
+                          - id: 1
+                            title: "<mark>コンクリート</mark>打設時の<mark>品質</mark>管理"
+                            summary: "高<mark>品質</mark>な<mark>コンクリート</mark>を確保するための手順"
+                            relevance_score: 1.7
+                        count: 15
+                      sop:
+                        items:
+                          - id: 5
+                            title: "<mark>コンクリート</mark>打設標準手順"
+                            relevance_score: 1.5
+                        count: 8
+                      incidents:
+                        items:
+                          - id: 3
+                            title: "<mark>コンクリート</mark><mark>品質</mark>不良による再施工"
+                            relevance_score: 1.2
+                        count: 3
+                    total_results: 26
+                    query: "コンクリート品質"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # 通知管理 API
+  # ============================================================
+  /api/v1/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: 通知一覧取得
+      description: |
+        現在のユーザー宛の通知一覧を取得します。
+        新しい順にソートされ、未読数も含まれます。
+      operationId: listNotifications
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 通知一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/notifications/{notificationId}/read:
+    put:
+      tags:
+        - Notifications
+      summary: 通知を既読にする
+      description: 指定された通知を既読としてマークします
+      operationId: markNotificationAsRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          description: 通知ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: 既読マーク成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      is_read:
+                        type: boolean
+                        example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/notifications/unread/count:
+    get:
+      tags:
+        - Notifications
+      summary: 未読通知数取得
+      description: 現在のユーザーの未読通知数を取得します
+      operationId: getUnreadNotificationCount
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 未読数取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      unread_count:
+                        type: integer
+                        example: 5
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # 承認フロー API
+  # ============================================================
+  /api/v1/approvals:
+    get:
+      tags:
+        - Approvals
+      summary: 承認フロー一覧取得
+      description: 承認フローの一覧を取得します
+      operationId: listApprovals
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 承認フロー一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # ダッシュボード API
+  # ============================================================
+  /api/v1/dashboard/stats:
+    get:
+      tags:
+        - Dashboard
+      summary: ダッシュボード統計情報取得
+      description: |
+        ダッシュボードに表示する統計情報を取得します。
+        KPI、各エンティティのカウント、最近のアクティビティなどが含まれます。
+      operationId: getDashboardStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 統計情報取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStatsResponse'
+              examples:
+                success:
+                  summary: ダッシュボード統計
+                  value:
+                    success: true
+                    data:
+                      kpis:
+                        knowledge_reuse_rate: 71
+                        accident_free_days: 184
+                        active_audits: 6
+                        delayed_corrections: 3
+                      counts:
+                        total_knowledge: 156
+                        total_sop: 42
+                        recent_incidents: 8
+                        pending_approvals: 12
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # メトリクス API
+  # ============================================================
+  /api/v1/metrics:
+    get:
+      tags:
+        - Metrics
+      summary: Prometheus形式メトリクス
+      description: |
+        Prometheus互換のメトリクスデータを取得します。
+        システムメトリクス、アプリケーションメトリクス、ビジネスメトリクスが含まれます。
+
+        **認証不要**: このエンドポイントはPrometheusスクレイピング用に認証不要です
+      operationId: getPrometheusMetrics
+      responses:
+        '200':
+          description: メトリクス取得成功
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP app_info Application information
+                # TYPE app_info gauge
+                app_info{version="2.0",name="mirai-knowledge-system"} 1
+
+                # HELP system_cpu_usage_percent CPU usage percentage
+                # TYPE system_cpu_usage_percent gauge
+                system_cpu_usage_percent 45.2
+
+                # HELP knowledge_total_count Total number of knowledge items
+                # TYPE knowledge_total_count gauge
+                knowledge_total_count 156
+
+  /metrics:
+    get:
+      tags:
+        - Metrics
+      summary: システムメトリクス（Prometheus形式）
+      description: |
+        Prometheusサーバー用のメトリクスエンドポイント。
+
+        **認証不要**: Prometheusスクレイピング用
+      operationId: getMetrics
+      responses:
+        '200':
+          description: メトリクス取得成功
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/metrics/summary:
+    get:
+      tags:
+        - Metrics
+      summary: メトリクスサマリー（管理者用）
+      description: |
+        人間が読みやすい形式でメトリクスを取得します。
+
+        **必要権限**: 認証済みユーザー
+      operationId: getMetricsSummary
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: メトリクスサマリー取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSummaryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ============================================================
+# コンポーネント定義
+# ============================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer認証。
+        `/api/v1/auth/login`でログインしてトークンを取得し、
+        `Authorization: Bearer {token}`ヘッダーで送信してください。
+
+  schemas:
+    # ============================================================
+    # リクエストスキーマ
+    # ============================================================
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: ユーザー名
+          example: admin
+        password:
+          type: string
+          minLength: 6
+          maxLength: 100
+          description: パスワード
+          example: admin123
+          format: password
+
+    KnowledgeCreateRequest:
+      type: object
+      required:
+        - title
+        - summary
+        - content
+        - category
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: ナレッジタイトル
+          example: 基礎コンクリート打設時の品質管理ポイント
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: 概要
+          example: 基礎コンクリート打設における品質確保のためのチェックリスト
+        content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+          description: 本文（Markdown形式）
+          example: |
+            ## 打設前チェック
+            1. 配筋検査の完了確認
+            2. 型枠の清掃状態確認
+        category:
+          type: string
+          enum:
+            - 施工計画
+            - 品質管理
+            - 安全衛生
+            - 環境対策
+            - 原価管理
+            - 出来形管理
+            - その他
+          description: カテゴリ
+          example: 品質管理
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 30
+          maxItems: 20
+          description: タグ
+          example:
+            - 基礎工事
+            - コンクリート
+            - 品質管理
+        owner:
+          type: string
+          maxLength: 100
+          description: 所有者
+          example: 山田太郎
+        project:
+          type: string
+          maxLength: 100
+          description: プロジェクト名
+          example: 東京タワー建設プロジェクト
+        priority:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+          default: medium
+          description: 優先度
+          example: high
+
+    # ============================================================
+    # レスポンススキーマ
+    # ============================================================
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: JWTアクセストークン（1時間有効）
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            refresh_token:
+              type: string
+              description: JWTリフレッシュトークン（30日有効）
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            token_type:
+              type: string
+              example: Bearer
+            expires_in:
+              type: integer
+              description: トークン有効期限（秒）
+              example: 3600
+            user:
+              $ref: '#/components/schemas/User'
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: 新しいJWTアクセストークン
+            expires_in:
+              type: integer
+              example: 3600
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/User'
+            - type: object
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                  description: ユーザーの権限リスト
+                  example:
+                    - knowledge.create
+                    - knowledge.read
+                    - sop.read
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: admin
+        email:
+          type: string
+          format: email
+          example: admin@example.com
+        full_name:
+          type: string
+          example: 管理者
+        department:
+          type: string
+          example: システム管理部
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - admin
+        is_active:
+          type: boolean
+          example: true
+
+    Knowledge:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: 基礎コンクリート打設時の品質管理ポイント
+        summary:
+          type: string
+          example: 基礎コンクリート打設における品質確保のためのチェックリスト
+        content:
+          type: string
+          example: "## 打設前チェック\n1. 配筋検査の完了確認..."
+        category:
+          type: string
+          example: 品質管理
+        tags:
+          type: array
+          items:
+            type: string
+          example:
+            - 基礎工事
+            - コンクリート
+        status:
+          type: string
+          enum:
+            - draft
+            - pending
+            - approved
+            - archived
+          example: approved
+        priority:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+          example: high
+        owner:
+          type: string
+          example: 山田太郎
+        project:
+          type: string
+          example: 東京タワー建設プロジェクト
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-20T15:45:00"
+        created_by_id:
+          type: integer
+          example: 2
+
+    KnowledgeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Knowledge'
+
+    KnowledgeListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Knowledge'
+        pagination:
+          type: object
+          properties:
+            total_items:
+              type: integer
+              example: 156
+
+    SOP:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+        version:
+          type: string
+        revision_date:
+          type: string
+          format: date
+        content:
+          type: string
+        status:
+          type: string
+
+    SOPListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SOP'
+        pagination:
+          type: object
+          properties:
+            total_items:
+              type: integer
+
+    UnifiedSearchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            knowledge:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    allOf:
+                      - $ref: '#/components/schemas/Knowledge'
+                      - type: object
+                        properties:
+                          relevance_score:
+                            type: number
+                            format: float
+                count:
+                  type: integer
+            sop:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                count:
+                  type: integer
+            incidents:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                count:
+                  type: integer
+        total_results:
+          type: integer
+          example: 26
+        query:
+          type: string
+          example: "コンクリート品質"
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum:
+            - approval_required
+            - approval_completed
+            - incident_reported
+            - consultation_answered
+        priority:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+        created_at:
+          type: string
+          format: date-time
+        is_read:
+          type: boolean
+
+    NotificationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        pagination:
+          type: object
+          properties:
+            total_items:
+              type: integer
+            unread_count:
+              type: integer
+
+    Approval:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - approved
+            - rejected
+        created_at:
+          type: string
+          format: date-time
+
+    ApprovalListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Approval'
+        pagination:
+          type: object
+          properties:
+            total_items:
+              type: integer
+
+    DashboardStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            kpis:
+              type: object
+              properties:
+                knowledge_reuse_rate:
+                  type: integer
+                  description: ナレッジ再利用率（%）
+                  example: 71
+                accident_free_days:
+                  type: integer
+                  description: 事故ゼロ継続日数
+                  example: 184
+                active_audits:
+                  type: integer
+                  description: 実施中監査数
+                  example: 6
+                delayed_corrections:
+                  type: integer
+                  description: 是正遅延件数
+                  example: 3
+            counts:
+              type: object
+              properties:
+                total_knowledge:
+                  type: integer
+                  example: 156
+                total_sop:
+                  type: integer
+                  example: 42
+                recent_incidents:
+                  type: integer
+                  example: 8
+                pending_approvals:
+                  type: integer
+                  example: 12
+
+    MetricsSummaryResponse:
+      type: object
+      properties:
+        system:
+          type: object
+          properties:
+            cpu_usage_percent:
+              type: number
+              format: float
+            memory_usage_percent:
+              type: number
+              format: float
+            disk_usage_percent:
+              type: number
+              format: float
+        application:
+          type: object
+          properties:
+            knowledge_total:
+              type: integer
+            active_sessions:
+              type: integer
+            uptime_seconds:
+              type: number
+              format: float
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: エラーコード
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: エラーメッセージ
+              example: 入力データが不正です
+            details:
+              type: object
+              description: 詳細情報（オプショナル）
+
+  # ============================================================
+  # 共通レスポンス
+  # ============================================================
+  responses:
+    BadRequest:
+      description: リクエストが不正です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidJson:
+              summary: 不正なJSON
+              value:
+                success: false
+                error:
+                  code: INVALID_JSON
+                  message: Invalid JSON payload
+
+    Unauthorized:
+      description: 認証が必要です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingToken:
+              summary: トークンなし
+              value:
+                success: false
+                error:
+                  code: MISSING_TOKEN
+                  message: Authorization token is missing
+            invalidToken:
+              summary: 無効なトークン
+              value:
+                success: false
+                error:
+                  code: INVALID_TOKEN
+                  message: Invalid token
+            expiredToken:
+              summary: トークン期限切れ
+              value:
+                success: false
+                error:
+                  code: TOKEN_EXPIRED
+                  message: Token has expired
+
+    Forbidden:
+      description: 権限がありません
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            insufficientPermissions:
+              summary: 権限不足
+              value:
+                success: false
+                error:
+                  code: FORBIDDEN
+                  message: Insufficient permissions
+
+    NotFound:
+      description: リソースが見つかりません
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              summary: リソースが見つからない
+              value:
+                success: false
+                error:
+                  code: NOT_FOUND
+                  message: Resource not found
+
+    ValidationError:
+      description: 入力検証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validationError:
+              summary: 検証エラー
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: 入力データが不正です
+                  details:
+                    title:
+                      - タイトルは必須です
+                    category:
+                      - 有効なカテゴリを選択してください
+
+    TooManyRequests:
+      description: レート制限超過
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            rateLimitExceeded:
+              summary: レート制限超過
+              value:
+                success: false
+                error:
+                  code: RATE_LIMIT_EXCEEDED
+                  message: リクエストが多すぎます。しばらく待ってから再試行してください。
+                  details:
+                    retry_after: "60 seconds"
+
+    InternalServerError:
+      description: サーバー内部エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            internalError:
+              summary: サーバーエラー
+              value:
+                success: false
+                error:
+                  code: INTERNAL_ERROR
+                  message: Internal server error

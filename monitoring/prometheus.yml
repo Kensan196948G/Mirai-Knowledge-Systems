@@ -1,0 +1,84 @@
+# Prometheus設定ファイル
+# 建設土木ナレッジシステム監視設定
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'mirai-knowledge-system'
+    environment: 'production'
+
+# アラートマネージャー設定
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'localhost:9093'
+
+# アラートルールファイル
+rule_files:
+  - 'alert_rules.yml'
+
+# スクレイプ設定
+scrape_configs:
+  # Prometheus自身の監視
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Node Exporter（システムメトリクス）
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+        labels:
+          service: 'system'
+          instance: 'mirai-knowledge-server'
+
+  # 建設土木ナレッジシステム アプリケーション
+  - job_name: 'mirai_knowledge_app'
+    scrape_interval: 10s
+    metrics_path: '/api/v1/metrics'
+    static_configs:
+      - targets: ['localhost:5000']
+        labels:
+          service: 'mirai-knowledge-backend'
+          application: 'knowledge-system'
+
+    # カスタムヘッダー（認証が必要な場合）
+    # basic_auth:
+    #   username: 'prometheus'
+    #   password: 'your-secure-password'
+
+  # PostgreSQL Exporter（もし使用している場合）
+  - job_name: 'postgres_exporter'
+    static_configs:
+      - targets: ['localhost:9187']
+        labels:
+          service: 'database'
+          db_type: 'postgresql'
+
+  # Redis Exporter（もし使用している場合）
+  - job_name: 'redis_exporter'
+    static_configs:
+      - targets: ['localhost:9121']
+        labels:
+          service: 'cache'
+          db_type: 'redis'
+
+  # Nginx Exporter（もし使用している場合）
+  - job_name: 'nginx_exporter'
+    static_configs:
+      - targets: ['localhost:9113']
+        labels:
+          service: 'webserver'
+          server_type: 'nginx'
+
+# リモート書き込み設定（長期保存用、オプション）
+# remote_write:
+#   - url: 'http://localhost:9201/write'
+#     queue_config:
+#       max_samples_per_send: 1000
+#       max_shards: 200
+#       capacity: 2500

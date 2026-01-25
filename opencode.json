@@ -1,0 +1,89 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "provider": {
+    "openrouter": {
+      "npm": "@ai-sdk/openrouter",
+      "name": "OpenRouter",
+      "models": {
+        "sonnet-4-5": {
+          "name": "Claude Sonnet 4.5",
+          "id": "anthropic/claude-sonnet-4-20250514",
+          "enabled": true
+        },
+        "gemini-3-flash": {
+          "name": "Gemini 3.0 Flash Preview",
+          "id": "google/gemini-3-flash-preview",
+          "enabled": false
+        },
+        "gemini-3-pro": {
+          "name": "Gemini 3.0 Pro Preview",
+          "id": "google/gemini-3-pro-preview",
+          "enabled": false
+        },
+        "deepseek-v3.2": {
+          "name": "DeepSeek V3.2",
+          "id": "deepseek/deepseek-chat-v3-0324",
+          "enabled": false
+        }
+      }
+    }
+  },
+
+  "model": "openrouter/sonnet-4-5",
+
+  "mcp": {
+    "brave-search": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "brave-search-mcp"
+      ],
+      "environment": {
+        "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY"
+      },
+      "enabled": true,
+      "timeout": 10000
+    },
+
+    "github": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "enabled": true,
+      "timeout": 15000
+    },
+
+    "memory": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "enabled": true,
+      "timeout": 10000
+    },
+
+    "sequential-thinking": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "enabled": true,
+      "timeout": 10000
+    },
+
+
+  }
+}
+

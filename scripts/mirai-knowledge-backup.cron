@@ -1,0 +1,84 @@
+################################################################################
+# Mirai Knowledge Systems - Backup Cron Configuration
+# Purpose: Schedule automated backups for PostgreSQL and application data
+# Author: Mirai Knowledge Systems
+# Version: 1.0.0
+#
+# Installation:
+#   sudo cp mirai-knowledge-backup.cron /etc/cron.d/mirai-knowledge-backup
+#   sudo chmod 644 /etc/cron.d/mirai-knowledge-backup
+#   sudo systemctl restart cron
+#
+################################################################################
+
+# Cron format: minute hour day month weekday user command
+# Fields: m h dom mon dow user command
+
+# Ensure PATH is set for cron jobs
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+SHELL=/bin/bash
+
+# ============================================================================
+# PostgreSQL Database Backup
+# Schedule: Every day at 2:00 AM
+# Retention: 30 days
+# ============================================================================
+0 2 * * * root /mnt/LinuxHDD/Mirai-Knowledge-Systems/scripts/backup-postgresql.sh >> /var/log/mirai-knowledge/backup.log 2>&1
+
+# ============================================================================
+# Application Data Backup
+# Schedule: Every day at 2:30 AM
+# Includes: JSON data, .env files, SSL certificates, configurations
+# Retention: 30 days
+# ============================================================================
+30 2 * * * root /mnt/LinuxHDD/Mirai-Knowledge-Systems/scripts/backup-appdata.sh >> /var/log/mirai-knowledge/backup.log 2>&1
+
+# ============================================================================
+# Backup Verification
+# Schedule: Every Sunday at 3:00 AM
+# Purpose: Verify backup file integrity and completeness
+# ============================================================================
+0 3 * * 0 root /mnt/LinuxHDD/Mirai-Knowledge-Systems/scripts/verify-backups.sh >> /var/log/mirai-knowledge/backup-verification.log 2>&1
+
+# ============================================================================
+# Log Rotation Check
+# Schedule: Every day at 4:00 AM
+# Purpose: Ensure backup logs don't grow too large
+# ============================================================================
+0 4 * * * root find /var/log/mirai-knowledge -name "*.log" -size +100M -exec truncate -s 0 {} \; 2>&1
+
+# ============================================================================
+# Backup Health Report
+# Schedule: Every Monday at 9:00 AM
+# Purpose: Generate weekly backup status report
+# ============================================================================
+# 0 9 * * 1 root /opt/scripts/backup-health-report.sh 2>&1 | mail -s "Weekly Backup Report" admin@example.com
+
+################################################################################
+# Additional Notes:
+#
+# 1. Log Files:
+#    - Backup logs: /var/log/mirai-knowledge/backup.log
+#    - Verification logs: /var/log/mirai-knowledge/backup-verification.log
+#
+# 2. Backup Locations:
+#    - PostgreSQL: /var/backups/mirai-knowledge/postgresql/
+#    - App Data: /var/backups/mirai-knowledge/appdata/
+#
+# 3. Monitoring:
+#    - Check logs regularly for errors
+#    - Monitor disk space in /var/backups
+#    - Review verification reports weekly
+#
+# 4. Customization:
+#    - Adjust schedule times based on system load
+#    - Modify retention days in backup scripts if needed
+#    - Enable email notifications by uncommenting report line
+#
+# 5. Testing:
+#    - Test cron jobs manually before deployment:
+#      sudo /opt/scripts/backup-postgresql.sh
+#      sudo /opt/scripts/backup-appdata.sh
+#      sudo /opt/scripts/verify-backups.sh
+#
+################################################################################

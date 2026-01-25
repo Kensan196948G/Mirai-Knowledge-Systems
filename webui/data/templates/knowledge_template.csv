@@ -1,0 +1,3 @@
+title,summary,category,owner,content,tags,status,priority,project
+サンプルナレッジ1,これはサンプルの要約です,技術,山田太郎,ナレッジの詳細内容をここに記載します,"タグ1,タグ2",published,high,プロジェクトA
+サンプルナレッジ2,別のサンプル要約,施工,佐藤花子,別のナレッジ内容,"タグ3",draft,medium,プロジェクトB

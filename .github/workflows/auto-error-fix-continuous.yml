@@ -1,0 +1,296 @@
+name: 🤖 自動エラー検知・修復システム（5分間隔・無限ループ）
+
+on:
+  # 5分ごとに自動実行（15回ループ実行後、次のトリガーまで5分待機）
+  schedule:
+    - cron: '*/5 * * * *'  # 毎5分（無限ループシステム）
+
+  # 手動トリガー
+  workflow_dispatch:
+    inputs:
+      max_loops:
+        description: '最大ループ回数（デフォルト: 15）'
+        required: false
+        default: '15'
+      create_issue:
+        description: 'Issue作成（yes/no）'
+        required: false
+        default: 'yes'
+
+env:
+  MAX_LOOPS: 15
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  auto-error-detection-and-fix:
+    name: エラー自動検知・修復（15回ループ）
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+      statuses: write
+      issues: write  # Issueの作成に必要
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Python環境セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 依存関係インストール
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: PostgreSQL起動（Docker）
+        run: |
+          docker run -d \
+            --name postgres \
+            -e POSTGRES_USER=mks_user \
+            -e POSTGRES_PASSWORD=mks_password \
+            -e POSTGRES_DB=mks_db \
+            -p 5432:5432 \
+            postgres:16-alpine
+
+          # PostgreSQL起動待機
+          for i in {1..30}; do
+            if docker exec postgres pg_isready -U mks_user; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 2
+          done
+
+      - name: Redis起動（Docker）
+        run: |
+          docker run -d \
+            --name redis \
+            -p 6379:6379 \
+            redis:7-alpine
+
+          # Redis起動待機
+          sleep 5
+
+      - name: データベース初期化
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://mks_user:mks_password@localhost:5432/mks_db
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          python -c "from app_v2 import db, app; app.app_context().push(); db.create_all(); print('Database initialized')" || echo "Database already exists"
+
+      - name: エラー検知・修復ループ（15回）
+        id: error_fix_loop
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://mks_user:mks_password@localhost:5432/mks_db
+          REDIS_URL: redis://localhost:6379/0
+          PGHOST: localhost
+          PGPORT: 5432
+          MKS_PORT: 5100
+          MKS_ENV: test
+          MKS_SKIP_HTTP_CHECK: true
+        run: |
+          echo "==================================="
+          echo "エラー自動検知・修復開始"
+          echo "最大ループ回数: ${{ github.event.inputs.max_loops || env.MAX_LOOPS }}"
+          echo "==================================="
+          echo ""
+
+          # ループカウンター
+          LOOP_COUNT=0
+          MAX_LOOPS=${{ github.event.inputs.max_loops || env.MAX_LOOPS }}
+          ERROR_COUNT=0
+          FIX_COUNT=0
+
+          # 結果ファイル
+          RESULT_FILE="${GITHUB_WORKSPACE}/error_fix_results.txt"
+          echo "# エラー検知・修復ログ" > "$RESULT_FILE"
+          echo "実行日時: $(date '+%Y-%m-%d %H:%M:%S')" >> "$RESULT_FILE"
+          echo "最大ループ回数: ${MAX_LOOPS}" >> "$RESULT_FILE"
+          echo "" >> "$RESULT_FILE"
+
+          while [ $LOOP_COUNT -lt $MAX_LOOPS ]; do
+            LOOP_COUNT=$((LOOP_COUNT + 1))
+            echo "----------------------------------------"
+            echo "ループ ${LOOP_COUNT}/${MAX_LOOPS}"
+            echo "----------------------------------------"
+            echo "## ループ ${LOOP_COUNT}/${MAX_LOOPS}" >> "$RESULT_FILE"
+
+            # 1. ヘルスチェック実行
+            echo "[STEP 1] ヘルスチェック実行中..."
+            if python scripts/health_monitor.py > health_check.log 2>&1; then
+              echo "✓ ヘルスチェック完了"
+              cat health_check.log >> "$RESULT_FILE"
+            else
+              echo "✗ ヘルスチェックでエラー検出"
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+              cat health_check.log >> "$RESULT_FILE"
+            fi
+
+            # 2. テスト実行（エラー検知）
+            echo "[STEP 2] テスト実行中..."
+            if pytest tests/ -v --tb=short > test_results.log 2>&1; then
+              echo "✓ 全テスト合格"
+              echo "### テスト結果: 合格" >> "$RESULT_FILE"
+            else
+              echo "✗ テスト失敗を検出"
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+              echo "### テスト結果: 失敗" >> "$RESULT_FILE"
+              grep -A 3 "FAILED" test_results.log >> "$RESULT_FILE" || true
+
+              # 3. 自動修復試行
+              echo "[STEP 3] 自動修復を試行中..."
+              if python scripts/auto_fix_daemon.py --once >> "$RESULT_FILE" 2>&1; then
+                echo "✓ 自動修復完了"
+                FIX_COUNT=$((FIX_COUNT + 1))
+              else
+                echo "✗ 自動修復失敗"
+                echo "### 自動修復: 失敗" >> "$RESULT_FILE"
+              fi
+            fi
+
+            # 4. ログファイル確認
+            echo "[STEP 4] ログファイル確認中..."
+            if [ -f logs/app.log ]; then
+              ERROR_LINES=$(grep -i "error\|exception\|critical" logs/app.log | tail -10 || true)
+              if [ -n "$ERROR_LINES" ]; then
+                echo "✗ ログにエラーを検出"
+                ERROR_COUNT=$((ERROR_COUNT + 1))
+                echo "### ログエラー:" >> "$RESULT_FILE"
+                echo "$ERROR_LINES" >> "$RESULT_FILE"
+              else
+                echo "✓ ログにエラーなし"
+              fi
+            fi
+
+            echo ""
+            echo "ループ ${LOOP_COUNT} 完了 - エラー: ${ERROR_COUNT}, 修復: ${FIX_COUNT}"
+            echo "" >> "$RESULT_FILE"
+
+            # 最後のループでなければ5秒待機
+            if [ $LOOP_COUNT -lt $MAX_LOOPS ]; then
+              sleep 5
+            fi
+          done
+
+          echo "==================================="
+          echo "エラー検知・修復完了"
+          echo "総ループ回数: ${LOOP_COUNT}"
+          echo "検出エラー数: ${ERROR_COUNT}"
+          echo "修復実行回数: ${FIX_COUNT}"
+          echo "==================================="
+
+          # サマリーを結果ファイルに追加
+          echo "" >> "$RESULT_FILE"
+          echo "---" >> "$RESULT_FILE"
+          echo "## サマリー" >> "$RESULT_FILE"
+          echo "- 総ループ回数: ${LOOP_COUNT}" >> "$RESULT_FILE"
+          echo "- 検出エラー数: ${ERROR_COUNT}" >> "$RESULT_FILE"
+          echo "- 修復実行回数: ${FIX_COUNT}" >> "$RESULT_FILE"
+
+          # GitHub環境変数に設定
+          echo "error_count=${ERROR_COUNT}" >> $GITHUB_OUTPUT
+          echo "fix_count=${FIX_COUNT}" >> $GITHUB_OUTPUT
+          echo "loop_count=${LOOP_COUNT}" >> $GITHUB_OUTPUT
+
+      - name: 結果レポート生成
+        id: generate_report
+        run: |
+          REPORT_FILE="${GITHUB_WORKSPACE}/error_fix_report.md"
+
+          cat > "$REPORT_FILE" << 'REPORT_EOF'
+          # 🤖 自動エラー検知・修復レポート
+
+          **実行日時:** $(date '+%Y-%m-%d %H:%M:%S UTC')
+          **ワークフローRun:** #${{ github.run_number }}
+          **コミット:** ${{ github.sha }}
+
+          ## 📊 実行結果
+
+          | 項目 | 値 |
+          |------|-----|
+          | ループ回数 | ${{ steps.error_fix_loop.outputs.loop_count }} / ${{ github.event.inputs.max_loops || env.MAX_LOOPS }} |
+          | 検出エラー数 | ${{ steps.error_fix_loop.outputs.error_count }} |
+          | 修復実行回数 | ${{ steps.error_fix_loop.outputs.fix_count }} |
+
+          ## 📋 詳細ログ
+
+          REPORT_EOF
+
+          # 詳細ログを追加
+          cat "${GITHUB_WORKSPACE}/error_fix_results.txt" >> "$REPORT_FILE" || echo "ログファイルが見つかりません" >> "$REPORT_FILE"
+
+          echo "report_path=${REPORT_FILE}" >> $GITHUB_OUTPUT
+
+      - name: GitHub Issueに結果を投稿
+        if: always() && github.event.inputs.create_issue != 'no'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const errorCount = '${{ steps.error_fix_loop.outputs.error_count }}';
+            const fixCount = '${{ steps.error_fix_loop.outputs.fix_count }}';
+            const loopCount = '${{ steps.error_fix_loop.outputs.loop_count }}';
+
+            // レポートファイルを読み込み
+            let reportBody = '詳細ログは添付のアーティファクトを確認してください。';
+            try {
+              reportBody = fs.readFileSync('${{ steps.generate_report.outputs.report_path }}', 'utf8');
+            } catch (e) {
+              console.log('レポートファイルの読み込みに失敗:', e);
+            }
+
+            // Issueタイトル
+            const title = errorCount > 0
+              ? `[自動修復] エラー${errorCount}件検出・修復${fixCount}件実行 (${new Date().toISOString().split('T')[0]})`
+              : `[自動修復] 正常動作確認 (${new Date().toISOString().split('T')[0]})`;
+
+            // Issueラベル
+            const labels = errorCount > 0 ? ['auto-fix', 'error-detected'] : ['auto-fix', 'healthy'];
+
+            // Issue作成
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: reportBody,
+              labels: labels
+            });
+
+            console.log('Issue作成完了:', issue.data.html_url);
+
+      - name: Artifactに結果をアップロード
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-fix-results-${{ github.run_number }}
+          path: |
+            error_fix_results.txt
+            error_fix_report.md
+            backend/logs/*.log
+          retention-days: 30
+
+      - name: クリーンアップ
+        if: always()
+        run: |
+          docker stop postgres redis || true
+          docker rm postgres redis || true
+
+      - name: 次回実行までスリープ（オプション）
+        if: false  # 通常は無効（cronで30分後に再実行）
+        run: |
+          echo "次回実行まで30分待機..."
+          sleep 1800

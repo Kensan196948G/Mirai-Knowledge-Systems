@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft 365連携 - Mirai Knowledge Systems</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <h1>Mirai Knowledge Systems</h1>
+                <ul>
+                    <li><a href="/dashboard.html">ダッシュボード</a></li>
+                    <li><a href="/knowledge.html">ナレッジ</a></li>
+                    <li><a href="/files.html">ファイル</a></li>
+                    <li><a href="/microsoft365.html" class="active">Microsoft 365</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>Microsoft 365連携</h2>
+
+            <div class="auth-status">
+                <h3>認証状態</h3>
+                <div id="authStatus">確認中...</div>
+            </div>
+
+            <div class="service-list">
+                <h3>利用可能なサービス</h3>
+                <ul id="services">
+                    <li>OneDrive</li>
+                    <li>SharePoint</li>
+                </ul>
+            </div>
+
+            <div class="integration-actions">
+                <a href="/microsoft365-files.html" class="btn btn-primary">ファイル閲覧</a>
+                <a href="/microsoft365-upload.html" class="btn btn-secondary">ファイルアップロード</a>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/microsoft365.js"></script>
+</body>
+</html>

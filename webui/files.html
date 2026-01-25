@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ファイル一覧 - Mirai Knowledge Systems</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <h1>Mirai Knowledge Systems</h1>
+                <ul>
+                    <li><a href="/dashboard.html">ダッシュボード</a></li>
+                    <li><a href="/knowledge.html">ナレッジ</a></li>
+                    <li><a href="/files.html" class="active">ファイル</a></li>
+                    <li><a href="/upload.html">アップロード</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>アップロードファイル一覧</h2>
+
+            <div class="file-list-container">
+                <div id="fileList" class="file-list">
+                    <div class="loading">読み込み中...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/files.js"></script>
+</body>
+</html>

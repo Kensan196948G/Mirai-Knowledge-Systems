@@ -1,0 +1,245 @@
+# Mirai Knowledge Systems - Prometheusアラートルール
+# Phase C-3: 運用監視体制構築
+
+groups:
+  # ========================================
+  # サービス可用性アラート
+  # ========================================
+  - name: service_availability
+    rules:
+      # MKS Backendダウン
+      - alert: MKSBackendDown
+        expr: up{job="mks-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: mks-backend
+        annotations:
+          summary: "MKS Backendサービスがダウン"
+          description: "MKS Backendが2分以上応答していません。即座に対応が必要です。"
+          runbook_url: "https://docs.example.com/runbook/mks-backend-down"
+
+      # PostgreSQLダウン
+      - alert: PostgreSQLDown
+        expr: up{job="postgresql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: "PostgreSQLがダウン"
+          description: "PostgreSQLデータベースが1分以上応答していません。"
+          runbook_url: "https://docs.example.com/runbook/postgresql-down"
+
+      # Nginxダウン
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: nginx
+        annotations:
+          summary: "Nginxがダウン"
+          description: "Nginxリバースプロキシが1分以上応答していません。"
+          runbook_url: "https://docs.example.com/runbook/nginx-down"
+
+  # ========================================
+  # パフォーマンスアラート
+  # ========================================
+  - name: performance
+    rules:
+      # 高レスポンスタイム
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="mks-backend"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: mks-backend
+        annotations:
+          summary: "高レスポンスタイム検出"
+          description: "95パーセンタイルのレスポンスタイムが2秒を超えています。現在: {{ $value }}秒"
+
+      # 非常に高いレスポンスタイム
+      - alert: VeryHighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="mks-backend"}[5m])) > 5
+        for: 3m
+        labels:
+          severity: critical
+          service: mks-backend
+        annotations:
+          summary: "非常に高いレスポンスタイム検出"
+          description: "95パーセンタイルのレスポンスタイムが5秒を超えています。現在: {{ $value }}秒"
+
+      # 高エラーレート
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{job="mks-backend",status=~"5.."}[5m]) / rate(http_requests_total{job="mks-backend"}[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          service: mks-backend
+        annotations:
+          summary: "エラーレートが上昇"
+          description: "5xxエラーレートが1%を超えています。現在: {{ $value | humanizePercentage }}"
+
+      # 非常に高いエラーレート
+      - alert: VeryHighErrorRate
+        expr: rate(http_requests_total{job="mks-backend",status=~"5.."}[5m]) / rate(http_requests_total{job="mks-backend"}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: mks-backend
+        annotations:
+          summary: "エラーレートが非常に高い"
+          description: "5xxエラーレートが5%を超えています。現在: {{ $value | humanizePercentage }}"
+
+  # ========================================
+  # リソースアラート
+  # ========================================
+  - name: resources
+    rules:
+      # CPU使用率 - Warning
+      - alert: HighCPUUsage
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 70
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "CPU使用率が高い"
+          description: "CPU使用率が70%を超えています。現在: {{ $value | printf \"%.1f\" }}%"
+
+      # CPU使用率 - Critical
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "CPU使用率が非常に高い"
+          description: "CPU使用率が90%を超えています。現在: {{ $value | printf \"%.1f\" }}%"
+
+      # メモリ使用率 - Warning
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "メモリ使用率が高い"
+          description: "メモリ使用率が80%を超えています。現在: {{ $value | printf \"%.1f\" }}%"
+
+      # メモリ使用率 - Critical
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "メモリ使用率が非常に高い"
+          description: "メモリ使用率が90%を超えています。現在: {{ $value | printf \"%.1f\" }}%"
+
+      # ディスク使用率 - Warning
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "ディスク使用率が高い"
+          description: "ルートパーティションのディスク使用率が80%を超えています。現在: {{ $value | printf \"%.1f\" }}%"
+
+      # ディスク使用率 - Critical
+      - alert: CriticalDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "ディスク使用率が非常に高い"
+          description: "ルートパーティションのディスク使用率が90%を超えています。現在: {{ $value | printf \"%.1f\" }}%"
+
+  # ========================================
+  # データベースアラート
+  # ========================================
+  - name: database
+    rules:
+      # PostgreSQL接続数
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL接続数が多い"
+          description: "PostgreSQLの接続数が80を超えています。現在: {{ $value }}"
+
+      # PostgreSQLスロークエリ
+      - alert: PostgreSQLSlowQueries
+        expr: rate(pg_stat_activity_max_tx_duration{state="active"}[5m]) > 30
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "PostgreSQLスロークエリ検出"
+          description: "30秒以上実行中のクエリがあります。"
+
+      # PostgreSQLデッドロック
+      - alert: PostgreSQLDeadlocks
+        expr: rate(pg_stat_database_deadlocks[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "PostgreSQLデッドロック発生"
+          description: "デッドロックが検出されました。"
+
+  # ========================================
+  # SSL証明書アラート
+  # ========================================
+  - name: ssl
+    rules:
+      # SSL証明書期限 - 30日前
+      - alert: SSLCertificateExpiringSoon
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          service: ssl
+        annotations:
+          summary: "SSL証明書の期限が近い"
+          description: "SSL証明書の有効期限まで30日未満です。残り: {{ $value | printf \"%.0f\" }}日"
+
+      # SSL証明書期限 - 7日前
+      - alert: SSLCertificateExpiringCritical
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: critical
+          service: ssl
+        annotations:
+          summary: "SSL証明書の期限が間近"
+          description: "SSL証明書の有効期限まで7日未満です。残り: {{ $value | printf \"%.0f\" }}日"
+
+  # ========================================
+  # バックアップアラート
+  # ========================================
+  - name: backup
+    rules:
+      # バックアップ失敗
+      - alert: BackupFailed
+        expr: mks_backup_last_success_timestamp < (time() - 86400)
+        for: 1h
+        labels:
+          severity: critical
+          service: backup
+        annotations:
+          summary: "バックアップが24時間以上成功していない"
+          description: "最後の成功バックアップから24時間以上経過しています。"

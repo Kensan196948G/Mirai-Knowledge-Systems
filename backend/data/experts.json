@@ -1,0 +1,500 @@
+[
+  {
+    "id": 1,
+    "name": "山田花子",
+    "email": "expert1@example.com",
+    "department": "研究開発部",
+    "specialties": [
+      "鋼構造",
+      "環境工学"
+    ],
+    "online": true,
+    "answer_count": 119,
+    "best_answer_count": 24,
+    "rating": 4.2,
+    "expert_categories": [
+      "出来形管理",
+      "環境対策",
+      "安全衛生"
+    ],
+    "bio": "鋼構造, 環境工学の専門家として、8年の実務経験があります。",
+    "certifications": [
+      "コンクリート診断士",
+      "一級土木施工管理技士"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "鈴木一郎",
+    "email": "expert2@example.com",
+    "department": "環境対策室",
+    "specialties": [
+      "安全管理",
+      "トンネル工学",
+      "地盤工学",
+      "水理学"
+    ],
+    "online": true,
+    "answer_count": 39,
+    "best_answer_count": 11,
+    "rating": 4.2,
+    "expert_categories": [
+      "安全衛生",
+      "品質管理"
+    ],
+    "bio": "安全管理, トンネル工学, 地盤工学, 水理学の専門家として、10年の実務経験があります。",
+    "certifications": [
+      "RCCM",
+      "コンクリート診断士",
+      "一級土木施工管理技士"
+    ]
+  },
+  {
+    "id": 3,
+    "name": "佐藤次郎",
+    "email": "expert3@example.com",
+    "department": "環境対策室",
+    "specialties": [
+      "トンネル工学",
+      "品質管理",
+      "コンクリート工学",
+      "舗装工学"
+    ],
+    "online": true,
+    "answer_count": 140,
+    "best_answer_count": 41,
+    "rating": 4.3,
+    "expert_categories": [
+      "安全衛生",
+      "環境対策",
+      "品質管理"
+    ],
+    "bio": "トンネル工学, 品質管理, コンクリート工学, 舗装工学の専門家として、14年の実務経験があります。",
+    "certifications": [
+      "労働安全コンサルタント",
+      "コンクリート診断士"
+    ]
+  },
+  {
+    "id": 4,
+    "name": "高橋三郎",
+    "email": "expert4@example.com",
+    "department": "ICT推進室",
+    "specialties": [
+      "鋼構造",
+      "維持管理"
+    ],
+    "online": true,
+    "answer_count": 58,
+    "best_answer_count": 44,
+    "rating": 4.6,
+    "expert_categories": [
+      "施工計画",
+      "設計変更",
+      "出来形管理",
+      "品質管理"
+    ],
+    "bio": "鋼構造, 維持管理の専門家として、15年の実務経験があります。",
+    "certifications": [
+      "RCCM"
+    ]
+  },
+  {
+    "id": 5,
+    "name": "伊藤美咲",
+    "email": "expert5@example.com",
+    "department": "施工管理部",
+    "specialties": [
+      "品質管理",
+      "維持管理",
+      "鋼構造"
+    ],
+    "online": true,
+    "answer_count": 58,
+    "best_answer_count": 13,
+    "rating": 3.8,
+    "expert_categories": [
+      "工程管理",
+      "施工計画",
+      "出来形管理",
+      "原価管理"
+    ],
+    "bio": "品質管理, 維持管理, 鋼構造の専門家として、17年の実務経験があります。",
+    "certifications": [
+      "技術士（建設部門）"
+    ]
+  },
+  {
+    "id": 6,
+    "name": "渡辺健",
+    "email": "expert6@example.com",
+    "department": "ICT推進室",
+    "specialties": [
+      "品質管理",
+      "維持管理",
+      "水理学"
+    ],
+    "online": false,
+    "answer_count": 101,
+    "best_answer_count": 32,
+    "rating": 4.7,
+    "expert_categories": [
+      "設計変更",
+      "安全衛生",
+      "環境対策",
+      "施工計画"
+    ],
+    "bio": "品質管理, 維持管理, 水理学の専門家として、11年の実務経験があります。",
+    "certifications": [
+      "一級土木施工管理技士",
+      "RCCM"
+    ]
+  },
+  {
+    "id": 7,
+    "name": "中村愛",
+    "email": "expert7@example.com",
+    "department": "施工管理部",
+    "specialties": [
+      "構造設計",
+      "コンクリート工学",
+      "ICT/BIM"
+    ],
+    "online": false,
+    "answer_count": 100,
+    "best_answer_count": 45,
+    "rating": 4.7,
+    "expert_categories": [
+      "原価管理",
+      "設計変更",
+      "安全衛生",
+      "品質管理"
+    ],
+    "bio": "構造設計, コンクリート工学, ICT/BIMの専門家として、19年の実務経験があります。",
+    "certifications": [
+      "一級土木施工管理技士",
+      "RCCM"
+    ]
+  },
+  {
+    "id": 8,
+    "name": "小林誠",
+    "email": "expert8@example.com",
+    "department": "技術本部",
+    "specialties": [
+      "安全管理",
+      "環境工学"
+    ],
+    "online": true,
+    "answer_count": 116,
+    "best_answer_count": 19,
+    "rating": 4.6,
+    "expert_categories": [
+      "安全衛生",
+      "原価管理",
+      "設計変更",
+      "出来形管理"
+    ],
+    "bio": "安全管理, 環境工学の専門家として、20年の実務経験があります。",
+    "certifications": [
+      "技術士（建設部門）"
+    ]
+  },
+  {
+    "id": 9,
+    "name": "加藤優子",
+    "email": "expert9@example.com",
+    "department": "ICT推進室",
+    "specialties": [
+      "維持管理",
+      "ICT/BIM",
+      "安全管理"
+    ],
+    "online": false,
+    "answer_count": 73,
+    "best_answer_count": 46,
+    "rating": 4.9,
+    "expert_categories": [
+      "品質管理",
+      "環境対策"
+    ],
+    "bio": "維持管理, ICT/BIM, 安全管理の専門家として、19年の実務経験があります。",
+    "certifications": [
+      "労働安全コンサルタント"
+    ]
+  },
+  {
+    "id": 10,
+    "name": "吉田直樹",
+    "email": "expert10@example.com",
+    "department": "安全衛生室",
+    "specialties": [
+      "地盤工学",
+      "構造設計",
+      "測量",
+      "鋼構造"
+    ],
+    "online": false,
+    "answer_count": 34,
+    "best_answer_count": 23,
+    "rating": 4.4,
+    "expert_categories": [
+      "出来形管理",
+      "施工計画",
+      "工程管理",
+      "品質管理"
+    ],
+    "bio": "地盤工学, 構造設計, 測量, 鋼構造の専門家として、16年の実務経験があります。",
+    "certifications": [
+      "RCCM",
+      "労働安全コンサルタント",
+      "一級土木施工管理技士"
+    ]
+  },
+  {
+    "id": 11,
+    "name": "山本さくら",
+    "email": "expert11@example.com",
+    "department": "設計部",
+    "specialties": [
+      "舗装工学",
+      "測量"
+    ],
+    "online": false,
+    "answer_count": 20,
+    "best_answer_count": 19,
+    "rating": 4.6,
+    "expert_categories": [
+      "施工計画",
+      "環境対策",
+      "出来形管理"
+    ],
+    "bio": "舗装工学, 測量の専門家として、13年の実務経験があります。",
+    "certifications": [
+      "技術士（建設部門）",
+      "コンクリート診断士",
+      "RCCM"
+    ]
+  },
+  {
+    "id": 12,
+    "name": "松本大輔",
+    "email": "expert12@example.com",
+    "department": "安全衛生室",
+    "specialties": [
+      "測量",
+      "構造設計"
+    ],
+    "online": true,
+    "answer_count": 145,
+    "best_answer_count": 25,
+    "rating": 3.5,
+    "expert_categories": [
+      "施工計画",
+      "工程管理",
+      "品質管理"
+    ],
+    "bio": "測量, 構造設計の専門家として、18年の実務経験があります。",
+    "certifications": [
+      "RCCM",
+      "技術士（建設部門）",
+      "労働安全コンサルタント"
+    ]
+  },
+  {
+    "id": 13,
+    "name": "井上麗子",
+    "email": "expert13@example.com",
+    "department": "ICT推進室",
+    "specialties": [
+      "地盤工学",
+      "維持管理",
+      "ICT/BIM"
+    ],
+    "online": true,
+    "answer_count": 47,
+    "best_answer_count": 26,
+    "rating": 4.9,
+    "expert_categories": [
+      "出来形管理",
+      "環境対策"
+    ],
+    "bio": "地盤工学, 維持管理, ICT/BIMの専門家として、16年の実務経験があります。",
+    "certifications": [
+      "コンクリート診断士",
+      "技術士（建設部門）",
+      "RCCM"
+    ]
+  },
+  {
+    "id": 14,
+    "name": "木村拓也",
+    "email": "expert14@example.com",
+    "department": "ICT推進室",
+    "specialties": [
+      "維持管理",
+      "環境工学",
+      "地盤工学"
+    ],
+    "online": true,
+    "answer_count": 112,
+    "best_answer_count": 50,
+    "rating": 4.1,
+    "expert_categories": [
+      "施工計画",
+      "安全衛生"
+    ],
+    "bio": "維持管理, 環境工学, 地盤工学の専門家として、13年の実務経験があります。",
+    "certifications": [
+      "一級土木施工管理技士"
+    ]
+  },
+  {
+    "id": 15,
+    "name": "林真由美",
+    "email": "expert15@example.com",
+    "department": "設計部",
+    "specialties": [
+      "鋼構造",
+      "舗装工学"
+    ],
+    "online": true,
+    "answer_count": 7,
+    "best_answer_count": 6,
+    "rating": 5.0,
+    "expert_categories": [
+      "工程管理",
+      "出来形管理",
+      "原価管理"
+    ],
+    "bio": "鋼構造, 舗装工学の専門家として、14年の実務経験があります。",
+    "certifications": [
+      "一級土木施工管理技士",
+      "技術士（建設部門）"
+    ]
+  },
+  {
+    "id": 16,
+    "name": "斎藤隆",
+    "email": "expert16@example.com",
+    "department": "技術本部",
+    "specialties": [
+      "構造設計",
+      "舗装工学",
+      "トンネル工学"
+    ],
+    "online": true,
+    "answer_count": 137,
+    "best_answer_count": 23,
+    "rating": 4.0,
+    "expert_categories": [
+      "原価管理",
+      "品質管理",
+      "工程管理"
+    ],
+    "bio": "構造設計, 舗装工学, トンネル工学の専門家として、13年の実務経験があります。",
+    "certifications": [
+      "コンクリート診断士",
+      "労働安全コンサルタント"
+    ]
+  },
+  {
+    "id": 17,
+    "name": "清水恵",
+    "email": "expert17@example.com",
+    "department": "設計部",
+    "specialties": [
+      "測量",
+      "鋼構造"
+    ],
+    "online": true,
+    "answer_count": 140,
+    "best_answer_count": 21,
+    "rating": 4.8,
+    "expert_categories": [
+      "環境対策",
+      "品質管理",
+      "施工計画",
+      "工程管理"
+    ],
+    "bio": "測量, 鋼構造の専門家として、7年の実務経験があります。",
+    "certifications": [
+      "RCCM",
+      "コンクリート診断士",
+      "技術士（建設部門）"
+    ]
+  },
+  {
+    "id": 18,
+    "name": "森川将太",
+    "email": "expert18@example.com",
+    "department": "ICT推進室",
+    "specialties": [
+      "測量",
+      "水理学",
+      "コンクリート工学",
+      "安全管理"
+    ],
+    "online": true,
+    "answer_count": 141,
+    "best_answer_count": 8,
+    "rating": 3.6,
+    "expert_categories": [
+      "施工計画",
+      "品質管理"
+    ],
+    "bio": "測量, 水理学, コンクリート工学, 安全管理の専門家として、19年の実務経験があります。",
+    "certifications": [
+      "RCCM"
+    ]
+  },
+  {
+    "id": 19,
+    "name": "池田香織",
+    "email": "expert19@example.com",
+    "department": "設計部",
+    "specialties": [
+      "鋼構造",
+      "維持管理",
+      "コンクリート工学"
+    ],
+    "online": true,
+    "answer_count": 143,
+    "best_answer_count": 19,
+    "rating": 3.9,
+    "expert_categories": [
+      "安全衛生",
+      "環境対策",
+      "品質管理",
+      "原価管理"
+    ],
+    "bio": "鋼構造, 維持管理, コンクリート工学の専門家として、16年の実務経験があります。",
+    "certifications": [
+      "一級土木施工管理技士",
+      "労働安全コンサルタント"
+    ]
+  },
+  {
+    "id": 20,
+    "name": "田中太郎",
+    "email": "expert20@example.com",
+    "department": "安全衛生室",
+    "specialties": [
+      "安全管理",
+      "舗装工学"
+    ],
+    "online": true,
+    "answer_count": 18,
+    "best_answer_count": 20,
+    "rating": 4.6,
+    "expert_categories": [
+      "安全衛生",
+      "原価管理"
+    ],
+    "bio": "安全管理, 舗装工学の専門家として、7年の実務経験があります。",
+    "certifications": [
+      "コンクリート診断士",
+      "RCCM"
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+# Mirai Knowledge Systems - SSL証明書有効期限チェック
+# 毎週月曜 9:00 に実行
+#
+# 設定方法:
+#   sudo cp scripts/mirai-knowledge-ssl-check.cron /etc/cron.d/mirai-knowledge-ssl-check
+#   sudo chmod 644 /etc/cron.d/mirai-knowledge-ssl-check
+#
+# ログ確認:
+#   tail -f /var/log/mirai-knowledge/ssl-check.log
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# SSL証明書有効期限チェック（毎週月曜 9:00）
+0 9 * * 1 root /mnt/LinuxHDD/Mirai-Knowledge-Systems/scripts/check-ssl-expiry.sh >> /var/log/mirai-knowledge/ssl-check.log 2>&1

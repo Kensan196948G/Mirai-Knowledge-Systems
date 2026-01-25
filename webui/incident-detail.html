@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>事故レポート詳細 - 建設土木ナレッジシステム</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand reveal">
+        <div class="brand-mark">MK</div>
+        <div>
+          <h1>Mirai Construction Knowledge</h1>
+          <span>○○○○建設工業株式会社 技術本部 / 全支店・管轄施工現場</span>
+        </div>
+      </div>
+      <nav class="top-nav reveal delay-1">
+        <a href="index.html">現場ダッシュボード</a>
+        <a href="#" onclick="openSearchModal(); return false;">ナレッジ検索</a>
+        <a href="admin.html" data-required-role="admin">管理画面</a>
+      </nav>
+      <div class="header-actions reveal delay-2">
+        <button class="icon-button" onclick="window.history.back()" title="戻る">
+          ←
+        </button>
+        <button class="icon-button" onclick="openSearchModal()" title="高度な検索">
+          🔍
+        </button>
+        <button class="icon-button notification-bell" onclick="openNotificationPanel()" title="通知">
+          🔔
+          <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
+        <button class="icon-button" onclick="openSettingsPanel()" title="設定">
+          ⚙️
+        </button>
+        <button class="icon-button" onclick="openNewIncidentModal()" title="新規レポート作成">
+          ✚
+        </button>
+        <span class="chip" id="incidentNumber">報告No. --</span>
+        <span class="chip" id="incidentSeverity">重大度 --</span>
+        <button class="cta" onclick="updateIncidentStatus()" data-required-role="quality_assurance">ステータス更新</button>
+      </div>
+    </header>
+
+    <main class="page">
+      <!-- パンくずリスト -->
+      <nav class="breadcrumb-nav-enhanced reveal" aria-label="パンくずリスト">
+        <ol class="breadcrumb-enhanced" id="breadcrumbList">
+          <li><span class="breadcrumb-icon">🏠</span><a href="index.html">ホーム</a></li>
+          <li><span class="breadcrumb-icon">📋</span><a href="index.html#incident">事故レポート一覧</a></li>
+          <li class="breadcrumb-current" aria-current="page"><span class="breadcrumb-icon">📄</span>詳細</li>
+        </ol>
+      </nav>
+
+      <aside class="sidebar reveal delay-1">
+        <div class="nav-section">
+          <div class="nav-title">ナビゲーション</div>
+          <div class="nav-item">
+            <a href="#overview"><strong>概要</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#timeline"><strong>タイムライン</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#cause-analysis"><strong>原因分析</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#corrective-actions"><strong>是正措置</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#attachments"><strong>添付資料</strong></a>
+          </div>
+          <div class="nav-item">
+            <a href="#approval"><strong>承認フロー</strong></a>
+          </div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-title">アクション</div>
+          <button class="cta ghost" onclick="addCorrectiveAction()">
+            ✏️ 是正措置追加
+          </button>
+          <button class="cta ghost" onclick="downloadPDF('incident')">
+            📥 PDF保存
+          </button>
+          <button class="cta ghost" onclick="shareIncident()">
+            🔗 共有
+          </button>
+        </div>
+      </aside>
+
+      <section class="main">
+        <!-- ローディング表示 -->
+        <div id="loadingIndicator" class="loading-overlay">
+          <div class="loading-spinner"></div>
+          <p>読み込み中...</p>
+        </div>
+
+        <!-- エラー表示 -->
+        <div id="errorMessage" class="error-message" style="display: none;">
+          <strong>エラー:</strong> <span id="errorText"></span>
+          <button onclick="retryLoadIncident()">再試行</button>
+        </div>
+
+        <!-- 詳細ヒーロー -->
+        <section class="detail-hero reveal" id="overview">
+          <h2 class="detail-title" id="incidentTitle">事故レポート タイトル</h2>
+          <div class="meta-row" id="incidentMeta">
+            <!-- 動的に挿入 -->
+          </div>
+          <div class="knowledge-tags" id="incidentTags">
+            <!-- 動的に挿入 -->
+          </div>
+          <div class="cta-group">
+            <button class="cta ghost" onclick="window.history.back()">← 戻る</button>
+            <button class="cta secondary" onclick="editIncident()" data-required-role="quality_assurance">編集</button>
+            <button class="cta" onclick="submitDistribution('incident')">配信申請</button>
+          </div>
+        </section>
+
+        <!-- 詳細グリッド -->
+        <section class="detail-grid reveal delay-1">
+          <!-- 発生概要 -->
+          <div class="detail-card" style="grid-column: 1 / -1;">
+            <h4>発生概要</h4>
+            <div id="incidentSummary">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 発生情報 -->
+          <div class="detail-card">
+            <h4>発生情報</h4>
+            <table class="table">
+              <tbody id="incidentInfo">
+                <!-- 動的に挿入 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 被害状況 -->
+          <div class="detail-card">
+            <h4>被害状況</h4>
+            <div id="damageInfo" class="stat-grid">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- タイムライン -->
+          <div class="detail-card" id="timeline" style="grid-column: 1 / -1;">
+            <h4>タイムライン</h4>
+            <div id="incidentTimeline" class="timeline">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 原因分析（4M分析） -->
+          <div class="detail-card" id="cause-analysis" style="grid-column: 1 / -1;">
+            <h4>原因分析（4M分析）</h4>
+            <div id="causeAnalysis">
+              <div class="detail-card" style="margin-bottom: 15px;">
+                <h5 style="margin: 0 0 10px 0;">Man（人）</h5>
+                <div id="causeMan" class="list-dense">
+                  <!-- 動的に挿入 -->
+                </div>
+              </div>
+              <div class="detail-card" style="margin-bottom: 15px;">
+                <h5 style="margin: 0 0 10px 0;">Machine（機械・設備）</h5>
+                <div id="causeMachine" class="list-dense">
+                  <!-- 動的に挿入 -->
+                </div>
+              </div>
+              <div class="detail-card" style="margin-bottom: 15px;">
+                <h5 style="margin: 0 0 10px 0;">Media（材料・情報）</h5>
+                <div id="causeMedia" class="list-dense">
+                  <!-- 動的に挿入 -->
+                </div>
+              </div>
+              <div class="detail-card">
+                <h5 style="margin: 0 0 10px 0;">Management（管理）</h5>
+                <div id="causeManagement" class="list-dense">
+                  <!-- 動的に挿入 -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 即時対応 -->
+          <div class="detail-card">
+            <h4>即時対応</h4>
+            <div id="immediateActions" class="checklist">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 再発防止策 -->
+          <div class="detail-card">
+            <h4>再発防止策</h4>
+            <div id="preventionMeasures" class="list-dense">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- 是正措置タスク -->
+          <div class="detail-card" id="corrective-actions" style="grid-column: 1 / -1;">
+            <h4>是正措置タスク</h4>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ステータス</th>
+                  <th>措置内容</th>
+                  <th>担当者</th>
+                  <th>期限</th>
+                  <th>進捗</th>
+                  <th>アクション</th>
+                </tr>
+              </thead>
+              <tbody id="correctiveActionTable">
+                <!-- 動的に挿入 -->
+              </tbody>
+            </table>
+            <button class="cta secondary" onclick="addCorrectiveAction()" style="margin-top: 15px;" data-required-role="quality_assurance">
+              是正措置を追加
+            </button>
+          </div>
+
+          <!-- 添付資料（写真・図面） -->
+          <div class="detail-card" id="attachments" style="grid-column: 1 / -1;">
+            <h4>添付資料（写真・図面）</h4>
+            <div id="attachmentGallery" class="attachment-gallery">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- KPI・進捗 -->
+          <div class="detail-card">
+            <h4>是正措置KPI</h4>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div>完了率</div>
+                <strong id="completionRate">0</strong>
+                <small>%</small>
+              </div>
+              <div class="stat-card">
+                <div>期限遵守率</div>
+                <strong id="deadlineRate">0</strong>
+                <small>%</small>
+              </div>
+              <div class="stat-card">
+                <div>残タスク</div>
+                <strong id="remainingTasks">0</strong>
+                <small>件</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- 承認フロー -->
+          <div class="detail-card" id="approval">
+            <h4>承認フロー</h4>
+            <div class="flow" id="approvalFlow">
+              <!-- 動的に挿入 -->
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- 右サイドバー -->
+      <aside class="rail reveal delay-1">
+        <div class="alert" id="urgentNotice" style="display: none;">
+          <!-- 動的に挿入 -->
+        </div>
+
+        <div>
+          <h3>影響現場</h3>
+          <div id="affectedSites" class="status-list">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <h3>安全評価</h3>
+          <div id="safetyAssessment" class="document">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <h3>担当エキスパート</h3>
+          <div id="expertInfo" class="document">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <h3>関連教育</h3>
+          <div id="relatedTraining">
+            <!-- 動的に挿入 -->
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- 是正措置追加モーダル -->
+    <div id="correctiveActionModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>是正措置を追加</h2>
+          <button class="modal-close" onclick="closeCorrectiveActionModal()">&times;</button>
+        </div>
+        <form id="correctiveActionForm" onsubmit="submitCorrectiveAction(event)">
+          <div class="field">
+            <label>措置内容 <span class="required">*</span></label>
+            <textarea id="actionContent" required rows="3" placeholder="実施する是正措置の内容を記述してください"></textarea>
+          </div>
+          <div class="field">
+            <label>担当者 <span class="required">*</span></label>
+            <input type="text" id="actionAssignee" required placeholder="担当者名">
+          </div>
+          <div class="field">
+            <label>期限 <span class="required">*</span></label>
+            <input type="date" id="actionDeadline" required>
+          </div>
+          <div class="field">
+            <label>優先度</label>
+            <select id="actionPriority">
+              <option value="normal">通常</option>
+              <option value="high">高</option>
+              <option value="urgent">緊急</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="cta ghost" onclick="closeCorrectiveActionModal()">キャンセル</button>
+            <button type="submit" class="cta">追加</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 共有モーダル -->
+    <div id="shareModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>レポート共有</h2>
+          <button class="modal-close" onclick="closeShareModal()">&times;</button>
+        </div>
+        <div class="field">
+          <label>レポートURL</label>
+          <input type="text" id="shareUrl" readonly style="background: #f5f5f5;">
+        </div>
+        <div class="modal-actions" style="display: grid; gap: 10px; margin-top: 20px;">
+          <button class="cta" onclick="copyShareUrl()">📋 URLをコピー</button>
+          <button class="cta secondary" onclick="shareViaEmail()">✉️ メールで共有</button>
+          <button class="cta ghost" onclick="shareViaSlack()">💬 Slackで共有</button>
+          <button class="cta ghost" onclick="shareViaTeams()">👥 Teamsで共有</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステータス更新モーダル -->
+    <div id="statusModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>ステータス更新</h2>
+          <button class="modal-close" onclick="closeStatusModal()">&times;</button>
+        </div>
+        <div class="field">
+          <label>新しいステータス <span class="required">*</span></label>
+          <select id="newStatus" required>
+            <option value="">選択してください</option>
+            <option value="調査中">調査中</option>
+            <option value="対策立案中">対策立案中</option>
+            <option value="是正措置実施中">是正措置実施中</option>
+            <option value="完了">完了</option>
+            <option value="クローズ">クローズ</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>コメント</label>
+          <textarea id="statusComment" rows="3" placeholder="ステータス変更の理由や詳細"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cta ghost" onclick="closeStatusModal()">キャンセル</button>
+          <button type="button" class="cta" onclick="submitStatusUpdate()">更新</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新規レポート作成モーダル -->
+    <div id="newIncidentModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>新規事故レポート作成</h2>
+          <button class="modal-close" onclick="closeNewIncidentModal()">&times;</button>
+        </div>
+        <form id="newIncidentForm" onsubmit="submitNewIncident(event)">
+          <div class="field">
+            <label>タイトル <span class="required">*</span></label>
+            <input type="text" id="newIncidentTitle" required placeholder="事故の簡潔なタイトル">
+          </div>
+          <div class="field">
+            <label>発生日時 <span class="required">*</span></label>
+            <input type="datetime-local" id="newIncidentDate" required>
+          </div>
+          <div class="field">
+            <label>発生場所 <span class="required">*</span></label>
+            <input type="text" id="newIncidentLocation" required placeholder="現場名や具体的な場所">
+          </div>
+          <div class="field">
+            <label>重大度 <span class="required">*</span></label>
+            <select id="newIncidentSeverity" required>
+              <option value="">選択してください</option>
+              <option value="低">低</option>
+              <option value="中">中</option>
+              <option value="高">高</option>
+              <option value="最高">最高</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>事故内容 <span class="required">*</span></label>
+            <textarea id="newIncidentContent" required rows="5" placeholder="何が起きたかを詳細に記述してください"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="cta ghost" onclick="closeNewIncidentModal()">キャンセル</button>
+            <button type="submit" class="cta">作成</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div id="editIncidentModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>事故レポート編集</h2>
+          <button class="modal-close" onclick="closeEditIncidentModal()">&times;</button>
+        </div>
+        <form id="editIncidentForm" onsubmit="submitEditIncident(event)">
+          <div class="field">
+            <label>タイトル <span class="required">*</span></label>
+            <input type="text" id="editIncidentTitle" required>
+          </div>
+          <div class="field">
+            <label>発生日時 <span class="required">*</span></label>
+            <input type="datetime-local" id="editIncidentDate" required>
+          </div>
+          <div class="field">
+            <label>発生場所 <span class="required">*</span></label>
+            <input type="text" id="editIncidentLocation" required>
+          </div>
+          <div class="field">
+            <label>重大度 <span class="required">*</span></label>
+            <select id="editIncidentSeverity" required>
+              <option value="低">低</option>
+              <option value="中">中</option>
+              <option value="高">高</option>
+              <option value="最高">最高</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>事故内容 <span class="required">*</span></label>
+            <textarea id="editIncidentContent" required rows="5"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="cta ghost" onclick="closeEditIncidentModal()">キャンセル</button>
+            <button type="submit" class="cta">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <button class="floating" onclick="scrollToTop()">↑ トップへ</button>
+
+    <!-- Socket.IO Client Library (jsDelivr経由 - CSP対応) -->
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
+    <script src="app.js"></script>
+    <script src="dom-helpers.js"></script>
+    <script src="detail-pages.js"></script>
+    <script src="actions.js"></script>
+  </body>
+</html>

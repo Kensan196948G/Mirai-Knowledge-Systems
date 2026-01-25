@@ -1,0 +1,219 @@
+# Prometheus アラートルール
+# Mirai Knowledge System 監視アラート設定
+
+groups:
+  # システムリソースアラート
+  - name: system_resources
+    interval: 30s
+    rules:
+      # CPU使用率が80%を超えた場合
+      - alert: HighCPUUsage
+        expr: mks_system_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "CPU使用率が高い状態です"
+          description: "CPU使用率が {{ $value }}% です（閾値: 80%）"
+
+      # CPU使用率が95%を超えた場合（緊急）
+      - alert: CriticalCPUUsage
+        expr: mks_system_cpu_usage_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "CPU使用率が危険な状態です"
+          description: "CPU使用率が {{ $value }}% です（閾値: 95%）"
+
+      # メモリ使用率が85%を超えた場合
+      - alert: HighMemoryUsage
+        expr: mks_system_memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "メモリ使用率が高い状態です"
+          description: "メモリ使用率が {{ $value }}% です（閾値: 85%）"
+
+      # メモリ使用率が95%を超えた場合（緊急）
+      - alert: CriticalMemoryUsage
+        expr: mks_system_memory_usage_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "メモリ使用率が危険な状態です"
+          description: "メモリ使用率が {{ $value }}% です（閾値: 95%）"
+
+      # ディスク使用率が90%を超えた場合
+      - alert: HighDiskUsage
+        expr: mks_system_disk_usage_percent > 90
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "ディスク使用率が高い状態です"
+          description: "ディスク使用率が {{ $value }}% です（閾値: 90%）"
+
+      # ディスク使用率が98%を超えた場合（緊急）
+      - alert: CriticalDiskUsage
+        expr: mks_system_disk_usage_percent > 98
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "ディスク容量が不足しています"
+          description: "ディスク使用率が {{ $value }}% です（閾値: 98%）"
+
+  # アプリケーションパフォーマンスアラート
+  - name: application_performance
+    interval: 30s
+    rules:
+      # APIレスポンスタイムが2秒を超えた場合
+      - alert: SlowAPIResponse
+        expr: histogram_quantile(0.95, rate(mks_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "APIレスポンスが遅延しています"
+          description: "95パーセンタイルのレスポンスタイムが {{ $value }}秒です（閾値: 2秒）"
+
+      # APIレスポンスタイムが5秒を超えた場合（緊急）
+      - alert: CriticalAPIResponse
+        expr: histogram_quantile(0.95, rate(mks_http_request_duration_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "APIレスポンスが非常に遅延しています"
+          description: "95パーセンタイルのレスポンスタイムが {{ $value }}秒です（閾値: 5秒）"
+
+      # エラー率が5%を超えた場合
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(mks_http_requests_total{status=~"5.."}[5m])) /
+          sum(rate(mks_http_requests_total[5m])) * 100 > 5
+        for: 3m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "エラー率が高い状態です"
+          description: "過去5分間のエラー率が {{ $value }}% です（閾値: 5%）"
+
+      # エラー率が15%を超えた場合（緊急）
+      - alert: CriticalErrorRate
+        expr: |
+          sum(rate(mks_http_requests_total{status=~"5.."}[5m])) /
+          sum(rate(mks_http_requests_total[5m])) * 100 > 15
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "エラー率が危険な状態です"
+          description: "過去5分間のエラー率が {{ $value }}% です（閾値: 15%）"
+
+  # データベースアラート
+  - name: database_performance
+    interval: 30s
+    rules:
+      # データベースクエリ時間が1秒を超えた場合
+      - alert: SlowDatabaseQuery
+        expr: histogram_quantile(0.95, rate(mks_database_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "データベースクエリが遅延しています"
+          description: "95パーセンタイルのクエリ実行時間が {{ $value }}秒です（閾値: 1秒）"
+
+      # データベースエラーが発生した場合
+      - alert: DatabaseErrors
+        expr: rate(mks_errors_total{type="db_error"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "データベースエラーが発生しています"
+          description: "データベースエラー発生率: {{ $value }}/秒"
+
+  # 認証・セキュリティアラート
+  - name: authentication_security
+    interval: 30s
+    rules:
+      # 認証失敗率が高い場合（ブルートフォース攻撃の可能性）
+      - alert: HighAuthFailureRate
+        expr: |
+          sum(rate(mks_auth_attempts_total{status="failed"}[5m])) /
+          sum(rate(mks_auth_attempts_total[5m])) * 100 > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "認証失敗率が高い状態です"
+          description: "認証失敗率が {{ $value }}% です（ブルートフォース攻撃の可能性）"
+
+      # レート制限ヒット数が多い場合
+      - alert: HighRateLimitHits
+        expr: rate(mks_rate_limit_hits_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: info
+          component: security
+        annotations:
+          summary: "レート制限が頻繁にトリガーされています"
+          description: "レート制限ヒット数: {{ $value }}/秒"
+
+  # サービス可用性アラート
+  - name: service_availability
+    interval: 30s
+    rules:
+      # サービスがダウンした場合
+      - alert: ServiceDown
+        expr: up{job="mks-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: availability
+        annotations:
+          summary: "Mirai Knowledge Systemがダウンしています"
+          description: "バックエンドサービスに接続できません"
+
+      # リクエスト数が急激に減少した場合（サービス異常の可能性）
+      - alert: LowRequestRate
+        expr: |
+          sum(rate(mks_http_requests_total[5m])) < 1 and
+          sum(rate(mks_http_requests_total[1h] offset 1h)) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: availability
+        annotations:
+          summary: "リクエスト数が異常に少ない状態です"
+          description: "現在のリクエスト数: {{ $value }}/秒（サービス異常の可能性）"
+
+      # リクエスト数が急激に増加した場合（DDoS攻撃の可能性）
+      - alert: HighRequestRate
+        expr: |
+          sum(rate(mks_http_requests_total[5m])) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "リクエスト数が異常に多い状態です"
+          description: "現在のリクエスト数: {{ $value }}/秒（DDoS攻撃の可能性）"

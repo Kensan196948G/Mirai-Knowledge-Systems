@@ -1,0 +1,30 @@
+[Unit]
+Description=Mirai Knowledge Systems Flask Application (Development)
+After=network.target
+
+[Service]
+Type=simple
+User=kensan
+WorkingDirectory=/mnt/LinuxHDD/Mirai-Knowledge-Systems
+
+# 開発環境ポート: HTTP 5200, HTTPS 5243
+ExecStart=/mnt/LinuxHDD/Mirai-Knowledge-Systems/venv_linux/bin/python /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/app_v2.py
+
+Restart=on-failure
+RestartSec=3
+
+# 開発環境設定
+Environment=MKS_ENV=development
+Environment=MKS_HTTP_PORT=5200
+Environment=MKS_HTTPS_PORT=5243
+Environment=MKS_DEBUG=true
+Environment=MKS_USE_POSTGRESQL=false
+Environment=MKS_LOAD_SAMPLE_DATA=true
+Environment=MKS_CREATE_DEMO_USERS=true
+Environment=MKS_FORCE_HTTPS=false
+Environment=MKS_SECRET_KEY=dev-secret-key-2026
+Environment=MKS_JWT_SECRET_KEY=dev-jwt-secret-key-2026
+Environment=MKS_CORS_ORIGINS=http://localhost:5200,http://127.0.0.1:5200,http://192.168.0.187:5200,http://192.168.0.145:5200,https://localhost:5243,https://127.0.0.1:5243,https://192.168.0.187:5243,https://192.168.0.145:5243
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,59 @@
+[Unit]
+Description=Mirai Knowledge System - 建設土木ナレッジシステム (Production)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=kensan
+Group=kensan
+WorkingDirectory=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend
+
+# 環境変数ファイルを読み込み
+EnvironmentFile=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/.env
+
+# PATH環境変数
+Environment="PATH=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/venv_linux/bin:/usr/local/bin:/usr/bin:/bin"
+
+# 本番環境設定
+Environment="MKS_ENV=production"
+Environment="MKS_DEBUG=false"
+
+# ログディレクトリは事前に手動作成が必要:
+# sudo mkdir -p /var/log/mirai-knowledge
+# sudo chown kensan:kensan /var/log/mirai-knowledge
+
+# Gunicornで起動
+ExecStart=/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/venv_linux/bin/gunicorn \
+    --config /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/gunicorn.conf.py \
+    app_v2:app
+
+# Graceful reload
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# 再起動設定
+Restart=always
+RestartSec=10
+
+# タイムアウト設定
+TimeoutStartSec=0
+TimeoutStopSec=30
+
+# ログ設定
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mirai-knowledge-prod
+
+# セキュリティ設定
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/mirai-knowledge /mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/data
+
+# リソース制限
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
