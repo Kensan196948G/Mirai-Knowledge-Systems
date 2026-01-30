@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2要素認証設定 - Mirai Knowledge Systems</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .settings-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .settings-header {
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .settings-header h1 {
+            margin: 0 0 10px;
+            color: #1e293b;
+        }
+
+        .settings-header p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        .setting-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .setting-section h2 {
+            margin: 0 0 15px;
+            font-size: 18px;
+            color: #1e293b;
+        }
+
+        .setting-section p {
+            margin: 0 0 15px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-enabled {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-disabled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .info-box {
+            padding: 15px;
+            background: #dbeafe;
+            border: 1px solid #93c5fd;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #1e40af;
+        }
+
+        .warning-box {
+            padding: 15px;
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+
+        .warning-box strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #92400e;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #1e293b;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .back-button {
+            margin-bottom: 20px;
+            display: inline-block;
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-button:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <a href="index.html" class="back-button">← ダッシュボードに戻る</a>
+
+        <div class="settings-header">
+            <h1>2要素認証設定</h1>
+            <p>アカウントのセキュリティを強化するための2要素認証を管理します</p>
+        </div>
+
+        <!-- MFA Status Section -->
+        <div class="setting-section">
+            <h2>2要素認証ステータス</h2>
+            <p id="mfaStatusDescription">読み込み中...</p>
+            <div style="margin: 15px 0;">
+                ステータス: <span id="mfaStatusBadge" class="status-badge status-disabled">無効</span>
+            </div>
+            <div id="backupCodesInfo" style="display: none; margin-top: 10px;">
+                残りのバックアップコード: <strong id="remainingBackupCodes">0</strong> / 10
+            </div>
+        </div>
+
+        <!-- Enable MFA Section -->
+        <div class="setting-section" id="enableSection">
+            <h2>2要素認証を有効化</h2>
+            <p>認証アプリ（Google Authenticator、Microsoft Authenticator等）を使用して、ログイン時にワンタイムパスワードを要求します。</p>
+            <div class="info-box">
+                <strong>セキュリティ強化:</strong>
+                パスワードに加えて、スマートフォンの認証アプリで生成されるコードが必要になります。
+            </div>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="startMFASetup()">2要素認証を設定</button>
+            </div>
+        </div>
+
+        <!-- Manage MFA Section -->
+        <div class="setting-section" id="manageSection" style="display: none;">
+            <h2>2要素認証の管理</h2>
+            <p>バックアップコードの再生成や2要素認証の無効化ができます。</p>
+
+            <div class="warning-box" id="lowBackupWarning" style="display: none;">
+                <strong>警告:</strong>
+                バックアップコードの残りが少なくなっています。新しいバックアップコードを生成することをお勧めします。
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="showRegenerateModal()">バックアップコード再生成</button>
+                <button class="btn btn-danger" onclick="showDisableModal()">2要素認証を無効化</button>
+            </div>
+        </div>
+
+        <!-- What is 2FA Section -->
+        <div class="setting-section">
+            <h2>2要素認証とは？</h2>
+            <p>2要素認証（Two-Factor Authentication）は、パスワードに加えて別の認証要素（ワンタイムパスワード）を要求することで、アカウントのセキュリティを大幅に向上させる仕組みです。</p>
+            <ul>
+                <li>パスワードが漏洩しても、ワンタイムパスワードがなければログインできません</li>
+                <li>ワンタイムパスワードは30秒ごとに変更されるため、盗聴されても安全です</li>
+                <li>バックアップコードを使用して、認証アプリにアクセスできない場合でもログインできます</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Disable MFA Modal -->
+    <div id="disableModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>2要素認証を無効化</h2>
+            </div>
+            <div class="modal-body">
+                <p>2要素認証を無効化するには、現在のパスワードと認証コードを入力してください。</p>
+                <div class="form-group">
+                    <label class="form-label" for="disablePassword">パスワード</label>
+                    <input type="password" id="disablePassword" class="form-input" placeholder="パスワードを入力">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="disableCode">認証コード</label>
+                    <input type="text" id="disableCode" class="form-input" maxlength="6" placeholder="000000">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideDisableModal()">キャンセル</button>
+                <button class="btn btn-danger" onclick="confirmDisableMFA()">無効化</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Regenerate Backup Codes Modal -->
+    <div id="regenerateModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>バックアップコード再生成</h2>
+            </div>
+            <div class="modal-body">
+                <p>新しいバックアップコードを生成すると、古いコードは使用できなくなります。</p>
+                <div class="warning-box">
+                    <strong>注意:</strong>
+                    古いバックアップコードは無効になります。新しいコードを安全な場所に保存してください。
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="regenerateCode">認証コード（TOTP）</label>
+                    <input type="text" id="regenerateCode" class="form-input" maxlength="6" placeholder="000000">
+                </div>
+                <div id="newBackupCodes" style="display: none; margin-top: 20px;">
+                    <p><strong>新しいバックアップコード:</strong></p>
+                    <div id="backupCodesList" style="font-family: monospace; font-size: 14px; background: #f8f9fa; padding: 15px; border-radius: 6px;">
+                        <!-- Backup codes will be inserted here -->
+                    </div>
+                    <button class="btn btn-secondary" style="margin-top: 10px;" onclick="downloadNewBackupCodes()">ダウンロード</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideRegenerateModal()">キャンセル</button>
+                <button class="btn btn-primary" id="regenerateButton" onclick="regenerateCodes()">再生成</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="mfa.js"></script>
+    <script>
+        let currentMFAStatus = null;
+        let newBackupCodesData = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check authentication
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                alert('ログインが必要です');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Load MFA status
+            loadMFAStatus();
+        });
+
+        async function loadMFAStatus() {
+            try {
+                const result = await getMFAStatus();
+                currentMFAStatus = result.data;
+
+                // Update UI
+                const statusBadge = document.getElementById('mfaStatusBadge');
+                const statusDesc = document.getElementById('mfaStatusDescription');
+                const enableSection = document.getElementById('enableSection');
+                const manageSection = document.getElementById('manageSection');
+                const backupCodesInfo = document.getElementById('backupCodesInfo');
+                const remainingCodes = document.getElementById('remainingBackupCodes');
+                const lowBackupWarning = document.getElementById('lowBackupWarning');
+
+                if (currentMFAStatus.mfa_enabled) {
+                    statusBadge.className = 'status-badge status-enabled';
+                    statusBadge.textContent = '有効';
+                    statusDesc.textContent = '2要素認証が有効になっています。ログイン時に認証コードが必要です。';
+
+                    enableSection.style.display = 'none';
+                    manageSection.style.display = 'block';
+                    backupCodesInfo.style.display = 'block';
+                    remainingCodes.textContent = currentMFAStatus.remaining_backup_codes;
+
+                    // Low backup code warning
+                    if (currentMFAStatus.remaining_backup_codes <= 3 && currentMFAStatus.remaining_backup_codes > 0) {
+                        lowBackupWarning.style.display = 'block';
+                    }
+                } else {
+                    statusBadge.className = 'status-badge status-disabled';
+                    statusBadge.textContent = '無効';
+                    statusDesc.textContent = '2要素認証が無効になっています。セキュリティ強化のため、有効化をお勧めします。';
+
+                    enableSection.style.display = 'block';
+                    manageSection.style.display = 'none';
+                    backupCodesInfo.style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error('Failed to load MFA status:', error);
+                alert('ステータスの読み込みに失敗しました');
+            }
+        }
+
+        function startMFASetup() {
+            window.location.href = 'mfa-setup.html';
+        }
+
+        function showDisableModal() {
+            document.getElementById('disableModal').classList.add('show');
+            document.getElementById('disablePassword').value = '';
+            document.getElementById('disableCode').value = '';
+            document.getElementById('disablePassword').focus();
+        }
+
+        function hideDisableModal() {
+            document.getElementById('disableModal').classList.remove('show');
+        }
+
+        function showRegenerateModal() {
+            document.getElementById('regenerateModal').classList.add('show');
+            document.getElementById('regenerateCode').value = '';
+            document.getElementById('newBackupCodes').style.display = 'none';
+            document.getElementById('regenerateButton').style.display = 'inline-block';
+            document.getElementById('regenerateCode').focus();
+        }
+
+        function hideRegenerateModal() {
+            document.getElementById('regenerateModal').classList.remove('show');
+        }
+
+        async function confirmDisableMFA() {
+            const password = document.getElementById('disablePassword').value;
+            const code = document.getElementById('disableCode').value;
+
+            if (!password || !code) {
+                alert('パスワードと認証コードを入力してください');
+                return;
+            }
+
+            try {
+                await disableMFA(password, code);
+                alert('2要素認証を無効化しました');
+                hideDisableModal();
+                await loadMFAStatus();
+            } catch (error) {
+                alert(`エラー: ${error.message}`);
+            }
+        }
+
+        async function regenerateCodes() {
+            const code = document.getElementById('regenerateCode').value;
+
+            if (!code || !/^\d{6}$/.test(code)) {
+                alert('正しい6桁の認証コードを入力してください');
+                return;
+            }
+
+            try {
+                const result = await regenerateBackupCodes(code);
+                newBackupCodesData = result.data.backup_codes;
+
+                // Display new codes
+                const codesList = document.getElementById('backupCodesList');
+                codesList.innerHTML = newBackupCodesData.map(code => `<div>${code}</div>`).join('');
+                document.getElementById('newBackupCodes').style.display = 'block';
+                document.getElementById('regenerateButton').style.display = 'none';
+
+                alert('バックアップコードを再生成しました。必ず安全な場所に保存してください。');
+
+                // Reload status
+                await loadMFAStatus();
+
+            } catch (error) {
+                alert(`エラー: ${error.message}`);
+            }
+        }
+
+        function downloadNewBackupCodes() {
+            if (!newBackupCodesData) {
+                alert('バックアップコードがありません');
+                return;
+            }
+
+            downloadBackupCodesText(newBackupCodesData);
+        }
+    </script>
+</body>
+</html>

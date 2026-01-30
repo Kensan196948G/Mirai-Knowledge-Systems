@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2要素認証セットアップ - Mirai Knowledge Systems</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .wizard-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .wizard-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .wizard-step {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            position: relative;
+        }
+
+        .wizard-step::after {
+            content: '';
+            position: absolute;
+            top: 25px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #ddd;
+            z-index: -1;
+        }
+
+        .wizard-step:last-child::after {
+            display: none;
+        }
+
+        .wizard-step.active {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .wizard-step.completed {
+            color: #28a745;
+        }
+
+        .wizard-step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .wizard-step.active .wizard-step-number {
+            background: #007bff;
+            color: white;
+        }
+
+        .wizard-step.completed .wizard-step-number {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-content {
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        .qr-code-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .qr-code-container img {
+            max-width: 300px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .manual-entry {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .manual-entry code {
+            background: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 14px;
+            word-break: break-all;
+        }
+
+        .verification-input {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .verification-input input {
+            font-size: 24px;
+            letter-spacing: 10px;
+            width: 200px;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .backup-codes {
+            margin: 20px 0;
+        }
+
+        .backup-codes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .backup-code-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .backup-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .wizard-actions {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .alert {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .checkbox-container {
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px solid #ffc107;
+            border-radius: 4px;
+            background: #fff3cd;
+        }
+
+        .checkbox-container label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            margin-right: 10px;
+            width: 20px;
+            height: 20px;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="wizard-container">
+        <h1>2要素認証セットアップ</h1>
+
+        <div class="wizard-steps">
+            <div class="wizard-step active" data-step="1">
+                <div class="wizard-step-number">1</div>
+                <div>QRコード</div>
+            </div>
+            <div class="wizard-step" data-step="2">
+                <div class="wizard-step-number">2</div>
+                <div>検証</div>
+            </div>
+            <div class="wizard-step" data-step="3">
+                <div class="wizard-step-number">3</div>
+                <div>バックアップ</div>
+            </div>
+        </div>
+
+        <!-- Step 1: QR Code Display -->
+        <div class="step-content active" id="step1">
+            <h2>ステップ1: 認証アプリでQRコードをスキャン</h2>
+
+            <div class="alert alert-info">
+                <strong>認証アプリをご用意ください:</strong>
+                <ul>
+                    <li>Google Authenticator</li>
+                    <li>Microsoft Authenticator</li>
+                    <li>Authy</li>
+                    <li>その他のTOTP対応アプリ</li>
+                </ul>
+            </div>
+
+            <div class="qr-code-container" id="qrCodeDisplay">
+                <p>読み込み中...</p>
+            </div>
+
+            <div class="manual-entry">
+                <details>
+                    <summary style="cursor: pointer; font-weight: bold;">手動入力用シークレットキー</summary>
+                    <p style="margin-top: 10px;">QRコードをスキャンできない場合、以下のシークレットキーを手動で入力してください:</p>
+                    <code id="secretKey">-</code>
+                </details>
+            </div>
+
+            <div class="wizard-actions">
+                <button class="btn-secondary" onclick="window.location.href='admin.html'">キャンセル</button>
+                <button class="btn-primary" onclick="goToStep(2)">次へ</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Verification -->
+        <div class="step-content" id="step2">
+            <h2>ステップ2: 認証コードを入力</h2>
+
+            <div class="alert alert-info">
+                認証アプリに表示されている6桁のコードを入力してください。
+            </div>
+
+            <div class="verification-input">
+                <input
+                    type="text"
+                    id="totpCode"
+                    maxlength="6"
+                    pattern="[0-9]{6}"
+                    placeholder="000000"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div id="verificationError" class="alert alert-warning" style="display: none;"></div>
+
+            <div class="wizard-actions">
+                <button class="btn-secondary" onclick="goToStep(1)">戻る</button>
+                <button class="btn-primary" onclick="verifyCode()">検証して有効化</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Backup Codes -->
+        <div class="step-content" id="step3">
+            <h2>ステップ3: バックアップコードを保存</h2>
+
+            <div class="alert alert-warning">
+                <strong>重要:</strong> これらのバックアップコードを安全な場所に保存してください。
+                認証アプリにアクセスできない場合に使用できます。各コードは1回のみ使用可能です。
+            </div>
+
+            <div class="backup-codes">
+                <div class="backup-codes-grid" id="backupCodesDisplay">
+                    <!-- Backup codes will be inserted here -->
+                </div>
+
+                <div class="backup-actions">
+                    <button class="btn-secondary" onclick="downloadBackupCodes()">
+                        <span>📥</span> ダウンロード
+                    </button>
+                    <button class="btn-secondary" onclick="printBackupCodes()">
+                        <span>🖨️</span> 印刷
+                    </button>
+                </div>
+            </div>
+
+            <div class="checkbox-container">
+                <label>
+                    <input type="checkbox" id="confirmSaved">
+                    <span>バックアップコードを安全に保存しました。これらのコードはこのページを閉じると再度表示できません。</span>
+                </label>
+            </div>
+
+            <div class="wizard-actions">
+                <button class="btn-secondary" onclick="window.location.href='admin.html'">後で</button>
+                <button class="btn-primary" id="finishButton" disabled onclick="finishSetup()">完了</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="mfa.js"></script>
+    <script>
+        let setupData = null;
+
+        // Initialize MFA setup
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is logged in
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                alert('ログインが必要です');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Start MFA setup
+            initiateMFASetup();
+
+            // Add TOTP input event listener
+            const totpInput = document.getElementById('totpCode');
+            if (totpInput) {
+                totpInput.addEventListener('input', function(e) {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                });
+
+                totpInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && totpInput.value.length === 6) {
+                        verifyCode();
+                    }
+                });
+            }
+
+            // Enable finish button when checkbox is checked
+            const confirmCheckbox = document.getElementById('confirmSaved');
+            const finishButton = document.getElementById('finishButton');
+            if (confirmCheckbox && finishButton) {
+                confirmCheckbox.addEventListener('change', function() {
+                    finishButton.disabled = !this.checked;
+                });
+            }
+        });
+
+        function goToStep(stepNumber) {
+            // Hide all steps
+            document.querySelectorAll('.step-content').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // Show target step
+            document.getElementById(`step${stepNumber}`).classList.add('active');
+
+            // Update wizard step indicators
+            document.querySelectorAll('.wizard-step').forEach((el, idx) => {
+                el.classList.remove('active', 'completed');
+                if (idx + 1 < stepNumber) {
+                    el.classList.add('completed');
+                } else if (idx + 1 === stepNumber) {
+                    el.classList.add('active');
+                }
+            });
+        }
+
+        async function initiateMFASetup() {
+            try {
+                const response = await setupMFA();
+                setupData = response.data;
+
+                // Display QR code
+                const qrContainer = document.getElementById('qrCodeDisplay');
+                qrContainer.innerHTML = `<img src="data:image/png;base64,${setupData.qr_code_base64}" alt="QR Code">`;
+
+                // Display secret key
+                document.getElementById('secretKey').textContent = setupData.secret;
+
+                // Store backup codes for later steps
+                setupData.backup_codes = setupData.backup_codes || [];
+
+            } catch (error) {
+                alert(`セットアップエラー: ${error.message}`);
+                window.location.href = 'admin.html';
+            }
+        }
+
+        async function verifyCode() {
+            const code = document.getElementById('totpCode').value;
+            const errorDiv = document.getElementById('verificationError');
+
+            if (code.length !== 6) {
+                errorDiv.textContent = '6桁のコードを入力してください';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                await verifyMFASetup(code);
+
+                // Display backup codes
+                displayBackupCodes(setupData.backup_codes);
+
+                // Go to step 3
+                goToStep(3);
+
+            } catch (error) {
+                errorDiv.textContent = error.message || '無効なコードです。もう一度お試しください。';
+                errorDiv.style.display = 'block';
+                document.getElementById('totpCode').value = '';
+                document.getElementById('totpCode').focus();
+            }
+        }
+
+        function displayBackupCodes(codes) {
+            const container = document.getElementById('backupCodesDisplay');
+            container.innerHTML = codes.map(code =>
+                `<div class="backup-code-item">${code}</div>`
+            ).join('');
+        }
+
+        function downloadBackupCodes() {
+            if (!setupData || !setupData.backup_codes) {
+                alert('バックアップコードが見つかりません');
+                return;
+            }
+
+            const content = [
+                'Mirai Knowledge Systems',
+                '2要素認証バックアップコード',
+                '=' .repeat(50),
+                '',
+                '各コードは1回のみ使用可能です。',
+                '安全な場所に保管してください。',
+                '',
+                ...setupData.backup_codes,
+                '',
+                `生成日時: ${new Date().toLocaleString('ja-JP')}`,
+            ].join('\n');
+
+            downloadBackupCodesText(setupData.backup_codes);
+        }
+
+        function printBackupCodes() {
+            window.print();
+        }
+
+        function finishSetup() {
+            alert('2要素認証が有効になりました！');
+            window.location.href = 'admin.html';
+        }
+    </script>
+</body>
+</html>
