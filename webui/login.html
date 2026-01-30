@@ -307,10 +307,13 @@
                             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                 </div>
-                <p style="text-align: center; color: #64748b; margin-bottom: 24px;">
+                <p style="text-align: center; color: #64748b; margin-bottom: 12px;" id="mfaInstructions">
                     認証アプリに表示されている6桁のコードを入力してください
                 </p>
-                <div class="form-group">
+                <p style="text-align: center; color: #ef4444; margin-bottom: 24px; font-size: 14px;">
+                    有効期限: <span id="mfaCountdown">5:00</span>
+                </p>
+                <div class="form-group" id="totpGroup">
                     <label class="form-label" for="mfaCode">認証コード</label>
                     <input type="text" id="mfaCode" name="mfaCode" class="form-input mfa-code-input"
                         placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric"
@@ -318,11 +321,19 @@
                     <div class="error-message" id="mfaCodeError">6桁の数字を入力してください</div>
                 </div>
 
+                <div class="form-group" id="backupGroup" style="display: none;">
+                    <label class="form-label" for="backupCode">バックアップコード</label>
+                    <input type="text" id="backupCode" name="backupCode" class="form-input"
+                        placeholder="XXXX-XXXX-XXXX" maxlength="14" autocomplete="off">
+                    <div class="error-message" id="backupCodeError">バックアップコードを入力してください</div>
+                </div>
+
                 <button type="submit" class="login-button" id="mfaButton">
                     <span class="button-text">認証</span>
                     <div class="loading-spinner"></div>
                 </button>
 
+                <a class="back-link" id="useBackupLink" style="margin-top: 12px;">バックアップコードを使用</a>
                 <a class="back-link" id="backToLogin">ログイン画面に戻る</a>
             </form>
 
@@ -354,6 +365,8 @@
 
         // MFA一時トークン保持用
         let mfaToken = null;
+        let mfaCountdownInterval = null;
+        let usingBackupCode = false;
 
         // ログインフォーム送信
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -442,13 +455,26 @@
         document.getElementById('mfaForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const mfaCode = document.getElementById('mfaCode').value.trim();
             const mfaButton = document.getElementById('mfaButton');
+            let payload = {
+                mfa_token: mfaToken
+            };
 
             // バリデーション
-            if (!mfaCode || !/^\d{6}$/.test(mfaCode)) {
-                showFieldError('mfaCode');
-                return;
+            if (usingBackupCode) {
+                const backupCode = document.getElementById('backupCode').value.trim();
+                if (!backupCode) {
+                    showFieldError('backupCode');
+                    return;
+                }
+                payload.backup_code = backupCode;
+            } else {
+                const mfaCode = document.getElementById('mfaCode').value.trim();
+                if (!mfaCode || !/^\d{6}$/.test(mfaCode)) {
+                    showFieldError('mfaCode');
+                    return;
+                }
+                payload.code = mfaCode;
             }
 
             // ローディング開始
@@ -463,10 +489,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        mfa_token: mfaToken,
-                        code: mfaCode
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 logger.log('[MFA] Response status:', response.status);
@@ -480,6 +503,17 @@
                     localStorage.setItem('refresh_token', result.data.refresh_token);
                     localStorage.setItem('user', JSON.stringify(result.data.user));
 
+                    // バックアップコード警告
+                    if (result.data.used_backup_code && result.data.remaining_backup_codes <= 3) {
+                        localStorage.setItem('mfa_backup_warning', 'true');
+                        localStorage.setItem('remaining_backup_codes', result.data.remaining_backup_codes);
+                    }
+
+                    // カウントダウンクリア
+                    if (mfaCountdownInterval) {
+                        clearInterval(mfaCountdownInterval);
+                    }
+
                     // 少し待ってからリダイレクト
                     logger.log('[MFA] Redirecting to dashboard...');
                     setTimeout(() => {
@@ -491,8 +525,14 @@
                     showAlert(result.error.message || '認証コードが正しくありません');
                     mfaButton.classList.remove('loading');
                     mfaButton.disabled = false;
-                    document.getElementById('mfaCode').value = '';
-                    document.getElementById('mfaCode').focus();
+
+                    if (usingBackupCode) {
+                        document.getElementById('backupCode').value = '';
+                        document.getElementById('backupCode').focus();
+                    } else {
+                        document.getElementById('mfaCode').value = '';
+                        document.getElementById('mfaCode').focus();
+                    }
                 }
             } catch (error) {
                 logger.error('[MFA] Verification error:', error);
@@ -508,16 +548,79 @@
             document.getElementById('mfaForm').classList.add('show');
             document.querySelector('.login-subtitle').textContent = '2要素認証';
             document.getElementById('mfaCode').focus();
+
+            // カウントダウン開始 (5分)
+            startMFACountdown(300);
         }
+
+        // MFAカウントダウン
+        function startMFACountdown(seconds) {
+            if (mfaCountdownInterval) {
+                clearInterval(mfaCountdownInterval);
+            }
+
+            let remaining = seconds;
+            const countdownEl = document.getElementById('mfaCountdown');
+
+            const updateCountdown = () => {
+                const minutes = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                countdownEl.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+
+                if (remaining <= 60) {
+                    countdownEl.style.fontWeight = 'bold';
+                }
+
+                if (remaining <= 0) {
+                    countdownEl.textContent = '期限切れ';
+                    clearInterval(mfaCountdownInterval);
+                    showAlert('MFAトークンの有効期限が切れました。再度ログインしてください。');
+                    document.getElementById('mfaButton').disabled = true;
+                }
+
+                remaining--;
+            };
+
+            updateCountdown();
+            mfaCountdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        // バックアップコード切り替え
+        document.getElementById('useBackupLink').addEventListener('click', () => {
+            usingBackupCode = !usingBackupCode;
+
+            if (usingBackupCode) {
+                document.getElementById('totpGroup').style.display = 'none';
+                document.getElementById('backupGroup').style.display = 'block';
+                document.getElementById('mfaInstructions').textContent = 'バックアップコードを入力してください';
+                document.getElementById('useBackupLink').textContent = '認証コードを使用';
+                document.getElementById('backupCode').focus();
+            } else {
+                document.getElementById('totpGroup').style.display = 'block';
+                document.getElementById('backupGroup').style.display = 'none';
+                document.getElementById('mfaInstructions').textContent = '認証アプリに表示されている6桁のコードを入力してください';
+                document.getElementById('useBackupLink').textContent = 'バックアップコードを使用';
+                document.getElementById('mfaCode').focus();
+            }
+        });
 
         // ログイン画面に戻る
         document.getElementById('backToLogin').addEventListener('click', () => {
             mfaToken = null;
+            usingBackupCode = false;
             document.getElementById('mfaForm').classList.remove('show');
             document.getElementById('loginForm').style.display = 'block';
             document.querySelector('.login-subtitle').textContent = 'アカウント情報を入力してログインしてください';
             document.getElementById('mfaCode').value = '';
+            document.getElementById('backupCode').value = '';
+            document.getElementById('totpGroup').style.display = 'block';
+            document.getElementById('backupGroup').style.display = 'none';
             hideAlert();
+
+            // カウントダウンクリア
+            if (mfaCountdownInterval) {
+                clearInterval(mfaCountdownInterval);
+            }
         });
 
         // MFAコード入力時の自動送信（6桁入力完了時）

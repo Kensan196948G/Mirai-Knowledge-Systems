@@ -62,6 +62,7 @@ from recommendation_engine import RecommendationEngine
 from data_access import DataAccessLayer
 from config import get_config
 import msal
+from auth.totp_manager import TOTPManager
 
 try:
     from msgraph.core import GraphClient
@@ -1238,18 +1239,48 @@ def login():
 
 
 @app.route("/api/v1/auth/login/mfa", methods=["POST"])
-@limiter.limit("100 per minute" if os.environ.get("MKS_ENV") == "development" else "10 per minute")
-@limiter.limit("1000 per hour" if os.environ.get("MKS_ENV") == "development" else "30 per hour")
-@validate_request(MFALoginSchema)
+@limiter.limit("100 per minute" if os.environ.get("MKS_ENV") == "development" else "5 per 15 minutes")
 def login_mfa():
-    """MFAコード検証してログイン完了
+    """MFAコード検証してログイン完了（TOTPまたはバックアップコード対応）
 
-    一時トークン（mfa_token）とMFAコードを検証し、
+    一時トークン（mfa_token）とMFAコード（TOTPまたはバックアップコード）を検証し、
     成功すれば正規のJWTトークンを発行
+
+    Request Body:
+        - mfa_token: string (required) - MFA一時トークン
+        - code: string (optional) - 6桁のTOTPコード
+        - backup_code: string (optional) - バックアップコード (XXXX-XXXX-XXXX形式)
+
+    Note: code または backup_code のいずれかが必須
     """
-    data = request.validated_data
-    mfa_token = data["mfa_token"]
-    code = data["code"]
+    data = request.get_json()
+    if not data:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "INVALID_REQUEST", "message": "Request body is required"},
+            }
+        ), 400
+
+    mfa_token = data.get("mfa_token")
+    code = data.get("code") or data.get("totp_code")
+    backup_code = data.get("backup_code")
+
+    if not mfa_token:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MISSING_MFA_TOKEN", "message": "MFA token is required"},
+            }
+        ), 400
+
+    if not code and not backup_code:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MISSING_CODE", "message": "Either TOTP code or backup code is required"},
+            }
+        ), 400
 
     # MFA一時トークンを検証
     try:
@@ -1276,14 +1307,39 @@ def login_mfa():
                 "success": False,
                 "error": {
                     "code": "MFA_TOKEN_EXPIRED",
-                    "message": "MFA token expired or invalid",
+                    "message": "MFA token expired or invalid. Please login again.",
                 },
             }
         ), 401
 
-    # ユーザー取得
-    users = load_users()
-    user = next((u for u in users if str(u["id"]) == str(user_id)), None)
+    # ユーザー取得（JSON mode と PostgreSQL mode の両方に対応）
+    dal = get_dal()
+
+    # Try PostgreSQL first
+    try:
+        user_obj = dal.get_user_by_id(user_id)
+        if user_obj:
+            # PostgreSQL mode
+            user = {
+                "id": user_obj.id,
+                "username": user_obj.username,
+                "email": user_obj.email,
+                "full_name": user_obj.full_name,
+                "is_active": user_obj.is_active,
+                "mfa_secret": user_obj.mfa_secret,
+                "mfa_enabled": user_obj.mfa_enabled,
+                "mfa_backup_codes": user_obj.mfa_backup_codes,
+                "roles": []  # TODO: Get roles
+            }
+            is_postgres = True
+        else:
+            user = None
+            is_postgres = False
+    except Exception:
+        # Fallback to JSON mode
+        users = load_users()
+        user = next((u for u in users if str(u["id"]) == str(user_id)), None)
+        is_postgres = False
 
     if not user:
         return jsonify(
@@ -1298,7 +1354,7 @@ def login_mfa():
 
     # MFAシークレット確認
     mfa_secret = user.get("mfa_secret")
-    if not mfa_secret:
+    if not mfa_secret or not user.get("mfa_enabled"):
         return jsonify(
             {
                 "success": False,
@@ -1309,30 +1365,73 @@ def login_mfa():
             }
         ), 400
 
-    # TOTPコード検証
-    totp = pyotp.TOTP(mfa_secret)
-    if not totp.verify(code, valid_window=1):
+    totp_mgr = TOTPManager()
+    verified = False
+    used_backup = False
+
+    # TOTP検証
+    if code:
+        verified = totp_mgr.verify_totp(mfa_secret, code)
+
+    # バックアップコード検証
+    if not verified and backup_code:
+        backup_codes_data = user.get("mfa_backup_codes") or []
+
+        for idx, backup_data in enumerate(backup_codes_data):
+            if backup_data.get("used"):
+                continue
+
+            if totp_mgr.verify_backup_code(backup_data["code_hash"], backup_code):
+                # バックアップコードを使用済みにマーク
+                backup_codes_data[idx]["used"] = True
+                backup_codes_data[idx]["used_at"] = datetime.utcnow().isoformat()
+
+                # Update in database
+                if is_postgres:
+                    user_obj.mfa_backup_codes = backup_codes_data
+                    dal.commit()
+                else:
+                    # Update JSON
+                    users = load_users()
+                    for u in users:
+                        if str(u["id"]) == str(user_id):
+                            u["mfa_backup_codes"] = backup_codes_data
+                            break
+                    save_users(users)
+
+                verified = True
+                used_backup = True
+                break
+
+    if not verified:
+        # アクセスログ記録（失敗）
+        log_access(int(user_id), "mfa_login_failed")
+
         return jsonify(
             {
                 "success": False,
                 "error": {
                     "code": "INVALID_MFA_CODE",
-                    "message": "Invalid MFA code",
+                    "message": "Invalid MFA code or backup code",
                 },
             }
         ), 401
 
     # 正規のトークン発行
     access_token = create_access_token(
-        identity=str(user["id"]), additional_claims={"roles": user.get("roles", [])}
+        identity=str(user["id"]),
+        additional_claims={"roles": user.get("roles", [])}
     )
     refresh_token = create_refresh_token(identity=str(user["id"]))
 
     # ログイン記録
-    log_access(user["id"], "login_mfa")
+    log_access(int(user_id), "mfa_login_success_backup" if used_backup else "mfa_login_success")
+
+    # 残りのバックアップコード数を計算
+    remaining_backups = sum(1 for b in (user.get("mfa_backup_codes") or []) if not b.get("used"))
 
     # レスポンス
-    user_data = {k: v for k, v in user.items() if k != "password_hash"}
+    user_data = {k: v for k, v in user.items() if k not in ["password_hash", "mfa_secret", "mfa_backup_codes"]}
 
     return jsonify(
         {
@@ -1342,6 +1441,8 @@ def login_mfa():
                 "refresh_token": refresh_token,
                 "token_type": "Bearer",
                 "expires_in": 3600,
+                "used_backup_code": used_backup,
+                "remaining_backup_codes": remaining_backups,
                 "user": user_data,
             },
         }
@@ -1413,7 +1514,7 @@ def get_current_user():
 @app.route("/api/v1/auth/mfa/setup", methods=["POST"])
 @jwt_required()
 def setup_mfa():
-    """MFAセットアップ - TOTPシークレット生成"""
+    """MFAセットアップ - TOTPシークレット、QRコード、バックアップコード生成"""
     current_user_id = get_jwt_identity()
     dal = get_dal()
     user = dal.get_user_by_id(current_user_id)
@@ -1431,33 +1532,51 @@ def setup_mfa():
                 "success": False,
                 "error": {
                     "code": "MFA_ALREADY_ENABLED",
-                    "message": "MFA is already enabled",
+                    "message": "MFA is already enabled. Disable MFA first to regenerate codes.",
                 },
             }
         ), 400
 
     # TOTPシークレット生成
-    secret = pyotp.random_base32()
+    totp_mgr = TOTPManager()
+    secret = totp_mgr.generate_totp_secret()
+
+    # QRコード生成
+    qr_code_base64 = totp_mgr.generate_qr_code(user.email, secret)
+
+    # バックアップコード生成（10個）
+    backup_codes = totp_mgr.generate_backup_codes(count=10)
+    backup_codes_data = totp_mgr.prepare_backup_codes_for_storage(backup_codes)
+
+    # ユーザーレコードを更新（まだ有効化はしない）
     user.mfa_secret = secret
+    user.mfa_backup_codes = backup_codes_data
     dal.commit()
 
-    # QRコード用URI生成
-    totp = pyotp.TOTP(secret)
-    provisioning_uri = totp.provisioning_uri(
-        name=user.email, issuer_name="Mirai Knowledge Systems"
-    )
+    # Provisioning URI（手動入力用）
+    provisioning_uri = totp_mgr.get_provisioning_uri(user.email, secret)
+
+    # アクセスログ記録
+    log_access(int(current_user_id), "mfa_setup_initiated")
 
     return jsonify(
         {
             "success": True,
-            "data": {"secret": secret, "provisioning_uri": provisioning_uri},
+            "data": {
+                "secret": secret,
+                "qr_code_base64": qr_code_base64,
+                "provisioning_uri": provisioning_uri,
+                "backup_codes": backup_codes,  # Plain text - 表示のみ、保存はハッシュ済み
+                "message": "MFA setup initiated. Please verify the code to enable MFA."
+            },
         }
     )
 
 
-@app.route("/api/v1/auth/mfa/verify", methods=["POST"])
+@app.route("/api/v1/auth/mfa/enable", methods=["POST"])
 @jwt_required()
-def verify_mfa():
+@limiter.limit("10 per minute")
+def enable_mfa():
     """MFAコード検証と有効化"""
     current_user_id = get_jwt_identity()
     dal = get_dal()
@@ -1484,28 +1603,219 @@ def verify_mfa():
         return jsonify(
             {
                 "success": False,
-                "error": {"code": "MFA_NOT_SETUP", "message": "MFA not set up"},
+                "error": {"code": "MFA_NOT_SETUP", "message": "MFA not set up. Please run /api/v1/auth/mfa/setup first."},
             }
         ), 400
 
-    totp = pyotp.TOTP(user.mfa_secret)
-    if totp.verify(code):
+    # TOTPManager で検証
+    totp_mgr = TOTPManager()
+    if totp_mgr.verify_totp(user.mfa_secret, code):
         user.mfa_enabled = True
         dal.commit()
-        return jsonify({"success": True, "message": "MFA enabled successfully"})
+
+        # アクセスログ記録
+        log_access(int(current_user_id), "mfa_enabled")
+
+        return jsonify({
+            "success": True,
+            "message": "MFA enabled successfully. Save your backup codes in a safe place."
+        })
     else:
+        # アクセスログ記録（失敗）
+        log_access(int(current_user_id), "mfa_enable_failed")
+
         return jsonify(
             {
                 "success": False,
-                "error": {"code": "INVALID_CODE", "message": "Invalid MFA code"},
+                "error": {"code": "INVALID_CODE", "message": "Invalid MFA code. Please try again."},
             }
         ), 400
+
+
+@app.route("/api/v1/auth/mfa/verify", methods=["POST"])
+@app.route("/api/v1/auth/mfa/validate", methods=["POST"])  # Alias for backward compatibility
+@limiter.limit("5 per 15 minutes")
+def verify_mfa_login():
+    """MFAログイン時のコード検証（TOTPまたはバックアップコード）
+
+    This endpoint is called during login after password verification.
+    It accepts either a TOTP code or a backup code.
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "INVALID_REQUEST", "message": "Request body is required"},
+            }
+        ), 400
+
+    mfa_token = data.get("mfa_token")
+    code = data.get("code") or data.get("totp_code")
+    backup_code = data.get("backup_code")
+
+    if not mfa_token:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MISSING_MFA_TOKEN", "message": "MFA token is required"},
+            }
+        ), 400
+
+    if not code and not backup_code:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MISSING_CODE", "message": "Either TOTP code or backup code is required"},
+            }
+        ), 400
+
+    # MFA一時トークンを検証
+    try:
+        from flask_jwt_extended import decode_token
+        decoded = decode_token(mfa_token)
+
+        # MFA一時トークンかどうか確認
+        if not decoded.get("mfa_pending") or decoded.get("type") != "mfa_temp":
+            return jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_MFA_TOKEN",
+                        "message": "Invalid MFA token",
+                    },
+                }
+            ), 401
+
+        user_id = decoded.get("sub")
+
+    except Exception as e:
+        return jsonify(
+            {
+                "success": False,
+                "error": {
+                    "code": "MFA_TOKEN_EXPIRED",
+                    "message": "MFA token expired or invalid. Please login again.",
+                },
+            }
+        ), 401
+
+    # ユーザー取得
+    dal = get_dal()
+    user = dal.get_user_by_id(user_id)
+
+    if not user:
+        return jsonify(
+            {
+                "success": False,
+                "error": {
+                    "code": "USER_NOT_FOUND",
+                    "message": "User not found",
+                },
+            }
+        ), 404
+
+    # MFAシークレット確認
+    if not user.mfa_secret or not user.mfa_enabled:
+        return jsonify(
+            {
+                "success": False,
+                "error": {
+                    "code": "MFA_NOT_CONFIGURED",
+                    "message": "MFA is not configured for this user",
+                },
+            }
+        ), 400
+
+    totp_mgr = TOTPManager()
+    verified = False
+    used_backup = False
+
+    # TOTP検証
+    if code:
+        verified = totp_mgr.verify_totp(user.mfa_secret, code)
+
+    # バックアップコード検証
+    if not verified and backup_code:
+        backup_codes_data = user.mfa_backup_codes or []
+
+        for idx, backup_data in enumerate(backup_codes_data):
+            if backup_data.get("used"):
+                continue
+
+            if totp_mgr.verify_backup_code(backup_data["code_hash"], backup_code):
+                # バックアップコードを使用済みにマーク
+                backup_codes_data[idx]["used"] = True
+                backup_codes_data[idx]["used_at"] = datetime.utcnow().isoformat()
+                user.mfa_backup_codes = backup_codes_data
+                dal.commit()
+
+                verified = True
+                used_backup = True
+                break
+
+    if not verified:
+        # アクセスログ記録（失敗）
+        log_access(int(user_id), "mfa_login_failed")
+
+        return jsonify(
+            {
+                "success": False,
+                "error": {
+                    "code": "INVALID_MFA_CODE",
+                    "message": "Invalid MFA code or backup code",
+                },
+            }
+        ), 401
+
+    # 正規のトークン発行
+    # Get user roles
+    user_dict = {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "roles": []  # TODO: Get actual roles from database
+    }
+
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"roles": user_dict.get("roles", [])}
+    )
+    refresh_token = create_refresh_token(identity=str(user.id))
+
+    # ログイン記録
+    log_access(int(user_id), "mfa_login_success_backup" if used_backup else "mfa_login_success")
+
+    # 残りのバックアップコード数を計算
+    remaining_backups = sum(1 for b in (user.mfa_backup_codes or []) if not b.get("used"))
+
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "Bearer",
+                "expires_in": 3600,
+                "used_backup_code": used_backup,
+                "remaining_backup_codes": remaining_backups,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "is_active": user.is_active
+                }
+            },
+        }
+    )
 
 
 @app.route("/api/v1/auth/mfa/disable", methods=["POST"])
 @jwt_required()
+@limiter.limit("10 per minute")
 def disable_mfa():
-    """MFA無効化"""
+    """MFA無効化（パスワードとTOTP/バックアップコードで二重確認）"""
     current_user_id = get_jwt_identity()
     dal = get_dal()
     user = dal.get_user_by_id(current_user_id)
@@ -1517,11 +1827,269 @@ def disable_mfa():
             }
         ), 404
 
+    if not user.mfa_enabled:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MFA_NOT_ENABLED", "message": "MFA is not enabled"},
+            }
+        ), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "INVALID_REQUEST", "message": "Request body is required"},
+            }
+        ), 400
+
+    password = data.get("password")
+    code = data.get("code") or data.get("totp_code")
+    backup_code = data.get("backup_code")
+
+    # パスワード検証
+    if not password:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MISSING_PASSWORD", "message": "Password is required"},
+            }
+        ), 400
+
+    if not user.check_password(password):
+        log_access(int(current_user_id), "mfa_disable_failed_password")
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "INVALID_PASSWORD", "message": "Invalid password"},
+            }
+        ), 401
+
+    # TOTP or バックアップコード検証
+    if not code and not backup_code:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MISSING_CODE", "message": "TOTP code or backup code is required"},
+            }
+        ), 400
+
+    totp_mgr = TOTPManager()
+    verified = False
+
+    # TOTP検証
+    if code and user.mfa_secret:
+        verified = totp_mgr.verify_totp(user.mfa_secret, code)
+
+    # バックアップコード検証
+    if not verified and backup_code:
+        backup_codes_data = user.mfa_backup_codes or []
+        for backup_data in backup_codes_data:
+            if backup_data.get("used"):
+                continue
+            if totp_mgr.verify_backup_code(backup_data["code_hash"], backup_code):
+                verified = True
+                break
+
+    if not verified:
+        log_access(int(current_user_id), "mfa_disable_failed_code")
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "INVALID_CODE", "message": "Invalid MFA code"},
+            }
+        ), 401
+
+    # MFA無効化
     user.mfa_enabled = False
     user.mfa_secret = None
+    user.mfa_backup_codes = None
     dal.commit()
 
-    return jsonify({"success": True, "message": "MFA disabled successfully"})
+    # アクセスログ記録
+    log_access(int(current_user_id), "mfa_disabled")
+
+    return jsonify({
+        "success": True,
+        "message": "MFA disabled successfully"
+    })
+
+
+@app.route("/api/v1/auth/mfa/backup-codes/regenerate", methods=["POST"])
+@jwt_required()
+@limiter.limit("3 per hour")
+def regenerate_backup_codes():
+    """バックアップコード再生成（TOTP検証必須）"""
+    current_user_id = get_jwt_identity()
+    dal = get_dal()
+    user = dal.get_user_by_id(current_user_id)
+
+    if not user:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
+            }
+        ), 404
+
+    if not user.mfa_enabled:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MFA_NOT_ENABLED", "message": "MFA is not enabled"},
+            }
+        ), 400
+
+    data = request.get_json()
+    code = data.get("code") if data else None
+
+    if not code:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MISSING_CODE", "message": "TOTP code is required"},
+            }
+        ), 400
+
+    # TOTP検証
+    totp_mgr = TOTPManager()
+    if not totp_mgr.verify_totp(user.mfa_secret, code):
+        log_access(int(current_user_id), "backup_codes_regen_failed")
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "INVALID_CODE", "message": "Invalid TOTP code"},
+            }
+        ), 401
+
+    # 新しいバックアップコード生成
+    new_backup_codes = totp_mgr.generate_backup_codes(count=10)
+    backup_codes_data = totp_mgr.prepare_backup_codes_for_storage(new_backup_codes)
+
+    # データベース更新
+    user.mfa_backup_codes = backup_codes_data
+    dal.commit()
+
+    # アクセスログ記録
+    log_access(int(current_user_id), "backup_codes_regenerated")
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "backup_codes": new_backup_codes,
+            "message": "New backup codes generated. Previous codes are now invalid."
+        }
+    })
+
+
+@app.route("/api/v1/auth/mfa/status", methods=["GET"])
+@jwt_required()
+def mfa_status():
+    """現在のMFA設定状態を取得"""
+    current_user_id = get_jwt_identity()
+    dal = get_dal()
+    user = dal.get_user_by_id(current_user_id)
+
+    if not user:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
+            }
+        ), 404
+
+    # 残りのバックアップコード数を計算
+    remaining_backups = 0
+    if user.mfa_backup_codes:
+        remaining_backups = sum(1 for b in user.mfa_backup_codes if not b.get("used"))
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "mfa_enabled": user.mfa_enabled,
+            "mfa_configured": user.mfa_secret is not None,
+            "remaining_backup_codes": remaining_backups,
+            "email": user.email
+        }
+    })
+
+
+@app.route("/api/v1/auth/mfa/recovery", methods=["POST"])
+@limiter.limit("3 per hour")
+def mfa_recovery():
+    """MFAリカバリー - メール経由でリカバリーコード送信
+
+    Note: この機能を使用するには、SMTP設定が必要です。
+    本番環境では管理者による手動リセットを推奨します。
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "INVALID_REQUEST", "message": "Request body is required"},
+            }
+        ), 400
+
+    email = data.get("email")
+    username = data.get("username")
+
+    if not email or not username:
+        return jsonify(
+            {
+                "success": False,
+                "error": {"code": "MISSING_FIELDS", "message": "Email and username are required"},
+            }
+        ), 400
+
+    # ユーザー検索（メールとユーザー名が一致する必要がある）
+    dal = get_dal()
+
+    # Try to find user by username and email
+    # Note: This is a simplified version. In production, use proper DAL methods
+    try:
+        from models import User
+        user = dal.session.query(User).filter_by(username=username, email=email).first()
+    except Exception:
+        # Fallback for JSON mode
+        users = load_users()
+        user = next((u for u in users if u.get("username") == username and u.get("email") == email), None)
+
+    if not user:
+        # セキュリティのため、ユーザーが見つからない場合も成功レスポンスを返す
+        # （列挙攻撃を防ぐため）
+        return jsonify({
+            "success": True,
+            "message": "If the email and username match, a recovery link will be sent to your email."
+        })
+
+    if not user.get("mfa_enabled") if isinstance(user, dict) else not user.mfa_enabled:
+        return jsonify({
+            "success": True,
+            "message": "If the email and username match, a recovery link will be sent to your email."
+        })
+
+    # リカバリートークン生成（1時間有効）
+    recovery_token = create_access_token(
+        identity=str(user.get("id") if isinstance(user, dict) else user.id),
+        additional_claims={"type": "mfa_recovery"},
+        expires_delta=timedelta(hours=1)
+    )
+
+    # TODO: メール送信実装
+    # メール送信機能が実装されている場合、ここでリカバリーリンクを送信
+    # send_recovery_email(email, recovery_token)
+
+    # アクセスログ記録
+    user_id = user.get("id") if isinstance(user, dict) else user.id
+    log_access(int(user_id), "mfa_recovery_requested")
+
+    return jsonify({
+        "success": True,
+        "message": "If the email and username match, a recovery link will be sent to your email.",
+        "dev_only_token": recovery_token if os.getenv("MKS_ENV") == "development" else None
+    })
 
 
 # ============================================================
