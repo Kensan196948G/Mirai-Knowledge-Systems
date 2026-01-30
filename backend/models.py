@@ -257,6 +257,7 @@ class User(Base):
     last_login = Column(DateTime)
     mfa_secret = Column(String(32))  # TOTP secret for MFA
     mfa_enabled = Column(Boolean, default=False)
+    mfa_backup_codes = Column(JSONB)  # Backup codes for MFA recovery
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
