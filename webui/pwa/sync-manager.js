@@ -44,9 +44,20 @@ class SyncManager {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName, { keyPath: 'id', autoIncrement: true });
+
+        // Create all required stores
+        if (!db.objectStoreNames.contains('sync-queue')) {
+          db.createObjectStore('sync-queue', { keyPath: 'id', autoIncrement: true });
         }
+        if (!db.objectStoreNames.contains('tokens')) {
+          db.createObjectStore('tokens', { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains('cache-metadata')) {
+          const store = db.createObjectStore('cache-metadata', { keyPath: 'key' });
+          store.createIndex('last_accessed_at', 'last_accessed_at', { unique: false });
+        }
+
+        console.log('[SyncManager] IndexedDB stores created');
       };
     });
   }

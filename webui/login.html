@@ -344,6 +344,16 @@
     </div>
 
     <script>
+        // PWA Feature Detection (login page)
+        window.PWA_FEATURES = {
+            serviceWorker: 'serviceWorker' in navigator,
+            backgroundSync: 'serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype,
+            pushNotifications: 'serviceWorker' in navigator && 'PushManager' in window,
+            installPrompt: 'BeforeInstallPromptEvent' in window,
+            cacheAPI: 'caches' in window,
+            indexedDB: 'indexedDB' in window
+        };
+
         // 動的にAPIベースURLを設定（現在のホストを使用）
         const API_BASE = `${window.location.origin}/api/v1`;
 

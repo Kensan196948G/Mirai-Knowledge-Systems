@@ -3411,15 +3411,30 @@ const PWA_FEATURES = {
   indexedDB: 'indexedDB' in window
 };
 
+// Export globally for testing
+window.PWA_FEATURES = PWA_FEATURES;
+
 logger.log('[PWA] Feature detection:', PWA_FEATURES);
 
 /**
  * Service Worker Registration
+ * Register after DOM is fully loaded
  */
 if (PWA_FEATURES.serviceWorker) {
-  navigator.serviceWorker.register('/sw.js')
+  // Wait for page load to ensure all resources are ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', registerServiceWorker);
+  } else {
+    registerServiceWorker();
+  }
+}
+
+function registerServiceWorker() {
+  logger.log('[PWA] Registering Service Worker...');
+
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
     .then((registration) => {
-      logger.log('[PWA] Service Worker registered successfully');
+      logger.log('[PWA] Service Worker registered successfully', registration);
 
       // Check for updates every 24 hours
       setInterval(() => {
@@ -3440,6 +3455,7 @@ if (PWA_FEATURES.serviceWorker) {
     })
     .catch((error) => {
       logger.error('[PWA] Service Worker registration failed:', error);
+      logger.error('[PWA] Error details:', error.stack);
     });
 }
 

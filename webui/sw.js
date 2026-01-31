@@ -322,16 +322,24 @@ function openIndexedDB() {
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
+
+      // Create sync-queue store
       if (!db.objectStoreNames.contains('sync-queue')) {
         db.createObjectStore('sync-queue', { keyPath: 'id', autoIncrement: true });
       }
+
+      // Create tokens store
       if (!db.objectStoreNames.contains('tokens')) {
         db.createObjectStore('tokens', { keyPath: 'key' });
       }
+
+      // Create cache-metadata store with index
       if (!db.objectStoreNames.contains('cache-metadata')) {
         const store = db.createObjectStore('cache-metadata', { keyPath: 'key' });
         store.createIndex('last_accessed_at', 'last_accessed_at', { unique: false });
       }
+
+      console.log('[SW] IndexedDB upgraded, stores:', Array.from(db.objectStoreNames));
     };
   });
 }
