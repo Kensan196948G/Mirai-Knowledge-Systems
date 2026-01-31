@@ -1,3 +1,7 @@
 {
-  "enabledPlugins": {}
+  "statusLine": {
+    "padding": 0,
+    "type": "command",
+    "command": "/mnt/LinuxHDD/Mirai-Knowledge-Systems/.claude/statusline.sh"
+  }
 }

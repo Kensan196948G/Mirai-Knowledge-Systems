@@ -100,3 +100,12 @@ backend/data/*.json.old
 .backend.pid
 .frontend.pid
 webui/detail-pages.js.backup
+
+# Test reports
+tests/reports/
+backend/tests/reports/
+
+# Temporary files
+nul
+*.tmp
+*~
