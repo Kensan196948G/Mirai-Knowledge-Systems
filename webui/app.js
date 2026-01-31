@@ -3552,3 +3552,62 @@ if ('serviceWorker' in navigator) {
 }
 
 logger.log('[PWA] Initialization complete');
+
+// ============================================================
+// Responsive Design - Hamburger Menu
+// ============================================================
+
+/**
+ * Toggle Mobile Sidebar
+ */
+function toggleMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const hamburger = document.getElementById('hamburger-menu');
+
+  if (!sidebar) return;
+
+  // Create overlay if not exists
+  if (!overlay) {
+    const newOverlay = document.createElement('div');
+    newOverlay.id = 'sidebar-overlay';
+    newOverlay.className = 'sidebar-overlay';
+    newOverlay.onclick = closeMobileSidebar;
+    document.body.appendChild(newOverlay);
+  }
+
+  // Toggle sidebar
+  sidebar.classList.toggle('active');
+  document.getElementById('sidebar-overlay').classList.toggle('visible');
+  
+  if (hamburger) {
+    hamburger.classList.toggle('active');
+  }
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const hamburger = document.getElementById('hamburger-menu');
+
+  if (sidebar) sidebar.classList.remove('active');
+  if (overlay) overlay.classList.remove('visible');
+  if (hamburger) hamburger.classList.remove('active');
+}
+
+// Export globally
+window.toggleMobileSidebar = toggleMobileSidebar;
+window.closeMobileSidebar = closeMobileSidebar;
+
+// Close sidebar when clicking on navigation links (mobile)
+if (window.innerWidth <= 768) {
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target.tagName === 'A' && target.closest('.sidebar')) {
+      closeMobileSidebar();
+    }
+  });
+}
+
+logger.log('[Responsive] Hamburger menu initialized');
+
