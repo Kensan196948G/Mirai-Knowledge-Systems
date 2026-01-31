@@ -433,21 +433,26 @@ Mirai-Knowledge-Systems/
 - **JavaScript**: ESLint設定に従う、console.logは本番で削除
 - **コミットメッセージ**: 「機能: 」「修正: 」等のプレフィックス使用
 
-## 🤖 SubAgent 9体構成（必須遵守）
+## 🤖 SubAgent 9体構成（7体コア + 2体補助）
 
-### SubAgent一覧
+### コアSubAgent（7体）- 必須工程
 
-| # | Agent名 | 責務 | 成果物 |
-|---|---------|------|--------|
-| 1 | spec-planner | 要件・運用定義 | specs/*.md |
-| 2 | arch-reviewer | 設計レビュー | design/*.md |
-| 3 | code-implementer | 実装 | src/**, backend/**, webui/** |
-| 4 | code-reviewer | 自動レビューゲート | reviews/*_feature_*.json |
-| 5 | test-designer | テスト設計 | tests/*.md |
-| 6 | test-reviewer | テストレビュー | reviews/*_test_review.json |
-| 7 | ci-specialist | CI/リリース | ci/**, .github/workflows/** |
-| 8 | sec-auditor | セキュリティ監査 | security/**, audits/** |
-| 9 | ops-runbook | 運用手順書 | runbook/**, docs/operations/** |
+| # | Agent名 | 責務 | 成果物 | 自動起動 |
+|---|---------|------|--------|----------|
+| 1 | spec-planner | 要件・運用定義（ITSM/ISO準拠） | specs/*.md | on-demand |
+| 2 | arch-reviewer | 設計レビュー（アーキテクチャ妥当性） | design/*.md | on-spec-complete |
+| 3 | code-implementer | 実装（設計準拠・仕様外禁止） | src/**, backend/**, webui/** | on-arch-approved |
+| 4 | code-reviewer | 自動レビューゲート（機械判定） | reviews/*_feature_*.json | on-implementation-complete |
+| 5 | test-designer | テスト設計（正常/異常/境界/権限） | tests/*.md | on-code-review-PASS |
+| 6 | test-reviewer | テストレビュー（網羅性チェック） | reviews/*_test_review.json | on-test-design-complete |
+| 7 | ci-specialist | CI/リリース（GO/NO-GO判定） | ci/**, .github/workflows/** | on-test-review-PASS |
+
+### 補助SubAgent（2体）- 特殊工程
+
+| # | Agent名 | 責務 | 成果物 | 起動条件 |
+|---|---------|------|--------|----------|
+| 8 | sec-auditor | セキュリティ監査（脆弱性スキャン） | security/**, audits/** | セキュリティ関連変更時 |
+| 9 | ops-runbook | 運用手順書作成 | runbook/**, docs/operations/** | 本番デプロイ前 |
 
 ### 工程遷移フロー（Hooks連携）
 
@@ -462,6 +467,113 @@ spec-planner → arch-reviewer → code-implementer → code-reviewer
                                                                       ↓ PASS
                                                               ci-specialist
 ```
+
+### Hooks連携詳細ルール
+
+#### ① on-spec-complete
+```
+WHEN: spec-planner が specs/*.md を出力
+THEN: arch-reviewer を自動起動（specs/* を入力として渡す）
+```
+
+#### ② on-arch-approved
+```
+WHEN: arch-reviewer が PASS を返却
+THEN: code-implementer を起動（design/* を入力として渡す）
+```
+
+#### ③ on-implementation-complete
+```
+WHEN: code-implementer が「実装完了」と宣言
+THEN: code-reviewer を起動（変更ファイル + specs + design を渡す）
+```
+
+#### ④ on-code-review-result
+```
+IF result == FAIL:
+  → code-implementer に自動差し戻し
+
+IF result == PASS_WITH_WARNINGS:
+  → ユーザーに通知
+  → test-designer 起動可
+
+IF result == PASS:
+  → test-designer を自動起動
+```
+
+#### ⑤ on-test-design-complete
+```
+WHEN: test-designer が tests/*.md を出力
+THEN: test-reviewer を起動
+```
+
+#### ⑥ on-test-review-result
+```
+IF result == FAIL:
+  → test-designer に差し戻し
+
+IF result == PASS:
+  → ci-specialist を起動
+```
+
+### 🛂 自動レビューゲート設計
+
+#### レビュー観点（code-reviewer）
+
+```yaml
+review_checklist:
+  - name: 仕様準拠
+    checks:
+      - 入出力が仕様どおりか
+      - 要件抜けがないか
+
+  - name: 例外処理
+    checks:
+      - try/catch があるか
+      - エラー時に異常終了しないか
+
+  - name: ログ・証跡
+    checks:
+      - 成功ログがあるか
+      - 失敗ログがあるか
+      - 誰が何をしたか残るか
+
+  - name: 権限・SoD
+    checks:
+      - 権限チェックがあるか
+      - 管理系操作が無制限でないか
+
+  - name: 将来変更耐性
+    checks:
+      - ハードコード排除
+      - 設定値外出し
+```
+
+#### ゲート出力フォーマット
+
+```json
+{
+  "result": "PASS | FAIL | PASS_WITH_WARNINGS",
+  "summary": "総評",
+  "blocking_issues": [],
+  "warnings": [],
+  "recommended_fixes": []
+}
+```
+
+#### 判定ルール
+
+- **blocking_issues > 0** → FAIL
+- **blocking_issues = 0 & warnings > 0** → PASS_WITH_WARNINGS
+- **blocking_issues = 0 & warnings = 0** → PASS
+
+### 🛡 運用ポリシー（絶対ルール）
+
+- **工程スキップ禁止**: Hook を通らない遷移は禁止
+- **レビュー FAIL 時**: 必ず差し戻す
+- **仕様外実装禁止**: 設計に書いていないことは未実装扱い
+- **並列開発ルール**: 各SubAgentは1ファイルツリーのみ担当
+- **ファイル衝突禁止**: 同一ファイルへの同時書き込み禁止
 
 ### 自動並列実行トリガー
 
@@ -498,11 +610,43 @@ spec-planner → arch-reviewer → code-implementer → code-reviewer
 
 ### MCP使用ルール
 
-- memory / memory-keeper: 過去の設計決定を必ず初動で確認
-- github: 類似実装の検索に使用
-- context7: ライブラリドキュメント確認
-- chrome-devtools: WebUI検証・エラー修正
-- sequential-thinking: 複雑な設計判断
+- **memory / memory-keeper**: 過去の設計決定を必ず初動で確認
+- **github**: 類似実装の検索に使用
+- **context7**: ライブラリドキュメント確認
+- **chrome-devtools**: WebUI検証・エラー修正
+- **sequential-thinking**: 複雑な設計判断
+- **brave-search**: 外部仕様・技術情報・CVE情報取得
+
+---
+
+## 🔄 自動修復CIループ（将来実装予定）
+
+### 目的
+
+> **ビルド失敗 → Claude Code が原因解析 → 最小修正 → 自動 push → 再ビルド**
+
+PowerShell/Bash ビルドスクリプトのCI自動修復を実現する。
+
+### 構成要素
+
+1. **GitHub Actions**: self-hosted runner（Windows/Linux）
+2. **ビルドスクリプト**: `build.ps1` または `build.sh`
+3. **Claude Code**: CI修理工ロール
+4. **ガードスクリプト**: 暴走防止（回数制限、差分制限、対象ファイル制限）
+
+### 暴走防止機構
+
+- **最大試行回数**: 5回
+- **同一エラー検出**: SHA1ハッシュで判定→2回目で停止
+- **差分量制限**: 20行超でabort
+- **対象ファイル制限**: `.ps1`/`.sh`/`ci/*`のみ
+- **証跡保存**: すべてのdiffとログを`ci_logs/`に保存
+
+### 実装状況
+
+- ⬜ 未実装（Phase D-6で予定）
+- 設計文書: 本セクション
+- 参考: ITSM志向（証跡・説明責任・再現性）
 
 ---
 
