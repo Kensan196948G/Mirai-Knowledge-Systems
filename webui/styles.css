@@ -2746,3 +2746,120 @@ button:has(#followIcon):hover {
   font-weight: 600;
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
+
+/* ============================================================
+   PWA (Progressive Web App) Styles
+   ============================================================ */
+
+/* Offline Indicator */
+.offline-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #f59e0b;
+  color: white;
+  padding: 12px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 9998;
+  display: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.offline-indicator.visible {
+  display: block;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Update Banner */
+.update-banner {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #1976d2;
+  color: white;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+  max-width: 350px;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.update-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.update-content strong {
+  font-size: 16px;
+}
+
+.update-content button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.update-content button:first-of-type {
+  background: white;
+  color: #1976d2;
+}
+
+.update-content button:first-of-type:hover {
+  background: #f5f5f5;
+}
+
+.update-content button:last-of-type {
+  background: transparent;
+  color: white;
+  border: 1px solid white;
+}
+
+.update-content button:last-of-type:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .update-banner {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .offline-indicator {
+    font-size: 12px;
+    padding: 8px;
+  }
+}
+
