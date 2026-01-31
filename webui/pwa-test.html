@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PWA Test Page</title>
+</head>
+<body>
+  <h1>PWA Test Page</h1>
+  <div id="results"></div>
+
+  <script>
+    const results = document.getElementById('results');
+
+    function log(message, type = 'info') {
+      const p = document.createElement('p');
+      p.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+      p.textContent = message;
+      results.appendChild(p);
+      console.log(message);
+    }
+
+    async function testPWA() {
+      log('=== PWA Feature Detection ===');
+
+      // Test 1: Service Worker support
+      if ('serviceWorker' in navigator) {
+        log('✅ Service Worker API supported', 'success');
+
+        try {
+          log('Attempting to register /sw.js...');
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          log(`✅ Service Worker registered: ${registration.scope}`, 'success');
+
+          // Wait for activation
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          if (navigator.serviceWorker.controller) {
+            log('✅ Service Worker controller active', 'success');
+          } else {
+            log('⚠️ Service Worker controller not active yet', 'error');
+          }
+
+          log(`Registration state: ${registration.active ? 'active' : 'installing'}`, 'info');
+        } catch (error) {
+          log(`❌ Service Worker registration failed: ${error.message}`, 'error');
+        }
+      } else {
+        log('❌ Service Worker not supported', 'error');
+      }
+
+      // Test 2: Cache API
+      if ('caches' in window) {
+        log('✅ Cache API supported', 'success');
+
+        const cacheNames = await caches.keys();
+        log(`Cache names: ${cacheNames.join(', ') || 'none'}`, 'info');
+      } else {
+        log('❌ Cache API not supported', 'error');
+      }
+
+      // Test 3: IndexedDB
+      if ('indexedDB' in window) {
+        log('✅ IndexedDB supported', 'success');
+      } else {
+        log('❌ IndexedDB not supported', 'error');
+      }
+
+      // Test 4: Background Sync
+      if ('sync' in ServiceWorkerRegistration.prototype) {
+        log('✅ Background Sync supported', 'success');
+      } else {
+        log('⚠️ Background Sync not supported (Safari)', 'error');
+      }
+
+      // Test 5: Manifest
+      try {
+        const response = await fetch('/manifest.json');
+        if (response.ok) {
+          const manifest = await response.json();
+          log(`✅ Manifest loaded: ${manifest.name}`, 'success');
+        }
+      } catch (error) {
+        log(`❌ Manifest load failed: ${error.message}`, 'error');
+      }
+
+      log('=== Test Complete ===');
+    }
+
+    testPWA();
+  </script>
+</body>
+</html>

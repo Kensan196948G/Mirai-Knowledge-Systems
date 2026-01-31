@@ -672,6 +672,20 @@
             hideAlert();
         });
     </script>
+
+    <!-- PWA Modules -->
+    <script src="/pwa/crypto-helper.js"></script>
+    <script src="/pwa/cache-manager.js"></script>
+    <script src="/pwa/sync-manager.js"></script>
+    <script src="/pwa/install-prompt.js"></script>
+    <script>
+        // PWA Service Worker Registration (login page)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('[PWA] Service Worker registered on login page'))
+                .catch(err => console.error('[PWA] SW registration failed:', err));
+        }
+    </script>
 </body>
 
 </html>
