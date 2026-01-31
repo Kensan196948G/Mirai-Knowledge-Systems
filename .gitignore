@@ -30,6 +30,7 @@ venv_linux/
 venv_linux_new/
 venv_linux_old/
 venv_windows/
+venv_mfa_test/
 ENV/
 env/
 
