@@ -41,6 +41,12 @@ msgraph-core>=0.2.0
 pandas>=2.0.0
 openpyxl>=3.1.0
 
+# MS365 Sync Dependencies
+APScheduler==3.10.4
+PyPDF2==3.0.1
+python-docx==1.1.0
+chardet==5.2.0
+
 # Development & Testing
 pytest==7.4.3
 pytest-cov==4.1.0

@@ -69,6 +69,16 @@ try:
 except ImportError:
     GraphClient = None
 
+# Microsoft 365同期サービス
+try:
+    from services.ms365_sync_service import MS365SyncService
+    from services.ms365_scheduler_service import MS365SchedulerService
+    MS365_SERVICES_AVAILABLE = True
+except ImportError:
+    MS365SyncService = None
+    MS365SchedulerService = None
+    MS365_SERVICES_AVAILABLE = False
+
 # 環境変数をロード
 load_dotenv()
 
@@ -151,6 +161,27 @@ def get_dal():
             use_pg = False
         _dal = DataAccessLayer(use_postgresql=use_pg)
     return _dal
+
+
+# Microsoft 365同期サービスインスタンス（グローバル）
+_ms365_sync_service = None
+_ms365_scheduler_service = None
+
+
+def get_ms365_sync_service():
+    """MS365同期サービスを取得"""
+    global _ms365_sync_service
+    if _ms365_sync_service is None and MS365_SERVICES_AVAILABLE:
+        _ms365_sync_service = MS365SyncService(get_dal())
+    return _ms365_sync_service
+
+
+def get_ms365_scheduler_service():
+    """MS365スケジューラーサービスを取得"""
+    global _ms365_scheduler_service
+    if _ms365_scheduler_service is None and MS365_SERVICES_AVAILABLE:
+        _ms365_scheduler_service = MS365SchedulerService(get_dal())
+    return _ms365_scheduler_service
 
 
 # ============================================================
@@ -498,6 +529,31 @@ if os.environ.get("TESTING") != "true":
     RATE_LIMIT_HITS = PrometheusCounter(
         "mks_rate_limit_hits_total", "Total rate limit hits", ["endpoint"]
     )
+
+    # MS365同期メトリクス
+    MS365_SYNC_EXECUTIONS = PrometheusCounter(
+        "mks_ms365_sync_executions_total",
+        "Total MS365 sync executions",
+        ["config_id", "status"]
+    )
+
+    MS365_SYNC_DURATION = Histogram(
+        "mks_ms365_sync_duration_seconds",
+        "MS365 sync execution duration in seconds",
+        ["config_id"]
+    )
+
+    MS365_FILES_PROCESSED = PrometheusCounter(
+        "mks_ms365_files_processed_total",
+        "Total files processed from MS365",
+        ["config_id", "result"]  # result: created/updated/skipped/failed
+    )
+
+    MS365_SYNC_ERRORS = PrometheusCounter(
+        "mks_ms365_sync_errors_total",
+        "Total MS365 sync errors",
+        ["config_id", "error_type"]
+    )
 else:
     # テスト環境用のダミーメトリクス
     REQUEST_COUNT = None
@@ -513,6 +569,10 @@ else:
     SYSTEM_DISK_USAGE = None
     AUTH_ATTEMPTS = None
     RATE_LIMIT_HITS = None
+    MS365_SYNC_EXECUTIONS = None
+    MS365_SYNC_DURATION = None
+    MS365_FILES_PROCESSED = None
+    MS365_SYNC_ERRORS = None
 
 
 # データストレージディレクトリ
@@ -2374,6 +2434,463 @@ def ms365_team_channels(team_id):
         return jsonify({
             "success": False,
             "error": {"code": "API_ERROR", "message": str(e)}
+        }), 500
+
+
+# ============================================================
+# Microsoft 365同期管理API
+# ============================================================
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/configs", methods=["GET"])
+@jwt_required()
+@check_permission("integration.manage")
+def ms365_sync_configs_list():
+    """同期設定一覧を取得"""
+    try:
+        current_user_id = get_jwt_identity()
+        log_access(current_user_id, "ms365_sync_configs.list", "ms365_sync_config")
+
+        dal = get_dal()
+        configs = dal.get_all_ms365_sync_configs()
+
+        return jsonify({
+            "success": True,
+            "data": configs
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/configs", methods=["POST"])
+@jwt_required()
+@check_permission("integration.manage")
+@limiter.limit("10 per minute")
+def ms365_sync_configs_create():
+    """同期設定を作成"""
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+
+        # 必須フィールド検証
+        required_fields = ["name", "site_id", "drive_id"]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    "success": False,
+                    "error": {"code": "VALIDATION_ERROR", "message": f"{field} is required"}
+                }), 400
+
+        # デフォルト値設定
+        config_data = {
+            "name": data["name"],
+            "site_id": data["site_id"],
+            "drive_id": data["drive_id"],
+            "folder_path": data.get("folder_path", "/"),
+            "sync_schedule": data.get("sync_schedule", "0 2 * * *"),  # デフォルト: 毎日2時
+            "sync_strategy": data.get("sync_strategy", "incremental"),
+            "file_extensions": data.get("file_extensions", []),
+            "is_enabled": data.get("is_enabled", True),
+            "created_by": current_user_id,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+
+        dal = get_dal()
+        result = dal.create_ms365_sync_config(config_data)
+
+        # スケジューラーに登録
+        scheduler_service = get_ms365_scheduler_service()
+        if scheduler_service and result.get("is_enabled"):
+            try:
+                scheduler_service.schedule_sync(result)
+            except Exception as e:
+                print(f"[WARN] Failed to schedule sync: {e}")
+
+        log_access(current_user_id, "ms365_sync_configs.create", "ms365_sync_config", result.get("id"))
+
+        return jsonify({
+            "success": True,
+            "data": result
+        }), 201
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["GET"])
+@jwt_required()
+@check_permission("integration.manage")
+def ms365_sync_configs_get(config_id):
+    """同期設定を取得"""
+    try:
+        current_user_id = get_jwt_identity()
+        log_access(current_user_id, "ms365_sync_configs.get", "ms365_sync_config", config_id)
+
+        dal = get_dal()
+        config = dal.get_ms365_sync_config(config_id)
+
+        if not config:
+            return jsonify({
+                "success": False,
+                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": config
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["PUT"])
+@jwt_required()
+@check_permission("integration.manage")
+@limiter.limit("10 per minute")
+def ms365_sync_configs_update(config_id):
+    """同期設定を更新"""
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+
+        dal = get_dal()
+        existing = dal.get_ms365_sync_config(config_id)
+
+        if not existing:
+            return jsonify({
+                "success": False,
+                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
+            }), 404
+
+        # 更新データ準備
+        update_data = {
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+        # 更新可能なフィールド
+        updatable_fields = [
+            "name", "folder_path", "sync_schedule", "sync_strategy",
+            "file_extensions", "is_enabled"
+        ]
+        for field in updatable_fields:
+            if field in data:
+                update_data[field] = data[field]
+
+        dal.update_ms365_sync_config(config_id, update_data)
+
+        # スケジューラー更新
+        scheduler_service = get_ms365_scheduler_service()
+        if scheduler_service:
+            try:
+                updated_config = dal.get_ms365_sync_config(config_id)
+                scheduler_service.reschedule_sync(updated_config)
+            except Exception as e:
+                print(f"[WARN] Failed to reschedule sync: {e}")
+
+        log_access(current_user_id, "ms365_sync_configs.update", "ms365_sync_config", config_id)
+
+        # 更新後のデータを返す
+        result = dal.get_ms365_sync_config(config_id)
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["DELETE"])
+@jwt_required()
+@check_permission("integration.manage")
+@limiter.limit("10 per minute")
+def ms365_sync_configs_delete(config_id):
+    """同期設定を削除"""
+    try:
+        current_user_id = get_jwt_identity()
+
+        dal = get_dal()
+        existing = dal.get_ms365_sync_config(config_id)
+
+        if not existing:
+            return jsonify({
+                "success": False,
+                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
+            }), 404
+
+        # スケジューラーから削除
+        scheduler_service = get_ms365_scheduler_service()
+        if scheduler_service:
+            try:
+                scheduler_service.unschedule_sync(config_id)
+            except Exception as e:
+                print(f"[WARN] Failed to unschedule sync: {e}")
+
+        dal.delete_ms365_sync_config(config_id)
+
+        log_access(current_user_id, "ms365_sync_configs.delete", "ms365_sync_config", config_id)
+
+        return jsonify({
+            "success": True,
+            "message": f"Sync config {config_id} deleted successfully"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/execute", methods=["POST"])
+@jwt_required()
+@check_permission("integration.manage")
+@limiter.limit("5 per minute")
+def ms365_sync_configs_execute(config_id):
+    """手動で同期を実行"""
+    try:
+        current_user_id = get_jwt_identity()
+
+        dal = get_dal()
+        config = dal.get_ms365_sync_config(config_id)
+
+        if not config:
+            return jsonify({
+                "success": False,
+                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
+            }), 404
+
+        sync_service = get_ms365_sync_service()
+        if not sync_service:
+            return jsonify({
+                "success": False,
+                "error": {"code": "SERVICE_UNAVAILABLE", "message": "MS365 sync service is not available"}
+            }), 503
+
+        # 同期実行
+        result = sync_service.sync_configuration(
+            config_id,
+            triggered_by="manual",
+            user_id=current_user_id
+        )
+
+        log_access(current_user_id, "ms365_sync_configs.execute", "ms365_sync_config", config_id)
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "VALIDATION_ERROR", "message": str(e)}
+        }), 400
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/test", methods=["POST"])
+@jwt_required()
+@check_permission("integration.manage")
+@limiter.limit("10 per minute")
+def ms365_sync_configs_test(config_id):
+    """接続テスト（ドライラン）"""
+    try:
+        current_user_id = get_jwt_identity()
+
+        dal = get_dal()
+        config = dal.get_ms365_sync_config(config_id)
+
+        if not config:
+            return jsonify({
+                "success": False,
+                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
+            }), 404
+
+        sync_service = get_ms365_sync_service()
+        if not sync_service:
+            return jsonify({
+                "success": False,
+                "error": {"code": "SERVICE_UNAVAILABLE", "message": "MS365 sync service is not available"}
+            }), 503
+
+        # 接続テスト実行
+        result = sync_service.test_connection(config_id)
+
+        log_access(current_user_id, "ms365_sync_configs.test", "ms365_sync_config", config_id)
+
+        if result.get("success"):
+            return jsonify({
+                "success": True,
+                "data": result
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": {"code": "CONNECTION_FAILED", "message": result.get("error")}
+            }), 400
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/history", methods=["GET"])
+@jwt_required()
+@check_permission("integration.manage")
+def ms365_sync_configs_history(config_id):
+    """同期履歴を取得"""
+    try:
+        current_user_id = get_jwt_identity()
+        log_access(current_user_id, "ms365_sync_configs.history", "ms365_sync_config", config_id)
+
+        dal = get_dal()
+        config = dal.get_ms365_sync_config(config_id)
+
+        if not config:
+            return jsonify({
+                "success": False,
+                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
+            }), 404
+
+        # ページネーション
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 20))
+
+        history = dal.get_ms365_sync_history_by_config(config_id)
+
+        # ページネーション適用
+        total = len(history)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated = history[start:end]
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "items": paginated,
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total": total,
+                    "pages": (total + per_page - 1) // per_page
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/stats", methods=["GET"])
+@jwt_required()
+@check_permission("integration.manage")
+def ms365_sync_stats():
+    """同期統計情報を取得"""
+    try:
+        current_user_id = get_jwt_identity()
+        log_access(current_user_id, "ms365_sync.stats", "ms365_sync")
+
+        dal = get_dal()
+
+        # 統計データ取得
+        all_configs = dal.get_all_ms365_sync_configs()
+        enabled_configs = [c for c in all_configs if c.get("is_enabled")]
+
+        # 最近の同期履歴（全設定分）
+        recent_syncs = []
+        for config in all_configs:
+            history = dal.get_ms365_sync_history_by_config(config["id"])
+            recent_syncs.extend(history[:5])  # 各設定から最新5件
+
+        # ステータス別カウント
+        status_counts = Counter([h.get("status") for h in recent_syncs])
+
+        # 最後の同期時刻
+        last_sync = None
+        for sync in sorted(recent_syncs, key=lambda x: x.get("sync_started_at", ""), reverse=True):
+            if sync.get("sync_completed_at"):
+                last_sync = sync
+                break
+
+        stats = {
+            "total_configs": len(all_configs),
+            "enabled_configs": len(enabled_configs),
+            "disabled_configs": len(all_configs) - len(enabled_configs),
+            "recent_syncs": {
+                "total": len(recent_syncs),
+                "completed": status_counts.get("completed", 0),
+                "failed": status_counts.get("failed", 0),
+                "running": status_counts.get("running", 0),
+            },
+            "last_sync": {
+                "config_id": last_sync.get("config_id") if last_sync else None,
+                "status": last_sync.get("status") if last_sync else None,
+                "completed_at": last_sync.get("sync_completed_at") if last_sync else None,
+                "files_processed": last_sync.get("files_processed", 0) if last_sync else 0,
+            } if last_sync else None,
+        }
+
+        return jsonify({
+            "success": True,
+            "data": stats
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/sync/status", methods=["GET"])
+@jwt_required()
+@check_permission("integration.manage")
+def ms365_sync_status():
+    """同期サービスのステータスを取得"""
+    try:
+        current_user_id = get_jwt_identity()
+        log_access(current_user_id, "ms365_sync.status", "ms365_sync")
+
+        sync_service = get_ms365_sync_service()
+        scheduler_service = get_ms365_scheduler_service()
+
+        status = {
+            "sync_service_available": sync_service is not None,
+            "scheduler_service_available": scheduler_service is not None,
+            "scheduler_running": scheduler_service.is_running() if scheduler_service else False,
+            "scheduled_jobs": scheduler_service.get_scheduled_jobs() if scheduler_service else [],
+            "graph_api_configured": False,
+        }
+
+        # Graph API設定確認
+        if sync_service and hasattr(sync_service, "graph_client"):
+            graph_client = sync_service.graph_client
+            if graph_client and hasattr(graph_client, "is_configured"):
+                status["graph_api_configured"] = graph_client.is_configured()
+
+        return jsonify({
+            "success": True,
+            "data": status
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "SERVER_ERROR", "message": str(e)}
         }), 500
 
 

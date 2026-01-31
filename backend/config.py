@@ -2,7 +2,10 @@
 アプリケーション設定
 """
 import os
+import logging
 from datetime import timedelta
+
+logger = logging.getLogger(__name__)
 
 
 class Config:
@@ -90,6 +93,59 @@ class Config:
         log_dir = os.path.dirname(Config.LOG_FILE)
         if log_dir:
             os.makedirs(log_dir, exist_ok=True)
+
+    @staticmethod
+    def validate_ms365_config():
+        """
+        MS365連携設定を検証
+
+        Returns:
+            tuple: (is_valid: bool, errors: list)
+        """
+        errors = []
+
+        # 必須環境変数チェック
+        required_vars = {
+            'AZURE_TENANT_ID': os.environ.get('AZURE_TENANT_ID'),
+            'AZURE_CLIENT_ID': os.environ.get('AZURE_CLIENT_ID'),
+        }
+
+        for var_name, var_value in required_vars.items():
+            if not var_value:
+                errors.append(f'{var_name} が設定されていません')
+
+        # 認証方式チェック（シークレットまたは証明書のいずれかが必要）
+        has_secret = bool(os.environ.get('AZURE_CLIENT_SECRET'))
+        has_cert = bool(os.environ.get('AZURE_CLIENT_CERTIFICATE_PATH'))
+
+        if not has_secret and not has_cert:
+            errors.append('AZURE_CLIENT_SECRET または AZURE_CLIENT_CERTIFICATE_PATH が必要です')
+
+        # 証明書ファイルの存在確認
+        if has_cert:
+            cert_path = os.environ.get('AZURE_CLIENT_CERTIFICATE_PATH')
+            if not os.path.exists(cert_path):
+                errors.append(f'証明書ファイルが見つかりません: {cert_path}')
+            else:
+                # 証明書ファイルの読み取り権限チェック
+                if not os.access(cert_path, os.R_OK):
+                    errors.append(f'証明書ファイルの読み取り権限がありません: {cert_path}')
+
+        # SharePoint/OneDrive設定の検証
+        if os.environ.get('MS365_SYNC_ENABLED', 'false').lower() in ('true', '1', 'yes'):
+            # 同期が有効な場合、追加の設定をチェック
+            site_url = os.environ.get('MS365_SITE_URL')
+            if not site_url:
+                errors.append('MS365_SYNC_ENABLED=true の場合、MS365_SITE_URL が必要です')
+            elif not site_url.startswith('https://'):
+                errors.append('MS365_SITE_URL は https:// で始まる必要があります')
+
+        if errors:
+            logger.warning(f'MS365設定警告: {", ".join(errors)}')
+            return False, errors
+
+        logger.info('MS365設定検証成功')
+        return True, []
 
 
 class DevelopmentConfig(Config):
