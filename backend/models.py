@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column,
     Integer,
+    BigInteger,
     String,
     Text,
     DateTime,
@@ -544,3 +545,116 @@ class DistributionLog(Base):
 
     notification = relationship("Notification")
     user = relationship("User")
+
+
+# ============================================================
+# Public Schema - Microsoft 365連携
+# ============================================================
+
+
+class MS365SyncConfig(Base):
+    """Microsoft 365同期設定"""
+
+    __tablename__ = "ms365_sync_config"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    site_id = Column(String(200), nullable=False)
+    drive_id = Column(String(200), nullable=False)
+    folder_path = Column(String(500), default="/")
+    file_extensions = Column(ARRAY(String), default=["pdf", "docx", "xlsx", "txt"])
+    sync_schedule = Column(String(100), default="0 2 * * *")  # cron形式
+    is_enabled = Column(Boolean, default=True)
+    last_sync_at = Column(DateTime)
+    next_sync_at = Column(DateTime)
+    sync_strategy = Column(String(50), default="incremental")  # full or incremental
+    metadata_mapping = Column(JSONB)  # フィールドマッピングルール
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by_id = Column(Integer, ForeignKey("auth.users.id"))
+    updated_by_id = Column(Integer, ForeignKey("auth.users.id"))
+
+    # リレーション
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+
+    # インデックス
+    __table_args__ = (
+        Index("idx_ms365_sync_config_enabled", "is_enabled"),
+        Index("idx_ms365_sync_config_next_sync", "next_sync_at"),
+        {"schema": "public"},
+    )
+
+
+class MS365SyncHistory(Base):
+    """Microsoft 365同期履歴"""
+
+    __tablename__ = "ms365_sync_history"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True)
+    config_id = Column(Integer, ForeignKey("public.ms365_sync_config.id", ondelete="CASCADE"), nullable=False)
+    sync_started_at = Column(DateTime, nullable=False)
+    sync_completed_at = Column(DateTime)
+    status = Column(String(50), nullable=False)  # running, completed, failed, partial
+    files_processed = Column(Integer, default=0)
+    files_created = Column(Integer, default=0)
+    files_updated = Column(Integer, default=0)
+    files_skipped = Column(Integer, default=0)
+    files_failed = Column(Integer, default=0)
+    error_message = Column(Text)
+    error_details = Column(JSONB)
+    execution_time_seconds = Column(Integer)
+    triggered_by = Column(String(50), default="scheduler")  # scheduler, manual, api
+    triggered_by_user_id = Column(Integer, ForeignKey("auth.users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # リレーション
+    config = relationship("MS365SyncConfig")
+    triggered_by_user = relationship("User", foreign_keys=[triggered_by_user_id])
+
+    # インデックス
+    __table_args__ = (
+        Index("idx_ms365_sync_history_config", "config_id"),
+        Index("idx_ms365_sync_history_status", "status"),
+        Index("idx_ms365_sync_history_started", "sync_started_at"),
+        {"schema": "public"},
+    )
+
+
+class MS365FileMapping(Base):
+    """Microsoft 365ファイル-ナレッジマッピング"""
+
+    __tablename__ = "ms365_file_mapping"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True)
+    config_id = Column(Integer, ForeignKey("public.ms365_sync_config.id", ondelete="CASCADE"), nullable=False)
+    sharepoint_file_id = Column(String(200), nullable=False, unique=True)
+    sharepoint_file_name = Column(String(500), nullable=False)
+    sharepoint_file_path = Column(String(1000))
+    sharepoint_modified_at = Column(DateTime)
+    sharepoint_size_bytes = Column(BigInteger)
+    knowledge_id = Column(Integer, ForeignKey("public.knowledge.id", ondelete="SET NULL"))
+    sync_status = Column(String(50), default="pending")  # pending, synced, error
+    last_synced_at = Column(DateTime)
+    checksum = Column(String(64))  # SHA256チェックサム（変更検出用）
+    file_metadata = Column(JSONB)  # SharePointファイルのメタデータ
+    error_message = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # リレーション
+    config = relationship("MS365SyncConfig")
+    knowledge = relationship("Knowledge")
+
+    # インデックス
+    __table_args__ = (
+        Index("idx_ms365_file_mapping_config", "config_id"),
+        Index("idx_ms365_file_mapping_sp_file_id", "sharepoint_file_id"),
+        Index("idx_ms365_file_mapping_knowledge", "knowledge_id"),
+        Index("idx_ms365_file_mapping_status", "sync_status"),
+        {"schema": "public"},
+    )
