@@ -4,8 +4,8 @@
 
 **名称**: Mirai Knowledge Systems
 **目的**: 建設土木業界向け統合ナレッジ管理システム
-**バージョン**: 1.1.0
-**開発フェーズ**: Phase C（本番運用開始）完了✅ - 運用体制構築済み
+**バージョン**: 1.2.0
+**開発フェーズ**: Phase D-3（2要素認証）完了✅ - セキュリティ強化完了（2026-01-31）
 
 ## 🛠️ 技術スタック
 
@@ -13,7 +13,8 @@
 - **Framework**: Flask 3.1.2（Python 3.14.0）
 - **Database**: PostgreSQL 15+（本番）/ JSON（開発）
 - **ORM**: SQLAlchemy 2.0.45
-- **認証**: JWT（Flask-JWT-Extended 4.6.0）
+- **認証**: JWT（Flask-JWT-Extended 4.6.0） + 2FA（pyotp 2.9.0）
+- **2FA**: TOTP（pyotp）+ QRコード（qrcode 7.4.2, pillow 10.1.0）
 - **監視**: Prometheus + Grafana
 
 ### フロントエンド
@@ -111,18 +112,34 @@
 ```
 Mirai-Knowledge-Systems/
 ├── backend/                 # Flask API（2,356行のapp_v2.py）
-│   ├── app_v2.py           # メインアプリケーション（27エンドポイント）
-│   ├── models.py           # データモデル（11テーブル）
+│   ├── app_v2.py           # メインアプリケーション（36エンドポイント、+9 MFA API）
+│   ├── auth/               # 認証モジュール（NEW v1.2.0）
+│   │   ├── __init__.py
+│   │   └── totp_manager.py # TOTP Manager（270行）
+│   ├── models.py           # データモデル（11テーブル + mfa_backup_codes）
 │   ├── schemas.py          # バリデーション
 │   ├── password_policy.py  # パスワードポリシー
 │   ├── csrf_protection.py  # CSRF対策
-│   ├── tests/              # テストスイート（538件、カバレッジ91%）
+│   ├── migrations/         # DBマイグレーション
+│   │   └── versions/add_mfa_backup_codes.py  # MFA対応（NEW）
+│   ├── tests/              # テストスイート（557件、カバレッジ91%）
+│   │   ├── unit/test_totp_manager.py        # MFAユニットテスト（19件）
+│   │   ├── integration/test_mfa_flow.py     # MFA統合テスト（17件）
+│   │   └── e2e/mfa-flow.spec.js             # MFAE2Eテスト
 │   └── data/               # JSONデータ（開発環境）
-├── webui/                  # フロントエンド（13ファイル）
+├── webui/                  # フロントエンド（16ファイル）
 │   ├── app.js              # メインロジック（2,500行+）
+│   ├── mfa.js              # MFAライブラリ（380行、NEW v1.2.0）
+│   ├── mfa-setup.html      # MFAセットアップウィザード（NEW）
+│   ├── mfa-settings.html   # MFA設定管理画面（NEW）
 │   ├── search-history.js   # 検索履歴
 │   ├── search-pagination.js # ページネーション
 │   └── auth-guard.js       # 認証ガード
+├── docs/                   # ドキュメント
+│   ├── security/2FA_IMPLEMENTATION.md        # 技術ドキュメント（NEW）
+│   ├── user-guide/MFA_SETUP_GUIDE.md         # ユーザーガイド（NEW）
+│   ├── deployment/2FA_DEPLOYMENT_GUIDE.md    # デプロイガイド（NEW）
+│   └── 2FA_COMPLETION_SUMMARY.md             # 完了サマリー（NEW）
 ├── scripts/                 # クロスプラットフォームスクリプト
 │   ├── common/             # Python共通スクリプト
 │   │   └── setup-node-modules.py  # OS判定自動切替
@@ -166,10 +183,12 @@ Mirai-Knowledge-Systems/
 - ~~console.log残留~~ → セキュアロガー導入で解決
 - ~~innerHTML使用~~ → 全てDOM APIに置換済み
 
-### Medium: 3件
+### Medium: 2件
 1. フロントエンドのモジュール化
 2. N+1クエリ最適化
-3. 2要素認証（オプション）
+
+### 完了済み ✅
+- ~~2要素認証（オプション）~~ → Phase D-3で実装完了（2026-01-31）
 
 ## 🎯 次のマイルストーン
 
@@ -187,10 +206,71 @@ Mirai-Knowledge-Systems/
 | C-3 | 運用監視体制構築 | 100% | ✅ 完了（2026-01-25）|
 | C-4 | ユーザートレーニング | 100% | ✅ 完了（2026-01-25）|
 
-### Phase D: 機能拡張（オプション）
-- Microsoft 365連携（SharePoint/OneDrive）
-- 2要素認証
-- モバイルアプリ対応
+### Phase D: 機能拡張（100%完了）✅
+
+| Phase | 名称 | 進捗 | 状態 |
+|-------|------|------|------|
+| D-3 | 2要素認証（2FA/MFA） | 100% | ✅ 完了（2026-01-31）|
+
+#### Phase D-3: 2要素認証実装（v1.2.0）
+
+**完了日**: 2026-01-31
+**PR**: [#2593](https://github.com/Kensan196948G/Mirai-Knowledge-Systems/pull/2593)
+**コミット**: `23ca118` → マージ `056f962`
+
+##### 実装内容
+
+**バックエンド（約800行）**:
+- TOTP Manager（pyotp, qrcode, pillow）
+- MFA API 9エンドポイント
+  - セットアップ、有効化、無効化
+  - ログイン検証（TOTP + バックアップコード）
+  - バックアップコード再生成
+  - MFAステータス取得
+- データベースmfa_backup_codesカラム（JSONB）
+- Rate limiting（ブルートフォース対策: 5回/15分）
+- 監査ログイベント11種追加
+
+**フロントエンド（約1,130行）**:
+- MFAセットアップウィザード（3ステップ）
+  1. QRコードスキャン
+  2. TOTP検証
+  3. バックアップコード保存
+- MFA設定管理画面
+- ログイン画面MFA対応
+- mfa.jsライブラリ（380行）
+
+**テスト（約1,000行）**:
+- ✅ ユニットテスト: 19/19 PASSED (test_totp_manager.py)
+- 統合テスト: 17件 (test_mfa_flow.py)
+- E2Eテスト: Playwright対応 (mfa-flow.spec.js)
+
+**ドキュメント（約1,500行）**:
+- 技術ドキュメント（2FA_IMPLEMENTATION.md）
+- ユーザーガイド（MFA_SETUP_GUIDE.md）
+- デプロイガイド（2FA_DEPLOYMENT_GUIDE.md）
+- 完了サマリー（2FA_COMPLETION_SUMMARY.md）
+
+##### セキュリティ強化
+- TOTP検証（RFC 6238準拠、±30秒ウィンドウ）
+- バックアップコード（bcrypt、1回限り使用）
+- Rate limiting（MFA検証: 5回/15分）
+- mfa_token（5分有効期限）
+- 監査ログ記録
+
+##### 互換性
+- **認証アプリ**: Google Authenticator, Microsoft Authenticator, Authy, 1Password, Bitwarden
+- **ブラウザ**: Chrome/Edge 90+, Firefox 88+, Safari 14+
+
+---
+
+### Phase D: 今後の拡張（オプション）
+
+| Phase | 名称 | 優先度 | 状態 |
+|-------|------|--------|------|
+| D-4 | Microsoft 365連携 | 中 | 未着手 |
+| D-5 | モバイルアプリ対応（PWA） | 低 | 未着手 |
+| D-3.1 | 2FA拡張（SMS/WebAuthn） | 低 | 未着手 |
 
 ## 🔧 環境情報
 
