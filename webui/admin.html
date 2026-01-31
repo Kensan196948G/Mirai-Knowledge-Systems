@@ -231,6 +231,7 @@
         <span class="user-dept"></span>
         <button class="logout-btn" onclick="logout()">ログアウト</button>
       </div>
+      <a href="ms365-sync-settings.html" class="cta ghost" id="ms365SyncLink" style="display:none;">MS365同期</a>
       <a href="index.html" class="cta ghost">ダッシュボードへ戻る</a>
     </div>
   </header>
@@ -1231,6 +1232,15 @@
 
       // ユーザー情報表示
       displayUserInfo();
+
+      // 管理者のみMS365同期リンクを表示
+      const user = getCurrentUser();
+      if (user && user.role === 'admin') {
+        const ms365Link = document.getElementById('ms365SyncLink');
+        if (ms365Link) {
+          ms365Link.style.display = 'inline-block';
+        }
+      }
 
       // データのロード
       loadKnowledge();
