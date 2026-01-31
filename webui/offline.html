@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2f4b52">
+  <title>オフライン - Mirai Knowledge Systems</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .offline-container {
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      text-align: center;
+    }
+    .offline-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .offline-title {
+      font-size: 2em;
+      margin-bottom: 10px;
+      color: #2f4b52;
+    }
+    .offline-description {
+      font-size: 1.2em;
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .offline-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+    .cached-content-list {
+      text-align: left;
+      margin-top: 40px;
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    .cached-item {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cached-item:last-child {
+      border-bottom: none;
+    }
+    .cached-item:hover {
+      background: #f0f0f0;
+    }
+    .cached-item-icon {
+      font-size: 24px;
+    }
+    .cached-item-info {
+      flex: 1;
+    }
+    .cached-item-title {
+      font-weight: 600;
+      color: #2f4b52;
+    }
+    .cached-item-url {
+      font-size: 0.85em;
+      color: #888;
+      word-break: break-all;
+    }
+    .sync-queue-status {
+      background: #fff3cd;
+      color: #856404;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      border: 1px solid #ffeaa7;
+    }
+    .sync-queue-icon {
+      font-size: 20px;
+      margin-right: 8px;
+    }
+    .empty-state {
+      text-align: center;
+      color: #999;
+      padding: 40px;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #2f4b52;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="offline-icon">📡</div>
+    <h1 class="offline-title">オフラインモード</h1>
+    <p class="offline-description">
+      現在、インターネットに接続されていません。<br>
+      キャッシュされたコンテンツは引き続き閲覧できます。
+    </p>
+
+    <div class="offline-actions">
+      <button onclick="retryConnection()" class="cta">
+        <span id="retry-icon">🔄</span> 再接続を試す
+      </button>
+      <button onclick="toggleCachedContent()" class="cta ghost">
+        📂 キャッシュコンテンツを表示
+      </button>
+      <button onclick="clearCache()" class="cta ghost">
+        🗑️ キャッシュをクリア
+      </button>
+    </div>
+
+    <!-- 同期キュー状態 -->
+    <div class="sync-queue-status" id="sync-queue-status" style="display:none;">
+      <span class="sync-queue-icon">⏳</span>
+      <strong>同期待ち:</strong> <span id="sync-queue-count">0</span>件のデータがオンライン復帰を待っています
+    </div>
+
+    <!-- キャッシュされたコンテンツ一覧 -->
+    <div class="cached-content-list" id="cached-content-list" style="display:none;">
+      <h2>キャッシュされたコンテンツ</h2>
+      <div id="cached-items"></div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // Check Sync Queue
+    // ============================================================
+    async function checkSyncQueue() {
+      try {
+        const db = await openIndexedDB();
+        const transaction = db.transaction(['sync-queue'], 'readonly');
+        const store = transaction.objectStore('sync-queue');
+        const request = store.count();
+
+        request.onsuccess = () => {
+          const count = request.result;
+          if (count > 0) {
+            document.getElementById('sync-queue-status').style.display = 'block';
+            document.getElementById('sync-queue-count').textContent = count;
+          }
+        };
+      } catch (error) {
+        console.error('[Offline] Sync queue check failed:', error);
+      }
+    }
+
+    // ============================================================
+    // Toggle Cached Content Display
+    // ============================================================
+    let cachedContentVisible = false;
+
+    async function toggleCachedContent() {
+      const list = document.getElementById('cached-content-list');
+      const items = document.getElementById('cached-items');
+
+      if (cachedContentVisible) {
+        list.style.display = 'none';
+        cachedContentVisible = false;
+        return;
+      }
+
+      list.style.display = 'block';
+      items.innerHTML = '<div class="loading"></div> 読み込み中...';
+      cachedContentVisible = true;
+
+      try {
+        const cacheNames = await caches.keys();
+        const cachedUrls = [];
+
+        for (const cacheName of cacheNames) {
+          if (!cacheName.includes('api')) continue;
+
+          const cache = await caches.open(cacheName);
+          const requests = await cache.keys();
+
+          for (const request of requests) {
+            cachedUrls.push(request.url);
+          }
+        }
+
+        if (cachedUrls.length === 0) {
+          items.innerHTML = '<div class="empty-state">キャッシュされたコンテンツはありません</div>';
+          return;
+        }
+
+        // Categorize URLs
+        const categorized = {
+          knowledge: [],
+          sop: [],
+          regulations: [],
+          incidents: [],
+          consultations: [],
+          other: []
+        };
+
+        cachedUrls.forEach(url => {
+          if (url.includes('/knowledge')) categorized.knowledge.push(url);
+          else if (url.includes('/sop')) categorized.sop.push(url);
+          else if (url.includes('/regulations') || url.includes('/law')) categorized.regulations.push(url);
+          else if (url.includes('/incidents')) categorized.incidents.push(url);
+          else if (url.includes('/consultations')) categorized.consultations.push(url);
+          else categorized.other.push(url);
+        });
+
+        // Render categorized content
+        let html = '';
+
+        if (categorized.knowledge.length > 0) {
+          html += '<h3>📚 ナレッジ</h3>';
+          categorized.knowledge.forEach(url => {
+            html += createCachedItem('📄', 'ナレッジ', url);
+          });
+        }
+
+        if (categorized.sop.length > 0) {
+          html += '<h3>📋 SOP</h3>';
+          categorized.sop.forEach(url => {
+            html += createCachedItem('📋', 'SOP', url);
+          });
+        }
+
+        if (categorized.regulations.length > 0) {
+          html += '<h3>⚖️ 規制情報</h3>';
+          categorized.regulations.forEach(url => {
+            html += createCachedItem('⚖️', '規制情報', url);
+          });
+        }
+
+        if (categorized.incidents.length > 0) {
+          html += '<h3>🚧 事故報告</h3>';
+          categorized.incidents.forEach(url => {
+            html += createCachedItem('🚧', '事故報告', url);
+          });
+        }
+
+        if (categorized.consultations.length > 0) {
+          html += '<h3>💬 専門家相談</h3>';
+          categorized.consultations.forEach(url => {
+            html += createCachedItem('💬', '専門家相談', url);
+          });
+        }
+
+        items.innerHTML = html || '<div class="empty-state">キャッシュされたコンテンツはありません</div>';
+      } catch (error) {
+        console.error('[Offline] Cached content display failed:', error);
+        items.innerHTML = '<div class="empty-state">エラーが発生しました</div>';
+      }
+    }
+
+    function createCachedItem(icon, title, url) {
+      return `
+        <div class="cached-item" onclick="window.location.href='${url}'">
+          <div class="cached-item-icon">${icon}</div>
+          <div class="cached-item-info">
+            <div class="cached-item-title">${title}</div>
+            <div class="cached-item-url">${url}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ============================================================
+    // Retry Connection
+    // ============================================================
+    async function retryConnection() {
+      const button = event.target;
+      const icon = document.getElementById('retry-icon');
+      const originalText = button.innerHTML;
+
+      button.disabled = true;
+      icon.innerHTML = '⏳';
+
+      try {
+        const response = await fetch('/api/health', { cache: 'no-cache' });
+        if (response.ok) {
+          icon.innerHTML = '✅';
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 500);
+        } else {
+          throw new Error('Health check failed');
+        }
+      } catch (error) {
+        icon.innerHTML = '❌';
+        button.innerHTML = originalText;
+        button.disabled = false;
+
+        setTimeout(() => {
+          icon.innerHTML = '🔄';
+        }, 2000);
+
+        alert('まだオフラインです。しばらくしてから再度お試しください。');
+      }
+    }
+
+    // ============================================================
+    // Clear Cache
+    // ============================================================
+    async function clearCache() {
+      if (!confirm('すべてのキャッシュをクリアしますか？\n（ダウンロード済みのコンテンツが削除されます）')) {
+        return;
+      }
+
+      try {
+        const cacheNames = await caches.keys();
+        for (const cacheName of cacheNames) {
+          await caches.delete(cacheName);
+        }
+
+        alert('キャッシュをクリアしました。\nオンライン復帰後、最新のデータが自動的にダウンロードされます。');
+
+        // Hide cached content list
+        document.getElementById('cached-content-list').style.display = 'none';
+        cachedContentVisible = false;
+      } catch (error) {
+        console.error('[Offline] Cache clear failed:', error);
+        alert('キャッシュのクリアに失敗しました。');
+      }
+    }
+
+    // ============================================================
+    // IndexedDB Helper
+    // ============================================================
+    function openIndexedDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('mks-pwa', 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    // ============================================================
+    // Initialize
+    // ============================================================
+    checkSyncQueue();
+
+    // Check online status periodically
+    setInterval(async () => {
+      try {
+        const response = await fetch('/api/health', { cache: 'no-cache' });
+        if (response.ok) {
+          // Online, redirect to home
+          window.location.href = '/';
+        }
+      } catch (error) {
+        // Still offline
+      }
+    }, 30000); // Check every 30 seconds
+  </script>
+</body>
+</html>

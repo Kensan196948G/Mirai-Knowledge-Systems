@@ -1,0 +1,103 @@
+{
+  "name": "Mirai Knowledge Systems - 建設土木ナレッジシステム",
+  "short_name": "MKS",
+  "description": "建設現場向け統合ナレッジ管理システム。SOP、規制情報、事故報告を一元管理。オフライン対応。",
+  "lang": "ja",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#2f4b52",
+  "background_color": "#f1ece4",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard - Desktop View"
+    },
+    {
+      "src": "/screenshots/dashboard-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard - Mobile View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "検索",
+      "short_name": "Search",
+      "description": "ナレッジを検索",
+      "url": "/?action=search",
+      "icons": [{ "src": "/icons/icon-search-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "新規登録",
+      "short_name": "New",
+      "description": "新規ナレッジ登録",
+      "url": "/?action=new",
+      "icons": [{ "src": "/icons/icon-new-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "通知",
+      "short_name": "Notifications",
+      "description": "通知一覧",
+      "url": "/?action=notifications",
+      "icons": [{ "src": "/icons/icon-notifications-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

@@ -3393,3 +3393,146 @@ window.filterProjectsByType = filterProjectsByType;
 window.filterExpertsByField = filterExpertsByField;
 window.toggleSection = toggleSection;
 window.toggleSidebar = toggleSidebar;
+
+// ============================================================
+// PWA (Progressive Web App) Support
+// ============================================================
+
+/**
+ * PWA Feature Detection
+ * Check browser support for PWA features
+ */
+const PWA_FEATURES = {
+  serviceWorker: 'serviceWorker' in navigator,
+  backgroundSync: 'serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype,
+  pushNotifications: 'serviceWorker' in navigator && 'PushManager' in window,
+  installPrompt: 'BeforeInstallPromptEvent' in window,
+  cacheAPI: 'caches' in window,
+  indexedDB: 'indexedDB' in window
+};
+
+logger.log('[PWA] Feature detection:', PWA_FEATURES);
+
+/**
+ * Service Worker Registration
+ */
+if (PWA_FEATURES.serviceWorker) {
+  navigator.serviceWorker.register('/sw.js')
+    .then((registration) => {
+      logger.log('[PWA] Service Worker registered successfully');
+
+      // Check for updates every 24 hours
+      setInterval(() => {
+        registration.update();
+      }, 24 * 60 * 60 * 1000);
+
+      // Listen for updates
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version available
+            showUpdatePrompt(newWorker);
+          }
+        });
+      });
+    })
+    .catch((error) => {
+      logger.error('[PWA] Service Worker registration failed:', error);
+    });
+}
+
+/**
+ * Show Update Prompt
+ * Display notification when new version is available
+ */
+function showUpdatePrompt(newWorker) {
+  const banner = document.createElement('div');
+  banner.className = 'update-banner';
+  banner.innerHTML = `
+    <div class="update-content">
+      <strong>新しいバージョンが利用可能です</strong>
+      <button onclick="applyUpdate()">今すぐ更新</button>
+      <button onclick="dismissUpdate()">後で</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+
+  window.applyUpdate = () => {
+    newWorker.postMessage({ action: 'SKIP_WAITING' });
+    banner.remove();
+
+    // Reload page after activation
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
+  };
+
+  window.dismissUpdate = () => {
+    banner.remove();
+  };
+}
+
+/**
+ * Online/Offline Status Detection
+ */
+let isOnline = navigator.onLine;
+
+window.addEventListener('online', () => {
+  isOnline = true;
+  logger.log('[PWA] Online');
+  hideOfflineIndicator();
+});
+
+window.addEventListener('offline', () => {
+  isOnline = false;
+  logger.log('[PWA] Offline');
+  showOfflineIndicator();
+});
+
+function showOfflineIndicator() {
+  let indicator = document.getElementById('offline-indicator');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'offline-indicator';
+    indicator.className = 'offline-indicator visible';
+    indicator.innerHTML = '📡 オフラインモード - キャッシュされたコンテンツのみ利用可能';
+    document.body.insertBefore(indicator, document.body.firstChild);
+  }
+  indicator.classList.add('visible');
+}
+
+function hideOfflineIndicator() {
+  const indicator = document.getElementById('offline-indicator');
+  if (indicator) {
+    indicator.classList.remove('visible');
+    setTimeout(() => {
+      indicator.remove();
+    }, 300);
+  }
+}
+
+// Show offline indicator if already offline
+if (!isOnline) {
+  showOfflineIndicator();
+}
+
+/**
+ * Cache Access Tracking (for LRU management)
+ */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', async (event) => {
+    if (event.data.type === 'CACHE_ACCESS') {
+      // Track cache access for LRU eviction
+      // This will be handled by cache-manager.js when loaded
+      if (window.CacheManager) {
+        const cacheManager = new CacheManager();
+        await cacheManager.trackAccess(event.data.url);
+        await cacheManager.evictIfNeeded();
+      }
+    }
+  });
+}
+
+logger.log('[PWA] Initialization complete');
