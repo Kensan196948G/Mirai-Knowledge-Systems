@@ -4,8 +4,8 @@
 
 **名称**: Mirai Knowledge Systems
 **目的**: 建設土木業界向け統合ナレッジ管理システム
-**バージョン**: 1.2.0
-**開発フェーズ**: Phase D-3（2要素認証）完了✅ - セキュリティ強化完了（2026-01-31）
+**バージョン**: 1.3.0
+**開発フェーズ**: Phase D-4（Microsoft 365連携）完了✅ - SharePoint/OneDrive統合完了（2026-01-31）
 
 ## 🛠️ 技術スタック
 
@@ -15,6 +15,8 @@
 - **ORM**: SQLAlchemy 2.0.45
 - **認証**: JWT（Flask-JWT-Extended 4.6.0） + 2FA（pyotp 2.9.0）
 - **2FA**: TOTP（pyotp）+ QRコード（qrcode 7.4.2, pillow 10.1.0）
+- **MS365連携**: Microsoft Graph API（azure-identity 1.15.0+）
+- **スケジューラー**: APScheduler 3.10.4
 - **監視**: Prometheus + Grafana
 
 ### フロントエンド
@@ -111,44 +113,66 @@
 
 ```
 Mirai-Knowledge-Systems/
-├── backend/                 # Flask API（2,356行のapp_v2.py）
-│   ├── app_v2.py           # メインアプリケーション（36エンドポイント、+9 MFA API）
-│   ├── auth/               # 認証モジュール（NEW v1.2.0）
+├── backend/                 # Flask API（5,811行のapp_v2.py）
+│   ├── app_v2.py           # メインアプリケーション（46エンドポイント、+10 MS365 API）
+│   ├── auth/               # 認証モジュール（v1.2.0）
 │   │   ├── __init__.py
 │   │   └── totp_manager.py # TOTP Manager（270行）
-│   ├── models.py           # データモデル（11テーブル + mfa_backup_codes）
-│   ├── schemas.py          # バリデーション
+│   ├── services/           # サービスレイヤー（NEW v1.3.0）
+│   │   ├── ms365_sync_service.py      # MS365同期エンジン（631行）
+│   │   ├── ms365_scheduler_service.py # スケジューラー（229行）
+│   │   ├── metadata_extractor.py      # メタデータ抽出（318行）
+│   │   └── ms365_sync_daemon.py       # デーモンプロセス（104行）
+│   ├── integrations/       # 外部API連携
+│   │   └── microsoft_graph.py         # Microsoft Graph API（588行）
+│   ├── models.py           # データモデル（14テーブル + 3 MS365テーブル）
+│   ├── schemas.py          # バリデーション（+MS365スキーマ）
 │   ├── password_policy.py  # パスワードポリシー
 │   ├── csrf_protection.py  # CSRF対策
 │   ├── migrations/         # DBマイグレーション
-│   │   └── versions/add_mfa_backup_codes.py  # MFA対応（NEW）
-│   ├── tests/              # テストスイート（557件、カバレッジ91%）
-│   │   ├── unit/test_totp_manager.py        # MFAユニットテスト（19件）
-│   │   ├── integration/test_mfa_flow.py     # MFA統合テスト（17件）
-│   │   └── e2e/mfa-flow.spec.js             # MFAE2Eテスト
+│   │   └── versions/
+│   │       ├── add_mfa_backup_codes.py       # MFA（v1.2.0）
+│   │       └── add_ms365_sync_tables.py      # MS365（v1.3.0）
+│   ├── tests/              # テストスイート（591件、カバレッジ91%）
+│   │   ├── unit/
+│   │   │   ├── test_totp_manager.py          # MFA（19件）
+│   │   │   └── test_ms365_sync_service.py    # MS365（16件）
+│   │   ├── integration/
+│   │   │   ├── test_mfa_flow.py              # MFA（17件）
+│   │   │   └── test_ms365_sync_api.py        # MS365（18件）
+│   │   └── e2e/
+│   │       ├── mfa-flow.spec.js
+│   │       └── scenario_ms365_integration.spec.js
 │   └── data/               # JSONデータ（開発環境）
-├── webui/                  # フロントエンド（16ファイル）
+├── webui/                  # フロントエンド（19ファイル）
 │   ├── app.js              # メインロジック（2,500行+）
-│   ├── mfa.js              # MFAライブラリ（380行、NEW v1.2.0）
-│   ├── mfa-setup.html      # MFAセットアップウィザード（NEW）
-│   ├── mfa-settings.html   # MFA設定管理画面（NEW）
+│   ├── mfa.js              # MFAライブラリ（380行、v1.2.0）
+│   ├── mfa-setup.html      # MFAセットアップウィザード
+│   ├── mfa-settings.html   # MFA設定管理画面
+│   ├── ms365-sync-settings.html # MS365同期管理画面（622行、v1.3.0）
+│   ├── ms365-sync.js       # MS365同期ライブラリ（840行、v1.3.0）
 │   ├── search-history.js   # 検索履歴
 │   ├── search-pagination.js # ページネーション
 │   └── auth-guard.js       # 認証ガード
 ├── docs/                   # ドキュメント
-│   ├── security/2FA_IMPLEMENTATION.md        # 技術ドキュメント（NEW）
-│   ├── user-guide/MFA_SETUP_GUIDE.md         # ユーザーガイド（NEW）
-│   ├── deployment/2FA_DEPLOYMENT_GUIDE.md    # デプロイガイド（NEW）
-│   └── 2FA_COMPLETION_SUMMARY.md             # 完了サマリー（NEW）
-├── scripts/                 # クロスプラットフォームスクリプト
-│   ├── common/             # Python共通スクリプト
-│   │   └── setup-node-modules.py  # OS判定自動切替
-│   ├── windows/            # Windows専用
-│   │   └── setup-node-modules.ps1 # PowerShell版
-│   └── linux/              # Linux専用
-│       └── setup-node-modules.sh  # Bash版
-├── mirai-knowledge-app.service     # systemd本番用
-└── mirai-knowledge-app-dev.service # systemd開発用
+│   ├── security/
+│   │   ├── 2FA_IMPLEMENTATION.md         # 2FA技術ドキュメント
+│   │   └── MS365_SYNC_SECURITY.md        # MS365セキュリティ（850行、v1.3.0）
+│   ├── user-guide/
+│   │   ├── MFA_SETUP_GUIDE.md            # 2FAユーザーガイド
+│   │   └── MS365_SYNC_GUIDE.md           # MS365ユーザーガイド（950行、v1.3.0）
+│   ├── deployment/
+│   │   ├── 2FA_DEPLOYMENT_GUIDE.md       # 2FAデプロイガイド
+│   │   └── MS365_SYNC_DEPLOYMENT.md      # MS365デプロイガイド（465行、v1.3.0）
+│   └── MS365_SYNC_COMPLETION_SUMMARY.md  # MS365完了サマリー（717行）
+├── config/                 # 設定ファイル
+│   ├── mirai-knowledge-app.service         # 本番用
+│   ├── mirai-knowledge-app-dev.service     # 開発用
+│   └── mirai-ms365-sync.service            # MS365同期デーモン（v1.3.0）
+└── monitoring/             # 監視設定
+    └── grafana/dashboards/
+        ├── app-overview.json
+        └── ms365-sync-dashboard.json       # MS365ダッシュボード（v1.3.0）
 ```
 
 ## 🚀 開発状況
@@ -211,6 +235,7 @@ Mirai-Knowledge-Systems/
 | Phase | 名称 | 進捗 | 状態 |
 |-------|------|------|------|
 | D-3 | 2要素認証（2FA/MFA） | 100% | ✅ 完了（2026-01-31）|
+| D-4 | Microsoft 365連携 | 100% | ✅ 完了（2026-01-31）|
 
 #### Phase D-3: 2要素認証実装（v1.2.0）
 
@@ -264,13 +289,117 @@ Mirai-Knowledge-Systems/
 
 ---
 
+#### Phase D-4: Microsoft 365連携実装（v1.3.0）
+
+**完了日**: 2026-01-31
+**PR**: [#2600](https://github.com/Kensan196948G/Mirai-Knowledge-Systems/pull/2600)
+**コミット**: `13b7551`, `3388607`, `b9a8e7e` → マージ `7263f76`
+**実装時間**: 約3時間（フルスタック実装）
+
+##### 実装内容
+
+**Phase 1-2: バックエンド基盤（約2,300行）**:
+- データベーススキーマ（3テーブル）
+  - MS365SyncConfig: 同期設定管理
+  - MS365SyncHistory: 同期履歴記録
+  - MS365FileMapping: ファイル-ナレッジマッピング
+- サービス層（4サービス、約1,300行）
+  - MS365SyncService: 同期実行エンジン（631行）
+  - MS365SchedulerService: APSchedulerベース定期実行（229行）
+  - MetadataExtractor: PDF/Word/Excel/テキスト抽出（318行）
+  - MS365SyncDaemon: systemdデーモン（104行）
+- 既存Graph APIクライアント活用（microsoft_graph.py）
+
+**Phase 3: APIエンドポイント（10個、約700行）**:
+- 設定管理: GET/POST/PUT/DELETE /configs
+- 同期操作: execute, test, history
+- 監視: stats, status
+- JWT認証、RBAC、Rate limiting、監査ログ完備
+
+**Phase 4: 管理UI（約1,500行）**:
+- ms365-sync-settings.html（622行）
+  - ステータス概要パネル
+  - 同期設定一覧テーブル
+  - 同期履歴表示
+  - モーダルダイアログ
+- ms365-sync.js（840行）
+  - 9個のAPI呼び出し関数
+  - DOM API使用（XSS対策完全）
+  - cron形式→日本語変換
+
+**Phase 5-10: 品質保証・デプロイ（約5,300行）**:
+- バリデーションスキーマ（2個）
+- テスト（34件: ユニット16 + 統合18、カバレッジ90%以上）
+- Prometheusメトリクス（4個）
+- Grafanaダッシュボード（6パネル）
+- systemdサービス: mirai-ms365-sync.service
+- ドキュメント（7ファイル、約3,265行）
+  - ユーザーガイド（950行、FAQ 15件）
+  - デプロイガイド（465行）
+  - セキュリティガイド（850行）
+  - APIリファレンス（510行）
+
+##### 主要機能
+
+**同期機能**:
+- SharePoint/OneDriveからファイル自動同期
+- 増分同期（SHA256チェックサム）+ 全件同期モード
+- メタデータ自動抽出→ナレッジDB登録
+- エラーリトライ（指数バックオフ、3回）
+
+**スケジューラー**:
+- cron形式による柔軟なスケジュール設定
+- systemdデーモン（自動起動・自動再起動）
+- 手動同期トリガー
+- 接続テスト（ドライラン）
+
+**監視・可観測性**:
+- Prometheusメトリクス（実行数、処理時間、ファイル数、エラー数）
+- Grafanaダッシュボード（成功率、タイムライン、エラー率）
+- 同期履歴ログ（詳細なエラー情報）
+
+##### セキュリティ
+
+- **認証**: Client Credentials Flow（非対話式）
+- **認証方式**: ClientSecret + Certificate認証サポート
+- **権限管理**: RBAC（ms365_sync.read/create/update/delete/execute）
+- **監査ログ**: 全操作記録
+- **環境変数検証**: 起動時チェック
+- **.env保護**: .gitignoreで除外
+
+##### 接続テスト結果
+
+```json
+{
+  "configured": true,
+  "connected": true,
+  "organization": "みらい建設工業株式会社"
+}
+```
+
+✅ Microsoft Graph API接続成功
+
+##### 統計
+
+| 項目 | 数値 |
+|------|------|
+| 総ファイル数 | 37ファイル（新規28 + 修正9） |
+| 総コード量 | 約12,730行 |
+| テスト件数 | 34件（カバレッジ90%以上） |
+| ドキュメント | 7ファイル、約3,265行 |
+| APIエンドポイント | 10個 |
+
+---
+
 ### Phase D: 今後の拡張（オプション）
 
 | Phase | 名称 | 優先度 | 状態 |
 |-------|------|--------|------|
-| D-4 | Microsoft 365連携 | 中 | 未着手 |
 | D-5 | モバイルアプリ対応（PWA） | 低 | 未着手 |
 | D-3.1 | 2FA拡張（SMS/WebAuthn） | 低 | 未着手 |
+| D-4.1 | MS365リアルタイム通知 | 低 | 未着手 |
+| D-4.2 | ファイルプレビュー | 低 | 未着手 |
+| D-4.3 | 双方向同期 | 低 | 未着手 |
 
 ## 🔧 環境情報
 
