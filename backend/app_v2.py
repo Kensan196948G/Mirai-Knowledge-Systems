@@ -529,6 +529,31 @@ if os.environ.get("TESTING") != "true":
     RATE_LIMIT_HITS = PrometheusCounter(
         "mks_rate_limit_hits_total", "Total rate limit hits", ["endpoint"]
     )
+
+    # MS365同期メトリクス
+    MS365_SYNC_EXECUTIONS = PrometheusCounter(
+        "mks_ms365_sync_executions_total",
+        "Total MS365 sync executions",
+        ["config_id", "status"]
+    )
+
+    MS365_SYNC_DURATION = Histogram(
+        "mks_ms365_sync_duration_seconds",
+        "MS365 sync execution duration in seconds",
+        ["config_id"]
+    )
+
+    MS365_FILES_PROCESSED = PrometheusCounter(
+        "mks_ms365_files_processed_total",
+        "Total files processed from MS365",
+        ["config_id", "result"]  # result: created/updated/skipped/failed
+    )
+
+    MS365_SYNC_ERRORS = PrometheusCounter(
+        "mks_ms365_sync_errors_total",
+        "Total MS365 sync errors",
+        ["config_id", "error_type"]
+    )
 else:
     # テスト環境用のダミーメトリクス
     REQUEST_COUNT = None
@@ -544,6 +569,10 @@ else:
     SYSTEM_DISK_USAGE = None
     AUTH_ATTEMPTS = None
     RATE_LIMIT_HITS = None
+    MS365_SYNC_EXECUTIONS = None
+    MS365_SYNC_DURATION = None
+    MS365_FILES_PROCESSED = None
+    MS365_SYNC_ERRORS = None
 
 
 # データストレージディレクトリ

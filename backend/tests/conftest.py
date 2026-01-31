@@ -192,3 +192,53 @@ def no_role_token(client, create_test_users):
         'password': 'norole123'
     })
     return response.get_json()['data']['access_token']
+
+
+@pytest.fixture()
+def ms365_sync_config_data():
+    """MS365同期設定のテストデータ"""
+    return {
+        'name': 'テスト同期設定',
+        'description': 'テスト用の同期設定',
+        'site_id': 'site-test-123',
+        'drive_id': 'drive-test-456',
+        'folder_path': '/',
+        'file_extensions': ['pdf', 'docx', 'xlsx'],
+        'sync_schedule': '0 2 * * *',
+        'sync_strategy': 'incremental',
+        'is_enabled': True,
+        'metadata_mapping': {
+            'category': 'category_field',
+            'tags': 'tags_field'
+        }
+    }
+
+
+@pytest.fixture()
+def mock_ms365_client(monkeypatch):
+    """MS365 Graph APIクライアントのモック"""
+    from unittest.mock import Mock
+
+    mock_client = Mock()
+    mock_client.is_configured.return_value = True
+    mock_client.test_connection.return_value = {
+        'configured': True,
+        'connected': True,
+        'errors': []
+    }
+    mock_client.get_sites.return_value = [
+        {'id': 'site-123', 'displayName': 'Test Site'}
+    ]
+    mock_client.get_site_drives.return_value = [
+        {'id': 'drive-456', 'name': 'Documents'}
+    ]
+    mock_client.get_drive_items.return_value = [
+        {
+            'id': 'file-001',
+            'name': 'test.pdf',
+            'size': 1024,
+            'file': {'mimeType': 'application/pdf'}
+        }
+    ]
+
+    return mock_client

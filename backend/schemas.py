@@ -259,3 +259,61 @@ class MS365SyncSchema(Schema):
         validate=validate.OneOf(['full', 'incremental']),
         load_default='incremental'
     )
+
+# ============================================================
+# MS365 Sync Config Schemas
+# ============================================================
+
+class MS365SyncConfigCreateSchema(Schema):
+    """MS365同期設定作成バリデーション"""
+    name = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=200),
+        error_messages={'required': '設定名は必須です'}
+    )
+    description = fields.Str(
+        validate=validate.Length(max=1000),
+        allow_none=True
+    )
+    site_id = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=200),
+        error_messages={'required': 'サイトIDは必須です'}
+    )
+    drive_id = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=200),
+        error_messages={'required': 'ドライブIDは必須です'}
+    )
+    folder_path = fields.Str(
+        validate=validate.Length(max=500),
+        load_default='/'
+    )
+    file_extensions = fields.List(
+        fields.Str(),
+        load_default=['pdf', 'docx', 'xlsx', 'txt']
+    )
+    sync_schedule = fields.Str(
+        validate=validate.Regexp(
+            r'^(\*|([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])|\*\/([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])) (\*|([0-9]|1[0-9]|2[0-3])|\*\/([0-9]|1[0-9]|2[0-3])) (\*|([1-9]|1[0-9]|2[0-9]|3[0-1])|\*\/([1-9]|1[0-9]|2[0-9]|3[0-1])) (\*|([1-9]|1[0-2])|\*\/([1-9]|1[0-2])) (\*|([0-6])|\*\/([0-6]))$',
+            error='有効なcron形式で指定してください（例: 0 2 * * *）'
+        ),
+        load_default='0 2 * * *'
+    )
+    sync_strategy = fields.Str(
+        validate=validate.OneOf(['full', 'incremental']),
+        load_default='incremental'
+    )
+    is_enabled = fields.Bool(load_default=True)
+    metadata_mapping = fields.Dict(
+        keys=fields.Str(),
+        values=fields.Str(),
+        allow_none=True
+    )
+
+class MS365SyncConfigUpdateSchema(MS365SyncConfigCreateSchema):
+    """MS365同期設定更新バリデーション"""
+    # すべてのフィールドをオプショナルに
+    name = fields.Str(validate=validate.Length(min=1, max=200))
+    site_id = fields.Str(validate=validate.Length(min=1, max=200))
+    drive_id = fields.Str(validate=validate.Length(min=1, max=200))

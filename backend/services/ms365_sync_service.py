@@ -16,6 +16,19 @@ from models import MS365SyncConfig, MS365SyncHistory, MS365FileMapping, Knowledg
 
 logger = logging.getLogger(__name__)
 
+# Prometheusメトリクス（app_v2.pyから参照）
+try:
+    from app_v2 import (
+        MS365_SYNC_EXECUTIONS,
+        MS365_SYNC_DURATION,
+        MS365_FILES_PROCESSED,
+        MS365_SYNC_ERRORS
+    )
+    METRICS_AVAILABLE = True
+except ImportError:
+    METRICS_AVAILABLE = False
+    logger.warning("Prometheus metrics not available for MS365 sync")
+
 
 class MS365SyncService:
     """Microsoft 365同期サービス"""
@@ -137,6 +150,16 @@ class MS365SyncService:
 
             logger.info(f"[Sync {history_id}] 同期完了: {stats}")
 
+            # Prometheusメトリクス記録
+            if METRICS_AVAILABLE:
+                config_id_str = str(config_id)
+                MS365_SYNC_EXECUTIONS.labels(config_id=config_id_str, status='success').inc()
+                MS365_SYNC_DURATION.labels(config_id=config_id_str).observe(execution_time)
+                MS365_FILES_PROCESSED.labels(config_id=config_id_str, result='created').inc(stats['files_created'])
+                MS365_FILES_PROCESSED.labels(config_id=config_id_str, result='updated').inc(stats['files_updated'])
+                MS365_FILES_PROCESSED.labels(config_id=config_id_str, result='skipped').inc(stats['files_skipped'])
+                MS365_FILES_PROCESSED.labels(config_id=config_id_str, result='failed').inc(stats['files_failed'])
+
             return {
                 "history_id": history_id,
                 "status": "completed",
@@ -158,6 +181,26 @@ class MS365SyncService:
                 error_message=str(e),
                 error_details={"errors": stats.get("errors", [])}
             )
+
+            # Prometheusメトリクス記録（失敗）
+            if METRICS_AVAILABLE:
+                config_id_str = str(config_id)
+                MS365_SYNC_EXECUTIONS.labels(config_id=config_id_str, status='failed').inc()
+                MS365_SYNC_DURATION.labels(config_id=config_id_str).observe(execution_time)
+
+                # エラータイプの判定
+                error_type = 'unknown'
+                error_str = str(e).lower()
+                if 'network' in error_str or 'connection' in error_str or 'timeout' in error_str:
+                    error_type = 'network'
+                elif 'auth' in error_str or 'token' in error_str or 'permission' in error_str:
+                    error_type = 'authentication'
+                elif 'not found' in error_str or '404' in error_str:
+                    error_type = 'not_found'
+                elif 'rate limit' in error_str or '429' in error_str:
+                    error_type = 'rate_limit'
+
+                MS365_SYNC_ERRORS.labels(config_id=config_id_str, error_type=error_type).inc()
 
             raise
 
