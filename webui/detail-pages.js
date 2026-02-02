@@ -3098,3 +3098,178 @@ document.addEventListener('DOMContentLoaded', () => {
     syncTimeEl.textContent = `最終同期 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
   }
 });
+
+// ============================================================
+// MKSApp.DetailPages Namespace - 詳細ページ機能
+// ============================================================
+
+if (typeof window.MKSApp === 'undefined') {
+  window.MKSApp = {};
+}
+
+/**
+ * 詳細ページ機能を統一Namespace配下に整理
+ */
+window.MKSApp.DetailPages = {
+  // ============================================================
+  // Knowledge Detail - ナレッジ詳細
+  // ============================================================
+  Knowledge: {
+    load: loadKnowledgeDetail,
+    display: displayKnowledgeDetail,
+    loadComments: loadKnowledgeCommentsFromData,
+    loadHistory: loadKnowledgeHistoryFromData,
+    share: shareKnowledge,
+    print: printPage,
+    exportPDF: exportPDF,
+    retry: retryLoad
+  },
+
+  // ============================================================
+  // SOP Detail - SOP詳細
+  // ============================================================
+  SOP: {
+    load: loadSOPDetail,
+    display: displaySOPDetail,
+    startRecord: startInspectionRecord,
+    cancelRecord: cancelRecord,
+    submitRecord: submitInspectionRecord,
+    updateStats: updateExecutionStats,
+    download: downloadSOP,
+    printChecklist: printChecklist,
+    edit: editSOP,
+    retry: retryLoadSOP
+  },
+
+  // ============================================================
+  // Incident Detail - インシデント詳細
+  // ============================================================
+  Incident: {
+    load: loadIncidentDetail,
+    display: displayIncidentDetail,
+    loadCorrectiveActions: loadCorrectiveActionsFromData,
+    addAction: addCorrectiveAction,
+    downloadPDF: downloadPDF,
+    share: shareIncident,
+    updateStatus: updateIncidentStatus,
+    edit: editIncident
+  },
+
+  // ============================================================
+  // Consult Detail - 相談詳細
+  // ============================================================
+  Consult: {
+    load: loadConsultDetail
+  },
+
+  // ============================================================
+  // Utilities - 共通ユーティリティ
+  // ============================================================
+  Utilities: {
+    showLoading,
+    hideLoading,
+    showError,
+    hideError,
+    formatDate,
+    formatDateShort,
+    scrollToTop,
+    updateBreadcrumbMeta,
+    updateNavigationInfo
+  },
+
+  // ============================================================
+  // Share - 共有機能
+  // ============================================================
+  Share: {
+    close: closeShareModal,
+    copyUrl: copyShareUrl,
+    viaEmail: shareViaEmail,
+    viaSlack: shareViaSlack,
+    viaTeams: shareViaTeams
+  },
+
+  // ============================================================
+  // Modal - モーダル管理
+  // ============================================================
+  Modal: {
+    closeShare: closeShareModal,
+    closeEditSOP: closeEditSOPModal,
+    closeCorrectiveAction: closeCorrectiveActionModal,
+    closeStatus: closeStatusModal,
+    closeNewIncident: closeNewIncidentModal,
+    closeEditIncident: closeEditIncidentModal
+  }
+};
+
+// ============================================================
+// 互換性レイヤー - 既存コードのためのwindow.*エイリアス
+// ============================================================
+
+// Knowledge
+window.loadKnowledgeDetail = loadKnowledgeDetail;
+window.displayKnowledgeDetail = displayKnowledgeDetail;
+window.loadKnowledgeCommentsFromData = loadKnowledgeCommentsFromData;
+window.loadKnowledgeHistoryFromData = loadKnowledgeHistoryFromData;
+window.shareKnowledge = shareKnowledge;
+window.printPage = printPage;
+window.exportPDF = exportPDF;
+window.retryLoad = retryLoad;
+
+// SOP
+window.loadSOPDetail = loadSOPDetail;
+window.displaySOPDetail = displaySOPDetail;
+window.startInspectionRecord = startInspectionRecord;
+window.cancelRecord = cancelRecord;
+window.submitInspectionRecord = submitInspectionRecord;
+window.updateExecutionStats = updateExecutionStats;
+window.downloadSOP = downloadSOP;
+window.printChecklist = printChecklist;
+window.editSOP = editSOP;
+window.retryLoadSOP = retryLoadSOP;
+
+// Incident
+window.loadIncidentDetail = loadIncidentDetail;
+window.displayIncidentDetail = displayIncidentDetail;
+window.loadCorrectiveActionsFromData = loadCorrectiveActionsFromData;
+window.addCorrectiveAction = addCorrectiveAction;
+window.downloadPDF = downloadPDF;
+window.shareIncident = shareIncident;
+window.updateIncidentStatus = updateIncidentStatus;
+window.editIncident = editIncident;
+
+// Consult
+window.loadConsultDetail = loadConsultDetail;
+
+// Utilities
+window.showLoading = showLoading;
+window.hideLoading = hideLoading;
+window.showError = showError;
+window.hideError = hideError;
+
+// Share
+window.closeShareModal = closeShareModal;
+window.copyShareUrl = copyShareUrl;
+window.shareViaEmail = shareViaEmail;
+window.shareViaSlack = shareViaSlack;
+window.shareViaTeams = shareViaTeams;
+
+// Modal
+window.closeEditSOPModal = closeEditSOPModal;
+window.closeCorrectiveActionModal = closeCorrectiveActionModal;
+window.closeStatusModal = closeStatusModal;
+window.closeNewIncidentModal = closeNewIncidentModal;
+window.closeEditIncidentModal = closeEditIncidentModal;
+
+// Submit functions
+window.submitEditSOP = submitEditSOP;
+window.submitCorrectiveAction = submitCorrectiveAction;
+window.submitStatusUpdate = submitStatusUpdate;
+window.submitNewIncident = submitNewIncident;
+
+// Open functions
+window.openNewIncidentModal = openNewIncidentModal;
+
+if (typeof logger !== 'undefined') {
+  logger.log('[MKSApp.DetailPages] Namespace initialized with', Object.keys(window.MKSApp.DetailPages).length, 'modules');
+  logger.log('[MKSApp.DetailPages] Compatibility layer enabled');
+}

@@ -1,8 +1,8 @@
 # Flask Core
 Flask==3.0.0
-Flask-CORS==4.0.0
+Flask-CORS==6.0.0  # Updated: CVE-2024-6221, CVE-2024-1681, CVE-2024-6844, CVE-2024-6866, CVE-2024-6839
 Flask-SocketIO==5.3.5
-Werkzeug==3.0.1
+Werkzeug==3.1.5  # Updated: CVE-2024-34069 + CVE-2025-66221 + CVE-2026-21860 (all fixed)
 
 # WSGI Server (Production)
 gunicorn==23.0.0
@@ -18,11 +18,11 @@ Flask-Limiter==3.5.0
 bcrypt==4.1.2
 pyotp==2.9.0
 qrcode==7.4.2
-pillow==10.1.0
-cryptography==41.0.7
+pillow==10.3.0  # Updated: CVE-2024-28219
+cryptography==44.0.2  # Updated: CVE-2024-57758, CVE-2024-0727, CVE-2024-9143
 
 # Validation & Serialization
-marshmallow==3.20.1
+marshmallow==3.26.2  # Updated: CVE-2025-68480
 email-validator==2.1.0
 
 # Environment & Configuration

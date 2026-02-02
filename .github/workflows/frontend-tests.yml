@@ -142,6 +142,10 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://mirai_user:test_password@localhost/mirai_test
+          MKS_ENV: test
+          MKS_SECRET_KEY: test-secret-key-for-ci
+          MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+          MKS_CORS_ORIGINS: http://localhost:5100
         run: |
           python app_v2.py &
           sleep 10

@@ -198,3 +198,37 @@ setInterval(() => {
 document.addEventListener('DOMContentLoaded', () => {
   loadUnreadNotificationCount();
 });
+
+
+// ============================================================
+// MKSApp.Notifications Namespace - 通知機能
+// ============================================================
+
+if (typeof window.MKSApp === 'undefined') {
+  window.MKSApp = {};
+}
+
+/**
+ * 通知機能を統一Namespace配下に整理
+ */
+window.MKSApp.Notifications = {
+  updateBadge: updateNotificationBadge,
+  display: displayNotifications,
+  handleClick: handleNotificationClick,
+  togglePanel: toggleNotificationPanel,
+  formatRelativeTime: formatRelativeTime
+};
+
+// ============================================================
+// 互換性レイヤー
+// ============================================================
+window.updateNotificationBadge = updateNotificationBadge;
+window.displayNotifications = displayNotifications;
+window.handleNotificationClick = handleNotificationClick;
+window.toggleNotificationPanel = toggleNotificationPanel;
+window.formatRelativeTime = formatRelativeTime;
+
+if (typeof logger !== 'undefined') {
+  logger.log('[MKSApp.Notifications] Namespace initialized with', Object.keys(window.MKSApp.Notifications).length, 'functions');
+}
+

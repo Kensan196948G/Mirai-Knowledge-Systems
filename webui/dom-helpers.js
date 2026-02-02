@@ -988,3 +988,98 @@ function createTableRowWithHTML(cells, isHeader = false) {
 
   return row;
 }
+
+
+// ============================================================
+// MKSApp.DOM Namespace - セキュアなDOM操作ヘルパー
+// ============================================================
+
+if (typeof window.MKSApp === 'undefined') {
+  window.MKSApp = {};
+}
+
+/**
+ * DOM操作ヘルパー関数を統一Namespace配下に整理
+ * XSS脆弱性を防ぐため、innerHTML を使用せずDOM APIを使用
+ */
+window.MKSApp.DOM = {
+  // ============================================================
+  // Core - 基本DOM操作
+  // ============================================================
+  escapeHtml,
+  createSecureElement,
+  setSecureChildren,
+
+  // ============================================================
+  // UI Components - UIコンポーネント作成
+  // ============================================================
+  Components: {
+    createTag: createTagElement,
+    createPill: createPillElement,
+    createStatus: createStatusElement,
+    createLink: createLinkElement,
+    createTableRow: createTableRow,
+    createTableRowWithHTML: createTableRowWithHTML,
+    createDocument: createDocumentElement,
+    createComment: createCommentElement,
+    createAnswer: createAnswerElement,
+    createBestAnswer: createBestAnswerElement,
+    createExpertInfo: createExpertInfoElement,
+    createStep: createStepElement,
+    createChecklist: createChecklistElement,
+    createWarning: createWarningElement,
+    createTimeline: createTimelineElement,
+    createAttachment: createAttachmentElement,
+    createStatusHistory: createStatusHistoryElement,
+    createApprovalFlow: createApprovalFlowElement,
+    createMetaInfo: createMetaInfoElement
+  },
+
+  // ============================================================
+  // Messages - メッセージ表示
+  // ============================================================
+  Messages: {
+    createEmpty: createEmptyMessage,
+    createError: createErrorMessage
+  }
+};
+
+// ============================================================
+// 互換性レイヤー - 既存コードのためのwindow.*エイリアス
+// ============================================================
+
+// Core
+window.escapeHtml = escapeHtml;
+window.createSecureElement = createSecureElement;
+window.setSecureChildren = setSecureChildren;
+
+// Components
+window.createTagElement = createTagElement;
+window.createPillElement = createPillElement;
+window.createStatusElement = createStatusElement;
+window.createLinkElement = createLinkElement;
+window.createTableRow = createTableRow;
+window.createTableRowWithHTML = createTableRowWithHTML;
+window.createDocumentElement = createDocumentElement;
+window.createCommentElement = createCommentElement;
+window.createAnswerElement = createAnswerElement;
+window.createBestAnswerElement = createBestAnswerElement;
+window.createExpertInfoElement = createExpertInfoElement;
+window.createStepElement = createStepElement;
+window.createChecklistElement = createChecklistElement;
+window.createWarningElement = createWarningElement;
+window.createTimelineElement = createTimelineElement;
+window.createAttachmentElement = createAttachmentElement;
+window.createStatusHistoryElement = createStatusHistoryElement;
+window.createApprovalFlowElement = createApprovalFlowElement;
+window.createMetaInfoElement = createMetaInfoElement;
+
+// Messages
+window.createEmptyMessage = createEmptyMessage;
+window.createErrorMessage = createErrorMessage;
+
+if (typeof logger !== 'undefined') {
+  logger.log('[MKSApp.DOM] Namespace initialized with', Object.keys(window.MKSApp.DOM).length, 'functions');
+  logger.log('[MKSApp.DOM] Compatibility layer enabled for XSS-safe DOM operations');
+}
+

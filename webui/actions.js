@@ -390,3 +390,81 @@ window.closeAnswerDetailModal = closeAnswerDetailModal;
 window.selectBestAnswer = selectBestAnswer;
 window.startRecord = startRecord;
 window.cancelRecord = cancelRecord;
+
+
+// ============================================================
+// MKSApp.Actions Namespace - 共通アクション機能
+// ============================================================
+
+if (typeof window.MKSApp === 'undefined') {
+  window.MKSApp = {};
+}
+
+/**
+ * アクション機能を統一Namespace配下に整理
+ */
+window.MKSApp.Actions = {
+  // ============================================================
+  // UI Feedback - ユーザーフィードバック
+  // ============================================================
+  showToast,
+
+  // ============================================================
+  // Distribution - 配信機能
+  // ============================================================
+  submitDistribution,
+  proposeRevision,
+  shareDashboard,
+
+  // ============================================================
+  // Approval - 承認機能
+  // ============================================================
+  openApprovalBox,
+  generateMorningSummary,
+
+  // ============================================================
+  // Document - ドキュメント操作
+  // ============================================================
+  downloadPDF,
+  attachDocument,
+  viewDiff,
+  compareVersions,
+
+  // ============================================================
+  // Inspection - 点検記録
+  // ============================================================
+  startInspection,
+  startRecord,
+  cancelRecord,
+
+  // ============================================================
+  // Incident - インシデント管理
+  // ============================================================
+  recordImpactAssessment,
+  createNotice,
+  registerCorrectiveAction,
+  createPreventionPlan,
+  updateIncidentStatus,
+  closeStatusModal,
+  editIncident,
+
+  // ============================================================
+  // Consultation - 相談機能
+  // ============================================================
+  submitConsultation,
+  viewPastConsultations,
+  editConsult,
+  closeConsult,
+  toggleFollow,
+  resetAnswerForm,
+  closeAnswerDetailModal,
+  selectBestAnswer
+};
+
+// 互換性レイヤーはすでに各関数定義部分で window.* として公開済み
+
+if (typeof logger !== 'undefined') {
+  logger.log('[MKSApp.Actions] Namespace initialized with', Object.keys(window.MKSApp.Actions).length, 'functions');
+  logger.log('[MKSApp.Actions] Compatibility layer enabled');
+}
+

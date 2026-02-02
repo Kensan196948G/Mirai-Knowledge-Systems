@@ -87,6 +87,10 @@ class SOP(Base):
     created_by_id = Column(Integer, ForeignKey("auth.users.id"))
     updated_by_id = Column(Integer, ForeignKey("auth.users.id"))
 
+    # リレーション
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+
     # インデックス
     __table_args__ = (
         Index("idx_sop_category", "category"),
