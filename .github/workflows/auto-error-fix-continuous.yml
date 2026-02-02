@@ -18,8 +18,13 @@ on:
         default: 'yes'
 
 env:
-  MAX_LOOPS: 15
   PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
+  MAX_LOOPS: 15
+  MKS_ENV: test
+  MKS_SECRET_KEY: test-secret-key-for-ci
+  MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+  MKS_CORS_ORIGINS: http://localhost:5100
 
 jobs:
   auto-error-detection-and-fix:
@@ -88,6 +93,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://mks_user:mks_password@localhost:5432/mks_db
           REDIS_URL: redis://localhost:6379/0
+          MKS_ENV: test
+          MKS_SECRET_KEY: test-secret-key-for-ci
+          MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+          MKS_CORS_ORIGINS: http://localhost:5100
         run: |
           python -c "from app_v2 import db, app; app.app_context().push(); db.create_all(); print('Database initialized')" || echo "Database already exists"
 
@@ -101,6 +110,9 @@ jobs:
           PGPORT: 5432
           MKS_PORT: 5100
           MKS_ENV: test
+          MKS_SECRET_KEY: test-secret-key-for-ci
+          MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+          MKS_CORS_ORIGINS: http://localhost:5100
           MKS_SKIP_HTTP_CHECK: true
         run: |
           echo "==================================="

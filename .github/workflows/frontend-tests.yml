@@ -31,6 +31,14 @@ on:
           - development
           - staging
 
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
+  MKS_ENV: test
+  MKS_SECRET_KEY: test-secret-key-for-ci
+  MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+  MKS_CORS_ORIGINS: http://localhost:5100
+
 jobs:
   unit-tests:
     name: Unit Tests (Jest)

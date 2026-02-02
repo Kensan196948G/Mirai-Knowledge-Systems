@@ -8,6 +8,14 @@ on:
   schedule:
     - cron: '0 2 * * *'  # 毎日午前2時実行
 
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
+  MKS_ENV: test
+  MKS_SECRET_KEY: test-secret-key-for-ci
+  MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+  MKS_CORS_ORIGINS: http://localhost:5100
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
