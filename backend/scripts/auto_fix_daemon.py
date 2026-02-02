@@ -605,6 +605,122 @@ class AutoFixDaemon:
 
         self.logger.info("自動修復デーモン停止")
 
+def fix_import_errors(log_file: str = 'import_errors.log') -> bool:
+    """Import エラーを検知・修復（PR自動修復用）"""
+    if not os.path.exists(log_file):
+        print(f"[PR MODE] Import エラーログが見つかりません: {log_file}")
+        return False
+
+    with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+        log = f.read()
+
+    # "ModuleNotFoundError: No module named 'xxx'" を検出
+    import re
+    missing_modules = re.findall(r"ModuleNotFoundError: No module named '(\w+)'", log)
+
+    if missing_modules:
+        print(f"[PR MODE] 不足モジュール検出: {missing_modules}")
+        for module in missing_modules:
+            try:
+                # requirements.txt に追加（既存の場合はスキップ）
+                print(f"[PR MODE] モジュールインストール中: {module}")
+                subprocess.run(
+                    ['pip', 'install', module, '--break-system-packages'],
+                    check=True,
+                    capture_output=True
+                )
+            except subprocess.CalledProcessError as e:
+                print(f"[PR MODE] モジュールインストール失敗: {module} - {e}")
+        return True
+
+    print("[PR MODE] Import エラーは検出されませんでした")
+    return False
+
+
+def fix_lint_errors() -> bool:
+    """Lint エラーを自動修復（PR自動修復用）"""
+    fixed = False
+
+    # black でフォーマット
+    try:
+        print("[PR MODE] black による自動フォーマット実行中...")
+        result = subprocess.run(
+            ['black', 'backend/'],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        if result.returncode == 0:
+            print("[PR MODE] black 完了")
+        else:
+            print(f"[PR MODE] black 警告: {result.stderr}")
+    except Exception as e:
+        print(f"[PR MODE] black エラー: {e}")
+
+    # isort で import 整理
+    try:
+        print("[PR MODE] isort による import 整理中...")
+        result = subprocess.run(
+            ['isort', 'backend/'],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        if result.returncode == 0:
+            print("[PR MODE] isort 完了")
+        else:
+            print(f"[PR MODE] isort 警告: {result.stderr}")
+    except Exception as e:
+        print(f"[PR MODE] isort エラー: {e}")
+
+    # 変更があるか確認
+    result = subprocess.run(
+        ['git', 'status', '--porcelain'],
+        capture_output=True,
+        text=True
+    )
+
+    if result.stdout.strip():
+        print("[PR MODE] Lint 修復により変更が発生しました")
+        print(result.stdout)
+        fixed = True
+    else:
+        print("[PR MODE] Lint エラーは検出されませんでした")
+
+    return fixed
+
+
+def main_pr_mode():
+    """PRモード（GitHub Actionsから呼び出し）"""
+    print("="*60)
+    print("[PR MODE] 自動修復開始")
+    print("="*60)
+
+    fixed = False
+
+    # 1. Import エラー修復
+    print("\n[STEP 1] Import エラー修復")
+    if os.path.exists('import_errors.log'):
+        fixed |= fix_import_errors('import_errors.log')
+    else:
+        print("[PR MODE] import_errors.log が存在しません（スキップ）")
+
+    # 2. Lint エラー修復
+    print("\n[STEP 2] Lint エラー修復")
+    fixed |= fix_lint_errors()
+
+    # 3. 結果報告
+    print("\n" + "="*60)
+    if fixed:
+        print("[PR MODE] ✅ 修復完了（変更あり）")
+        print("="*60)
+        sys.exit(0)
+    else:
+        print("[PR MODE] ℹ️  修復不要（変更なし）")
+        print("="*60)
+        sys.exit(1)
+
+
 def main():
     """メイン処理"""
     parser = argparse.ArgumentParser(description='エラー自動検知・自動修復デーモン')
@@ -642,8 +758,18 @@ def main():
         action='store_true',
         help='1回だけ検知サイクルを実行（デフォルト動作と互換）'
     )
+    parser.add_argument(
+        '--pr-mode',
+        action='store_true',
+        help='PR自動修復モード（GitHub Actions用）'
+    )
 
     args = parser.parse_args()
+
+    # PRモード
+    if args.pr_mode:
+        main_pr_mode()
+        return
 
     # デーモン起動
     daemon = AutoFixDaemon(
