@@ -275,6 +275,140 @@ class MicrosoftGraphClient:
         """
         return self._make_request("GET", f"/drives/{drive_id}/items/{item_id}")
 
+    def get_file_mime_type(self, drive_id: str, item_id: str) -> str:
+        """
+        ファイルMIMEタイプを取得
+
+        必要な権限: Files.Read.All
+
+        Args:
+            drive_id: ドライブID
+            item_id: ファイルID
+
+        Returns:
+            MIMEタイプ（例: "application/pdf"）
+        """
+        try:
+            metadata = self.get_file_metadata(drive_id, item_id)
+            mime_type = metadata.get("file", {}).get("mimeType", "application/octet-stream")
+            return mime_type
+        except Exception as e:
+            logger.error(f"MIMEタイプ取得エラー (drive_id={drive_id}, item_id={item_id}): {e}")
+            return "application/octet-stream"
+
+    def get_file_preview_url(self, drive_id: str, item_id: str) -> Dict[str, str]:
+        """
+        ファイルプレビューURLを取得
+
+        Office形式ファイル: Microsoft Graph Embed URL
+        画像ファイル: ダウンロードURL（preview_type="image"）
+        その他: ダウンロードURL（preview_type="download"）
+
+        必要な権限: Files.Read.All
+
+        Args:
+            drive_id: ドライブID
+            item_id: ファイルID
+
+        Returns:
+            {
+                "preview_url": "https://...",
+                "preview_type": "office_embed | download | image",
+                "mime_type": "application/pdf"
+            }
+        """
+        try:
+            # ファイルメタデータを取得
+            metadata = self.get_file_metadata(drive_id, item_id)
+            mime_type = metadata.get("file", {}).get("mimeType", "application/octet-stream")
+            file_name = metadata.get("name", "")
+            web_url = metadata.get("webUrl", "")
+
+            # Office形式ファイルの判定（拡張子ベース）
+            office_extensions = [".xlsx", ".docx", ".pptx", ".xlsm", ".docm", ".pptm"]
+            is_office = any(file_name.lower().endswith(ext) for ext in office_extensions)
+
+            # プレビュータイプとURLの決定
+            if is_office and web_url:
+                # Office形式: Microsoft Office Online Embedビューアー使用
+                preview_url = f"https://view.officeapps.live.com/op/embed.aspx?src={web_url}"
+                preview_type = "office_embed"
+            elif mime_type.startswith("image/"):
+                # 画像ファイル: ダウンロードURL使用
+                preview_url = f"{self.GRAPH_API_BASE}/drives/{drive_id}/items/{item_id}/content"
+                preview_type = "image"
+            else:
+                # その他: ダウンロードURL
+                preview_url = f"{self.GRAPH_API_BASE}/drives/{drive_id}/items/{item_id}/content"
+                preview_type = "download"
+
+            return {
+                "preview_url": preview_url,
+                "preview_type": preview_type,
+                "mime_type": mime_type
+            }
+
+        except Exception as e:
+            logger.error(f"プレビューURL取得エラー (drive_id={drive_id}, item_id={item_id}): {e}")
+            # エラー時はダウンロードURLを返す
+            return {
+                "preview_url": f"{self.GRAPH_API_BASE}/drives/{drive_id}/items/{item_id}/content",
+                "preview_type": "download",
+                "mime_type": "application/octet-stream"
+            }
+
+    def get_file_thumbnail(
+        self,
+        drive_id: str,
+        item_id: str,
+        size: str = "large"
+    ) -> Optional[bytes]:
+        """
+        ファイルサムネイルを取得
+
+        必要な権限: Files.Read.All
+
+        Args:
+            drive_id: ドライブID
+            item_id: ファイルID
+            size: サムネイルサイズ ("small" | "medium" | "large" | "c200x150")
+                  - small: 小サイズ（96x96）
+                  - medium: 中サイズ（176x176）
+                  - large: 大サイズ（800x800）
+                  - c{width}x{height}: カスタムサイズ（例: c200x150）
+
+        Returns:
+            サムネイル画像データ（bytes）またはNone（サムネイルが利用不可の場合）
+        """
+        if not REQUESTS_AVAILABLE:
+            raise ImportError("requests ライブラリがインストールされていません")
+
+        try:
+            token = self.get_access_token()
+            url = f"{self.GRAPH_API_BASE}/drives/{drive_id}/items/{item_id}/thumbnails/0/{size}/content"
+
+            headers = {"Authorization": f"Bearer {token}"}
+            response = requests.get(url, headers=headers, timeout=30)
+
+            # 404エラー（サムネイル利用不可）の場合はNoneを返す
+            if response.status_code == 404:
+                logger.info(f"サムネイル利用不可 (drive_id={drive_id}, item_id={item_id})")
+                return None
+
+            response.raise_for_status()
+            return response.content
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.info(f"サムネイル利用不可 (drive_id={drive_id}, item_id={item_id})")
+                return None
+            else:
+                logger.error(f"サムネイル取得エラー (drive_id={drive_id}, item_id={item_id}): {e}")
+                return None
+        except Exception as e:
+            logger.error(f"サムネイル取得エラー (drive_id={drive_id}, item_id={item_id}): {e}")
+            return None
+
     # =========================================================================
     # データ取得ヘルパー
     # =========================================================================

@@ -3,7 +3,7 @@
 JSONベース + JWT認証 + RBAC
 """
 
-from flask import Flask, jsonify, request, send_from_directory, redirect
+from flask import Flask, jsonify, request, send_from_directory, redirect, Response
 from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager,
@@ -2891,6 +2891,269 @@ def ms365_sync_status():
         return jsonify({
             "success": False,
             "error": {"code": "SERVER_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/files/<file_id>/preview", methods=["GET"])
+@jwt_required()
+@check_permission("ms365_sync.file.preview")
+def ms365_file_preview(file_id: str):
+    """
+    ファイルプレビューURLを取得
+
+    Query Parameters:
+        drive_id (required): ドライブID
+
+    Returns:
+        {
+            "success": True,
+            "data": {
+                "preview_url": "https://...",
+                "preview_type": "office_embed | download | image",
+                "mime_type": "application/pdf",
+                "file_name": "example.pdf",
+                "file_size": 1024
+            }
+        }
+    """
+    client = get_ms_graph_client()
+    if not client or not client.is_configured():
+        return jsonify({
+            "success": False,
+            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
+        }), 400
+
+    drive_id = request.args.get("drive_id")
+    if not drive_id:
+        return jsonify({
+            "success": False,
+            "error": {"code": "MISSING_PARAMETER", "message": "drive_id parameter is required"}
+        }), 400
+
+    try:
+        current_user_id = get_jwt_identity()
+
+        # プレビューURL取得
+        preview_info = client.get_file_preview_url(drive_id, file_id)
+
+        # ファイルメタデータ取得
+        metadata = client.get_file_metadata(drive_id, file_id)
+
+        # レスポンスデータ構築
+        response_data = {
+            **preview_info,
+            "file_name": metadata.get("name", ""),
+            "file_size": metadata.get("size", 0)
+        }
+
+        # 監査ログ記録
+        log_access(
+            current_user_id,
+            "ms365_file.preview",
+            "ms365_file",
+            file_id,
+            status="success",
+            details={
+                "drive_id": drive_id,
+                "file_name": response_data["file_name"],
+                "preview_type": preview_info["preview_type"]
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "data": response_data
+        })
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "PERMISSION_ERROR", "message": str(e)}
+        }), 403
+    except Exception as e:
+        current_user_id = get_jwt_identity()
+        log_access(
+            current_user_id,
+            "ms365_file.preview",
+            "ms365_file",
+            file_id,
+            status="failure",
+            details={"error": str(e), "drive_id": drive_id}
+        )
+        return jsonify({
+            "success": False,
+            "error": {"code": "API_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/files/<file_id>/download", methods=["GET"])
+@jwt_required()
+@check_permission("ms365_sync.file.preview")
+def ms365_file_download(file_id: str):
+    """
+    ファイルをダウンロード
+
+    Query Parameters:
+        drive_id (required): ドライブID
+
+    Returns:
+        ファイルコンテンツ（バイナリ）
+    """
+    client = get_ms_graph_client()
+    if not client or not client.is_configured():
+        return jsonify({
+            "success": False,
+            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
+        }), 400
+
+    drive_id = request.args.get("drive_id")
+    if not drive_id:
+        return jsonify({
+            "success": False,
+            "error": {"code": "MISSING_PARAMETER", "message": "drive_id parameter is required"}
+        }), 400
+
+    try:
+        current_user_id = get_jwt_identity()
+
+        # ファイルメタデータ取得
+        metadata = client.get_file_metadata(drive_id, file_id)
+        file_name = metadata.get("name", "download")
+        mime_type = metadata.get("file", {}).get("mimeType", "application/octet-stream")
+
+        # ファイルダウンロード
+        file_content = client.download_file(drive_id, file_id)
+
+        # 監査ログ記録
+        log_access(
+            current_user_id,
+            "ms365_file.download",
+            "ms365_file",
+            file_id,
+            status="success",
+            details={
+                "drive_id": drive_id,
+                "file_name": file_name,
+                "file_size": len(file_content)
+            }
+        )
+
+        # ファイルレスポンス作成
+        response = Response(file_content, mimetype=mime_type)
+        response.headers["Content-Disposition"] = f"attachment; filename={file_name}"
+        return response
+
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "PERMISSION_ERROR", "message": str(e)}
+        }), 403
+    except Exception as e:
+        current_user_id = get_jwt_identity()
+        log_access(
+            current_user_id,
+            "ms365_file.download",
+            "ms365_file",
+            file_id,
+            status="failure",
+            details={"error": str(e), "drive_id": drive_id}
+        )
+        return jsonify({
+            "success": False,
+            "error": {"code": "API_ERROR", "message": str(e)}
+        }), 500
+
+
+@app.route("/api/v1/integrations/microsoft365/files/<file_id>/thumbnail", methods=["GET"])
+@jwt_required()
+@check_permission("ms365_sync.file.preview")
+def ms365_file_thumbnail(file_id: str):
+    """
+    ファイルサムネイルを取得
+
+    Query Parameters:
+        drive_id (required): ドライブID
+        size (optional): サムネイルサイズ ("small" | "medium" | "large" | "c200x150")
+                        デフォルト: "large"
+
+    Returns:
+        サムネイル画像（image/jpeg）
+    """
+    client = get_ms_graph_client()
+    if not client or not client.is_configured():
+        return jsonify({
+            "success": False,
+            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
+        }), 400
+
+    drive_id = request.args.get("drive_id")
+    if not drive_id:
+        return jsonify({
+            "success": False,
+            "error": {"code": "MISSING_PARAMETER", "message": "drive_id parameter is required"}
+        }), 400
+
+    size = request.args.get("size", "large")
+
+    try:
+        current_user_id = get_jwt_identity()
+
+        # サムネイル取得
+        thumbnail_content = client.get_file_thumbnail(drive_id, file_id, size)
+
+        if thumbnail_content is None:
+            # サムネイル利用不可
+            log_access(
+                current_user_id,
+                "ms365_file.thumbnail",
+                "ms365_file",
+                file_id,
+                status="failure",
+                details={
+                    "drive_id": drive_id,
+                    "error": "Thumbnail not available"
+                }
+            )
+            return jsonify({
+                "success": False,
+                "error": {"code": "NOT_FOUND", "message": "Thumbnail not available for this file"}
+            }), 404
+
+        # 監査ログ記録
+        log_access(
+            current_user_id,
+            "ms365_file.thumbnail",
+            "ms365_file",
+            file_id,
+            status="success",
+            details={
+                "drive_id": drive_id,
+                "size": size,
+                "thumbnail_size": len(thumbnail_content)
+            }
+        )
+
+        # 画像レスポンス作成
+        response = Response(thumbnail_content, mimetype="image/jpeg")
+        return response
+
+    except PermissionError as e:
+        return jsonify({
+            "success": False,
+            "error": {"code": "PERMISSION_ERROR", "message": str(e)}
+        }), 403
+    except Exception as e:
+        current_user_id = get_jwt_identity()
+        log_access(
+            current_user_id,
+            "ms365_file.thumbnail",
+            "ms365_file",
+            file_id,
+            status="failure",
+            details={"error": str(e), "drive_id": drive_id}
+        )
+        return jsonify({
+            "success": False,
+            "error": {"code": "API_ERROR", "message": str(e)}
         }), 500
 
 

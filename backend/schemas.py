@@ -317,3 +317,37 @@ class MS365SyncConfigUpdateSchema(MS365SyncConfigCreateSchema):
     name = fields.Str(validate=validate.Length(min=1, max=200))
     site_id = fields.Str(validate=validate.Length(min=1, max=200))
     drive_id = fields.Str(validate=validate.Length(min=1, max=200))
+
+# ============================================================
+# MS365 File Preview Schemas (Phase D-4.2)
+# ============================================================
+
+class MS365FilePreviewSchema(Schema):
+    """MS365ファイルプレビューリクエスト検証"""
+    drive_id = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=200),
+        error_messages={'required': 'ドライブIDは必須です'}
+    )
+    file_id = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=200),
+        error_messages={'required': 'ファイルIDは必須です'}
+    )
+
+class MS365FileThumbnailSchema(Schema):
+    """MS365ファイルサムネイルリクエスト検証"""
+    drive_id = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=200),
+        error_messages={'required': 'ドライブIDは必須です'}
+    )
+    file_id = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=200),
+        error_messages={'required': 'ファイルIDは必須です'}
+    )
+    size = fields.Str(
+        validate=validate.OneOf(['small', 'medium', 'large', 'c200x150']),
+        load_default='large'
+    )
