@@ -136,8 +136,8 @@ def cache_set(key, value, ttl=CACHE_TTL):
         return
     try:
         redis_client.setex(key, ttl, json.dumps(value))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Redis cache write failed for key: %s - %s", key, str(e))
 
 
 # 推薦エンジンインスタンス
@@ -309,8 +309,8 @@ def get_local_ip_addresses():
             local_ip = s.getsockname()[0]
             ips.add(local_ip)
             s.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to determine local IP via 8.8.8.8 connection: %s", str(e))
 
         # 一般的なプライベートIPレンジのプレフィックス
         # 192.168.x.x, 10.x.x.x, 172.16-31.x.x
@@ -1021,8 +1021,8 @@ def log_access(
         try:
             jwt_data = get_jwt()
             session_id = jwt_data.get("jti", None)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("JWT not available for audit log - session_id will be None: %s", str(e))
 
         # resource_idの型チェック（INTEGER型のため）
         safe_resource_id = None
@@ -3557,8 +3557,8 @@ def get_recent_knowledge():
                     created_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                     if created_date >= cutoff_date:
                         recent_knowledge.append(k)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to parse created_at date for knowledge: %s - %s", k.get('id'), str(e))
 
         # 作成日時でソート
         sorted_knowledge = sorted(
@@ -3901,12 +3901,15 @@ def _send_teams_notification(notification):
     data = json.dumps(payload).encode("utf-8")
 
     def _post():
-        request_obj = urllib.request.Request(
-            webhook_url, data=data, headers={"Content-Type": "application/json"}
+        # Use requests library instead of urllib for better security
+        response = requests.post(
+            webhook_url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            timeout=10
         )
-        with urllib.request.urlopen(request_obj, timeout=10) as response:
-            if response.status not in (200, 201, 202):
-                raise RuntimeError(f"Teams webhook response: {response.status}")
+        if response.status_code not in (200, 201, 202):
+            raise RuntimeError(f"Teams webhook response: {response.status_code}")
 
     return _retry_operation(_post, "teams", max_attempts=_get_retry_count())
 
@@ -5750,10 +5753,11 @@ if __name__ == "__main__":
     print("=" * 60)
 
     debug = os.environ.get("MKS_DEBUG", "false").lower() in ("1", "true", "yes")
+    bind_host = os.environ.get("MKS_BIND_HOST", "0.0.0.0")  # Default: all interfaces (production: set to 127.0.0.1)
 
     # 全環境でsocketio.runを使用（WebSocket対応）
-    print("[SERVER] Using SocketIO server with WebSocket support")
-    socketio.run(app, host="0.0.0.0", port=http_port, debug=debug, allow_unsafe_werkzeug=True)
+    print(f"[SERVER] Using SocketIO server with WebSocket support (binding to {bind_host}:{http_port})")
+    socketio.run(app, host=bind_host, port=http_port, debug=debug, allow_unsafe_werkzeug=True)
 
 
 # ============================================================

@@ -3611,3 +3611,265 @@ if (window.innerWidth <= 768) {
 
 logger.log('[Responsive] Hamburger menu initialized');
 
+// ============================================================
+// MKSApp Namespace - グローバル汚染を防ぐ統一インターフェース
+// ============================================================
+
+/**
+ * Mirai Knowledge Systems統一Namespace
+ * 全ての公開APIをMKSApp配下に整理
+ */
+window.MKSApp = {
+  // ============================================================
+  // Core - 環境情報とロガー
+  // ============================================================
+  ENV: window.MKS_ENV,
+  logger: window.logger,
+
+  // ============================================================
+  // Auth - 認証・権限管理
+  // ============================================================
+  Auth: {
+    checkAuth,
+    logout,
+    getCurrentUser,
+    checkPermission,
+    hasPermission,
+    canEdit,
+    applyRBACUI
+  },
+
+  // ============================================================
+  // UI - ユーザーインターフェース操作
+  // ============================================================
+  UI: {
+    showNotification,
+    createToastContainer,
+    showEmptyState,
+    checkAndShowEmptyState,
+    displayUserInfo,
+    toggleSidebar,
+    toggleSection,
+    toggleMobileSidebar,
+    closeMobileSidebar
+  },
+
+  // ============================================================
+  // Search - 検索機能
+  // ============================================================
+  Search: {
+    performHeroSearch,
+    openSearchModal,
+    closeSearchModal,
+    resetSearchForm,
+    displaySearchResults,
+    setupSearch
+  },
+
+  // ============================================================
+  // Modal - モーダルダイアログ
+  // ============================================================
+  Modal: {
+    openNewKnowledgeModal,
+    closeNewKnowledgeModal,
+    openNewConsultModal,
+    closeNewConsultModalFallback,
+    openNotificationPanel,
+    closeNotificationPanel,
+    openSettingsPanel,
+    closeSettingsPanel,
+    closeMFASetupModal
+  },
+
+  // ============================================================
+  // Dashboard - ダッシュボード表示
+  // ============================================================
+  Dashboard: {
+    updateDashboardStats,
+    displayKnowledge,
+    displaySOPs,
+    displayIncidents,
+    displayApprovals,
+    displayNotifications,
+    updateNotificationBadge,
+    initDashboardCharts,
+    updateChartData,
+    openApprovalBox,
+    generateMorningSummary
+  },
+
+  // ============================================================
+  // Navigation - ページ遷移
+  // ============================================================
+  Navigation: {
+    viewKnowledgeDetail,
+    viewSOPDetail,
+    viewIncidentDetail,
+    viewConsultationDetail
+  },
+
+  // ============================================================
+  // Filter - フィルタリング機能
+  // ============================================================
+  Filter: {
+    filterKnowledgeByCategory,
+    filterProjectsByType,
+    filterExpertsByField,
+    filterByTag
+  },
+
+  // ============================================================
+  // Settings - 設定管理
+  // ============================================================
+  Settings: {
+    loadUserSettings,
+    submitNotificationSettings,
+    submitDisplaySettings
+  },
+
+  // ============================================================
+  // Utilities - ユーティリティ関数
+  // ============================================================
+  Utilities: {
+    createElement,
+    formatDate,
+    formatTime,
+    setupCardClickHandlers,
+    setupExpertClickHandlers,
+    setupSidePanelTabs,
+    setupEventListeners,
+    startPeriodicUpdates
+  },
+
+  // ============================================================
+  // Projects - プロジェクト管理
+  // ============================================================
+  Projects: {
+    toggleProjectDetail,
+    updateProjectProgress,
+    joinProjectRoom,
+    leaveProjectRoom
+  },
+
+  // ============================================================
+  // Experts - エキスパート機能
+  // ============================================================
+  Experts: {
+    consultExpert,
+    updateExpertStats,
+    updateDutyExperts,
+    setupExpertClickHandlers
+  },
+
+  // ============================================================
+  // Approval - 承認機能
+  // ============================================================
+  Approval: {
+    approveSelected,
+    rejectSelected
+  },
+
+  // ============================================================
+  // PWA - Progressive Web App機能
+  // ============================================================
+  PWA: {
+    FEATURES: window.PWA_FEATURES || {},
+    // PWAモジュールは動的に追加される（pwa/*.jsから）
+    // CacheManager: window.CacheManager,
+    // CryptoHelper: window.CryptoHelper,
+    // SyncManager: window.SyncManager,
+    // InstallPromptManager: window.InstallPromptManager
+    get CacheManager() { return window.CacheManager; },
+    get CryptoHelper() { return window.CryptoHelper; },
+    get SyncManager() { return window.SyncManager; },
+    get syncManager() { return window.syncManager; },
+    get InstallPromptManager() { return window.InstallPromptManager; },
+    get installPromptManager() { return window.installPromptManager; }
+  },
+
+  // ============================================================
+  // SocketIO - リアルタイム通信（将来実装）
+  // ============================================================
+  SocketIO: {
+    initSocketIO
+  }
+};
+
+// ============================================================
+// 互換性レイヤー - 既存コードのためのwindow.*エイリアス
+// ============================================================
+
+// Core
+window.checkAuth = checkAuth;
+window.logout = logout;
+window.getCurrentUser = getCurrentUser;
+window.checkPermission = checkPermission;
+window.hasPermission = hasPermission;
+window.canEdit = canEdit;
+window.applyRBACUI = applyRBACUI;
+
+// UI
+window.showNotification = showNotification;
+window.createToastContainer = createToastContainer;
+window.showEmptyState = showEmptyState;
+window.checkAndShowEmptyState = checkAndShowEmptyState;
+window.displayUserInfo = displayUserInfo;
+
+// Search
+window.setupSearch = setupSearch;
+window.displaySearchResults = displaySearchResults;
+
+// Dashboard
+window.updateDashboardStats = updateDashboardStats;
+window.displayKnowledge = displayKnowledge;
+window.displaySOPs = displaySOPs;
+window.displayIncidents = displayIncidents;
+window.displayApprovals = displayApprovals;
+window.displayNotifications = displayNotifications;
+window.updateNotificationBadge = updateNotificationBadge;
+window.initDashboardCharts = initDashboardCharts;
+window.updateChartData = updateChartData;
+window.openApprovalBox = openApprovalBox;
+window.generateMorningSummary = generateMorningSummary;
+
+// Navigation
+window.viewKnowledgeDetail = viewKnowledgeDetail;
+window.viewSOPDetail = viewSOPDetail;
+window.viewIncidentDetail = viewIncidentDetail;
+window.viewConsultationDetail = viewConsultationDetail;
+
+// Utilities
+window.createElement = createElement;
+window.formatDate = formatDate;
+window.formatTime = formatTime;
+window.setupCardClickHandlers = setupCardClickHandlers;
+window.setupExpertClickHandlers = setupExpertClickHandlers;
+window.setupSidePanelTabs = setupSidePanelTabs;
+window.setupEventListeners = setupEventListeners;
+window.startPeriodicUpdates = startPeriodicUpdates;
+
+// Projects
+window.toggleProjectDetail = toggleProjectDetail;
+window.updateProjectProgress = updateProjectProgress;
+window.joinProjectRoom = joinProjectRoom;
+window.leaveProjectRoom = leaveProjectRoom;
+
+// Experts
+window.consultExpert = consultExpert;
+window.updateExpertStats = updateExpertStats;
+window.updateDutyExperts = updateDutyExperts;
+
+// Settings
+window.loadUserSettings = loadUserSettings;
+window.submitNotificationSettings = submitNotificationSettings;
+window.submitDisplaySettings = submitDisplaySettings;
+
+// Filter
+window.filterByTag = filterByTag;
+
+// SocketIO
+window.initSocketIO = initSocketIO;
+
+logger.log('[MKSApp] Namespace initialized with', Object.keys(window.MKSApp).length, 'modules');
+logger.log('[MKSApp] Compatibility layer enabled for existing code');
+
