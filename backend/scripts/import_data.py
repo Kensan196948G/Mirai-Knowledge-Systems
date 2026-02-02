@@ -18,13 +18,13 @@
     knowledge, sop, regulations, incidents, consultations
 """
 
-import os
-import sys
-import json
 import argparse
 import csv
-from datetime import datetime, date
-from typing import Dict, List, Any, Optional
+import json
+import os
+import sys
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
 
 # 親ディレクトリをパスに追加
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,28 +45,47 @@ class DataImporter:
         "knowledge": {
             "required": ["title", "summary", "category", "owner"],
             "optional": ["content", "tags", "status", "priority", "project"],
-            "defaults": {"status": "draft", "priority": "medium"}
+            "defaults": {"status": "draft", "priority": "medium"},
         },
         "sop": {
             "required": ["title", "category", "version", "revision_date", "content"],
             "optional": ["target", "tags", "status", "attachments"],
-            "defaults": {"status": "active"}
+            "defaults": {"status": "active"},
         },
         "regulations": {
             "required": ["title", "issuer", "category", "revision_date", "summary"],
-            "optional": ["content", "applicable_scope", "status", "effective_date", "url"],
-            "defaults": {"status": "active"}
+            "optional": [
+                "content",
+                "applicable_scope",
+                "status",
+                "effective_date",
+                "url",
+            ],
+            "defaults": {"status": "active"},
         },
         "incidents": {
-            "required": ["title", "description", "project", "incident_date", "severity"],
-            "optional": ["status", "corrective_actions", "root_cause", "tags", "location", "involved_parties"],
-            "defaults": {"status": "reported"}
+            "required": [
+                "title",
+                "description",
+                "project",
+                "incident_date",
+                "severity",
+            ],
+            "optional": [
+                "status",
+                "corrective_actions",
+                "root_cause",
+                "tags",
+                "location",
+                "involved_parties",
+            ],
+            "defaults": {"status": "reported"},
         },
         "consultations": {
             "required": ["title", "question", "category"],
             "optional": ["priority", "status", "answer", "answered_at"],
-            "defaults": {"status": "pending", "priority": "medium"}
-        }
+            "defaults": {"status": "pending", "priority": "medium"},
+        },
     }
 
     def __init__(self, database_url: str, dry_run: bool = False, verbose: bool = False):
@@ -120,7 +139,9 @@ class DataImporter:
         try:
             import pandas as pd
         except ImportError:
-            raise ImportError("pandas and openpyxl required. Install: pip install pandas openpyxl")
+            raise ImportError(
+                "pandas and openpyxl required. Install: pip install pandas openpyxl"
+            )
 
         self.log(f"Excelファイルを読み込み中: {filepath}")
 
@@ -164,7 +185,11 @@ class DataImporter:
 
         # 必須フィールドチェック
         for field in schema["required"]:
-            if field not in record or record[field] is None or str(record[field]).strip() == "":
+            if (
+                field not in record
+                or record[field] is None
+                or str(record[field]).strip() == ""
+            ):
                 errors.append(f"必須フィールドがありません: {field}")
 
         return len(errors) == 0, errors
@@ -180,7 +205,12 @@ class DataImporter:
                 record[key] = default_value
 
         # 日付フィールドの変換
-        date_fields = ["revision_date", "incident_date", "effective_date", "answered_at"]
+        date_fields = [
+            "revision_date",
+            "incident_date",
+            "effective_date",
+            "answered_at",
+        ]
         for field in date_fields:
             if field in record and record[field]:
                 record[field] = self.parse_date(record[field])
@@ -243,7 +273,9 @@ class DataImporter:
         all_fields = schema.get("required", []) + schema.get("optional", [])
 
         # 有効なフィールドのみ抽出
-        insert_data = {k: v for k, v in record.items() if k in all_fields and v is not None}
+        insert_data = {
+            k: v for k, v in record.items() if k in all_fields and v is not None
+        }
 
         # タイムスタンプ追加
         insert_data["created_at"] = datetime.now()
@@ -262,7 +294,9 @@ class DataImporter:
             self.log(f"挿入エラー: {e}", "ERROR")
             return False
 
-    def import_file(self, source: str, target: str, sheet_name: Optional[str] = None) -> Dict:
+    def import_file(
+        self, source: str, target: str, sheet_name: Optional[str] = None
+    ) -> Dict:
         """ファイルをインポート"""
         self.log("=" * 60)
         self.log(f"インポート開始: {source} → {target}")
@@ -287,11 +321,7 @@ class DataImporter:
 
             if not is_valid:
                 self.error_count += 1
-                self.errors.append({
-                    "row": i,
-                    "errors": errors,
-                    "data": record
-                })
+                self.errors.append({"row": i, "errors": errors, "data": record})
                 self.log(f"行 {i}: バリデーションエラー - {errors}", "WARN")
                 continue
 
@@ -323,7 +353,7 @@ class DataImporter:
         return {
             "imported": self.imported_count,
             "errors": self.error_count,
-            "error_details": self.errors
+            "error_details": self.errors,
         }
 
     def close(self):
@@ -348,34 +378,23 @@ def main():
 
     # ドライラン（実際にはインポートしない）
     python scripts/import_data.py --source data/test.csv --target knowledge --dry-run
-        """
+        """,
     )
 
     parser.add_argument(
-        "--source",
-        required=True,
-        help="インポート元ファイルパス（CSV, Excel, JSON）"
+        "--source", required=True, help="インポート元ファイルパス（CSV, Excel, JSON）"
     )
     parser.add_argument(
         "--target",
         required=True,
         choices=["knowledge", "sop", "regulations", "incidents", "consultations"],
-        help="インポート先テーブル"
+        help="インポート先テーブル",
     )
+    parser.add_argument("--sheet", help="Excelシート名（省略時は最初のシート）")
     parser.add_argument(
-        "--sheet",
-        help="Excelシート名（省略時は最初のシート）"
+        "--dry-run", action="store_true", help="ドライラン（実際にはインポートしない）"
     )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="ドライラン（実際にはインポートしない）"
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="詳細ログ出力"
-    )
+    parser.add_argument("--verbose", action="store_true", help="詳細ログ出力")
 
     args = parser.parse_args()
 
@@ -387,21 +406,17 @@ def main():
     # データベースURL取得
     database_url = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:ELzion1969@localhost:5432/mirai_knowledge_db"
+        "postgresql://postgres:ELzion1969@localhost:5432/mirai_knowledge_db",
     )
 
     # インポート実行
     importer = DataImporter(
-        database_url=database_url,
-        dry_run=args.dry_run,
-        verbose=args.verbose
+        database_url=database_url, dry_run=args.dry_run, verbose=args.verbose
     )
 
     try:
         result = importer.import_file(
-            source=args.source,
-            target=args.target,
-            sheet_name=args.sheet
+            source=args.source, target=args.target, sheet_name=args.sheet
         )
 
         # エラー詳細出力

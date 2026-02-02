@@ -3,6 +3,7 @@
 
 エラーハンドラーの詳細な振る舞いをテスト
 """
+
 import pytest
 from marshmallow import ValidationError
 
@@ -19,19 +20,19 @@ class TestValidationErrorHandlerExtended:
         - 適切なエラーメッセージが返される
         """
         response = client.post(
-            '/api/v1/auth/login',
-            json={'username': 'testuser'}  # passwordフィールドなし
+            "/api/v1/auth/login",
+            json={"username": "testuser"},  # passwordフィールドなし
         )
 
         assert response.status_code == 400
         data = response.get_json()
 
         # エラーレスポンス形式の確認
-        assert 'error' in data or 'errors' in data or 'message' in data
+        assert "error" in data or "errors" in data or "message" in data
 
         # エラーメッセージに「password」または「パスワード」が含まれることを確認
         response_str = str(data).lower()
-        assert 'password' in response_str or 'パスワード' in response_str
+        assert "password" in response_str or "パスワード" in response_str
 
     def test_validation_error_handler_login_empty_password(self, client):
         """
@@ -42,15 +43,16 @@ class TestValidationErrorHandlerExtended:
         - 空文字が拒否される
         """
         response = client.post(
-            '/api/v1/auth/login',
-            json={'username': 'testuser', 'password': ''}
+            "/api/v1/auth/login", json={"username": "testuser", "password": ""}
         )
 
         assert response.status_code == 400
         data = response.get_json()
-        assert 'error' in data or 'errors' in data or 'message' in data
+        assert "error" in data or "errors" in data or "message" in data
 
-    def test_validation_error_handler_knowledge_invalid_category(self, client, auth_headers):
+    def test_validation_error_handler_knowledge_invalid_category(
+        self, client, auth_headers
+    ):
         """
         ナレッジ作成時に無効なカテゴリを指定した場合のバリデーションエラーを確認
 
@@ -59,27 +61,29 @@ class TestValidationErrorHandlerExtended:
         - OneOf制約が正しく適用される
         """
         response = client.post(
-            '/api/v1/knowledge',
+            "/api/v1/knowledge",
             json={
-                'title': '有効なタイトル',
-                'summary': '有効な概要',
-                'content': '有効なコンテンツ',
-                'category': '無効なカテゴリ'  # OneOf制約に違反
+                "title": "有効なタイトル",
+                "summary": "有効な概要",
+                "content": "有効なコンテンツ",
+                "category": "無効なカテゴリ",  # OneOf制約に違反
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 400
         data = response.get_json()
 
         # バリデーションエラーの詳細が含まれる
-        assert 'error' in data or 'errors' in data
+        assert "error" in data or "errors" in data
 
         # エラーメッセージにカテゴリ関連の情報が含まれる
         response_str = str(data).lower()
-        assert 'category' in response_str or 'カテゴリ' in response_str
+        assert "category" in response_str or "カテゴリ" in response_str
 
-    def test_validation_error_handler_knowledge_missing_required_fields(self, client, auth_headers):
+    def test_validation_error_handler_knowledge_missing_required_fields(
+        self, client, auth_headers
+    ):
         """
         ナレッジ作成時に複数の必須フィールドが欠けている場合のエラーを確認
 
@@ -88,26 +92,28 @@ class TestValidationErrorHandlerExtended:
         - エラーレスポンスにすべての問題が含まれる
         """
         response = client.post(
-            '/api/v1/knowledge',
+            "/api/v1/knowledge",
             json={
-                'title': 'タイトルのみ'
+                "title": "タイトルのみ"
                 # summary, content, category が欠けている
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 400
         data = response.get_json()
 
         # バリデーションエラーが返される
-        assert 'error' in data or 'errors' in data
+        assert "error" in data or "errors" in data
 
         # 複数のフィールドに関するエラーが含まれる可能性がある
-        if 'error' in data and 'details' in data['error']:
-            details = data['error']['details']
+        if "error" in data and "details" in data["error"]:
+            details = data["error"]["details"]
             assert isinstance(details, dict)
 
-    def test_validation_error_handler_knowledge_title_too_long(self, client, auth_headers):
+    def test_validation_error_handler_knowledge_title_too_long(
+        self, client, auth_headers
+    ):
         """
         ナレッジ作成時にタイトルが最大長を超える場合のエラーを確認
 
@@ -116,19 +122,19 @@ class TestValidationErrorHandlerExtended:
         - 適切なエラーメッセージが返される
         """
         response = client.post(
-            '/api/v1/knowledge',
+            "/api/v1/knowledge",
             json={
-                'title': 'A' * 201,  # 最大長200を超える
-                'summary': '有効な概要',
-                'content': '有効なコンテンツ',
-                'category': '施工計画'
+                "title": "A" * 201,  # 最大長200を超える
+                "summary": "有効な概要",
+                "content": "有効なコンテンツ",
+                "category": "施工計画",
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 400
         data = response.get_json()
-        assert 'error' in data or 'errors' in data
+        assert "error" in data or "errors" in data
 
 
 class TestBadRequestHandlerExtended:
@@ -143,16 +149,16 @@ class TestBadRequestHandlerExtended:
         - 400 Bad Requestが返される
         """
         response = client.post(
-            '/api/v1/knowledge',
+            "/api/v1/knowledge",
             data='{"title": "test", invalid json}',  # 不正なJSON
-            headers={**auth_headers, 'Content-Type': 'application/json'}
+            headers={**auth_headers, "Content-Type": "application/json"},
         )
 
         assert response.status_code == 400
         data = response.get_json()
 
         # エラーレスポンスが返される
-        assert 'error' in data or 'message' in data
+        assert "error" in data or "message" in data
 
     def test_bad_request_empty_body(self, client, auth_headers):
         """
@@ -163,9 +169,9 @@ class TestBadRequestHandlerExtended:
         - 400エラーまたはバリデーションエラーが返される
         """
         response = client.post(
-            '/api/v1/knowledge',
-            data='',
-            headers={**auth_headers, 'Content-Type': 'application/json'}
+            "/api/v1/knowledge",
+            data="",
+            headers={**auth_headers, "Content-Type": "application/json"},
         )
 
         # 400または422エラー
@@ -180,9 +186,9 @@ class TestBadRequestHandlerExtended:
         - 適切なエラーメッセージが返される
         """
         response = client.post(
-            '/api/v1/knowledge',
+            "/api/v1/knowledge",
             json=[1, 2, 3],  # 配列（オブジェクトではない）
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code in [400, 422]
@@ -200,9 +206,12 @@ class TestUnsupportedMediaTypeHandler:
         - 415 Unsupported Media Typeが返される（または500内部エラー）
         """
         response = client.post(
-            '/api/v1/knowledge',
-            data='title=test&summary=test',  # x-www-form-urlencoded
-            headers={**auth_headers, 'Content-Type': 'application/x-www-form-urlencoded'}
+            "/api/v1/knowledge",
+            data="title=test&summary=test",  # x-www-form-urlencoded
+            headers={
+                **auth_headers,
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
         )
 
         # 415、400または500エラー（実装によって異なる）
@@ -218,9 +227,9 @@ class TestUnsupportedMediaTypeHandler:
         - 適切なエラーメッセージが返される
         """
         response = client.post(
-            '/api/v1/knowledge',
-            data='<xml><title>test</title></xml>',
-            headers={**auth_headers, 'Content-Type': 'application/xml'}
+            "/api/v1/knowledge",
+            data="<xml><title>test</title></xml>",
+            headers={**auth_headers, "Content-Type": "application/xml"},
         )
 
         # 415、400または500エラー
@@ -229,7 +238,7 @@ class TestUnsupportedMediaTypeHandler:
 
         # エラーレスポンスが返される
         if data:  # 500エラーの場合もJSONが返される可能性
-            assert 'error' in data or 'message' in data
+            assert "error" in data or "message" in data
 
     def test_unsupported_media_type_missing_content_type(self, client, auth_headers):
         """
@@ -241,13 +250,13 @@ class TestUnsupportedMediaTypeHandler:
         """
         # Content-Typeヘッダーなしでリクエスト
         headers_without_content_type = {
-            k: v for k, v in auth_headers.items() if k.lower() != 'content-type'
+            k: v for k, v in auth_headers.items() if k.lower() != "content-type"
         }
 
         response = client.post(
-            '/api/v1/knowledge',
+            "/api/v1/knowledge",
             data='{"title": "test"}',
-            headers=headers_without_content_type
+            headers=headers_without_content_type,
         )
 
         # 実装によって異なる（400, 415, 500, または正常処理）
@@ -266,16 +275,16 @@ class TestErrorResponseFormat:
         - クライアント側での統一的なエラー処理が可能
         """
         # 404エラー
-        response_404 = client.get('/api/v1/nonexistent')
+        response_404 = client.get("/api/v1/nonexistent")
         data_404 = response_404.get_json()
 
         # エラーレスポンスにはerrorキーまたはmessageキーが含まれる
-        assert 'error' in data_404 or 'message' in data_404
+        assert "error" in data_404 or "message" in data_404
 
         # 401エラー（認証なし）
-        response_401 = client.get('/api/v1/knowledge')
+        response_401 = client.get("/api/v1/knowledge")
         data_401 = response_401.get_json()
-        assert 'error' in data_401 or 'message' in data_401 or 'msg' in data_401
+        assert "error" in data_401 or "message" in data_401 or "msg" in data_401
 
     def test_validation_error_response_includes_details(self, client, auth_headers):
         """
@@ -286,14 +295,14 @@ class TestErrorResponseFormat:
         - エラー詳細が構造化されている
         """
         response = client.post(
-            '/api/v1/knowledge',
+            "/api/v1/knowledge",
             json={
-                'title': '',  # 空文字（バリデーション違反）
-                'summary': 'テスト',
-                'content': 'テスト',
-                'category': '施工計画'
+                "title": "",  # 空文字（バリデーション違反）
+                "summary": "テスト",
+                "content": "テスト",
+                "category": "施工計画",
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 400
@@ -301,7 +310,7 @@ class TestErrorResponseFormat:
 
         # エラー詳細が含まれる（実装依存）
         assert isinstance(data, dict)
-        assert 'error' in data or 'errors' in data or 'message' in data
+        assert "error" in data or "errors" in data or "message" in data
 
     def test_error_codes_are_meaningful(self, client, auth_headers):
         """
@@ -313,13 +322,13 @@ class TestErrorResponseFormat:
         """
         # バリデーションエラー
         response = client.post(
-            '/api/v1/knowledge',
-            json={'title': 'テストのみ'},  # 必須フィールド欠落
-            headers=auth_headers
+            "/api/v1/knowledge",
+            json={"title": "テストのみ"},  # 必須フィールド欠落
+            headers=auth_headers,
         )
 
         data = response.get_json()
 
         # エラーコードが含まれる（実装依存）
-        if 'error' in data and isinstance(data['error'], dict):
-            assert 'code' in data['error'] or 'message' in data['error']
+        if "error" in data and isinstance(data["error"], dict):
+            assert "code" in data["error"] or "message" in data["error"]

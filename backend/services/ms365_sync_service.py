@@ -6,24 +6,22 @@ SharePoint/OneDriveからのファイル同期機能を提供
 
 import hashlib
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
 import time
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from integrations.microsoft_graph import MicrosoftGraphClient
 from data_access import DataAccessLayer
-from models import MS365SyncConfig, MS365SyncHistory, MS365FileMapping, Knowledge
+from integrations.microsoft_graph import MicrosoftGraphClient
+from models import (Knowledge, MS365FileMapping, MS365SyncConfig,
+                    MS365SyncHistory)
 
 logger = logging.getLogger(__name__)
 
 # Prometheusメトリクス（app_v2.pyから参照）
 try:
-    from app_v2 import (
-        MS365_SYNC_EXECUTIONS,
-        MS365_SYNC_DURATION,
-        MS365_FILES_PROCESSED,
-        MS365_SYNC_ERRORS
-    )
+    from app_v2 import (MS365_FILES_PROCESSED, MS365_SYNC_DURATION,
+                        MS365_SYNC_ERRORS, MS365_SYNC_EXECUTIONS)
+
     METRICS_AVAILABLE = True
 except ImportError:
     METRICS_AVAILABLE = False
@@ -58,7 +56,7 @@ class MS365SyncService:
         self,
         config_id: int,
         triggered_by: str = "scheduler",
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         同期設定に基づいて同期を実行
@@ -99,17 +97,23 @@ class MS365SyncService:
 
         try:
             # ファイル一覧取得
-            logger.info(f"[Sync {history_id}] ファイル一覧取得開始: site={config['site_id']}, drive={config['drive_id']}")
+            logger.info(
+                f"[Sync {history_id}] ファイル一覧取得開始: site={config['site_id']}, drive={config['drive_id']}"
+            )
             files = self.discover_files(config)
             logger.info(f"[Sync {history_id}] {len(files)} 件のファイルを検出")
 
             # 変更検出（増分同期の場合）
             if config.get("sync_strategy") == "incremental":
                 files_to_process = self.detect_changes(files, config_id)
-                logger.info(f"[Sync {history_id}] 増分同期: {len(files_to_process)} 件を処理対象として検出")
+                logger.info(
+                    f"[Sync {history_id}] 増分同期: {len(files_to_process)} 件を処理対象として検出"
+                )
             else:
                 files_to_process = files
-                logger.info(f"[Sync {history_id}] 全件同期: {len(files_to_process)} 件を処理")
+                logger.info(
+                    f"[Sync {history_id}] 全件同期: {len(files_to_process)} 件を処理"
+                )
 
             # ファイル毎の処理
             for file_info in files_to_process:
@@ -125,12 +129,13 @@ class MS365SyncService:
                         stats["files_skipped"] += 1
 
                 except Exception as e:
-                    logger.error(f"[Sync {history_id}] ファイル処理エラー: {file_info.get('name')}: {e}")
+                    logger.error(
+                        f"[Sync {history_id}] ファイル処理エラー: {file_info.get('name')}: {e}"
+                    )
                     stats["files_failed"] += 1
-                    stats["errors"].append({
-                        "file": file_info.get("name"),
-                        "error": str(e)
-                    })
+                    stats["errors"].append(
+                        {"file": file_info.get("name"), "error": str(e)}
+                    )
 
             # 同期完了
             sync_completed = datetime.utcnow()
@@ -142,7 +147,7 @@ class MS365SyncService:
                 status="completed",
                 sync_completed_at=sync_completed,
                 execution_time_seconds=execution_time,
-                **{k: v for k, v in stats.items() if k != "errors"}
+                **{k: v for k, v in stats.items() if k != "errors"},
             )
 
             # 次回同期時刻計算
@@ -153,18 +158,30 @@ class MS365SyncService:
             # Prometheusメトリクス記録
             if METRICS_AVAILABLE:
                 config_id_str = str(config_id)
-                MS365_SYNC_EXECUTIONS.labels(config_id=config_id_str, status='success').inc()
-                MS365_SYNC_DURATION.labels(config_id=config_id_str).observe(execution_time)
-                MS365_FILES_PROCESSED.labels(config_id=config_id_str, result='created').inc(stats['files_created'])
-                MS365_FILES_PROCESSED.labels(config_id=config_id_str, result='updated').inc(stats['files_updated'])
-                MS365_FILES_PROCESSED.labels(config_id=config_id_str, result='skipped').inc(stats['files_skipped'])
-                MS365_FILES_PROCESSED.labels(config_id=config_id_str, result='failed').inc(stats['files_failed'])
+                MS365_SYNC_EXECUTIONS.labels(
+                    config_id=config_id_str, status="success"
+                ).inc()
+                MS365_SYNC_DURATION.labels(config_id=config_id_str).observe(
+                    execution_time
+                )
+                MS365_FILES_PROCESSED.labels(
+                    config_id=config_id_str, result="created"
+                ).inc(stats["files_created"])
+                MS365_FILES_PROCESSED.labels(
+                    config_id=config_id_str, result="updated"
+                ).inc(stats["files_updated"])
+                MS365_FILES_PROCESSED.labels(
+                    config_id=config_id_str, result="skipped"
+                ).inc(stats["files_skipped"])
+                MS365_FILES_PROCESSED.labels(
+                    config_id=config_id_str, result="failed"
+                ).inc(stats["files_failed"])
 
             return {
                 "history_id": history_id,
                 "status": "completed",
                 "execution_time_seconds": execution_time,
-                **stats
+                **stats,
             }
 
         except Exception as e:
@@ -179,28 +196,42 @@ class MS365SyncService:
                 sync_completed_at=sync_completed,
                 execution_time_seconds=execution_time,
                 error_message=str(e),
-                error_details={"errors": stats.get("errors", [])}
+                error_details={"errors": stats.get("errors", [])},
             )
 
             # Prometheusメトリクス記録（失敗）
             if METRICS_AVAILABLE:
                 config_id_str = str(config_id)
-                MS365_SYNC_EXECUTIONS.labels(config_id=config_id_str, status='failed').inc()
-                MS365_SYNC_DURATION.labels(config_id=config_id_str).observe(execution_time)
+                MS365_SYNC_EXECUTIONS.labels(
+                    config_id=config_id_str, status="failed"
+                ).inc()
+                MS365_SYNC_DURATION.labels(config_id=config_id_str).observe(
+                    execution_time
+                )
 
                 # エラータイプの判定
-                error_type = 'unknown'
+                error_type = "unknown"
                 error_str = str(e).lower()
-                if 'network' in error_str or 'connection' in error_str or 'timeout' in error_str:
-                    error_type = 'network'
-                elif 'auth' in error_str or 'token' in error_str or 'permission' in error_str:
-                    error_type = 'authentication'
-                elif 'not found' in error_str or '404' in error_str:
-                    error_type = 'not_found'
-                elif 'rate limit' in error_str or '429' in error_str:
-                    error_type = 'rate_limit'
+                if (
+                    "network" in error_str
+                    or "connection" in error_str
+                    or "timeout" in error_str
+                ):
+                    error_type = "network"
+                elif (
+                    "auth" in error_str
+                    or "token" in error_str
+                    or "permission" in error_str
+                ):
+                    error_type = "authentication"
+                elif "not found" in error_str or "404" in error_str:
+                    error_type = "not_found"
+                elif "rate limit" in error_str or "429" in error_str:
+                    error_type = "rate_limit"
 
-                MS365_SYNC_ERRORS.labels(config_id=config_id_str, error_type=error_type).inc()
+                MS365_SYNC_ERRORS.labels(
+                    config_id=config_id_str, error_type=error_type
+                ).inc()
 
             raise
 
@@ -232,7 +263,10 @@ class MS365SyncService:
                 # 拡張子フィルタ
                 if file_extensions:
                     file_name = item.get("name", "")
-                    if not any(file_name.lower().endswith(f".{ext.lower().lstrip('.')}") for ext in file_extensions):
+                    if not any(
+                        file_name.lower().endswith(f".{ext.lower().lstrip('.')}")
+                        for ext in file_extensions
+                    ):
                         continue
 
                 files.append(item)
@@ -273,12 +307,16 @@ class MS365SyncService:
             existing = existing_file_ids[file_id]
             if modified_at_str and existing.get("sharepoint_modified_at"):
                 try:
-                    modified_at = datetime.fromisoformat(modified_at_str.replace("Z", "+00:00"))
+                    modified_at = datetime.fromisoformat(
+                        modified_at_str.replace("Z", "+00:00")
+                    )
                     existing_modified = existing["sharepoint_modified_at"]
 
                     # SharePointの更新日時が新しい場合
                     if isinstance(existing_modified, str):
-                        existing_modified = datetime.fromisoformat(existing_modified.replace("Z", "+00:00"))
+                        existing_modified = datetime.fromisoformat(
+                            existing_modified.replace("Z", "+00:00")
+                        )
 
                     if modified_at > existing_modified:
                         changed_files.append(file_info)
@@ -287,14 +325,13 @@ class MS365SyncService:
                     # エラー時は再同期
                     changed_files.append(file_info)
 
-        logger.info(f"変更検出: {len(files)} 件中 {len(changed_files)} 件が変更されています")
+        logger.info(
+            f"変更検出: {len(files)} 件中 {len(changed_files)} 件が変更されています"
+        )
         return changed_files
 
     def _process_file(
-        self,
-        file_info: Dict,
-        config: Dict,
-        config_id: int
+        self, file_info: Dict, config: Dict, config_id: int
     ) -> Dict[str, str]:
         """
         ファイルを処理（ダウンロード→メタデータ抽出→ナレッジ作成/更新）
@@ -346,17 +383,16 @@ class MS365SyncService:
             file_id=file_id,
             file_info=file_info,
             knowledge_id=knowledge_id,
-            checksum=checksum
+            checksum=checksum,
         )
 
-        logger.info(f"ファイル処理完了: {file_name} → Knowledge#{knowledge_id} ({action})")
+        logger.info(
+            f"ファイル処理完了: {file_name} → Knowledge#{knowledge_id} ({action})"
+        )
         return {"action": action, "knowledge_id": knowledge_id}
 
     def _download_file_with_retry(
-        self,
-        drive_id: str,
-        item_id: str,
-        max_retries: int = 3
+        self, drive_id: str, item_id: str, max_retries: int = 3
     ) -> bytes:
         """
         ファイルダウンロード（リトライ付き）
@@ -374,8 +410,10 @@ class MS365SyncService:
                 return self.graph_client.download_file(drive_id, item_id)
             except Exception as e:
                 if attempt < max_retries:
-                    wait_time = 2 ** attempt  # 指数バックオフ: 2, 4, 8秒
-                    logger.warning(f"ダウンロード失敗（試行{attempt}/{max_retries}）: {e}。{wait_time}秒後にリトライ...")
+                    wait_time = 2**attempt  # 指数バックオフ: 2, 4, 8秒
+                    logger.warning(
+                        f"ダウンロード失敗（試行{attempt}/{max_retries}）: {e}。{wait_time}秒後にリトライ..."
+                    )
                     time.sleep(wait_time)
                 else:
                     logger.error(f"ダウンロード失敗（最大リトライ回数超過）: {e}")
@@ -394,9 +432,7 @@ class MS365SyncService:
         return hashlib.sha256(content).hexdigest()
 
     def _extract_basic_metadata(
-        self,
-        file_info: Dict,
-        file_content: bytes
+        self, file_info: Dict, file_content: bytes
     ) -> Dict[str, Any]:
         """
         基本的なメタデータを抽出（簡易版）
@@ -409,7 +445,9 @@ class MS365SyncService:
             ナレッジレコード用のメタデータ
         """
         file_name = file_info.get("name", "")
-        created_by = file_info.get("createdBy", {}).get("user", {}).get("displayName", "不明")
+        created_by = (
+            file_info.get("createdBy", {}).get("user", {}).get("displayName", "不明")
+        )
 
         # 基本メタデータ
         metadata = {
@@ -469,7 +507,7 @@ class MS365SyncService:
         config_id: int,
         triggered_by: str,
         user_id: Optional[int],
-        status: str = "running"
+        status: str = "running",
     ) -> int:
         """
         同期履歴レコードを作成
@@ -517,7 +555,7 @@ class MS365SyncService:
         file_id: str,
         file_info: Dict,
         knowledge_id: int,
-        checksum: str
+        checksum: str,
     ):
         """
         ファイルマッピングを作成/更新
@@ -574,10 +612,13 @@ class MS365SyncService:
         # 暫定: 24時間後
         next_sync = datetime.utcnow() + timedelta(hours=24)
 
-        self.dal.update_ms365_sync_config(config_id, {
-            "last_sync_at": datetime.utcnow().isoformat(),
-            "next_sync_at": next_sync.isoformat()
-        })
+        self.dal.update_ms365_sync_config(
+            config_id,
+            {
+                "last_sync_at": datetime.utcnow().isoformat(),
+                "next_sync_at": next_sync.isoformat(),
+            },
+        )
 
     def test_connection(self, config_id: int) -> Dict[str, Any]:
         """
@@ -592,14 +633,14 @@ class MS365SyncService:
         if not self.graph_client or not self.graph_client.is_configured():
             return {
                 "success": False,
-                "error": "Microsoft Graph API が設定されていません"
+                "error": "Microsoft Graph API が設定されていません",
             }
 
         config = self._get_sync_config(config_id)
         if not config:
             return {
                 "success": False,
-                "error": f"同期設定ID {config_id} が見つかりません"
+                "error": f"同期設定ID {config_id} が見つかりません",
             }
 
         try:
@@ -609,7 +650,7 @@ class MS365SyncService:
                 return {
                     "success": False,
                     "error": "Graph API接続失敗",
-                    "details": org_test
+                    "details": org_test,
                 }
 
             # ファイル一覧取得テスト
@@ -620,12 +661,9 @@ class MS365SyncService:
                 "message": "接続テスト成功",
                 "organization": org_test.get("organization"),
                 "files_found": len(files),
-                "sample_files": files[:5]  # 最初の5件をサンプル表示
+                "sample_files": files[:5],  # 最初の5件をサンプル表示
             }
 
         except Exception as e:
             logger.error(f"接続テストエラー: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}

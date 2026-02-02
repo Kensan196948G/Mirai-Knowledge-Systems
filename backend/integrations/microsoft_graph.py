@@ -18,24 +18,28 @@ Microsoft Graph API 連携モジュール
 参考: https://learn.microsoft.com/en-us/graph/auth-v2-service
 """
 
-import os
 import json
 import logging
-from typing import Optional, Dict, List, Any
+import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # オプションの依存関係を遅延インポート
 try:
-    from azure.identity import ClientSecretCredential, CertificateCredential
+    from azure.identity import CertificateCredential, ClientSecretCredential
+
     AZURE_IDENTITY_AVAILABLE = True
 except ImportError:
     AZURE_IDENTITY_AVAILABLE = False
-    logger.warning("azure-identity ライブラリが未インストールです。pip install azure-identity でインストールしてください。")
+    logger.warning(
+        "azure-identity ライブラリが未インストールです。pip install azure-identity でインストールしてください。"
+    )
 
 try:
     import requests
+
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
@@ -57,7 +61,7 @@ class MicrosoftGraphClient:
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
         certificate_path: Optional[str] = None,
-        certificate_key_path: Optional[str] = None
+        certificate_key_path: Optional[str] = None,
     ):
         """
         Microsoft Graph クライアントを初期化
@@ -69,11 +73,15 @@ class MicrosoftGraphClient:
             certificate_path: 証明書ファイルパス（環境変数AZURE_CLIENT_CERTIFICATE_PATHからも取得可）
             certificate_key_path: 秘密鍵ファイルパス（環境変数AZURE_CLIENT_CERTIFICATE_KEY_PATHからも取得可）
         """
-        self.tenant_id = tenant_id or os.environ.get('AZURE_TENANT_ID')
-        self.client_id = client_id or os.environ.get('AZURE_CLIENT_ID')
-        self.client_secret = client_secret or os.environ.get('AZURE_CLIENT_SECRET')
-        self.certificate_path = certificate_path or os.environ.get('AZURE_CLIENT_CERTIFICATE_PATH')
-        self.certificate_key_path = certificate_key_path or os.environ.get('AZURE_CLIENT_CERTIFICATE_KEY_PATH')
+        self.tenant_id = tenant_id or os.environ.get("AZURE_TENANT_ID")
+        self.client_id = client_id or os.environ.get("AZURE_CLIENT_ID")
+        self.client_secret = client_secret or os.environ.get("AZURE_CLIENT_SECRET")
+        self.certificate_path = certificate_path or os.environ.get(
+            "AZURE_CLIENT_CERTIFICATE_PATH"
+        )
+        self.certificate_key_path = certificate_key_path or os.environ.get(
+            "AZURE_CLIENT_CERTIFICATE_KEY_PATH"
+        )
 
         self._credential = None
         self._access_token = None
@@ -91,13 +99,19 @@ class MicrosoftGraphClient:
             logger.warning("AZURE_CLIENT_ID が設定されていません")
             return False
         if not self.client_secret and not self.certificate_path:
-            logger.warning("AZURE_CLIENT_SECRET または AZURE_CLIENT_CERTIFICATE_PATH が必要です")
+            logger.warning(
+                "AZURE_CLIENT_SECRET または AZURE_CLIENT_CERTIFICATE_PATH が必要です"
+            )
             return False
         return True
 
     def is_configured(self) -> bool:
         """Graph APIが設定されているかどうか"""
-        return bool(self.tenant_id and self.client_id and (self.client_secret or self.certificate_path))
+        return bool(
+            self.tenant_id
+            and self.client_id
+            and (self.client_secret or self.certificate_path)
+        )
 
     def _get_credential(self):
         """認証情報を取得"""
@@ -110,7 +124,7 @@ class MicrosoftGraphClient:
                 self._credential = CertificateCredential(
                     tenant_id=self.tenant_id,
                     client_id=self.client_id,
-                    certificate_path=self.certificate_path
+                    certificate_path=self.certificate_path,
                 )
                 logger.info("証明書認証を使用します")
             else:
@@ -118,7 +132,7 @@ class MicrosoftGraphClient:
                 self._credential = ClientSecretCredential(
                     tenant_id=self.tenant_id,
                     client_id=self.client_id,
-                    client_secret=self.client_secret
+                    client_secret=self.client_secret,
                 )
                 logger.info("クライアントシークレット認証を使用します")
 
@@ -137,7 +151,7 @@ class MicrosoftGraphClient:
         endpoint: str,
         params: Optional[Dict] = None,
         data: Optional[Dict] = None,
-        use_beta: bool = False
+        use_beta: bool = False,
     ) -> Dict:
         """Graph APIリクエストを実行"""
         if not REQUESTS_AVAILABLE:
@@ -149,7 +163,7 @@ class MicrosoftGraphClient:
 
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         response = requests.request(
@@ -158,7 +172,7 @@ class MicrosoftGraphClient:
             headers=headers,
             params=params,
             json=data,
-            timeout=30
+            timeout=30,
         )
 
         if response.status_code == 401:
@@ -179,7 +193,9 @@ class MicrosoftGraphClient:
     # ユーザー関連
     # =========================================================================
 
-    def get_users(self, select: Optional[List[str]] = None, top: int = 100) -> List[Dict]:
+    def get_users(
+        self, select: Optional[List[str]] = None, top: int = 100
+    ) -> List[Dict]:
         """
         組織内のユーザー一覧を取得
 
@@ -275,6 +291,161 @@ class MicrosoftGraphClient:
         """
         return self._make_request("GET", f"/drives/{drive_id}/items/{item_id}")
 
+    def get_file_mime_type(self, drive_id: str, item_id: str) -> str:
+        """
+        ファイルMIMEタイプを取得
+
+        必要な権限: Files.Read.All
+
+        Args:
+            drive_id: ドライブID
+            item_id: ファイルID
+
+        Returns:
+            MIMEタイプ（例: "application/pdf"）
+        """
+        try:
+            metadata = self.get_file_metadata(drive_id, item_id)
+            mime_type = metadata.get("file", {}).get(
+                "mimeType", "application/octet-stream"
+            )
+            return mime_type
+        except Exception as e:
+            logger.error(
+                f"MIMEタイプ取得エラー (drive_id={drive_id}, item_id={item_id}): {e}"
+            )
+            return "application/octet-stream"
+
+    def get_file_preview_url(self, drive_id: str, item_id: str) -> Dict[str, str]:
+        """
+        ファイルプレビューURLを取得
+
+        Office形式ファイル: Microsoft Graph Embed URL
+        画像ファイル: ダウンロードURL（preview_type="image"）
+        その他: ダウンロードURL（preview_type="download"）
+
+        必要な権限: Files.Read.All
+
+        Args:
+            drive_id: ドライブID
+            item_id: ファイルID
+
+        Returns:
+            {
+                "preview_url": "https://...",
+                "preview_type": "office_embed | download | image",
+                "mime_type": "application/pdf"
+            }
+        """
+        try:
+            # ファイルメタデータを取得
+            metadata = self.get_file_metadata(drive_id, item_id)
+            mime_type = metadata.get("file", {}).get(
+                "mimeType", "application/octet-stream"
+            )
+            file_name = metadata.get("name", "")
+            web_url = metadata.get("webUrl", "")
+
+            # Office形式ファイルの判定（拡張子ベース）
+            office_extensions = [".xlsx", ".docx", ".pptx", ".xlsm", ".docm", ".pptm"]
+            is_office = any(
+                file_name.lower().endswith(ext) for ext in office_extensions
+            )
+
+            # プレビュータイプとURLの決定
+            if is_office and web_url:
+                # Office形式: Microsoft Office Online Embedビューアー使用
+                preview_url = (
+                    f"https://view.officeapps.live.com/op/embed.aspx?src={web_url}"
+                )
+                preview_type = "office_embed"
+            elif mime_type.startswith("image/"):
+                # 画像ファイル: ダウンロードURL使用
+                preview_url = (
+                    f"{self.GRAPH_API_BASE}/drives/{drive_id}/items/{item_id}/content"
+                )
+                preview_type = "image"
+            else:
+                # その他: ダウンロードURL
+                preview_url = (
+                    f"{self.GRAPH_API_BASE}/drives/{drive_id}/items/{item_id}/content"
+                )
+                preview_type = "download"
+
+            return {
+                "preview_url": preview_url,
+                "preview_type": preview_type,
+                "mime_type": mime_type,
+            }
+
+        except Exception as e:
+            logger.error(
+                f"プレビューURL取得エラー (drive_id={drive_id}, item_id={item_id}): {e}"
+            )
+            # エラー時はダウンロードURLを返す
+            return {
+                "preview_url": f"{self.GRAPH_API_BASE}/drives/{drive_id}/items/{item_id}/content",
+                "preview_type": "download",
+                "mime_type": "application/octet-stream",
+            }
+
+    def get_file_thumbnail(
+        self, drive_id: str, item_id: str, size: str = "large"
+    ) -> Optional[bytes]:
+        """
+        ファイルサムネイルを取得
+
+        必要な権限: Files.Read.All
+
+        Args:
+            drive_id: ドライブID
+            item_id: ファイルID
+            size: サムネイルサイズ ("small" | "medium" | "large" | "c200x150")
+                  - small: 小サイズ（96x96）
+                  - medium: 中サイズ（176x176）
+                  - large: 大サイズ（800x800）
+                  - c{width}x{height}: カスタムサイズ（例: c200x150）
+
+        Returns:
+            サムネイル画像データ（bytes）またはNone（サムネイルが利用不可の場合）
+        """
+        if not REQUESTS_AVAILABLE:
+            raise ImportError("requests ライブラリがインストールされていません")
+
+        try:
+            token = self.get_access_token()
+            url = f"{self.GRAPH_API_BASE}/drives/{drive_id}/items/{item_id}/thumbnails/0/{size}/content"
+
+            headers = {"Authorization": f"Bearer {token}"}
+            response = requests.get(url, headers=headers, timeout=30)
+
+            # 404エラー（サムネイル利用不可）の場合はNoneを返す
+            if response.status_code == 404:
+                logger.info(
+                    f"サムネイル利用不可 (drive_id={drive_id}, item_id={item_id})"
+                )
+                return None
+
+            response.raise_for_status()
+            return response.content
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.info(
+                    f"サムネイル利用不可 (drive_id={drive_id}, item_id={item_id})"
+                )
+                return None
+            else:
+                logger.error(
+                    f"サムネイル取得エラー (drive_id={drive_id}, item_id={item_id}): {e}"
+                )
+                return None
+        except Exception as e:
+            logger.error(
+                f"サムネイル取得エラー (drive_id={drive_id}, item_id={item_id}): {e}"
+            )
+            return None
+
     # =========================================================================
     # データ取得ヘルパー
     # =========================================================================
@@ -284,7 +455,7 @@ class MicrosoftGraphClient:
         site_name: str,
         library_name: str = "Documents",
         folder_path: str = "/",
-        file_extensions: Optional[List[str]] = None
+        file_extensions: Optional[List[str]] = None,
     ) -> List[Dict]:
         """
         SharePointライブラリからファイル情報を取得
@@ -310,7 +481,9 @@ class MicrosoftGraphClient:
         drives = self.get_site_drives(site_id)
         drive = next((d for d in drives if d.get("name") == library_name), None)
         if not drive:
-            raise ValueError(f"ドキュメントライブラリ '{library_name}' が見つかりません")
+            raise ValueError(
+                f"ドキュメントライブラリ '{library_name}' が見つかりません"
+            )
 
         drive_id = drive["id"]
 
@@ -320,8 +493,10 @@ class MicrosoftGraphClient:
         # 拡張子でフィルタ
         if file_extensions:
             items = [
-                item for item in items
-                if item.get("file") and any(
+                item
+                for item in items
+                if item.get("file")
+                and any(
                     item["name"].lower().endswith(ext.lower())
                     for ext in file_extensions
                 )
@@ -346,7 +521,7 @@ class MicrosoftGraphClient:
             "tenant_id": self.tenant_id,
             "client_id": self.client_id,
             "auth_type": "certificate" if self.certificate_path else "secret",
-            "errors": []
+            "errors": [],
         }
 
         if not result["configured"]:
@@ -354,7 +529,9 @@ class MicrosoftGraphClient:
             return result
 
         if not AZURE_IDENTITY_AVAILABLE:
-            result["errors"].append("azure-identity ライブラリがインストールされていません")
+            result["errors"].append(
+                "azure-identity ライブラリがインストールされていません"
+            )
             return result
 
         try:
@@ -365,7 +542,9 @@ class MicrosoftGraphClient:
             # API呼び出しテスト
             org = self._make_request("GET", "/organization")
             result["connected"] = True
-            result["organization"] = org.get("value", [{}])[0].get("displayName", "Unknown")
+            result["organization"] = org.get("value", [{}])[0].get(
+                "displayName", "Unknown"
+            )
 
         except Exception as e:
             result["errors"].append(str(e))
@@ -385,7 +564,9 @@ class MicrosoftGraphClient:
         Returns:
             チーム情報のリスト
         """
-        result = self._make_request("GET", "/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')")
+        result = self._make_request(
+            "GET", "/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')"
+        )
         return result.get("value", [])
 
     def get_team_channels(self, team_id: str) -> List[Dict]:
@@ -404,11 +585,7 @@ class MicrosoftGraphClient:
         return result.get("value", [])
 
     def send_teams_channel_message(
-        self,
-        team_id: str,
-        channel_id: str,
-        content: str,
-        content_type: str = "text"
+        self, team_id: str, channel_id: str, content: str, content_type: str = "text"
     ) -> Dict:
         """
         Teamsチャネルにメッセージを送信
@@ -425,16 +602,9 @@ class MicrosoftGraphClient:
         Returns:
             送信結果
         """
-        data = {
-            "body": {
-                "contentType": content_type,
-                "content": content
-            }
-        }
+        data = {"body": {"contentType": content_type, "content": content}}
         return self._make_request(
-            "POST",
-            f"/teams/{team_id}/channels/{channel_id}/messages",
-            data=data
+            "POST", f"/teams/{team_id}/channels/{channel_id}/messages", data=data
         )
 
     def send_teams_webhook_message(
@@ -443,7 +613,7 @@ class MicrosoftGraphClient:
         title: str,
         message: str,
         theme_color: str = "0076D7",
-        facts: Optional[List[Dict[str, str]]] = None
+        facts: Optional[List[Dict[str, str]]] = None,
     ) -> bool:
         """
         Teams Incoming WebhookでAdaptive Card形式のメッセージを送信
@@ -467,12 +637,14 @@ class MicrosoftGraphClient:
             "@context": "http://schema.org/extensions",
             "themeColor": theme_color,
             "summary": title,
-            "sections": [{
-                "activityTitle": title,
-                "facts": facts or [],
-                "text": message,
-                "markdown": True
-            }]
+            "sections": [
+                {
+                    "activityTitle": title,
+                    "facts": facts or [],
+                    "text": message,
+                    "markdown": True,
+                }
+            ],
         }
 
         try:
@@ -480,7 +652,7 @@ class MicrosoftGraphClient:
                 webhook_url,
                 json=card,
                 headers={"Content-Type": "application/json"},
-                timeout=10
+                timeout=10,
             )
             return response.status_code == 200
         except Exception as e:
@@ -493,7 +665,7 @@ class MicrosoftGraphClient:
         notification_type: str,
         title: str,
         details: Dict[str, str],
-        link_url: Optional[str] = None
+        link_url: Optional[str] = None,
     ) -> bool:
         """
         システム通知をTeamsに送信（テンプレート使用）
@@ -511,9 +683,9 @@ class MicrosoftGraphClient:
         # 通知タイプ別の色
         type_colors = {
             "knowledge": "0076D7",  # 青
-            "incident": "FF4444",   # 赤
-            "approval": "FFB300",   # オレンジ
-            "info": "00C853"        # 緑
+            "incident": "FF4444",  # 赤
+            "approval": "FFB300",  # オレンジ
+            "info": "00C853",  # 緑
         }
         theme_color = type_colors.get(notification_type, "0076D7")
 
@@ -529,13 +701,14 @@ class MicrosoftGraphClient:
             title=f"[{notification_type.upper()}] {title}",
             message="",
             theme_color=theme_color,
-            facts=facts
+            facts=facts,
         )
 
 
 # =============================================================================
 # CLIインターフェース
 # =============================================================================
+
 
 def main():
     """コマンドライン実行"""
@@ -544,7 +717,9 @@ def main():
     parser = argparse.ArgumentParser(description="Microsoft Graph API 連携テスト")
     parser.add_argument("--test", action="store_true", help="接続テストを実行")
     parser.add_argument("--users", action="store_true", help="ユーザー一覧を取得")
-    parser.add_argument("--sites", action="store_true", help="SharePointサイト一覧を取得")
+    parser.add_argument(
+        "--sites", action="store_true", help="SharePointサイト一覧を取得"
+    )
 
     args = parser.parse_args()
 
@@ -574,7 +749,9 @@ def main():
         print("Microsoft Graph API 設定状況:")
         print(f"  AZURE_TENANT_ID: {'設定済み' if client.tenant_id else '未設定'}")
         print(f"  AZURE_CLIENT_ID: {'設定済み' if client.client_id else '未設定'}")
-        print(f"  AZURE_CLIENT_SECRET: {'設定済み' if client.client_secret else '未設定'}")
+        print(
+            f"  AZURE_CLIENT_SECRET: {'設定済み' if client.client_secret else '未設定'}"
+        )
         print(f"  証明書認証: {'設定済み' if client.certificate_path else '未設定'}")
         print()
         print("使用方法:")

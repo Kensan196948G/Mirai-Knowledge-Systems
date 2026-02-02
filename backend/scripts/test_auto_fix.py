@@ -2,9 +2,10 @@
 """
 自動修復システムのテストスクリプト
 """
+
+import json
 import os
 import sys
-import json
 import time
 from datetime import datetime
 
@@ -12,6 +13,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(__file__))
 from auto_fix_daemon import AutoFixDaemon
 from health_monitor import HealthMonitor
+
 
 def test_health_monitor():
     """ヘルスモニターのテスト"""
@@ -48,8 +50,9 @@ def test_health_monitor():
     all_results = monitor.run_all_checks()
     print(json.dumps(all_results, ensure_ascii=False, indent=2))
 
-    assert 'checks' in all_results
-    assert all_results.get('overall_status') in {'healthy', 'warning', 'critical'}
+    assert "checks" in all_results
+    assert all_results.get("overall_status") in {"healthy", "warning", "critical"}
+
 
 def test_error_detection():
     """エラー検知のテスト"""
@@ -58,10 +61,10 @@ def test_error_detection():
     daemon = AutoFixDaemon()
 
     # テスト用ログファイルを作成
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
     os.makedirs(log_dir, exist_ok=True)
 
-    test_log = os.path.join(log_dir, 'test_errors.log')
+    test_log = os.path.join(log_dir, "test_errors.log")
 
     # エラーパターンを書き込み
     test_errors = [
@@ -74,11 +77,11 @@ def test_error_detection():
         "2025-12-28 10:30:06 - ERROR - OSError: [Errno 28] No space left on device",
         "2025-12-28 10:30:07 - ERROR - Address already in use: port 5000",
         "2025-12-28 10:30:08 - ERROR - JSONDecodeError: Invalid JSON",
-        "2025-12-28 10:30:09 - ERROR - ConnectionRefusedError: Redis connection failed on port 6379"
+        "2025-12-28 10:30:09 - ERROR - ConnectionRefusedError: Redis connection failed on port 6379",
     ]
 
-    with open(test_log, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(test_errors))
+    with open(test_log, "w", encoding="utf-8") as f:
+        f.write("\n".join(test_errors))
 
     print(f"テスト用ログファイル作成: {test_log}\n")
 
@@ -100,6 +103,7 @@ def test_error_detection():
 
     assert len(detected_errors) > 0
 
+
 def test_auto_fix_actions():
     """自動修復アクションのテスト"""
     print("\n\n=== 自動修復アクションテスト ===\n")
@@ -109,27 +113,17 @@ def test_auto_fix_actions():
     # 安全なアクションのみテスト
     safe_actions = [
         {
-            'type': 'create_missing_dirs',
-            'directories': ['data', 'logs', 'uploads', 'cache'],
-            'description': 'ディレクトリ作成テスト'
+            "type": "create_missing_dirs",
+            "directories": ["data", "logs", "uploads", "cache"],
+            "description": "ディレクトリ作成テスト",
         },
+        {"type": "cache_clear", "description": "キャッシュクリアテスト"},
         {
-            'type': 'cache_clear',
-            'description': 'キャッシュクリアテスト'
+            "type": "temp_file_cleanup",
+            "description": "一時ファイルクリーンアップテスト",
         },
-        {
-            'type': 'temp_file_cleanup',
-            'description': '一時ファイルクリーンアップテスト'
-        },
-        {
-            'type': 'log_analysis',
-            'description': 'ログ分析テスト'
-        },
-        {
-            'type': 'check_port',
-            'port': 5000,
-            'description': 'ポートチェックテスト'
-        }
+        {"type": "log_analysis", "description": "ログ分析テスト"},
+        {"type": "check_port", "port": 5000, "description": "ポートチェックテスト"},
     ]
 
     results = []
@@ -142,6 +136,7 @@ def test_auto_fix_actions():
         time.sleep(1)
 
     assert all(results)
+
 
 def test_detection_cycle():
     """検知サイクルのテスト"""
@@ -156,51 +151,52 @@ def test_detection_cycle():
 
     assert True
 
+
 def main():
     """全テストを実行"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("エラー自動検知・自動修復システム テストスイート")
-    print("="*60)
+    print("=" * 60)
 
     results = {
-        'health_monitor': False,
-        'error_detection': False,
-        'auto_fix_actions': False,
-        'detection_cycle': False
+        "health_monitor": False,
+        "error_detection": False,
+        "auto_fix_actions": False,
+        "detection_cycle": False,
     }
 
     try:
         # 1. ヘルスモニターテスト
         test_health_monitor()
-        results['health_monitor'] = True
+        results["health_monitor"] = True
     except Exception as e:
         print(f"\n[ERROR] ヘルスモニターテスト失敗: {e}")
 
     try:
         # 2. エラー検知テスト
         test_error_detection()
-        results['error_detection'] = True
+        results["error_detection"] = True
     except Exception as e:
         print(f"\n[ERROR] エラー検知テスト失敗: {e}")
 
     try:
         # 3. 自動修復アクションテスト
         test_auto_fix_actions()
-        results['auto_fix_actions'] = True
+        results["auto_fix_actions"] = True
     except Exception as e:
         print(f"\n[ERROR] 自動修復アクションテスト失敗: {e}")
 
     try:
         # 4. 検知サイクルテスト
         test_detection_cycle()
-        results['detection_cycle'] = True
+        results["detection_cycle"] = True
     except Exception as e:
         print(f"\n[ERROR] 検知サイクルテスト失敗: {e}")
 
     # 結果サマリー
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("テスト結果サマリー")
-    print("="*60)
+    print("=" * 60)
 
     for test_name, result in results.items():
         status = "✓ 成功" if result else "✗ 失敗"
@@ -209,12 +205,13 @@ def main():
     total_tests = len(results)
     passed_tests = sum(results.values())
 
-    print("\n" + "-"*60)
+    print("\n" + "-" * 60)
     print(f"合計: {passed_tests}/{total_tests} テスト成功")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     return passed_tests == total_tests
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)

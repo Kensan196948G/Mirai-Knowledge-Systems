@@ -16,11 +16,11 @@ Microsoft 365からデータをエクスポート
     python scripts/export_from_ms365.py --output ms365_export.json
 """
 
-import os
-import sys
-import json
 import argparse
 import asyncio
+import json
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -46,9 +46,7 @@ class MS365Exporter:
 
         # 認証
         self.credential = ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=client_id,
-            client_secret=client_secret
+            tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
         )
 
         self.client = GraphServiceClient(credentials=self.credential)
@@ -61,11 +59,9 @@ class MS365Exporter:
             sites = []
 
             for site in result.value:
-                sites.append({
-                    'id': site.id,
-                    'name': site.display_name,
-                    'url': site.web_url
-                })
+                sites.append(
+                    {"id": site.id, "name": site.display_name, "url": site.web_url}
+                )
 
             print(f"✅ SharePointサイト: {len(sites)}件")
             return sites
@@ -82,15 +78,29 @@ class MS365Exporter:
             for item in result.value:
                 if item.file:  # ファイルの場合
                     doc = {
-                        'id': item.id,
-                        'name': item.name,
-                        'description': item.description or '',
-                        'path': item.parent_reference.path if item.parent_reference else '',
-                        'size': item.size,
-                        'created_by': item.created_by.user.display_name if item.created_by and item.created_by.user else '',
-                        'created_at': item.created_date_time.isoformat() if item.created_date_time else '',
-                        'updated_at': item.last_modified_date_time.isoformat() if item.last_modified_date_time else '',
-                        'web_url': item.web_url
+                        "id": item.id,
+                        "name": item.name,
+                        "description": item.description or "",
+                        "path": (
+                            item.parent_reference.path if item.parent_reference else ""
+                        ),
+                        "size": item.size,
+                        "created_by": (
+                            item.created_by.user.display_name
+                            if item.created_by and item.created_by.user
+                            else ""
+                        ),
+                        "created_at": (
+                            item.created_date_time.isoformat()
+                            if item.created_date_time
+                            else ""
+                        ),
+                        "updated_at": (
+                            item.last_modified_date_time.isoformat()
+                            if item.last_modified_date_time
+                            else ""
+                        ),
+                        "web_url": item.web_url,
                     }
                     documents.append(doc)
 
@@ -107,18 +117,18 @@ class MS365Exporter:
 
         for doc in documents:
             knowledge = {
-                'id': id_counter,
-                'title': doc['name'],
-                'summary': doc['description'] or doc['name'],
-                'content': '',  # ファイル内容は別途取得が必要
-                'category': self._parse_category(doc['path']),
-                'tags': self._extract_tags(doc),
-                'status': 'approved',
-                'priority': 'medium',
-                'project': '',
-                'owner': doc['created_by'] or '技術部',
-                'created_at': doc['created_at'] or datetime.now().isoformat(),
-                'updated_at': doc['updated_at'] or datetime.now().isoformat()
+                "id": id_counter,
+                "title": doc["name"],
+                "summary": doc["description"] or doc["name"],
+                "content": "",  # ファイル内容は別途取得が必要
+                "category": self._parse_category(doc["path"]),
+                "tags": self._extract_tags(doc),
+                "status": "approved",
+                "priority": "medium",
+                "project": "",
+                "owner": doc["created_by"] or "技術部",
+                "created_at": doc["created_at"] or datetime.now().isoformat(),
+                "updated_at": doc["updated_at"] or datetime.now().isoformat(),
             }
             knowledge_list.append(knowledge)
             id_counter += 1
@@ -127,26 +137,26 @@ class MS365Exporter:
 
     def _parse_category(self, path):
         """パスからカテゴリを推測"""
-        if '/施工/' in path or '/construction/' in path.lower():
-            return '施工計画'
-        elif '/品質/' in path or '/quality/' in path.lower():
-            return '品質管理'
-        elif '/安全/' in path or '/safety/' in path.lower():
-            return '安全衛生'
-        elif '/環境/' in path or '/environment/' in path.lower():
-            return '環境対策'
+        if "/施工/" in path or "/construction/" in path.lower():
+            return "施工計画"
+        elif "/品質/" in path or "/quality/" in path.lower():
+            return "品質管理"
+        elif "/安全/" in path or "/safety/" in path.lower():
+            return "安全衛生"
+        elif "/環境/" in path or "/environment/" in path.lower():
+            return "環境対策"
         else:
-            return '未分類'
+            return "未分類"
 
     def _extract_tags(self, doc):
         """ドキュメントからタグを抽出"""
         tags = []
-        name_lower = doc['name'].lower()
+        name_lower = doc["name"].lower()
 
         # ファイル名からキーワード抽出
-        keywords = ['コンクリート', '鉄筋', '型枠', '足場', '測量', '安全', '品質']
+        keywords = ["コンクリート", "鉄筋", "型枠", "足場", "測量", "安全", "品質"]
         for keyword in keywords:
-            if keyword in doc['name']:
+            if keyword in doc["name"]:
                 tags.append(keyword)
 
         return tags
@@ -154,16 +164,20 @@ class MS365Exporter:
 
 async def main():
     """メイン処理"""
-    parser = argparse.ArgumentParser(description='Microsoft 365からデータをエクスポート')
-    parser.add_argument('--output', default='ms365_export.json', help='出力JSONファイル')
-    parser.add_argument('--site-id', help='SharePoint Site ID')
-    parser.add_argument('--drive-id', help='Drive ID')
+    parser = argparse.ArgumentParser(
+        description="Microsoft 365からデータをエクスポート"
+    )
+    parser.add_argument(
+        "--output", default="ms365_export.json", help="出力JSONファイル"
+    )
+    parser.add_argument("--site-id", help="SharePoint Site ID")
+    parser.add_argument("--drive-id", help="Drive ID")
     args = parser.parse_args()
 
     # 環境変数チェック
-    tenant_id = os.environ.get('MS365_TENANT_ID')
-    client_id = os.environ.get('MS365_CLIENT_ID')
-    client_secret = os.environ.get('MS365_CLIENT_SECRET')
+    tenant_id = os.environ.get("MS365_TENANT_ID")
+    client_id = os.environ.get("MS365_CLIENT_ID")
+    client_secret = os.environ.get("MS365_CLIENT_SECRET")
 
     if not all([tenant_id, client_id, client_secret]):
         print("❌ 環境変数が設定されていません")
@@ -193,7 +207,7 @@ async def main():
 
     # ドキュメント取得
     site_id = args.site_id
-    drive_id = args.drive_id or os.environ.get('MS365_DRIVE_ID')
+    drive_id = args.drive_id or os.environ.get("MS365_DRIVE_ID")
 
     if not drive_id:
         print("❌ Drive IDが指定されていません")
@@ -206,7 +220,7 @@ async def main():
     knowledge_list = exporter.convert_to_knowledge_format(documents)
 
     # JSON出力
-    with open(args.output, 'w', encoding='utf-8') as f:
+    with open(args.output, "w", encoding="utf-8") as f:
         json.dump(knowledge_list, f, ensure_ascii=False, indent=2)
 
     print()
@@ -217,8 +231,10 @@ async def main():
     print()
     print("次のステップ:")
     print(f"  1. データ検証: python scripts/validate_migration_data.py {args.output}")
-    print(f"  2. PostgreSQL投入: python migrate_json_to_postgres.py --input {args.output}")
+    print(
+        f"  2. PostgreSQL投入: python migrate_json_to_postgres.py --input {args.output}"
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

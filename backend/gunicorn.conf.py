@@ -83,7 +83,7 @@ errorlog = os.getenv("MKS_ERROR_LOG", "/var/log/mirai-knowledge/error.log")
 
 # アクセスログフォーマット
 # JSON形式で構造化ログを出力（ログ分析ツールとの統合が容易）
-access_log_format = '''{"timestamp":"%(t)s","remote_addr":"%(h)s","method":"%(m)s","path":"%(U)s","query":"%(q)s","protocol":"%(H)s","status":%(s)s,"size":%(b)s,"referer":"%(f)s","user_agent":"%(a)s","response_time_us":%(D)s,"response_time_ms":%(M)s,"process_id":"%(p)s"}'''
+access_log_format = """{"timestamp":"%(t)s","remote_addr":"%(h)s","method":"%(m)s","path":"%(U)s","query":"%(q)s","protocol":"%(H)s","status":%(s)s,"size":%(b)s,"referer":"%(f)s","user_agent":"%(a)s","response_time_us":%(D)s,"response_time_ms":%(M)s,"process_id":"%(p)s"}"""
 
 # 従来形式（コメントアウト、必要に応じて切り替え可能）
 # access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
@@ -128,6 +128,7 @@ umask = 0o007
 # サーバーフック
 # ==============================================================================
 
+
 def on_starting(server):
     """サーバー起動時"""
     server.log.info("=" * 60)
@@ -138,33 +139,41 @@ def on_starting(server):
     server.log.info(f"Worker class: {worker_class}")
     server.log.info("=" * 60)
 
+
 def on_reload(server):
     """設定リロード時"""
     server.log.info("Gunicorn configuration reloaded")
+
 
 def when_ready(server):
     """サーバー準備完了時"""
     server.log.info("Gunicorn is ready to handle requests")
 
+
 def pre_fork(server, worker):
     """ワーカープロセス fork 前"""
     pass
+
 
 def post_fork(server, worker):
     """ワーカープロセス fork 後"""
     server.log.info(f"Worker spawned (pid: {worker.pid})")
 
+
 def pre_exec(server):
     """サーバー再起動前"""
     server.log.info("Forked child, re-executing.")
+
 
 def worker_int(worker):
     """ワーカー割り込み時（SIGINT）"""
     worker.log.info(f"Worker received INT or QUIT signal (pid: {worker.pid})")
 
+
 def worker_abort(worker):
     """ワーカー強制終了時（SIGABRT）"""
     worker.log.info(f"Worker received SIGABRT signal (pid: {worker.pid})")
+
 
 # ==============================================================================
 # SSL/TLS設定（オプション）

@@ -16,30 +16,30 @@
 注意: このスクリプトは破壊的操作です。実行前にバックアップを取得してください。
 """
 
+import argparse
+import json
 import os
 import sys
-import json
-import argparse
 from datetime import datetime
 
 # パスを追加
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
 # クリア対象のJSONファイル
 JSON_FILES = [
-    'knowledge.json',
-    'knowledge_details.json',
-    'sop.json',
-    'sop_details.json',
-    'incidents.json',
-    'incidents_details.json',
-    'regulations.json',
-    'consultations.json',
-    'consultations_details.json',
-    'approvals.json',
-    'notifications.json',
+    "knowledge.json",
+    "knowledge_details.json",
+    "sop.json",
+    "sop_details.json",
+    "incidents.json",
+    "incidents_details.json",
+    "regulations.json",
+    "consultations.json",
+    "consultations_details.json",
+    "approvals.json",
+    "notifications.json",
     # 以下はクリアしない（設定データ）
     # 'users.json',
     # 'experts.json',
@@ -48,24 +48,26 @@ JSON_FILES = [
 
 # バックアップ対象外（アクセスログ等）
 SKIP_BACKUP = [
-    'access_logs.json',
-    'search_history.json',
+    "access_logs.json",
+    "search_history.json",
 ]
 
 
 def backup_data():
     """データをバックアップ"""
-    backup_dir = os.path.join(DATA_DIR, f'backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+    backup_dir = os.path.join(
+        DATA_DIR, f'backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    )
     os.makedirs(backup_dir, exist_ok=True)
 
     for filename in os.listdir(DATA_DIR):
-        if filename.endswith('.json') and filename not in SKIP_BACKUP:
+        if filename.endswith(".json") and filename not in SKIP_BACKUP:
             src = os.path.join(DATA_DIR, filename)
             dst = os.path.join(backup_dir, filename)
             if os.path.isfile(src):
-                with open(src, 'r', encoding='utf-8') as f:
+                with open(src, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                with open(dst, 'w', encoding='utf-8') as f:
+                with open(dst, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
 
     print(f"✅ バックアップを作成しました: {backup_dir}")
@@ -80,7 +82,7 @@ def clear_json_files():
         filepath = os.path.join(DATA_DIR, filename)
         if os.path.exists(filepath):
             # 空の配列で上書き
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump([], f, ensure_ascii=False, indent=2)
             print(f"  クリア: {filename}")
             cleared += 1
@@ -94,25 +96,23 @@ def clear_postgres():
     """PostgreSQLデータをクリア"""
     try:
         from database import SessionLocal, engine
-        from models import (
-            Knowledge, SOP, Regulation, Incident,
-            Consultation, Approval, Notification, NotificationRead,
-            AccessLog, ChangeLog, DistributionLog
-        )
+        from models import (SOP, AccessLog, Approval, ChangeLog, Consultation,
+                            DistributionLog, Incident, Knowledge, Notification,
+                            NotificationRead, Regulation)
 
         db = SessionLocal()
 
         # 削除順序（外部キー制約を考慮）
         tables = [
-            (NotificationRead, 'notification_reads'),
-            (DistributionLog, 'distribution_logs'),
-            (Notification, 'notifications'),
-            (Approval, 'approvals'),
-            (Consultation, 'consultations'),
-            (Incident, 'incidents'),
-            (Regulation, 'regulations'),
-            (SOP, 'sop'),
-            (Knowledge, 'knowledge'),
+            (NotificationRead, "notification_reads"),
+            (DistributionLog, "distribution_logs"),
+            (Notification, "notifications"),
+            (Approval, "approvals"),
+            (Consultation, "consultations"),
+            (Incident, "incidents"),
+            (Regulation, "regulations"),
+            (SOP, "sop"),
+            (Knowledge, "knowledge"),
             # アクセスログはクリアしない
             # (AccessLog, 'access_logs'),
             # (ChangeLog, 'change_logs'),
@@ -143,12 +143,14 @@ def clear_postgres():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ダミーデータクリアスクリプト')
-    parser.add_argument('--json', action='store_true', help='JSONファイルをクリア')
-    parser.add_argument('--postgres', action='store_true', help='PostgreSQLをクリア')
-    parser.add_argument('--all', action='store_true', help='両方クリア')
-    parser.add_argument('--no-backup', action='store_true', help='バックアップをスキップ')
-    parser.add_argument('--force', action='store_true', help='確認なしで実行')
+    parser = argparse.ArgumentParser(description="ダミーデータクリアスクリプト")
+    parser.add_argument("--json", action="store_true", help="JSONファイルをクリア")
+    parser.add_argument("--postgres", action="store_true", help="PostgreSQLをクリア")
+    parser.add_argument("--all", action="store_true", help="両方クリア")
+    parser.add_argument(
+        "--no-backup", action="store_true", help="バックアップをスキップ"
+    )
+    parser.add_argument("--force", action="store_true", help="確認なしで実行")
 
     args = parser.parse_args()
 
@@ -161,7 +163,7 @@ def main():
     if not args.force:
         print("\n⚠️  警告: この操作はデータを削除します。")
         response = input("続行しますか？ (yes/no): ")
-        if response.lower() != 'yes':
+        if response.lower() != "yes":
             print("キャンセルしました。")
             return
 
@@ -189,5 +191,5 @@ def main():
     print("   3. python scripts/verify_migration.py で検証")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

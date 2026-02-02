@@ -3,24 +3,14 @@
 """
 
 from datetime import datetime
-from sqlalchemy import (
-    Column,
-    Integer,
-    BigInteger,
-    String,
-    Text,
-    DateTime,
-    Date,
-    Boolean,
-    ARRAY,
-    ForeignKey,
-    Index,
-    CheckConstraint,
-)
-from sqlalchemy.dialects.postgresql import JSONB, INET
+
+from sqlalchemy import (ARRAY, BigInteger, Boolean, CheckConstraint, Column,
+                        Date, DateTime, ForeignKey, Index, Integer, String,
+                        Text)
+from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 Base = declarative_base()
 
@@ -599,7 +589,11 @@ class MS365SyncHistory(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(Integer, primary_key=True)
-    config_id = Column(Integer, ForeignKey("public.ms365_sync_config.id", ondelete="CASCADE"), nullable=False)
+    config_id = Column(
+        Integer,
+        ForeignKey("public.ms365_sync_config.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     sync_started_at = Column(DateTime, nullable=False)
     sync_completed_at = Column(DateTime)
     status = Column(String(50), nullable=False)  # running, completed, failed, partial
@@ -635,13 +629,19 @@ class MS365FileMapping(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(Integer, primary_key=True)
-    config_id = Column(Integer, ForeignKey("public.ms365_sync_config.id", ondelete="CASCADE"), nullable=False)
+    config_id = Column(
+        Integer,
+        ForeignKey("public.ms365_sync_config.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     sharepoint_file_id = Column(String(200), nullable=False, unique=True)
     sharepoint_file_name = Column(String(500), nullable=False)
     sharepoint_file_path = Column(String(1000))
     sharepoint_modified_at = Column(DateTime)
     sharepoint_size_bytes = Column(BigInteger)
-    knowledge_id = Column(Integer, ForeignKey("public.knowledge.id", ondelete="SET NULL"))
+    knowledge_id = Column(
+        Integer, ForeignKey("public.knowledge.id", ondelete="SET NULL")
+    )
     sync_status = Column(String(50), default="pending")  # pending, synced, error
     last_synced_at = Column(DateTime)
     checksum = Column(String(64))  # SHA256チェックサム（変更検出用）

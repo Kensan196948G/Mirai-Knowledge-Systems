@@ -8,17 +8,19 @@ PostgreSQLデータベースとテーブルを作成するスクリプト
 環境変数:
     DATABASE_URL: PostgreSQL接続URL（例: postgresql://user:pass@localhost:5432/dbname）
 """
+
 import os
 import sys
 
 # パスを追加
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import argparse
+
+from database import DATABASE_URL, engine
+from models import Base
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
-from database import engine, DATABASE_URL
-from models import Base
-import argparse
 
 
 def create_schemas():
@@ -27,7 +29,7 @@ def create_schemas():
     print("スキーマ作成")
     print("=" * 60)
 
-    schemas = ['public', 'auth', 'audit']
+    schemas = ["public", "auth", "audit"]
 
     with engine.connect() as conn:
         for schema in schemas:
@@ -51,7 +53,7 @@ def create_tables(drop_existing=False):
     if drop_existing:
         print("⚠️  警告: 既存のテーブルを削除します...")
         response = input("本当に削除しますか? (yes/no): ")
-        if response.lower() != 'yes':
+        if response.lower() != "yes":
             print("キャンセルしました")
             return
 
@@ -132,9 +134,13 @@ def show_next_steps():
 
 def main():
     """メイン処理"""
-    parser = argparse.ArgumentParser(description='PostgreSQLデータベースとテーブルを作成')
-    parser.add_argument('--drop', action='store_true', help='既存のテーブルを削除してから作成')
-    parser.add_argument('--skip-verify', action='store_true', help='接続確認をスキップ')
+    parser = argparse.ArgumentParser(
+        description="PostgreSQLデータベースとテーブルを作成"
+    )
+    parser.add_argument(
+        "--drop", action="store_true", help="既存のテーブルを削除してから作成"
+    )
+    parser.add_argument("--skip-verify", action="store_true", help="接続確認をスキップ")
     args = parser.parse_args()
 
     print()
@@ -164,5 +170,5 @@ def main():
     print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

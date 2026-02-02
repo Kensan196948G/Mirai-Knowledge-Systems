@@ -7,31 +7,31 @@ Mirai Knowledge Systems - Phase C-2-3
 実行: python scripts/validate_migration.py
 """
 
+import json
 import os
 import sys
-import json
 from datetime import datetime
 
 # パスを追加
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from database import get_session_factory
-from models import Knowledge, SOP, Incident, Project, Expert, User
+from models import SOP, Expert, Incident, Knowledge, Project, User
 
 # カラー出力
-GREEN = '\033[92m'
-RED = '\033[91m'
-YELLOW = '\033[93m'
-BLUE = '\033[94m'
-NC = '\033[0m'
+GREEN = "\033[92m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+NC = "\033[0m"
 
 
 def load_json_data(filename):
     """JSONファイルを読み込む"""
-    filepath = os.path.join(os.path.dirname(__file__), '..', 'data', filename)
+    filepath = os.path.join(os.path.dirname(__file__), "..", "data", filename)
     if not os.path.exists(filepath):
         return []
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -77,7 +77,7 @@ def validate_sample_data(model, name):
 
         print(f"  {GREEN}✓{NC} {name}: サンプルデータ確認")
         for item in items:
-            title = getattr(item, 'title', getattr(item, 'name', str(item.id)))
+            title = getattr(item, "title", getattr(item, "name", str(item.id)))
             print(f"      - ID:{item.id} {title[:40]}...")
         return True
 
@@ -93,13 +93,13 @@ def validate_api_endpoints():
     import requests
 
     endpoints = [
-        ('/api/v1/health', 'ヘルスチェック'),
-        ('/api/v1/knowledge', 'ナレッジ一覧'),
-        ('/api/v1/sop', 'SOP一覧'),
-        ('/api/v1/incidents', 'インシデント一覧'),
+        ("/api/v1/health", "ヘルスチェック"),
+        ("/api/v1/knowledge", "ナレッジ一覧"),
+        ("/api/v1/sop", "SOP一覧"),
+        ("/api/v1/incidents", "インシデント一覧"),
     ]
 
-    base_url = os.environ.get('API_BASE_URL', 'http://localhost:5100')
+    base_url = os.environ.get("API_BASE_URL", "http://localhost:5100")
     all_ok = True
 
     print(f"\n{BLUE}[3] APIエンドポイント確認{NC}")
@@ -107,7 +107,7 @@ def validate_api_endpoints():
     for endpoint, name in endpoints:
         try:
             # 認証なしでアクセス可能なエンドポイントのみ
-            if endpoint == '/api/v1/health':
+            if endpoint == "/api/v1/health":
                 resp = requests.get(f"{base_url}{endpoint}", timeout=5)
                 if resp.status_code == 200:
                     print(f"  {GREEN}✓{NC} {name}: OK (200)")
@@ -120,7 +120,9 @@ def validate_api_endpoints():
                 if resp.status_code in [200, 401, 403]:
                     print(f"  {GREEN}✓{NC} {name}: 応答あり ({resp.status_code})")
                 else:
-                    print(f"  {YELLOW}△{NC} {name}: 予期しない応答 ({resp.status_code})")
+                    print(
+                        f"  {YELLOW}△{NC} {name}: 予期しない応答 ({resp.status_code})"
+                    )
 
         except requests.exceptions.ConnectionError:
             print(f"  {YELLOW}△{NC} {name}: 接続できません（サーバー停止中）")
@@ -145,11 +147,11 @@ def main():
     print(f"{BLUE}[1] データ件数検証{NC}")
 
     validations = [
-        (Knowledge, 'knowledge.json', 'ナレッジ'),
-        (SOP, 'sop.json', 'SOP'),
-        (Incident, 'incidents.json', 'インシデント'),
-        (Project, 'projects.json', 'プロジェクト'),
-        (Expert, 'experts.json', '専門家'),
+        (Knowledge, "knowledge.json", "ナレッジ"),
+        (SOP, "sop.json", "SOP"),
+        (Incident, "incidents.json", "インシデント"),
+        (Project, "projects.json", "プロジェクト"),
+        (Expert, "experts.json", "専門家"),
     ]
 
     for model, json_file, name in validations:
@@ -175,7 +177,9 @@ def main():
     try:
         validate_api_endpoints()
     except ImportError:
-        print(f"\n{YELLOW}[3] APIエンドポイント確認: requestsモジュールなし（スキップ）{NC}")
+        print(
+            f"\n{YELLOW}[3] APIエンドポイント確認: requestsモジュールなし（スキップ）{NC}"
+        )
 
     # 結果サマリー
     print("")
@@ -188,5 +192,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

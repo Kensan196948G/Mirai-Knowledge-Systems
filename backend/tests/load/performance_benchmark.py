@@ -2,13 +2,15 @@
 パフォーマンスベンチマーク
 主要画面の応答時間を測定し、結果をJSON/CSVで出力
 """
-import requests
-import time
-import json
+
 import csv
+import json
+import statistics
+import time
 from datetime import datetime
 from typing import Dict, List
-import statistics
+
+import requests
 
 
 class PerformanceBenchmark:
@@ -24,11 +26,11 @@ class PerformanceBenchmark:
         print("認証トークン取得中...")
         response = requests.post(
             f"{self.base_url}/api/v1/auth/login",
-            json={"username": "admin", "password": "admin123"}
+            json={"username": "admin", "password": "admin123"},
         )
 
         if response.status_code == 200:
-            self.token = response.json()['data']['access_token']
+            self.token = response.json()["data"]["access_token"]
             print("✓ 認証成功\n")
             return True
         else:
@@ -41,14 +43,14 @@ class PerformanceBenchmark:
         endpoint: str,
         method: str = "GET",
         data: Dict = None,
-        iterations: int = 10
+        iterations: int = 10,
     ) -> Dict:
         """エンドポイントの応答時間測定"""
         print(f"測定中: {name}")
         print(f"  エンドポイント: {endpoint}")
         print(f"  試行回数: {iterations}")
 
-        headers = {'Authorization': f'Bearer {self.token}'}
+        headers = {"Authorization": f"Bearer {self.token}"}
         response_times = []
         errors = 0
 
@@ -58,23 +60,21 @@ class PerformanceBenchmark:
             try:
                 if method == "GET":
                     response = requests.get(
-                        f"{self.base_url}{endpoint}",
-                        headers=headers,
-                        timeout=10
+                        f"{self.base_url}{endpoint}", headers=headers, timeout=10
                     )
                 elif method == "POST":
                     response = requests.post(
                         f"{self.base_url}{endpoint}",
                         headers=headers,
                         json=data,
-                        timeout=10
+                        timeout=10,
                     )
                 elif method == "PUT":
                     response = requests.put(
                         f"{self.base_url}{endpoint}",
                         headers=headers,
                         json=data,
-                        timeout=10
+                        timeout=10,
                     )
 
                 elapsed = time.time() - start_time
@@ -105,7 +105,11 @@ class PerformanceBenchmark:
         # パーセンタイル計算
         if len(response_times) >= 20:
             p95_time = statistics.quantiles(response_times, n=20)[18]
-            p99_time = statistics.quantiles(response_times, n=100)[98] if len(response_times) >= 100 else max_time
+            p99_time = (
+                statistics.quantiles(response_times, n=100)[98]
+                if len(response_times) >= 100
+                else max_time
+            )
         else:
             p95_time = max_time
             p99_time = max_time
@@ -124,7 +128,7 @@ class PerformanceBenchmark:
             "p95_time": p95_time,
             "p99_time": p99_time,
             "std_dev": std_dev,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         # 結果表示
@@ -144,10 +148,10 @@ class PerformanceBenchmark:
 
         # 目標値チェック
         target_time = 3.0
-        if "検索" in result['name']:
+        if "検索" in result["name"]:
             target_time = 2.0
 
-        if result['avg_time'] <= target_time:
+        if result["avg_time"] <= target_time:
             print(f"  ✓ 目標達成 (平均 {result['avg_time']:.3f}秒 <= {target_time}秒)")
         else:
             print(f"  ✗ 目標未達成 (平均 {result['avg_time']:.3f}秒 > {target_time}秒)")
@@ -156,9 +160,9 @@ class PerformanceBenchmark:
 
     def run_benchmark(self):
         """ベンチマーク実行"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("パフォーマンスベンチマーク開始")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         if not self.setup():
             return
@@ -169,74 +173,68 @@ class PerformanceBenchmark:
             {
                 "name": "ダッシュボード - 統計情報",
                 "endpoint": "/api/v1/dashboard/stats",
-                "method": "GET"
+                "method": "GET",
             },
             {
                 "name": "ダッシュボード - 最近のアクティビティ",
                 "endpoint": "/api/v1/dashboard/activities?limit=10",
-                "method": "GET"
+                "method": "GET",
             },
             {
                 "name": "ダッシュボード - 人気ナレッジ",
                 "endpoint": "/api/v1/dashboard/popular?limit=5",
-                "method": "GET"
+                "method": "GET",
             },
-
             # 画面: ナレッジ一覧（目標: 3秒以内）
             {
                 "name": "ナレッジ一覧 - 全件",
                 "endpoint": "/api/v1/knowledge",
-                "method": "GET"
+                "method": "GET",
             },
             {
                 "name": "ナレッジ一覧 - ページネーション",
                 "endpoint": "/api/v1/knowledge?page=1&limit=20",
-                "method": "GET"
+                "method": "GET",
             },
-
             # 画面: ナレッジ詳細（目標: 3秒以内）
             {
                 "name": "ナレッジ詳細",
                 "endpoint": "/api/v1/knowledge/1",
-                "method": "GET"
+                "method": "GET",
             },
-
             # 機能: 検索（目標: 2秒以内）
             {
                 "name": "検索 - キーワード検索",
                 "endpoint": "/api/v1/knowledge?search=砂防",
-                "method": "GET"
+                "method": "GET",
             },
             {
                 "name": "検索 - 横断検索",
                 "endpoint": "/api/v1/search/unified?q=橋梁",
-                "method": "GET"
+                "method": "GET",
             },
             {
                 "name": "検索 - 全文検索",
                 "endpoint": "/api/v1/search/fulltext?q=コンクリート",
-                "method": "GET"
+                "method": "GET",
             },
-
             # 画面: 通知（目標: 2秒以内）
             {
                 "name": "通知一覧",
                 "endpoint": "/api/v1/notifications?limit=20",
-                "method": "GET"
+                "method": "GET",
             },
             {
                 "name": "未読通知数",
                 "endpoint": "/api/v1/notifications/unread/count",
-                "method": "GET"
+                "method": "GET",
             },
-
             # 画面: 承認（目標: 3秒以内）
             {
                 "name": "承認待ち一覧",
                 "endpoint": "/api/v1/approvals?status=pending",
-                "method": "GET"
+                "method": "GET",
             },
-
             # 機能: ナレッジ作成（目標: 3秒以内）
             {
                 "name": "ナレッジ作成",
@@ -247,19 +245,15 @@ class PerformanceBenchmark:
                     "content": "これはベンチマーク用のテストデータです。",
                     "category": "砂防",
                     "tags": ["テスト"],
-                    "status": "draft"
-                }
+                    "status": "draft",
+                },
             },
-
             # 機能: ナレッジ更新（目標: 3秒以内）
             {
                 "name": "ナレッジ更新",
                 "endpoint": "/api/v1/knowledge/1",
                 "method": "PUT",
-                "data": {
-                    "title": "更新テスト",
-                    "content": "更新されたコンテンツ"
-                }
+                "data": {"title": "更新テスト", "content": "更新されたコンテンツ"},
             },
         ]
 
@@ -270,7 +264,7 @@ class PerformanceBenchmark:
                 endpoint=benchmark["endpoint"],
                 method=benchmark.get("method", "GET"),
                 data=benchmark.get("data"),
-                iterations=10
+                iterations=10,
             )
 
             if result:
@@ -288,41 +282,53 @@ class PerformanceBenchmark:
 
         # JSON保存
         json_file = f"/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/reports/benchmark_{timestamp}.json"
-        with open(json_file, 'w', encoding='utf-8') as f:
+        with open(json_file, "w", encoding="utf-8") as f:
             json.dump(self.results, f, ensure_ascii=False, indent=2)
         print(f"\n結果をJSON保存: {json_file}")
 
         # CSV保存
         csv_file = f"/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/reports/benchmark_{timestamp}.csv"
-        with open(csv_file, 'w', encoding='utf-8', newline='') as f:
+        with open(csv_file, "w", encoding="utf-8", newline="") as f:
             if not self.results:
                 return
 
             fieldnames = [
-                '機能名', 'エンドポイント', 'メソッド', '試行回数',
-                '平均(秒)', '中央値(秒)', '最小(秒)', '最大(秒)',
-                'P95(秒)', 'P99(秒)', '標準偏差', '成功', 'エラー'
+                "機能名",
+                "エンドポイント",
+                "メソッド",
+                "試行回数",
+                "平均(秒)",
+                "中央値(秒)",
+                "最小(秒)",
+                "最大(秒)",
+                "P95(秒)",
+                "P99(秒)",
+                "標準偏差",
+                "成功",
+                "エラー",
             ]
 
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
 
             for r in self.results:
-                writer.writerow({
-                    '機能名': r['name'],
-                    'エンドポイント': r['endpoint'],
-                    'メソッド': r['method'],
-                    '試行回数': r['iterations'],
-                    '平均(秒)': f"{r['avg_time']:.3f}",
-                    '中央値(秒)': f"{r['median_time']:.3f}",
-                    '最小(秒)': f"{r['min_time']:.3f}",
-                    '最大(秒)': f"{r['max_time']:.3f}",
-                    'P95(秒)': f"{r['p95_time']:.3f}",
-                    'P99(秒)': f"{r['p99_time']:.3f}",
-                    '標準偏差': f"{r['std_dev']:.3f}",
-                    '成功': r['success_count'],
-                    'エラー': r['error_count']
-                })
+                writer.writerow(
+                    {
+                        "機能名": r["name"],
+                        "エンドポイント": r["endpoint"],
+                        "メソッド": r["method"],
+                        "試行回数": r["iterations"],
+                        "平均(秒)": f"{r['avg_time']:.3f}",
+                        "中央値(秒)": f"{r['median_time']:.3f}",
+                        "最小(秒)": f"{r['min_time']:.3f}",
+                        "最大(秒)": f"{r['max_time']:.3f}",
+                        "P95(秒)": f"{r['p95_time']:.3f}",
+                        "P99(秒)": f"{r['p99_time']:.3f}",
+                        "標準偏差": f"{r['std_dev']:.3f}",
+                        "成功": r["success_count"],
+                        "エラー": r["error_count"],
+                    }
+                )
 
         print(f"結果をCSV保存: {csv_file}")
 
@@ -331,43 +337,51 @@ class PerformanceBenchmark:
         if not self.results:
             return
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("ベンチマーク サマリー")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         # 目標値チェック
-        main_screens = [r for r in self.results if "一覧" in r['name'] or "詳細" in r['name'] or "ダッシュボード" in r['name']]
-        search_functions = [r for r in self.results if "検索" in r['name']]
+        main_screens = [
+            r
+            for r in self.results
+            if "一覧" in r["name"]
+            or "詳細" in r["name"]
+            or "ダッシュボード" in r["name"]
+        ]
+        search_functions = [r for r in self.results if "検索" in r["name"]]
 
         # 主要画面（3秒以内）
-        main_screen_ok = [r for r in main_screens if r['avg_time'] <= 3.0]
+        main_screen_ok = [r for r in main_screens if r["avg_time"] <= 3.0]
         print(f"主要画面（目標: 3秒以内）:")
         print(f"  合格: {len(main_screen_ok)}/{len(main_screens)}")
         for r in main_screens:
-            status = "✓" if r['avg_time'] <= 3.0 else "✗"
+            status = "✓" if r["avg_time"] <= 3.0 else "✗"
             print(f"  {status} {r['name']}: {r['avg_time']:.3f}秒")
 
         # 検索（2秒以内）
         print(f"\n検索機能（目標: 2秒以内）:")
-        search_ok = [r for r in search_functions if r['avg_time'] <= 2.0]
+        search_ok = [r for r in search_functions if r["avg_time"] <= 2.0]
         print(f"  合格: {len(search_ok)}/{len(search_functions)}")
         for r in search_functions:
-            status = "✓" if r['avg_time'] <= 2.0 else "✗"
+            status = "✓" if r["avg_time"] <= 2.0 else "✗"
             print(f"  {status} {r['name']}: {r['avg_time']:.3f}秒")
 
         # 最も遅い処理
-        slowest = max(self.results, key=lambda x: x['avg_time'])
+        slowest = max(self.results, key=lambda x: x["avg_time"])
         print(f"\n最も遅い処理:")
         print(f"  {slowest['name']}: {slowest['avg_time']:.3f}秒")
 
         # 最も速い処理
-        fastest = min(self.results, key=lambda x: x['avg_time'])
+        fastest = min(self.results, key=lambda x: x["avg_time"])
         print(f"\n最も速い処理:")
         print(f"  {fastest['name']}: {fastest['avg_time']:.3f}秒")
 
         # エラー率
-        total_requests = sum(r['success_count'] + r['error_count'] for r in self.results)
-        total_errors = sum(r['error_count'] for r in self.results)
+        total_requests = sum(
+            r["success_count"] + r["error_count"] for r in self.results
+        )
+        total_errors = sum(r["error_count"] for r in self.results)
         error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0
 
         print(f"\nエラー率: {error_rate:.2f}%")
@@ -376,7 +390,7 @@ class PerformanceBenchmark:
         else:
             print(f"  ✗ 目標未達成 (エラー率 {error_rate:.2f}% > 1%)")
 
-        print("\n" + "="*60 + "\n")
+        print("\n" + "=" * 60 + "\n")
 
 
 def main():

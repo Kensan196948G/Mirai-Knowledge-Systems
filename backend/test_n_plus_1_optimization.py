@@ -6,9 +6,9 @@ N+1クエリ最適化の検証スクリプト
 SQLAlchemyのechoを有効にしてクエリ数を確認します。
 """
 
+import logging
 import os
 import sys
-import logging
 from datetime import datetime
 
 # 環境変数を設定してPostgreSQLモードを有効化
@@ -21,6 +21,7 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
 from data_access import DataAccessLayer
 from database import get_session_factory
+
 
 def count_queries(func):
     """クエリ数をカウントするデコレータ"""
@@ -56,9 +57,9 @@ def count_queries(func):
 
 def test_knowledge_list_optimization():
     """ナレッジ一覧取得のN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト1: ナレッジ一覧取得のN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
 
     dal = DataAccessLayer(use_postgresql=True)
 
@@ -83,9 +84,9 @@ def test_knowledge_list_optimization():
 
 def test_knowledge_by_id_optimization():
     """ナレッジ詳細取得のN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト2: ナレッジ詳細取得のN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
 
     dal = DataAccessLayer(use_postgresql=True)
 
@@ -118,9 +119,9 @@ def test_knowledge_by_id_optimization():
 
 def test_related_knowledge_optimization():
     """関連ナレッジ取得のN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト3: 関連ナレッジ取得のN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
 
     dal = DataAccessLayer(use_postgresql=True)
 
@@ -166,9 +167,9 @@ def test_related_knowledge_optimization():
 
 def test_sop_list_optimization():
     """SOP一覧取得のN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト4: SOP一覧取得のN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
 
     dal = DataAccessLayer(use_postgresql=True)
 
@@ -193,9 +194,9 @@ def test_sop_list_optimization():
 
 def test_incident_list_optimization():
     """インシデント一覧取得のN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト5: インシデント一覧取得のN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
 
     dal = DataAccessLayer(use_postgresql=True)
 
@@ -220,9 +221,9 @@ def test_incident_list_optimization():
 
 def main():
     """メイン実行関数"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("N+1クエリ最適化検証スクリプト")
-    print("="*80)
+    print("=" * 80)
     print(f"実行時刻: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     # PostgreSQL接続確認
@@ -252,13 +253,14 @@ def main():
     except Exception as e:
         print(f"\n❌ テスト実行エラー: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
     # サマリー
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト結果サマリー")
-    print("="*80)
+    print("=" * 80)
 
     total_tests = len(results)
     passed_tests = sum(1 for count in results.values() if count <= 3)

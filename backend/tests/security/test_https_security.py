@@ -11,8 +11,10 @@ HTTPS・セキュリティヘッダーテスト
       セクション 5.2 HTTPS強制確認
       セクション 5.3 セキュリティヘッダー確認
 """
-import pytest
+
 import os
+
+import pytest
 
 
 class TestHTTPSEnforcement:
@@ -39,24 +41,25 @@ class TestHTTPSEnforcement:
     def test_https_redirect_respects_environment_variable(self):
         """HTTPS強制が環境変数を尊重すること"""
         # 環境変数のテスト
-        original_value = os.environ.get('MKS_FORCE_HTTPS')
+        original_value = os.environ.get("MKS_FORCE_HTTPS")
 
         try:
-            os.environ['MKS_FORCE_HTTPS'] = 'true'
+            os.environ["MKS_FORCE_HTTPS"] = "true"
             from app_v2 import HTTPSRedirectMiddleware
+
             middleware = HTTPSRedirectMiddleware(None)
             # 環境変数が読み込まれている
 
-            os.environ['MKS_FORCE_HTTPS'] = 'false'
+            os.environ["MKS_FORCE_HTTPS"] = "false"
             middleware_off = HTTPSRedirectMiddleware(None)
             # 環境変数が読み込まれている
 
         finally:
             # 元に戻す
             if original_value:
-                os.environ['MKS_FORCE_HTTPS'] = original_value
-            elif 'MKS_FORCE_HTTPS' in os.environ:
-                del os.environ['MKS_FORCE_HTTPS']
+                os.environ["MKS_FORCE_HTTPS"] = original_value
+            elif "MKS_FORCE_HTTPS" in os.environ:
+                del os.environ["MKS_FORCE_HTTPS"]
 
     def test_proxy_header_trust_configuration(self):
         """プロキシヘッダー信頼設定の確認"""
@@ -75,38 +78,42 @@ class TestSecurityHeaders:
 
     def test_x_content_type_options_header(self, client, admin_token):
         """X-Content-Type-Options ヘッダーの確認"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        assert 'X-Content-Type-Options' in response.headers
-        assert response.headers['X-Content-Type-Options'] == 'nosniff'
+        assert "X-Content-Type-Options" in response.headers
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
 
     def test_x_frame_options_header(self, client, admin_token):
         """X-Frame-Options ヘッダーの確認"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        assert 'X-Frame-Options' in response.headers
-        assert response.headers['X-Frame-Options'] in ['DENY', 'SAMEORIGIN']
+        assert "X-Frame-Options" in response.headers
+        assert response.headers["X-Frame-Options"] in ["DENY", "SAMEORIGIN"]
 
     def test_x_xss_protection_header(self, client, admin_token):
         """X-XSS-Protection ヘッダーの確認"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        assert 'X-XSS-Protection' in response.headers
-        assert '1' in response.headers['X-XSS-Protection']
-        assert 'mode=block' in response.headers['X-XSS-Protection']
+        assert "X-XSS-Protection" in response.headers
+        assert "1" in response.headers["X-XSS-Protection"]
+        assert "mode=block" in response.headers["X-XSS-Protection"]
 
     def test_content_security_policy_header(self, client, admin_token):
         """Content-Security-Policy ヘッダーの確認"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        if 'Content-Security-Policy' not in response.headers:
+        if "Content-Security-Policy" not in response.headers:
             return
 
-        csp = response.headers['Content-Security-Policy']
+        csp = response.headers["Content-Security-Policy"]
 
         # 主要なディレクティブが含まれていること
         assert "default-src" in csp
@@ -116,41 +123,43 @@ class TestSecurityHeaders:
 
     def test_referrer_policy_header(self, client, admin_token):
         """Referrer-Policy ヘッダーの確認"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        assert 'Referrer-Policy' in response.headers
+        assert "Referrer-Policy" in response.headers
         # 'no-referrer' または 'strict-origin-when-cross-origin' など
-        assert response.headers['Referrer-Policy'] in [
-            'no-referrer',
-            'strict-origin',
-            'strict-origin-when-cross-origin',
-            'same-origin'
+        assert response.headers["Referrer-Policy"] in [
+            "no-referrer",
+            "strict-origin",
+            "strict-origin-when-cross-origin",
+            "same-origin",
         ]
 
     def test_permissions_policy_header(self, client, admin_token):
         """Permissions-Policy ヘッダーの確認"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        assert 'Permissions-Policy' in response.headers
+        assert "Permissions-Policy" in response.headers
 
-        policy = response.headers['Permissions-Policy']
+        policy = response.headers["Permissions-Policy"]
 
         # 危険な機能が無効化されていること
-        assert 'geolocation=()' in policy
-        assert 'microphone=()' in policy
-        assert 'camera=()' in policy
+        assert "geolocation=()" in policy
+        assert "microphone=()" in policy
+        assert "camera=()" in policy
 
     def test_hsts_header_in_production(self, client, admin_token):
         """本番環境でHSTSヘッダーが設定されること"""
         # 本番環境設定をシミュレート
-        original_env = os.environ.get('MKS_ENV')
-        original_hsts = os.environ.get('MKS_HSTS_ENABLED')
+        original_env = os.environ.get("MKS_ENV")
+        original_hsts = os.environ.get("MKS_HSTS_ENABLED")
 
         try:
-            os.environ['MKS_ENV'] = 'production'
-            os.environ['MKS_HSTS_ENABLED'] = 'true'
+            os.environ["MKS_ENV"] = "production"
+            os.environ["MKS_HSTS_ENABLED"] = "true"
 
             # アプリケーションをリロード（実際のテストでは再起動が必要）
             # 注: このテストは設定の確認のみ
@@ -162,19 +171,20 @@ class TestSecurityHeaders:
         finally:
             # 元に戻す
             if original_env:
-                os.environ['MKS_ENV'] = original_env
-            elif 'MKS_ENV' in os.environ:
-                del os.environ['MKS_ENV']
+                os.environ["MKS_ENV"] = original_env
+            elif "MKS_ENV" in os.environ:
+                del os.environ["MKS_ENV"]
 
             if original_hsts:
-                os.environ['MKS_HSTS_ENABLED'] = original_hsts
-            elif 'MKS_HSTS_ENABLED' in os.environ:
-                del os.environ['MKS_HSTS_ENABLED']
+                os.environ["MKS_HSTS_ENABLED"] = original_hsts
+            elif "MKS_HSTS_ENABLED" in os.environ:
+                del os.environ["MKS_HSTS_ENABLED"]
 
     def test_cache_control_for_api_responses(self, client, admin_token):
         """APIレスポンスにキャッシュ制御ヘッダーが設定されること"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
         # 開発環境ではキャッシュ制御が緩い可能性があるが、
         # 本番環境では厳格であるべき
@@ -186,20 +196,22 @@ class TestContentSecurityPolicy:
 
     def test_csp_default_src_self(self, client, admin_token):
         """CSP default-src が 'self' であること"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        csp = response.headers.get('Content-Security-Policy', '')
+        csp = response.headers.get("Content-Security-Policy", "")
         if not csp:
             return
         assert "default-src 'self'" in csp
 
     def test_csp_script_src_restricted(self, client, admin_token):
         """CSP script-src が適切に制限されていること"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        csp = response.headers.get('Content-Security-Policy', '')
+        csp = response.headers.get("Content-Security-Policy", "")
         if not csp:
             return
         assert "script-src" in csp
@@ -209,10 +221,11 @@ class TestContentSecurityPolicy:
 
     def test_csp_frame_ancestors_restricted(self, client, admin_token):
         """CSP frame-ancestors が制限されていること"""
-        response = client.get('/api/v1/knowledge',
-                            headers={'Authorization': f'Bearer {admin_token}'})
+        response = client.get(
+            "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
+        )
 
-        csp = response.headers.get('Content-Security-Policy', '')
+        csp = response.headers.get("Content-Security-Policy", "")
         if not csp:
             return
         assert "frame-ancestors" in csp
@@ -222,10 +235,10 @@ class TestContentSecurityPolicy:
     def test_csp_upgrade_insecure_requests(self, client, admin_token):
         """本番環境でCSP upgrade-insecure-requests が設定されること"""
         # 本番環境の場合のみ
-        original_env = os.environ.get('MKS_ENV')
+        original_env = os.environ.get("MKS_ENV")
 
         try:
-            os.environ['MKS_ENV'] = 'production'
+            os.environ["MKS_ENV"] = "production"
 
             # 設定の確認（実際のヘッダーテストは統合テストで実施）
             from app_v2 import IS_PRODUCTION
@@ -234,9 +247,9 @@ class TestContentSecurityPolicy:
 
         finally:
             if original_env:
-                os.environ['MKS_ENV'] = original_env
-            elif 'MKS_ENV' in os.environ:
-                del os.environ['MKS_ENV']
+                os.environ["MKS_ENV"] = original_env
+            elif "MKS_ENV" in os.environ:
+                del os.environ["MKS_ENV"]
 
 
 class TestHSTS:
@@ -244,7 +257,7 @@ class TestHSTS:
 
     def test_hsts_configuration_values(self):
         """HSTS設定値の確認"""
-        from app_v2 import HSTS_MAX_AGE, HSTS_INCLUDE_SUBDOMAINS
+        from app_v2 import HSTS_INCLUDE_SUBDOMAINS, HSTS_MAX_AGE
 
         # デフォルト値の確認
         assert HSTS_MAX_AGE > 0
@@ -260,18 +273,18 @@ class TestHSTS:
 
     def test_hsts_environment_variable_override(self):
         """HSTS設定が環境変数でオーバーライド可能であること"""
-        original_max_age = os.environ.get('MKS_HSTS_MAX_AGE')
+        original_max_age = os.environ.get("MKS_HSTS_MAX_AGE")
 
         try:
-            os.environ['MKS_HSTS_MAX_AGE'] = '63072000'  # 2年
+            os.environ["MKS_HSTS_MAX_AGE"] = "63072000"  # 2年
 
             # 設定が読み込まれることを確認（実際はアプリ再起動が必要）
 
         finally:
             if original_max_age:
-                os.environ['MKS_HSTS_MAX_AGE'] = original_max_age
-            elif 'MKS_HSTS_MAX_AGE' in os.environ:
-                del os.environ['MKS_HSTS_MAX_AGE']
+                os.environ["MKS_HSTS_MAX_AGE"] = original_max_age
+            elif "MKS_HSTS_MAX_AGE" in os.environ:
+                del os.environ["MKS_HSTS_MAX_AGE"]
 
 
 class TestSSLTLSConfiguration:
@@ -303,17 +316,16 @@ class TestSecureConfiguration:
         """シークレットキーが設定されていること"""
         from app_v2 import app
 
-        assert 'JWT_SECRET_KEY' in app.config
-        assert app.config['JWT_SECRET_KEY'] is not None
-        assert len(app.config['JWT_SECRET_KEY']) > 20
+        assert "JWT_SECRET_KEY" in app.config
+        assert app.config["JWT_SECRET_KEY"] is not None
+        assert len(app.config["JWT_SECRET_KEY"]) > 20
 
     def test_secret_key_not_default_in_production(self):
         """本番環境でデフォルトのシークレットキーが使用されていないこと"""
-        from app_v2 import app, JWT_SECRET_KEY
+        from app_v2 import JWT_SECRET_KEY, app
 
         # テスト環境ではデフォルト値が使用されるが、
         # 本番環境では環境変数から読み込まれるべき
-
         # シークレットキーが設定されていることを確認
         assert JWT_SECRET_KEY is not None
         assert len(JWT_SECRET_KEY) > 20
@@ -321,11 +333,11 @@ class TestSecureConfiguration:
     def test_cors_origins_configured(self):
         """CORS オリジンが適切に設定されていること"""
         # CORS設定の確認
-        allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5000')
+        allowed_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5000")
 
         # 本番環境では '*' が設定されていないこと
-        if os.environ.get('MKS_ENV') == 'production':
-            assert '*' not in allowed_origins
+        if os.environ.get("MKS_ENV") == "production":
+            assert "*" not in allowed_origins
 
 
 class TestErrorHandling:
@@ -334,30 +346,30 @@ class TestErrorHandling:
     def test_error_messages_no_stack_trace_in_production(self, client):
         """本番環境でエラー時にスタックトレースが表示されないこと"""
         # 存在しないエンドポイントにアクセス
-        response = client.get('/api/nonexistent')
+        response = client.get("/api/nonexistent")
 
         assert response.status_code == 404
 
         # レスポンスにスタックトレースが含まれていないこと
         response_text = response.get_data(as_text=True).lower()
-        assert 'traceback' not in response_text
-        assert 'exception' not in response_text
+        assert "traceback" not in response_text
+        assert "exception" not in response_text
 
     def test_authentication_error_generic_message(self, client):
         """認証エラー時に詳細な情報が漏洩しないこと"""
-        response = client.post('/api/v1/auth/login', json={
-            'username': 'nonexistent',
-            'password': 'wrongpass'
-        })
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "nonexistent", "password": "wrongpass"},
+        )
 
         assert response.status_code == 401
 
         # ユーザーが存在しないか、パスワードが間違っているか区別できない
         # 汎用的なエラーメッセージであるべき
         data = response.get_json()
-        error_payload = data.get('error', '')
+        error_payload = data.get("error", "")
         if isinstance(error_payload, dict):
-            error_message = error_payload.get('message', '').lower()
+            error_message = error_payload.get("message", "").lower()
         else:
             error_message = str(error_payload).lower()
 
@@ -367,8 +379,9 @@ class TestErrorHandling:
     def test_authorization_error_no_information_leakage(self, client, viewer_token):
         """認可エラー時にリソースの存在が漏洩しないこと"""
         # 存在するが権限のないリソース
-        response = client.delete('/api/v1/knowledge/1',
-                               headers={'Authorization': f'Bearer {viewer_token}'})
+        response = client.delete(
+            "/api/v1/knowledge/1", headers={"Authorization": f"Bearer {viewer_token}"}
+        )
 
         assert response.status_code in [403, 404, 405]
 
@@ -406,32 +419,36 @@ class TestSessionSecurity:
 
     def test_jwt_token_expiration_configured(self):
         """JWTトークンの有効期限が設定されていること"""
-        from app_v2 import app
         from datetime import timedelta
 
-        assert 'JWT_ACCESS_TOKEN_EXPIRES' in app.config
-        assert isinstance(app.config['JWT_ACCESS_TOKEN_EXPIRES'], timedelta)
-        assert app.config['JWT_ACCESS_TOKEN_EXPIRES'] > timedelta(0)
+        from app_v2 import app
+
+        assert "JWT_ACCESS_TOKEN_EXPIRES" in app.config
+        assert isinstance(app.config["JWT_ACCESS_TOKEN_EXPIRES"], timedelta)
+        assert app.config["JWT_ACCESS_TOKEN_EXPIRES"] > timedelta(0)
 
     def test_refresh_token_expiration_configured(self):
         """リフレッシュトークンの有効期限が設定されていること"""
-        from app_v2 import app
         from datetime import timedelta
 
-        assert 'JWT_REFRESH_TOKEN_EXPIRES' in app.config
-        assert isinstance(app.config['JWT_REFRESH_TOKEN_EXPIRES'], timedelta)
+        from app_v2 import app
+
+        assert "JWT_REFRESH_TOKEN_EXPIRES" in app.config
+        assert isinstance(app.config["JWT_REFRESH_TOKEN_EXPIRES"], timedelta)
 
         # リフレッシュトークンはアクセストークンより長い
-        assert app.config['JWT_REFRESH_TOKEN_EXPIRES'] > \
-               app.config['JWT_ACCESS_TOKEN_EXPIRES']
+        assert (
+            app.config["JWT_REFRESH_TOKEN_EXPIRES"]
+            > app.config["JWT_ACCESS_TOKEN_EXPIRES"]
+        )
 
     def test_csrf_disabled_for_api(self):
         """API専用のためCSRF保護が無効であること"""
         from app_v2 import app
 
         # JWTを使用するためCSRF保護は不要
-        assert app.config.get('JWT_COOKIE_CSRF_PROTECT') is False
-        assert app.config.get('WTF_CSRF_ENABLED') is False
+        assert app.config.get("JWT_COOKIE_CSRF_PROTECT") is False
+        assert app.config.get("WTF_CSRF_ENABLED") is False
 
 
 class TestDataProtection:
@@ -444,27 +461,26 @@ class TestDataProtection:
         assert hash_password is not None
 
         # bcryptが使用されていることを確認
-        hashed = hash_password('test123')
-        assert hashed.startswith('$2b$')
+        hashed = hash_password("test123")
+        assert hashed.startswith("$2b$")
 
     def test_password_verification_function_exists(self):
         """パスワード検証関数が存在すること"""
-        from app_v2 import hash_password
         import bcrypt
+        from app_v2 import hash_password
 
-        password = 'test123'
+        password = "test123"
         hashed = hash_password(password)
 
         # 検証が成功すること
-        assert bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+        assert bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
     def test_sensitive_data_not_logged(self, client):
         """機密データがログに記録されないこと"""
         # ログイン試行
-        response = client.post('/api/v1/auth/login', json={
-            'username': 'admin',
-            'password': 'admin123'
-        })
+        response = client.post(
+            "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
+        )
 
         # 注: ログファイルに平文パスワードが記録されていないことを確認
         # （実際のログファイル確認は統合テストで実施）

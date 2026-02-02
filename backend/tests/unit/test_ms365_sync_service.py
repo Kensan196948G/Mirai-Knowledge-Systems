@@ -1,18 +1,19 @@
 """
 MS365同期サービスのユニットテスト
 """
-import pytest
-import sys
+
 import os
-from unittest.mock import Mock, patch, MagicMock
+import sys
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+import pytest
 
-from tests.fixtures.ms365_mock_data import (
-    MOCK_SITES, MOCK_DRIVES, MOCK_FILES, MOCK_FILE_CONTENT,
-    MOCK_SYNC_CONFIG, MOCK_AUTH_ERROR
-)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+from tests.fixtures.ms365_mock_data import (MOCK_AUTH_ERROR, MOCK_DRIVES,
+                                            MOCK_FILE_CONTENT, MOCK_FILES,
+                                            MOCK_SITES, MOCK_SYNC_CONFIG)
 
 
 class TestMS365SyncService:
@@ -25,9 +26,11 @@ class TestMS365SyncService:
         client.get_sites.return_value = MOCK_SITES
         client.get_site_drives.return_value = MOCK_DRIVES
         client.get_drive_items.return_value = MOCK_FILES
-        client.download_file.side_effect = lambda drive_id, item_id: MOCK_FILE_CONTENT.get(item_id, b"")
+        client.download_file.side_effect = (
+            lambda drive_id, item_id: MOCK_FILE_CONTENT.get(item_id, b"")
+        )
         client.get_file_metadata.side_effect = lambda drive_id, item_id: next(
-            (f for f in MOCK_FILES if f['id'] == item_id), None
+            (f for f in MOCK_FILES if f["id"] == item_id), None
         )
         return client
 
@@ -37,16 +40,16 @@ class TestMS365SyncService:
         files = mock_graph_client.get_drive_items("drive-456", "/")
 
         assert len(files) == 3
-        assert files[0]['name'] == '安全施工手順書.pdf'
-        assert files[1]['name'] == '品質管理マニュアル.docx'
-        assert files[2]['name'] == '工程表.xlsx'
+        assert files[0]["name"] == "安全施工手順書.pdf"
+        assert files[1]["name"] == "品質管理マニュアル.docx"
+        assert files[2]["name"] == "工程表.xlsx"
 
     def test_detect_changes_incremental(self, mock_graph_client):
         """増分変更検出のテスト"""
         # 既存ファイルのハッシュ
         existing_hashes = {
             "file-001": "abc123def456",  # 変更なし
-            "file-002": "old_hash_xyz",   # 変更あり（ハッシュが異なる）
+            "file-002": "old_hash_xyz",  # 変更あり（ハッシュが異なる）
             # file-003 は新規ファイル
         }
 
@@ -59,8 +62,10 @@ class TestMS365SyncService:
         unchanged_files = []
 
         for file in current_files:
-            file_id = file['id']
-            current_hash = file.get('file', {}).get('hashes', {}).get('quickXorHash', '')
+            file_id = file["id"]
+            current_hash = (
+                file.get("file", {}).get("hashes", {}).get("quickXorHash", "")
+            )
 
             if file_id not in existing_hashes:
                 new_files.append(file)
@@ -70,13 +75,13 @@ class TestMS365SyncService:
                 unchanged_files.append(file)
 
         assert len(new_files) == 1
-        assert new_files[0]['id'] == 'file-003'
+        assert new_files[0]["id"] == "file-003"
 
         assert len(updated_files) == 1
-        assert updated_files[0]['id'] == 'file-002'
+        assert updated_files[0]["id"] == "file-002"
 
         assert len(unchanged_files) == 1
-        assert unchanged_files[0]['id'] == 'file-001'
+        assert unchanged_files[0]["id"] == "file-001"
 
     def test_calculate_checksum(self):
         """チェックサム計算のテスト"""
@@ -99,19 +104,19 @@ class TestMS365SyncService:
 
         # 基本メタデータの抽出
         extracted = {
-            "file_id": file_metadata['id'],
-            "filename": file_metadata['name'],
-            "size": file_metadata['size'],
-            "mime_type": file_metadata['file']['mimeType'],
-            "created_at": file_metadata['createdDateTime'],
-            "modified_at": file_metadata['lastModifiedDateTime'],
-            "web_url": file_metadata['webUrl']
+            "file_id": file_metadata["id"],
+            "filename": file_metadata["name"],
+            "size": file_metadata["size"],
+            "mime_type": file_metadata["file"]["mimeType"],
+            "created_at": file_metadata["createdDateTime"],
+            "modified_at": file_metadata["lastModifiedDateTime"],
+            "web_url": file_metadata["webUrl"],
         }
 
-        assert extracted['file_id'] == 'file-001'
-        assert extracted['filename'] == '安全施工手順書.pdf'
-        assert extracted['size'] == 1024000
-        assert extracted['mime_type'] == 'application/pdf'
+        assert extracted["file_id"] == "file-001"
+        assert extracted["filename"] == "安全施工手順書.pdf"
+        assert extracted["size"] == 1024000
+        assert extracted["mime_type"] == "application/pdf"
 
     def test_sync_error_handling(self, mock_graph_client):
         """同期エラーハンドリングのテスト"""
@@ -124,17 +129,18 @@ class TestMS365SyncService:
     def test_file_extension_filter(self, mock_graph_client):
         """ファイル拡張子フィルタのテスト"""
         all_files = mock_graph_client.get_drive_items("drive-456", "/")
-        allowed_extensions = ['pdf', 'docx']
+        allowed_extensions = ["pdf", "docx"]
 
         # 拡張子でフィルタリング
         filtered_files = [
-            f for f in all_files
-            if any(f['name'].lower().endswith(f'.{ext}') for ext in allowed_extensions)
+            f
+            for f in all_files
+            if any(f["name"].lower().endswith(f".{ext}") for ext in allowed_extensions)
         ]
 
         assert len(filtered_files) == 2
-        assert filtered_files[0]['name'] == '安全施工手順書.pdf'
-        assert filtered_files[1]['name'] == '品質管理マニュアル.docx'
+        assert filtered_files[0]["name"] == "安全施工手順書.pdf"
+        assert filtered_files[1]["name"] == "品質管理マニュアル.docx"
 
 
 class TestMetadataExtractor:
@@ -149,25 +155,27 @@ class TestMetadataExtractor:
         metadata = {
             "text": mock_pdf_content,
             "word_count": len(mock_pdf_content),
-            "has_content": bool(mock_pdf_content)
+            "has_content": bool(mock_pdf_content),
         }
 
-        assert metadata['has_content'] is True
-        assert metadata['word_count'] > 0
+        assert metadata["has_content"] is True
+        assert metadata["word_count"] > 0
 
     def test_extract_from_word(self):
         """Word文書抽出のテスト（モック）"""
         # python-docxを使った抽出のモック
-        mock_word_content = "品質管理マニュアルの内容です。\n第1章: 品質方針\n第2章: 検査手順"
+        mock_word_content = (
+            "品質管理マニュアルの内容です。\n第1章: 品質方針\n第2章: 検査手順"
+        )
 
         metadata = {
             "text": mock_word_content,
-            "paragraphs": mock_word_content.count('\n') + 1,
-            "has_content": bool(mock_word_content)
+            "paragraphs": mock_word_content.count("\n") + 1,
+            "has_content": bool(mock_word_content),
         }
 
-        assert metadata['has_content'] is True
-        assert metadata['paragraphs'] == 3
+        assert metadata["has_content"] is True
+        assert metadata["paragraphs"] == 3
 
     def test_extract_from_excel(self):
         """Excel抽出のテスト（モック）"""
@@ -175,63 +183,63 @@ class TestMetadataExtractor:
         mock_excel_data = [
             ["日付", "工程", "進捗率"],
             ["2025-01-15", "基礎工事", "80%"],
-            ["2025-01-20", "躯体工事", "50%"]
+            ["2025-01-20", "躯体工事", "50%"],
         ]
 
         metadata = {
             "row_count": len(mock_excel_data),
             "column_count": len(mock_excel_data[0]) if mock_excel_data else 0,
-            "has_content": bool(mock_excel_data)
+            "has_content": bool(mock_excel_data),
         }
 
-        assert metadata['has_content'] is True
-        assert metadata['row_count'] == 3
-        assert metadata['column_count'] == 3
+        assert metadata["has_content"] is True
+        assert metadata["row_count"] == 3
+        assert metadata["column_count"] == 3
 
     def test_extract_from_text(self):
         """テキストファイル抽出のテスト"""
         mock_text_content = "これはテキストファイルの内容です。\n複数行あります。"
 
         # UTF-8でエンコード
-        content_bytes = mock_text_content.encode('utf-8')
+        content_bytes = mock_text_content.encode("utf-8")
 
         # デコード
-        decoded = content_bytes.decode('utf-8')
+        decoded = content_bytes.decode("utf-8")
 
         metadata = {
             "text": decoded,
-            "line_count": decoded.count('\n') + 1,
-            "encoding": "utf-8"
+            "line_count": decoded.count("\n") + 1,
+            "encoding": "utf-8",
         }
 
-        assert metadata['text'] == mock_text_content
-        assert metadata['line_count'] == 2
-        assert metadata['encoding'] == 'utf-8'
+        assert metadata["text"] == mock_text_content
+        assert metadata["line_count"] == 2
+        assert metadata["encoding"] == "utf-8"
 
     def test_encoding_detection(self):
         """エンコーディング検出のテスト"""
         # UTF-8
-        utf8_text = "日本語テキスト".encode('utf-8')
-        assert utf8_text.decode('utf-8') == "日本語テキスト"
+        utf8_text = "日本語テキスト".encode("utf-8")
+        assert utf8_text.decode("utf-8") == "日本語テキスト"
 
         # Shift-JIS
-        sjis_text = "日本語テキスト".encode('shift-jis')
-        assert sjis_text.decode('shift-jis') == "日本語テキスト"
+        sjis_text = "日本語テキスト".encode("shift-jis")
+        assert sjis_text.decode("shift-jis") == "日本語テキスト"
 
         # 自動検出が必要な場合のロジック
         def detect_encoding(content: bytes) -> str:
             """簡易的なエンコーディング検出"""
-            encodings = ['utf-8', 'shift-jis', 'euc-jp', 'iso-2022-jp']
+            encodings = ["utf-8", "shift-jis", "euc-jp", "iso-2022-jp"]
             for enc in encodings:
                 try:
                     content.decode(enc)
                     return enc
                 except (UnicodeDecodeError, LookupError):
                     continue
-            return 'utf-8'  # デフォルト
+            return "utf-8"  # デフォルト
 
-        assert detect_encoding(utf8_text) == 'utf-8'
-        assert detect_encoding(sjis_text) == 'shift-jis'
+        assert detect_encoding(utf8_text) == "utf-8"
+        assert detect_encoding(sjis_text) == "shift-jis"
 
 
 class TestMS365SchedulerService:
@@ -245,11 +253,11 @@ class TestMS365SchedulerService:
         # スケジュールのパース（簡易検証）
         parts = schedule.split()
         assert len(parts) == 5
-        assert parts[0] == "0"   # 分
-        assert parts[1] == "2"   # 時
-        assert parts[2] == "*"   # 日
-        assert parts[3] == "*"   # 月
-        assert parts[4] == "*"   # 曜日
+        assert parts[0] == "0"  # 分
+        assert parts[1] == "2"  # 時
+        assert parts[2] == "*"  # 日
+        assert parts[3] == "*"  # 月
+        assert parts[4] == "*"  # 曜日
 
     def test_cron_parsing(self):
         """cronパースのテスト"""
@@ -257,7 +265,7 @@ class TestMS365SchedulerService:
             ("0 2 * * *", "毎日午前2時"),
             ("0 */6 * * *", "6時間ごと"),
             ("0 0 * * 0", "毎週日曜日の午前0時"),
-            ("0 9 1 * *", "毎月1日の午前9時")
+            ("0 9 1 * *", "毎月1日の午前9時"),
         ]
 
         for cron, description in test_cases:
@@ -271,11 +279,13 @@ class TestMS365SchedulerService:
 
         def start_scheduler():
             scheduler_state["running"] = True
-            scheduler_state["jobs"].append({
-                "id": "sync_job_1",
-                "schedule": "0 2 * * *",
-                "next_run": "2025-01-21T02:00:00Z"
-            })
+            scheduler_state["jobs"].append(
+                {
+                    "id": "sync_job_1",
+                    "schedule": "0 2 * * *",
+                    "next_run": "2025-01-21T02:00:00Z",
+                }
+            )
 
         def stop_scheduler():
             scheduler_state["running"] = False
@@ -300,7 +310,7 @@ class TestMS365SchedulerService:
             execution = {
                 "config_id": config_id,
                 "started_at": datetime.utcnow().isoformat(),
-                "status": "running"
+                "status": "running",
             }
             job_executions.append(execution)
 

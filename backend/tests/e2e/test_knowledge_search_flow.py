@@ -3,10 +3,11 @@
 検索から詳細表示までの一連の流れをテスト
 """
 
-import pytest
-from playwright.sync_api import Page, expect
 import os
 import sys
+
+import pytest
+from playwright.sync_api import Page, expect
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 

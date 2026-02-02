@@ -9,19 +9,20 @@
 - データ変換・正規化
 """
 
-import os
-import json
 import csv
+import json
 import logging
-from typing import Optional, Dict, List, Any, Union
+import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 # オプションの依存関係
 try:
     import pandas as pd
+
     PANDAS_AVAILABLE = True
 except ImportError:
     PANDAS_AVAILABLE = False
@@ -35,7 +36,7 @@ class DataImporter:
     """
 
     # サポートするエンティティタイプ
-    ENTITY_TYPES = ['knowledge', 'sop', 'incidents', 'regulations', 'consultations']
+    ENTITY_TYPES = ["knowledge", "sop", "incidents", "regulations", "consultations"]
 
     def __init__(self, data_dir: Optional[str] = None):
         """
@@ -45,8 +46,7 @@ class DataImporter:
             data_dir: データ保存先ディレクトリ
         """
         self.data_dir = data_dir or os.environ.get(
-            'MKS_DATA_DIR',
-            os.path.join(os.path.dirname(__file__), '..', 'data')
+            "MKS_DATA_DIR", os.path.join(os.path.dirname(__file__), "..", "data")
         )
         self.data_dir = os.path.abspath(self.data_dir)
 
@@ -59,7 +59,7 @@ class DataImporter:
         file_path: str,
         entity_type: str,
         column_mapping: Optional[Dict[str, str]] = None,
-        skip_rows: int = 0
+        skip_rows: int = 0,
     ) -> Dict[str, Any]:
         """
         CSVファイルからデータをインポート
@@ -81,11 +81,11 @@ class DataImporter:
             "entity_type": entity_type,
             "imported": 0,
             "skipped": 0,
-            "errors": []
+            "errors": [],
         }
 
         try:
-            with open(file_path, 'r', encoding='utf-8-sig') as f:
+            with open(file_path, "r", encoding="utf-8-sig") as f:
                 reader = csv.DictReader(f)
 
                 # 行をスキップ
@@ -95,7 +95,9 @@ class DataImporter:
                 records = []
                 for row_num, row in enumerate(reader, start=1):
                     try:
-                        record = self._transform_csv_row(row, entity_type, column_mapping)
+                        record = self._transform_csv_row(
+                            row, entity_type, column_mapping
+                        )
                         if record:
                             records.append(record)
                             result["imported"] += 1
@@ -118,7 +120,7 @@ class DataImporter:
         self,
         row: Dict[str, str],
         entity_type: str,
-        column_mapping: Optional[Dict[str, str]] = None
+        column_mapping: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict]:
         """CSVの行をエンティティに変換"""
         # カラムマッピングを適用
@@ -130,114 +132,114 @@ class DataImporter:
             row = mapped_row
 
         # エンティティタイプごとの変換
-        if entity_type == 'knowledge':
+        if entity_type == "knowledge":
             return self._transform_knowledge(row)
-        elif entity_type == 'sop':
+        elif entity_type == "sop":
             return self._transform_sop(row)
-        elif entity_type == 'incidents':
+        elif entity_type == "incidents":
             return self._transform_incident(row)
-        elif entity_type == 'regulations':
+        elif entity_type == "regulations":
             return self._transform_regulation(row)
-        elif entity_type == 'consultations':
+        elif entity_type == "consultations":
             return self._transform_consultation(row)
 
         return None
 
     def _transform_knowledge(self, row: Dict) -> Optional[Dict]:
         """ナレッジデータに変換"""
-        title = row.get('title', '').strip()
+        title = row.get("title", "").strip()
         if not title:
             return None
 
         return {
-            "id": self._generate_id('knowledge'),
+            "id": self._generate_id("knowledge"),
             "title": title,
-            "summary": row.get('summary', ''),
-            "category": row.get('category', '一般'),
-            "tags": self._parse_tags(row.get('tags', '')),
-            "content": row.get('content', ''),
-            "status": row.get('status', 'draft'),
-            "priority": row.get('priority', 'medium'),
-            "project": row.get('project', ''),
-            "owner": row.get('owner', 'システム'),
-            "created_at": self._parse_datetime(row.get('created_at')),
-            "updated_at": datetime.now().isoformat()
+            "summary": row.get("summary", ""),
+            "category": row.get("category", "一般"),
+            "tags": self._parse_tags(row.get("tags", "")),
+            "content": row.get("content", ""),
+            "status": row.get("status", "draft"),
+            "priority": row.get("priority", "medium"),
+            "project": row.get("project", ""),
+            "owner": row.get("owner", "システム"),
+            "created_at": self._parse_datetime(row.get("created_at")),
+            "updated_at": datetime.now().isoformat(),
         }
 
     def _transform_sop(self, row: Dict) -> Optional[Dict]:
         """SOP（標準施工手順）データに変換"""
-        title = row.get('title', '').strip()
+        title = row.get("title", "").strip()
         if not title:
             return None
 
         return {
-            "id": self._generate_id('sop'),
+            "id": self._generate_id("sop"),
             "title": title,
-            "category": row.get('category', '一般'),
-            "version": row.get('version', '1.0'),
-            "revision_date": self._parse_date(row.get('revision_date')),
-            "target": row.get('target', ''),
-            "tags": self._parse_tags(row.get('tags', '')),
-            "content": row.get('content', ''),
-            "status": row.get('status', 'active'),
-            "created_at": datetime.now().isoformat()
+            "category": row.get("category", "一般"),
+            "version": row.get("version", "1.0"),
+            "revision_date": self._parse_date(row.get("revision_date")),
+            "target": row.get("target", ""),
+            "tags": self._parse_tags(row.get("tags", "")),
+            "content": row.get("content", ""),
+            "status": row.get("status", "active"),
+            "created_at": datetime.now().isoformat(),
         }
 
     def _transform_incident(self, row: Dict) -> Optional[Dict]:
         """事故・ヒヤリレポートデータに変換"""
-        title = row.get('title', '').strip()
+        title = row.get("title", "").strip()
         if not title:
             return None
 
         return {
-            "id": self._generate_id('incidents'),
+            "id": self._generate_id("incidents"),
             "title": title,
-            "description": row.get('description', ''),
-            "project": row.get('project', ''),
-            "incident_date": self._parse_date(row.get('incident_date')),
-            "severity": row.get('severity', 'medium'),
-            "status": row.get('status', 'reported'),
-            "root_cause": row.get('root_cause', ''),
-            "corrective_actions": row.get('corrective_actions', ''),
-            "location": row.get('location', ''),
-            "tags": self._parse_tags(row.get('tags', '')),
-            "created_at": datetime.now().isoformat()
+            "description": row.get("description", ""),
+            "project": row.get("project", ""),
+            "incident_date": self._parse_date(row.get("incident_date")),
+            "severity": row.get("severity", "medium"),
+            "status": row.get("status", "reported"),
+            "root_cause": row.get("root_cause", ""),
+            "corrective_actions": row.get("corrective_actions", ""),
+            "location": row.get("location", ""),
+            "tags": self._parse_tags(row.get("tags", "")),
+            "created_at": datetime.now().isoformat(),
         }
 
     def _transform_regulation(self, row: Dict) -> Optional[Dict]:
         """法令・規格データに変換"""
-        title = row.get('title', '').strip()
+        title = row.get("title", "").strip()
         if not title:
             return None
 
         return {
-            "id": self._generate_id('regulations'),
+            "id": self._generate_id("regulations"),
             "title": title,
-            "issuer": row.get('issuer', ''),
-            "category": row.get('category', '法令'),
-            "revision_date": self._parse_date(row.get('revision_date')),
-            "summary": row.get('summary', ''),
-            "content": row.get('content', ''),
-            "status": row.get('status', 'active'),
-            "url": row.get('url', ''),
-            "created_at": datetime.now().isoformat()
+            "issuer": row.get("issuer", ""),
+            "category": row.get("category", "法令"),
+            "revision_date": self._parse_date(row.get("revision_date")),
+            "summary": row.get("summary", ""),
+            "content": row.get("content", ""),
+            "status": row.get("status", "active"),
+            "url": row.get("url", ""),
+            "created_at": datetime.now().isoformat(),
         }
 
     def _transform_consultation(self, row: Dict) -> Optional[Dict]:
         """専門家相談データに変換"""
-        title = row.get('title', '').strip()
+        title = row.get("title", "").strip()
         if not title:
             return None
 
         return {
-            "id": self._generate_id('consultations'),
+            "id": self._generate_id("consultations"),
             "title": title,
-            "question": row.get('question', ''),
-            "category": row.get('category', '技術相談'),
-            "priority": row.get('priority', 'medium'),
-            "status": row.get('status', 'pending'),
-            "answer": row.get('answer', ''),
-            "created_at": datetime.now().isoformat()
+            "question": row.get("question", ""),
+            "category": row.get("category", "技術相談"),
+            "priority": row.get("priority", "medium"),
+            "status": row.get("status", "pending"),
+            "answer": row.get("answer", ""),
+            "created_at": datetime.now().isoformat(),
         }
 
     # =========================================================================
@@ -250,7 +252,7 @@ class DataImporter:
         entity_type: str,
         sheet_name: Union[str, int] = 0,
         column_mapping: Optional[Dict[str, str]] = None,
-        skip_rows: int = 0
+        skip_rows: int = 0,
     ) -> Dict[str, Any]:
         """
         Excelファイルからデータをインポート
@@ -266,7 +268,9 @@ class DataImporter:
             インポート結果
         """
         if not PANDAS_AVAILABLE:
-            raise ImportError("pandas ライブラリがインストールされていません。pip install pandas openpyxl")
+            raise ImportError(
+                "pandas ライブラリがインストールされていません。pip install pandas openpyxl"
+            )
 
         if entity_type not in self.ENTITY_TYPES:
             raise ValueError(f"不明なエンティティタイプ: {entity_type}")
@@ -276,7 +280,7 @@ class DataImporter:
             "entity_type": entity_type,
             "imported": 0,
             "skipped": 0,
-            "errors": []
+            "errors": [],
         }
 
         try:
@@ -291,7 +295,9 @@ class DataImporter:
                 try:
                     row_dict = row.to_dict()
                     # NaN値を空文字に変換
-                    row_dict = {k: ('' if pd.isna(v) else v) for k, v in row_dict.items()}
+                    row_dict = {
+                        k: ("" if pd.isna(v) else v) for k, v in row_dict.items()
+                    }
 
                     record = self._transform_csv_row(row_dict, entity_type, None)
                     if record:
@@ -321,7 +327,7 @@ class DataImporter:
         site_name: str,
         library_name: str = "Documents",
         folder_path: str = "/",
-        entity_type: str = "knowledge"
+        entity_type: str = "knowledge",
     ) -> Dict[str, Any]:
         """
         SharePointからデータをインポート
@@ -342,7 +348,7 @@ class DataImporter:
             "entity_type": entity_type,
             "imported": 0,
             "skipped": 0,
-            "errors": []
+            "errors": [],
         }
 
         try:
@@ -356,14 +362,14 @@ class DataImporter:
                 site_name=site_name,
                 library_name=library_name,
                 folder_path=folder_path,
-                file_extensions=['.xlsx', '.csv', '.json']
+                file_extensions=[".xlsx", ".csv", ".json"],
             )
 
             for file_info in files:
                 try:
-                    file_name = file_info.get('name', '')
-                    drive_id = file_info.get('parentReference', {}).get('driveId')
-                    item_id = file_info.get('id')
+                    file_name = file_info.get("name", "")
+                    drive_id = file_info.get("parentReference", {}).get("driveId")
+                    item_id = file_info.get("id")
 
                     if not drive_id or not item_id:
                         continue
@@ -373,15 +379,15 @@ class DataImporter:
 
                     # 一時ファイルに保存してインポート
                     temp_path = f"/tmp/{file_name}"
-                    with open(temp_path, 'wb') as f:
+                    with open(temp_path, "wb") as f:
                         f.write(content)
 
                     # ファイル形式に応じてインポート
-                    if file_name.endswith('.csv'):
+                    if file_name.endswith(".csv"):
                         sub_result = self.import_from_csv(temp_path, entity_type)
-                    elif file_name.endswith('.xlsx'):
+                    elif file_name.endswith(".xlsx"):
                         sub_result = self.import_from_excel(temp_path, entity_type)
-                    elif file_name.endswith('.json'):
+                    elif file_name.endswith(".json"):
                         sub_result = self.import_from_json(temp_path, entity_type)
                     else:
                         continue
@@ -394,7 +400,9 @@ class DataImporter:
                     os.remove(temp_path)
 
                 except Exception as e:
-                    result["errors"].append(f"ファイル {file_info.get('name')}: {str(e)}")
+                    result["errors"].append(
+                        f"ファイル {file_info.get('name')}: {str(e)}"
+                    )
 
         except Exception as e:
             result["success"] = False
@@ -406,11 +414,7 @@ class DataImporter:
     # JSONインポート
     # =========================================================================
 
-    def import_from_json(
-        self,
-        file_path: str,
-        entity_type: str
-    ) -> Dict[str, Any]:
+    def import_from_json(self, file_path: str, entity_type: str) -> Dict[str, Any]:
         """
         JSONファイルからデータをインポート
 
@@ -429,19 +433,19 @@ class DataImporter:
             "entity_type": entity_type,
             "imported": 0,
             "skipped": 0,
-            "errors": []
+            "errors": [],
         }
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             if isinstance(data, list):
                 records = data
-            elif isinstance(data, dict) and 'items' in data:
-                records = data['items']
-            elif isinstance(data, dict) and 'data' in data:
-                records = data['data']
+            elif isinstance(data, dict) and "items" in data:
+                records = data["items"]
+            elif isinstance(data, dict) and "data" in data:
+                records = data["data"]
             else:
                 records = [data]
 
@@ -449,8 +453,8 @@ class DataImporter:
             for record in records:
                 if isinstance(record, dict):
                     # IDがなければ生成
-                    if 'id' not in record:
-                        record['id'] = self._generate_id(entity_type)
+                    if "id" not in record:
+                        record["id"] = self._generate_id(entity_type)
                     valid_records.append(record)
                     result["imported"] += 1
                 else:
@@ -476,12 +480,12 @@ class DataImporter:
 
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     if isinstance(data, list):
                         for item in data:
-                            if isinstance(item, dict) and 'id' in item:
-                                max_id = max(max_id, int(item['id']))
+                            if isinstance(item, dict) and "id" in item:
+                                max_id = max(max_id, int(item["id"]))
             except Exception:
                 pass
 
@@ -493,7 +497,8 @@ class DataImporter:
             return []
         # カンマ、セミコロン、スペースで分割
         import re
-        tags = re.split(r'[,;、\s]+', str(tags_str))
+
+        tags = re.split(r"[,;、\s]+", str(tags_str))
         return [t.strip() for t in tags if t.strip()]
 
     def _parse_datetime(self, dt_str: Optional[str]) -> str:
@@ -503,7 +508,12 @@ class DataImporter:
 
         try:
             # 様々な形式を試す
-            for fmt in ['%Y-%m-%d %H:%M:%S', '%Y/%m/%d %H:%M:%S', '%Y-%m-%d', '%Y/%m/%d']:
+            for fmt in [
+                "%Y-%m-%d %H:%M:%S",
+                "%Y/%m/%d %H:%M:%S",
+                "%Y-%m-%d",
+                "%Y/%m/%d",
+            ]:
                 try:
                     dt = datetime.strptime(str(dt_str), fmt)
                     return dt.isoformat()
@@ -516,18 +526,18 @@ class DataImporter:
     def _parse_date(self, date_str: Optional[str]) -> str:
         """日付文字列を正規化"""
         if not date_str:
-            return datetime.now().strftime('%Y-%m-%d')
+            return datetime.now().strftime("%Y-%m-%d")
 
         try:
-            for fmt in ['%Y-%m-%d', '%Y/%m/%d', '%Y年%m月%d日']:
+            for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%Y年%m月%d日"]:
                 try:
                     dt = datetime.strptime(str(date_str), fmt)
-                    return dt.strftime('%Y-%m-%d')
+                    return dt.strftime("%Y-%m-%d")
                 except ValueError:
                     continue
-            return datetime.now().strftime('%Y-%m-%d')
+            return datetime.now().strftime("%Y-%m-%d")
         except Exception:
-            return datetime.now().strftime('%Y-%m-%d')
+            return datetime.now().strftime("%Y-%m-%d")
 
     def _merge_records(self, entity_type: str, new_records: List[Dict]):
         """既存データに新しいレコードをマージ"""
@@ -536,22 +546,22 @@ class DataImporter:
         existing = []
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     existing = json.load(f)
             except Exception:
                 pass
 
         # 既存IDのセット
-        existing_ids = {item.get('id') for item in existing if isinstance(item, dict)}
+        existing_ids = {item.get("id") for item in existing if isinstance(item, dict)}
 
         # 重複を除いて追加
         for record in new_records:
-            if record.get('id') not in existing_ids:
+            if record.get("id") not in existing_ids:
                 existing.append(record)
-                existing_ids.add(record.get('id'))
+                existing_ids.add(record.get("id"))
 
         # 保存
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
 
     # =========================================================================
@@ -572,17 +582,20 @@ class DataImporter:
         file_path = os.path.join(self.data_dir, f"{entity_type}.json")
 
         if not os.path.exists(file_path):
-            return {"success": False, "error": f"データファイルが見つかりません: {file_path}"}
+            return {
+                "success": False,
+                "error": f"データファイルが見つかりません: {file_path}",
+            }
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             if not data:
                 return {"success": False, "error": "データが空です"}
 
             # CSVに書き出し
-            with open(output_path, 'w', encoding='utf-8-sig', newline='') as f:
+            with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
                 if isinstance(data, list) and data:
                     fieldnames = data[0].keys()
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -599,6 +612,7 @@ class DataImporter:
 # CLIインターフェース
 # =============================================================================
 
+
 def main():
     """コマンドライン実行"""
     import argparse
@@ -607,9 +621,13 @@ def main():
     parser.add_argument("--csv", type=str, help="CSVファイルパス")
     parser.add_argument("--excel", type=str, help="Excelファイルパス")
     parser.add_argument("--json", type=str, help="JSONファイルパス")
-    parser.add_argument("--type", type=str, required=True,
-                        choices=DataImporter.ENTITY_TYPES,
-                        help="エンティティタイプ")
+    parser.add_argument(
+        "--type",
+        type=str,
+        required=True,
+        choices=DataImporter.ENTITY_TYPES,
+        help="エンティティタイプ",
+    )
     parser.add_argument("--export", type=str, help="CSVエクスポート先パス")
 
     args = parser.parse_args()

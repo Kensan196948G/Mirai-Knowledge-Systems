@@ -3,30 +3,18 @@
 JSON/PostgreSQLの切り替えを透過的に行う
 """
 
-import os
 import json
-from typing import List, Optional, Dict, Any
+import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from database import get_session_factory
+from models import (SOP, AccessLog, Approval, Consultation, Expert,
+                    ExpertRating, Incident, Knowledge, MS365FileMapping,
+                    MS365SyncConfig, MS365SyncHistory, Notification, Project,
+                    ProjectTask, User)
 
 from config import Config
-from database import get_session_factory
-from models import (
-    Knowledge,
-    SOP,
-    Incident,
-    Consultation,
-    Approval,
-    Notification,
-    User,
-    AccessLog,
-    Project,
-    ProjectTask,
-    Expert,
-    ExpertRating,
-    MS365SyncConfig,
-    MS365SyncHistory,
-    MS365FileMapping,
-)
 
 
 class DataAccessLayer:
@@ -118,7 +106,7 @@ class DataAccessLayer:
                 # N+1クエリ最適化: リレーションを先読み
                 query = db.query(Knowledge).options(
                     selectinload(Knowledge.created_by),
-                    selectinload(Knowledge.updated_by)
+                    selectinload(Knowledge.updated_by),
                 )
 
                 # フィルタリング
@@ -179,7 +167,7 @@ class DataAccessLayer:
                     db.query(Knowledge)
                     .options(
                         selectinload(Knowledge.created_by),
-                        selectinload(Knowledge.updated_by)
+                        selectinload(Knowledge.updated_by),
                     )
                     .filter(Knowledge.id == knowledge_id)
                     .first()
@@ -212,7 +200,7 @@ class DataAccessLayer:
             db = factory()
             try:
                 # N+1クエリ最適化: PostgreSQLのCTE（Common Table Expression）と配列関数を使用
-                from sqlalchemy import func, and_, case, literal_column
+                from sqlalchemy import and_, case, func, literal_column
                 from sqlalchemy.orm import selectinload
 
                 # タグ一致数をSQLで直接計算（N+1回避）
@@ -220,9 +208,9 @@ class DataAccessLayer:
                 if tags:
                     # PostgreSQLのarray演算子を使用してタグ一致数を計算
                     tag_match_count = func.cardinality(
-                        func.array(
-                            func.unnest(Knowledge.tags)
-                        ).op('&&')(func.array(tags))
+                        func.array(func.unnest(Knowledge.tags)).op("&&")(
+                            func.array(tags)
+                        )
                     )
 
                     # リレーションを先読みしてN+1クエリを回避
@@ -230,7 +218,7 @@ class DataAccessLayer:
                         db.query(Knowledge)
                         .options(
                             selectinload(Knowledge.created_by),
-                            selectinload(Knowledge.updated_by)
+                            selectinload(Knowledge.updated_by),
                         )
                         .filter(Knowledge.status == "approved")
                         .filter(Knowledge.tags.overlap(tags))
@@ -240,7 +228,11 @@ class DataAccessLayer:
                         query = query.filter(Knowledge.id != exclude_id)
 
                     # updated_atで降順ソート（タグ一致度は同等として最新順）
-                    knowledge_list = query.order_by(Knowledge.updated_at.desc()).limit(limit * 2).all()
+                    knowledge_list = (
+                        query.order_by(Knowledge.updated_at.desc())
+                        .limit(limit * 2)
+                        .all()
+                    )
 
                     # Python側でタグ一致数でソート（PostgreSQLの複雑なCTE避けてシンプルに）
                     def tag_match_score(k):
@@ -257,7 +249,7 @@ class DataAccessLayer:
                         db.query(Knowledge)
                         .options(
                             selectinload(Knowledge.created_by),
-                            selectinload(Knowledge.updated_by)
+                            selectinload(Knowledge.updated_by),
                         )
                         .filter(Knowledge.status == "approved")
                         .filter(Knowledge.id != exclude_id if exclude_id else True)
@@ -272,7 +264,7 @@ class DataAccessLayer:
                         db.query(Knowledge)
                         .options(
                             selectinload(Knowledge.created_by),
-                            selectinload(Knowledge.updated_by)
+                            selectinload(Knowledge.updated_by),
                         )
                         .filter(Knowledge.status == "approved")
                         .filter(Knowledge.id != exclude_id if exclude_id else True)
@@ -601,8 +593,7 @@ class DataAccessLayer:
 
                 # N+1クエリ最適化: リレーションを先読み
                 query = db.query(SOP).options(
-                    selectinload(SOP.created_by),
-                    selectinload(SOP.updated_by)
+                    selectinload(SOP.created_by), selectinload(SOP.updated_by)
                 )
 
                 # フィルタリング
@@ -663,10 +654,7 @@ class DataAccessLayer:
                 # N+1クエリ最適化: リレーションを先読み
                 sop = (
                     db.query(SOP)
-                    .options(
-                        selectinload(SOP.created_by),
-                        selectinload(SOP.updated_by)
-                    )
+                    .options(selectinload(SOP.created_by), selectinload(SOP.updated_by))
                     .filter(SOP.id == sop_id)
                     .first()
                 )
@@ -702,9 +690,7 @@ class DataAccessLayer:
                 from sqlalchemy.orm import selectinload
 
                 # N+1クエリ最適化: リレーションを先読み
-                query = db.query(Incident).options(
-                    selectinload(Incident.reporter)
-                )
+                query = db.query(Incident).options(selectinload(Incident.reporter))
 
                 # フィルタリング
                 if filters:
@@ -768,9 +754,7 @@ class DataAccessLayer:
                 # N+1クエリ最適化: リレーションを先読み
                 incident = (
                     db.query(Incident)
-                    .options(
-                        selectinload(Incident.reporter)
-                    )
+                    .options(selectinload(Incident.reporter))
                     .filter(Incident.id == incident_id)
                     .first()
                 )
@@ -1192,9 +1176,9 @@ class DataAccessLayer:
                         stats.append(
                             {
                                 "expert_id": expert.id,
-                                "name": expert.user.full_name
-                                if expert.user
-                                else "Unknown",
+                                "name": (
+                                    expert.user.full_name if expert.user else "Unknown"
+                                ),
                                 "specialization": expert.specialization,
                                 "consultation_count": len(consultations),
                                 "average_rating": round(avg_rating, 1),
@@ -1517,12 +1501,12 @@ class DataAccessLayer:
             "priority": knowledge.priority,
             "project": knowledge.project,
             "owner": knowledge.owner,
-            "created_at": knowledge.created_at.isoformat()
-            if knowledge.created_at
-            else None,
-            "updated_at": knowledge.updated_at.isoformat()
-            if knowledge.updated_at
-            else None,
+            "created_at": (
+                knowledge.created_at.isoformat() if knowledge.created_at else None
+            ),
+            "updated_at": (
+                knowledge.updated_at.isoformat() if knowledge.updated_at else None
+            ),
             "created_by_id": knowledge.created_by_id,
             "updated_by_id": knowledge.updated_by_id,
         }
@@ -1542,12 +1526,12 @@ class DataAccessLayer:
             "priority": notification.priority,
             "related_entity_type": notification.related_entity_type,
             "related_entity_id": notification.related_entity_id,
-            "created_at": notification.created_at.isoformat()
-            if notification.created_at
-            else None,
-            "sent_at": notification.sent_at.isoformat()
-            if notification.sent_at
-            else None,
+            "created_at": (
+                notification.created_at.isoformat() if notification.created_at else None
+            ),
+            "sent_at": (
+                notification.sent_at.isoformat() if notification.sent_at else None
+            ),
             "status": notification.status,
         }
 
@@ -1561,23 +1545,27 @@ class DataAccessLayer:
             "title": regulation.title,
             "issuer": regulation.issuer,
             "category": regulation.category,
-            "revision_date": regulation.revision_date.isoformat()
-            if regulation.revision_date
-            else None,
+            "revision_date": (
+                regulation.revision_date.isoformat()
+                if regulation.revision_date
+                else None
+            ),
             "applicable_scope": regulation.applicable_scope or [],
             "summary": regulation.summary,
             "content": regulation.content,
             "status": regulation.status,
-            "effective_date": regulation.effective_date.isoformat()
-            if regulation.effective_date
-            else None,
+            "effective_date": (
+                regulation.effective_date.isoformat()
+                if regulation.effective_date
+                else None
+            ),
             "url": regulation.url,
-            "created_at": regulation.created_at.isoformat()
-            if regulation.created_at
-            else None,
-            "updated_at": regulation.updated_at.isoformat()
-            if regulation.updated_at
-            else None,
+            "created_at": (
+                regulation.created_at.isoformat() if regulation.created_at else None
+            ),
+            "updated_at": (
+                regulation.updated_at.isoformat() if regulation.updated_at else None
+            ),
         }
 
     @staticmethod
@@ -1590,9 +1578,9 @@ class DataAccessLayer:
             "title": sop.title,
             "category": sop.category,
             "version": sop.version,
-            "revision_date": sop.revision_date.isoformat()
-            if sop.revision_date
-            else None,
+            "revision_date": (
+                sop.revision_date.isoformat() if sop.revision_date else None
+            ),
             "target": sop.target,
             "tags": sop.tags or [],
             "content": sop.content,
@@ -1615,9 +1603,9 @@ class DataAccessLayer:
             "title": incident.title,
             "description": incident.description,
             "project": incident.project,
-            "incident_date": incident.incident_date.isoformat()
-            if incident.incident_date
-            else None,
+            "incident_date": (
+                incident.incident_date.isoformat() if incident.incident_date else None
+            ),
             "severity": incident.severity,
             "status": incident.status,
             "corrective_actions": incident.corrective_actions,
@@ -1625,12 +1613,12 @@ class DataAccessLayer:
             "tags": incident.tags or [],
             "location": incident.location,
             "involved_parties": incident.involved_parties or [],
-            "created_at": incident.created_at.isoformat()
-            if incident.created_at
-            else None,
-            "updated_at": incident.updated_at.isoformat()
-            if incident.updated_at
-            else None,
+            "created_at": (
+                incident.created_at.isoformat() if incident.created_at else None
+            ),
+            "updated_at": (
+                incident.updated_at.isoformat() if incident.updated_at else None
+            ),
             "reporter_id": incident.reporter_id,
         }
 
@@ -1650,15 +1638,15 @@ class DataAccessLayer:
             "related_entity_type": approval.related_entity_type,
             "related_entity_id": approval.related_entity_id,
             "approval_flow": approval.approval_flow,
-            "created_at": approval.created_at.isoformat()
-            if approval.created_at
-            else None,
-            "updated_at": approval.updated_at.isoformat()
-            if approval.updated_at
-            else None,
-            "approved_at": approval.approved_at.isoformat()
-            if approval.approved_at
-            else None,
+            "created_at": (
+                approval.created_at.isoformat() if approval.created_at else None
+            ),
+            "updated_at": (
+                approval.updated_at.isoformat() if approval.updated_at else None
+            ),
+            "approved_at": (
+                approval.approved_at.isoformat() if approval.approved_at else None
+            ),
             "approver_id": approval.approver_id,
         }
 
@@ -1711,20 +1699,20 @@ class DataAccessLayer:
             "description": project.description,
             "type": project.type,
             "status": project.status,
-            "start_date": project.start_date.isoformat()
-            if project.start_date
-            else None,
+            "start_date": (
+                project.start_date.isoformat() if project.start_date else None
+            ),
             "end_date": project.end_date.isoformat() if project.end_date else None,
             "budget": project.budget,
             "location": project.location,
             "manager_id": project.manager_id,
             "progress_percentage": project.progress_percentage,
-            "created_at": project.created_at.isoformat()
-            if project.created_at
-            else None,
-            "updated_at": project.updated_at.isoformat()
-            if project.updated_at
-            else None,
+            "created_at": (
+                project.created_at.isoformat() if project.created_at else None
+            ),
+            "updated_at": (
+                project.updated_at.isoformat() if project.updated_at else None
+            ),
         }
 
     @staticmethod
@@ -1897,7 +1885,6 @@ class DataAccessLayer:
             projects = self._load_json("projects.json")
             return next((p for p in projects if p["id"] == project_id), None)
 
-
     # ============================================================
     # Microsoft 365同期設定（MS365SyncConfig）
     # ============================================================
@@ -1925,7 +1912,11 @@ class DataAccessLayer:
                 return None
             db = factory()
             try:
-                config = db.query(MS365SyncConfig).filter(MS365SyncConfig.id == config_id).first()
+                config = (
+                    db.query(MS365SyncConfig)
+                    .filter(MS365SyncConfig.id == config_id)
+                    .first()
+                )
                 return self._ms365_sync_config_to_dict(config) if config else None
             finally:
                 db.close()
@@ -1951,12 +1942,18 @@ class DataAccessLayer:
         else:
             configs = self._load_json("ms365_sync_configs.json")
             new_id = max([c.get("id", 0) for c in configs], default=0) + 1
-            new_config = {"id": new_id, **config_data, "created_at": datetime.utcnow().isoformat()}
+            new_config = {
+                "id": new_id,
+                **config_data,
+                "created_at": datetime.utcnow().isoformat(),
+            }
             configs.append(new_config)
             self._save_json("ms365_sync_configs.json", configs)
             return new_config
 
-    def update_ms365_sync_config(self, config_id: int, update_data: Dict) -> Optional[Dict]:
+    def update_ms365_sync_config(
+        self, config_id: int, update_data: Dict
+    ) -> Optional[Dict]:
         """MS365同期設定を更新"""
         if self._use_postgresql():
             factory = get_session_factory()
@@ -1964,7 +1961,11 @@ class DataAccessLayer:
                 return None
             db = factory()
             try:
-                config = db.query(MS365SyncConfig).filter(MS365SyncConfig.id == config_id).first()
+                config = (
+                    db.query(MS365SyncConfig)
+                    .filter(MS365SyncConfig.id == config_id)
+                    .first()
+                )
                 if config:
                     for key, value in update_data.items():
                         setattr(config, key, value)
@@ -1992,7 +1993,11 @@ class DataAccessLayer:
                 return False
             db = factory()
             try:
-                config = db.query(MS365SyncConfig).filter(MS365SyncConfig.id == config_id).first()
+                config = (
+                    db.query(MS365SyncConfig)
+                    .filter(MS365SyncConfig.id == config_id)
+                    .first()
+                )
                 if config:
                     db.delete(config)
                     db.commit()
@@ -2031,12 +2036,18 @@ class DataAccessLayer:
         else:
             histories = self._load_json("ms365_sync_histories.json")
             new_id = max([h.get("id", 0) for h in histories], default=0) + 1
-            new_history = {"id": new_id, **history_data, "created_at": datetime.utcnow().isoformat()}
+            new_history = {
+                "id": new_id,
+                **history_data,
+                "created_at": datetime.utcnow().isoformat(),
+            }
             histories.append(new_history)
             self._save_json("ms365_sync_histories.json", histories)
             return new_history
 
-    def update_ms365_sync_history(self, history_id: int, update_data: Dict) -> Optional[Dict]:
+    def update_ms365_sync_history(
+        self, history_id: int, update_data: Dict
+    ) -> Optional[Dict]:
         """MS365同期履歴を更新"""
         if self._use_postgresql():
             factory = get_session_factory()
@@ -2044,7 +2055,11 @@ class DataAccessLayer:
                 return None
             db = factory()
             try:
-                history = db.query(MS365SyncHistory).filter(MS365SyncHistory.id == history_id).first()
+                history = (
+                    db.query(MS365SyncHistory)
+                    .filter(MS365SyncHistory.id == history_id)
+                    .first()
+                )
                 if history:
                     for key, value in update_data.items():
                         setattr(history, key, value)
@@ -2063,7 +2078,9 @@ class DataAccessLayer:
                     return history
             return None
 
-    def get_ms365_sync_histories_by_config(self, config_id: int, limit: int = 20) -> List[Dict]:
+    def get_ms365_sync_histories_by_config(
+        self, config_id: int, limit: int = 20
+    ) -> List[Dict]:
         """設定IDで同期履歴を取得"""
         if self._use_postgresql():
             factory = get_session_factory()
@@ -2071,11 +2088,13 @@ class DataAccessLayer:
                 return []
             db = factory()
             try:
-                histories = db.query(MS365SyncHistory)\
-                    .filter(MS365SyncHistory.config_id == config_id)\
-                    .order_by(MS365SyncHistory.sync_started_at.desc())\
-                    .limit(limit)\
+                histories = (
+                    db.query(MS365SyncHistory)
+                    .filter(MS365SyncHistory.config_id == config_id)
+                    .order_by(MS365SyncHistory.sync_started_at.desc())
+                    .limit(limit)
                     .all()
+                )
                 return [self._ms365_sync_history_to_dict(h) for h in histories]
             finally:
                 db.close()
@@ -2097,9 +2116,11 @@ class DataAccessLayer:
                 return []
             db = factory()
             try:
-                mappings = db.query(MS365FileMapping)\
-                    .filter(MS365FileMapping.config_id == config_id)\
+                mappings = (
+                    db.query(MS365FileMapping)
+                    .filter(MS365FileMapping.config_id == config_id)
                     .all()
+                )
                 return [self._ms365_file_mapping_to_dict(m) for m in mappings]
             finally:
                 db.close()
@@ -2115,15 +2136,19 @@ class DataAccessLayer:
                 return None
             db = factory()
             try:
-                mapping = db.query(MS365FileMapping)\
-                    .filter(MS365FileMapping.sharepoint_file_id == file_id)\
+                mapping = (
+                    db.query(MS365FileMapping)
+                    .filter(MS365FileMapping.sharepoint_file_id == file_id)
                     .first()
+                )
                 return self._ms365_file_mapping_to_dict(mapping) if mapping else None
             finally:
                 db.close()
         else:
             mappings = self._load_json("ms365_file_mappings.json")
-            return next((m for m in mappings if m.get("sharepoint_file_id") == file_id), None)
+            return next(
+                (m for m in mappings if m.get("sharepoint_file_id") == file_id), None
+            )
 
     def create_ms365_file_mapping(self, mapping_data: Dict) -> Dict:
         """MS365ファイルマッピングを作成"""
@@ -2143,12 +2168,18 @@ class DataAccessLayer:
         else:
             mappings = self._load_json("ms365_file_mappings.json")
             new_id = max([m.get("id", 0) for m in mappings], default=0) + 1
-            new_mapping = {"id": new_id, **mapping_data, "created_at": datetime.utcnow().isoformat()}
+            new_mapping = {
+                "id": new_id,
+                **mapping_data,
+                "created_at": datetime.utcnow().isoformat(),
+            }
             mappings.append(new_mapping)
             self._save_json("ms365_file_mappings.json", mappings)
             return new_mapping
 
-    def update_ms365_file_mapping(self, mapping_id: int, update_data: Dict) -> Optional[Dict]:
+    def update_ms365_file_mapping(
+        self, mapping_id: int, update_data: Dict
+    ) -> Optional[Dict]:
         """MS365ファイルマッピングを更新"""
         if self._use_postgresql():
             factory = get_session_factory()
@@ -2156,7 +2187,11 @@ class DataAccessLayer:
                 return None
             db = factory()
             try:
-                mapping = db.query(MS365FileMapping).filter(MS365FileMapping.id == mapping_id).first()
+                mapping = (
+                    db.query(MS365FileMapping)
+                    .filter(MS365FileMapping.id == mapping_id)
+                    .first()
+                )
                 if mapping:
                     for key, value in update_data.items():
                         setattr(mapping, key, value)
@@ -2194,8 +2229,12 @@ class DataAccessLayer:
             "file_extensions": config.file_extensions,
             "sync_schedule": config.sync_schedule,
             "is_enabled": config.is_enabled,
-            "last_sync_at": config.last_sync_at.isoformat() if config.last_sync_at else None,
-            "next_sync_at": config.next_sync_at.isoformat() if config.next_sync_at else None,
+            "last_sync_at": (
+                config.last_sync_at.isoformat() if config.last_sync_at else None
+            ),
+            "next_sync_at": (
+                config.next_sync_at.isoformat() if config.next_sync_at else None
+            ),
             "sync_strategy": config.sync_strategy,
             "metadata_mapping": config.metadata_mapping,
             "created_at": config.created_at.isoformat() if config.created_at else None,
@@ -2211,8 +2250,14 @@ class DataAccessLayer:
         return {
             "id": history.id,
             "config_id": history.config_id,
-            "sync_started_at": history.sync_started_at.isoformat() if history.sync_started_at else None,
-            "sync_completed_at": history.sync_completed_at.isoformat() if history.sync_completed_at else None,
+            "sync_started_at": (
+                history.sync_started_at.isoformat() if history.sync_started_at else None
+            ),
+            "sync_completed_at": (
+                history.sync_completed_at.isoformat()
+                if history.sync_completed_at
+                else None
+            ),
             "status": history.status,
             "files_processed": history.files_processed,
             "files_created": history.files_created,
@@ -2224,7 +2269,9 @@ class DataAccessLayer:
             "execution_time_seconds": history.execution_time_seconds,
             "triggered_by": history.triggered_by,
             "triggered_by_user_id": history.triggered_by_user_id,
-            "created_at": history.created_at.isoformat() if history.created_at else None,
+            "created_at": (
+                history.created_at.isoformat() if history.created_at else None
+            ),
         }
 
     def _ms365_file_mapping_to_dict(self, mapping) -> Dict:
@@ -2237,16 +2284,26 @@ class DataAccessLayer:
             "sharepoint_file_id": mapping.sharepoint_file_id,
             "sharepoint_file_name": mapping.sharepoint_file_name,
             "sharepoint_file_path": mapping.sharepoint_file_path,
-            "sharepoint_modified_at": mapping.sharepoint_modified_at.isoformat() if mapping.sharepoint_modified_at else None,
+            "sharepoint_modified_at": (
+                mapping.sharepoint_modified_at.isoformat()
+                if mapping.sharepoint_modified_at
+                else None
+            ),
             "sharepoint_size_bytes": mapping.sharepoint_size_bytes,
             "knowledge_id": mapping.knowledge_id,
             "sync_status": mapping.sync_status,
-            "last_synced_at": mapping.last_synced_at.isoformat() if mapping.last_synced_at else None,
+            "last_synced_at": (
+                mapping.last_synced_at.isoformat() if mapping.last_synced_at else None
+            ),
             "checksum": mapping.checksum,
             "file_metadata": mapping.file_metadata,
             "error_message": mapping.error_message,
-            "created_at": mapping.created_at.isoformat() if mapping.created_at else None,
-            "updated_at": mapping.updated_at.isoformat() if mapping.updated_at else None,
+            "created_at": (
+                mapping.created_at.isoformat() if mapping.created_at else None
+            ),
+            "updated_at": (
+                mapping.updated_at.isoformat() if mapping.updated_at else None
+            ),
         }
 
 

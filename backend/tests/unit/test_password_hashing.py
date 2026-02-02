@@ -1,14 +1,17 @@
 """
 パスワードハッシュ化機能のユニットテスト
 """
-import pytest
-import sys
+
 import os
+import sys
+
+import pytest
 
 # backend ディレクトリをパスに追加
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app_v2 import hash_password, verify_password
+
 
 class TestPasswordHashing:
     """パスワードハッシュ化のテストクラス"""
@@ -19,7 +22,7 @@ class TestPasswordHashing:
         hashed = hash_password(password)
 
         # bcryptハッシュは$2で始まる
-        assert hashed.startswith('$2')
+        assert hashed.startswith("$2")
         assert isinstance(hashed, str)
         assert len(hashed) == 60  # bcryptハッシュは60文字
 
@@ -67,6 +70,7 @@ class TestPasswordHashing:
     def test_verify_password_supports_legacy_sha256(self):
         """レガシーSHA256ハッシュもサポート"""
         import hashlib
+
         password = "test123"
         legacy_hash = hashlib.sha256(password.encode()).hexdigest()
 

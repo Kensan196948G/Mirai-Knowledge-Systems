@@ -9,10 +9,10 @@
 """
 
 import math
+import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
-import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class RecommendationEngine:
@@ -86,18 +86,18 @@ class RecommendationEngine:
         tokens = []
 
         # まず全ての日本語文字列を抽出
-        jp_parts = re.findall(r'[ぁ-んァ-ヶー一-龥]+', text)
+        jp_parts = re.findall(r"[ぁ-んァ-ヶー一-龥]+", text)
         for part in jp_parts:
             # Bi-gram（2文字ずつ）で分割
             for i in range(len(part) - 1):
-                bigram = part[i:i+2]
+                bigram = part[i : i + 2]
                 tokens.append(bigram)
             # 3文字以上の場合は元の単語も追加
             if len(part) >= 2:
                 tokens.append(part)
 
         # 英数字トークン（2文字以上）
-        en_tokens = re.findall(r'[a-zA-Z0-9]{2,}', text.lower())
+        en_tokens = re.findall(r"[a-zA-Z0-9]{2,}", text.lower())
         tokens.extend(en_tokens)
 
         return tokens
@@ -151,7 +151,7 @@ class RecommendationEngine:
         self,
         item1: Dict[str, Any],
         item2: Dict[str, Any],
-        all_items: Optional[List[Dict[str, Any]]] = None
+        all_items: Optional[List[Dict[str, Any]]] = None,
     ) -> Tuple[float, Dict[str, Any]]:
         """
         TF-IDFを使用してコンテンツの類似度を計算
@@ -167,23 +167,19 @@ class RecommendationEngine:
                 - 詳細情報（共通キーワードなど）
         """
         # テキスト抽出
-        text1 = ' '.join([
-            item1.get('title', ''),
-            item1.get('summary', ''),
-            item1.get('content', '')
-        ])
-        text2 = ' '.join([
-            item2.get('title', ''),
-            item2.get('summary', ''),
-            item2.get('content', '')
-        ])
+        text1 = " ".join(
+            [item1.get("title", ""), item1.get("summary", ""), item1.get("content", "")]
+        )
+        text2 = " ".join(
+            [item2.get("title", ""), item2.get("summary", ""), item2.get("content", "")]
+        )
 
         # トークン化
         tokens1 = self._tokenize(text1)
         tokens2 = self._tokenize(text2)
 
         if not tokens1 or not tokens2:
-            return 0.0, {'common_keywords': []}
+            return 0.0, {"common_keywords": []}
 
         # TF計算
         tf1 = self._calculate_tf(tokens1)
@@ -193,11 +189,13 @@ class RecommendationEngine:
         if all_items:
             all_tokens = []
             for item in all_items:
-                text = ' '.join([
-                    item.get('title', ''),
-                    item.get('summary', ''),
-                    item.get('content', '')
-                ])
+                text = " ".join(
+                    [
+                        item.get("title", ""),
+                        item.get("summary", ""),
+                        item.get("content", ""),
+                    ]
+                )
                 all_tokens.append(self._tokenize(text))
             idf = self._calculate_idf(all_tokens)
         else:
@@ -224,12 +222,12 @@ class RecommendationEngine:
         common_keywords = sorted(
             common_words,
             key=lambda w: (tf1[w] + tf2[w]) * idf.get(w, 1.0),
-            reverse=True
+            reverse=True,
         )[:5]
 
         details = {
-            'common_keywords': common_keywords,
-            'keyword_count': len(common_keywords)
+            "common_keywords": common_keywords,
+            "keyword_count": len(common_keywords),
         }
 
         return similarity, details
@@ -239,8 +237,8 @@ class RecommendationEngine:
         target_item: Dict[str, Any],
         candidate_items: List[Dict[str, Any]],
         limit: int = 5,
-        algorithm: str = 'hybrid',
-        min_score: float = 0.1
+        algorithm: str = "hybrid",
+        min_score: float = 0.1,
     ) -> List[Dict[str, Any]]:
         """
         関連アイテムを取得
@@ -256,8 +254,8 @@ class RecommendationEngine:
             List[Dict[str, Any]]: 関連アイテムリスト（スコア順）
         """
         # 自分自身を除外
-        target_id = target_item.get('id')
-        candidates = [item for item in candidate_items if item.get('id') != target_id]
+        target_id = target_item.get("id")
+        candidates = [item for item in candidate_items if item.get("id") != target_id]
 
         if not candidates:
             return []
@@ -279,54 +277,50 @@ class RecommendationEngine:
             reasons = []
             details = {}
 
-            if algorithm in ['tag', 'hybrid']:
+            if algorithm in ["tag", "hybrid"]:
                 # タグ類似度
                 tag_sim = self.calculate_tag_similarity(
-                    target_item.get('tags', []),
-                    item.get('tags', [])
+                    target_item.get("tags", []), item.get("tags", [])
                 )
                 if tag_sim > 0:
                     score += tag_sim * 0.4  # 重み: 40%
-                    reasons.append(f'同じタグ（類似度: {tag_sim:.2f}）')
-                    details['tag_similarity'] = tag_sim
+                    reasons.append(f"同じタグ（類似度: {tag_sim:.2f}）")
+                    details["tag_similarity"] = tag_sim
 
-            if algorithm in ['category', 'hybrid']:
+            if algorithm in ["category", "hybrid"]:
                 # カテゴリ類似度
                 cat_sim = self.calculate_category_similarity(
-                    target_item.get('category', ''),
-                    item.get('category', '')
+                    target_item.get("category", ""), item.get("category", "")
                 )
                 if cat_sim > 0:
                     score += cat_sim * 0.3  # 重み: 30%
-                    reasons.append('同じカテゴリ')
-                    details['category_match'] = True
+                    reasons.append("同じカテゴリ")
+                    details["category_match"] = True
 
-            if algorithm in ['keyword', 'hybrid']:
+            if algorithm in ["keyword", "hybrid"]:
                 # コンテンツ類似度
                 content_sim, content_details = self.calculate_content_similarity(
-                    target_item,
-                    item,
-                    candidate_items
+                    target_item, item, candidate_items
                 )
                 if content_sim > 0:
                     score += content_sim * 0.3  # 重み: 30%
-                    if content_details['common_keywords']:
+                    if content_details["common_keywords"]:
                         reasons.append(
                             f"共通キーワード: {', '.join(content_details['common_keywords'][:3])}"
                         )
-                    details['content_similarity'] = content_sim
-                    details['common_keywords'] = content_details['common_keywords']
+                    details["content_similarity"] = content_sim
+                    details["common_keywords"] = content_details["common_keywords"]
 
             # 最小スコア閾値でフィルタ
             if score >= min_score:
                 item_copy = item.copy()
-                item_copy['recommendation_score'] = round(score, 3)
-                item_copy['recommendation_reasons'] = reasons
-                item_copy['recommendation_details'] = details
+                item_copy["recommendation_score"] = round(score, 3)
+                item_copy["recommendation_reasons"] = reasons
+                item_copy["recommendation_details"] = details
                 scored_items.append(item_copy)
 
         # スコア順にソート
-        scored_items.sort(key=lambda x: x['recommendation_score'], reverse=True)
+        scored_items.sort(key=lambda x: x["recommendation_score"], reverse=True)
 
         # 上限数まで取得
         result = scored_items[:limit]
@@ -343,7 +337,7 @@ class RecommendationEngine:
         access_logs: List[Dict[str, Any]],
         all_items: List[Dict[str, Any]],
         limit: int = 5,
-        days: int = 30
+        days: int = 30,
     ) -> List[Dict[str, Any]]:
         """
         パーソナライズ推薦を取得（協調フィルタリング）
@@ -373,7 +367,7 @@ class RecommendationEngine:
 
         for log in access_logs:
             try:
-                log_time = datetime.fromisoformat(log.get('timestamp', ''))
+                log_time = datetime.fromisoformat(log.get("timestamp", ""))
                 if log_time >= cutoff_date:
                     recent_logs.append(log)
             except (ValueError, TypeError):
@@ -385,17 +379,22 @@ class RecommendationEngine:
         user_tags = Counter()
 
         for log in recent_logs:
-            if log.get('user_id') == user_id and log.get('action') in ['knowledge.view', 'sop.view']:
-                resource_id = log.get('resource_id')
+            if log.get("user_id") == user_id and log.get("action") in [
+                "knowledge.view",
+                "sop.view",
+            ]:
+                resource_id = log.get("resource_id")
                 if resource_id:
                     user_viewed.add(resource_id)
 
                     # アイテム情報を取得
-                    item = next((i for i in all_items if i.get('id') == resource_id), None)
+                    item = next(
+                        (i for i in all_items if i.get("id") == resource_id), None
+                    )
                     if item:
-                        if item.get('category'):
-                            user_categories[item['category']] += 1
-                        for tag in item.get('tags', []):
+                        if item.get("category"):
+                            user_categories[item["category"]] += 1
+                        for tag in item.get("tags", []):
                             user_tags[tag] += 1
 
         if not user_viewed:
@@ -404,10 +403,7 @@ class RecommendationEngine:
 
         # 類似ユーザーを見つける（協調フィルタリング）
         similar_users = self._find_similar_users(
-            user_id,
-            user_viewed,
-            recent_logs,
-            all_items
+            user_id, user_viewed, recent_logs, all_items
         )
 
         # 類似ユーザーが閲覧したアイテムをスコアリング
@@ -415,26 +411,28 @@ class RecommendationEngine:
 
         for similar_user_id, similarity_score in similar_users[:10]:  # 上位10名
             for log in recent_logs:
-                if log.get('user_id') == similar_user_id and \
-                   log.get('action') in ['knowledge.view', 'sop.view']:
-                    resource_id = log.get('resource_id')
+                if log.get("user_id") == similar_user_id and log.get("action") in [
+                    "knowledge.view",
+                    "sop.view",
+                ]:
+                    resource_id = log.get("resource_id")
                     if resource_id and resource_id not in user_viewed:
                         candidate_scores[resource_id] += similarity_score
 
         # コンテンツベースのスコアを追加
         for item in all_items:
-            item_id = item.get('id')
+            item_id = item.get("id")
             if item_id in user_viewed:
                 continue
 
             content_score = 0.0
 
             # カテゴリマッチ
-            if item.get('category') in user_categories:
+            if item.get("category") in user_categories:
                 content_score += 0.5
 
             # タグマッチ
-            tag_matches = sum(1 for tag in item.get('tags', []) if tag in user_tags)
+            tag_matches = sum(1 for tag in item.get("tags", []) if tag in user_tags)
             if tag_matches > 0:
                 content_score += tag_matches * 0.3
 
@@ -442,19 +440,17 @@ class RecommendationEngine:
 
         # スコア順にソート
         sorted_candidates = sorted(
-            candidate_scores.items(),
-            key=lambda x: x[1],
-            reverse=True
+            candidate_scores.items(), key=lambda x: x[1], reverse=True
         )
 
         # アイテム情報を付与
         result = []
         for item_id, score in sorted_candidates[:limit]:
-            item = next((i for i in all_items if i.get('id') == item_id), None)
+            item = next((i for i in all_items if i.get("id") == item_id), None)
             if item:
                 item_copy = item.copy()
-                item_copy['recommendation_score'] = round(score, 3)
-                item_copy['recommendation_reasons'] = ['あなたの閲覧履歴に基づく推薦']
+                item_copy["recommendation_score"] = round(score, 3)
+                item_copy["recommendation_reasons"] = ["あなたの閲覧履歴に基づく推薦"]
                 result.append(item_copy)
 
         # キャッシュに保存
@@ -468,7 +464,7 @@ class RecommendationEngine:
         user_id: int,
         user_viewed: set,
         access_logs: List[Dict[str, Any]],
-        all_items: List[Dict[str, Any]]
+        all_items: List[Dict[str, Any]],
     ) -> List[Tuple[int, float]]:
         """
         類似ユーザーを検索
@@ -486,10 +482,13 @@ class RecommendationEngine:
         other_users_viewed = defaultdict(set)
 
         for log in access_logs:
-            log_user_id = log.get('user_id')
-            if log_user_id and log_user_id != user_id and \
-               log.get('action') in ['knowledge.view', 'sop.view']:
-                resource_id = log.get('resource_id')
+            log_user_id = log.get("user_id")
+            if (
+                log_user_id
+                and log_user_id != user_id
+                and log.get("action") in ["knowledge.view", "sop.view"]
+            ):
+                resource_id = log.get("resource_id")
                 if resource_id:
                     other_users_viewed[log_user_id].add(resource_id)
 
@@ -514,7 +513,7 @@ class RecommendationEngine:
         self,
         all_items: List[Dict[str, Any]],
         access_logs: List[Dict[str, Any]],
-        limit: int
+        limit: int,
     ) -> List[Dict[str, Any]]:
         """
         人気アイテムを取得
@@ -531,8 +530,8 @@ class RecommendationEngine:
         view_counts = Counter()
 
         for log in access_logs:
-            if log.get('action') in ['knowledge.view', 'sop.view']:
-                resource_id = log.get('resource_id')
+            if log.get("action") in ["knowledge.view", "sop.view"]:
+                resource_id = log.get("resource_id")
                 if resource_id:
                     view_counts[resource_id] += 1
 
@@ -541,11 +540,11 @@ class RecommendationEngine:
 
         result = []
         for item_id in popular_ids:
-            item = next((i for i in all_items if i.get('id') == item_id), None)
+            item = next((i for i in all_items if i.get("id") == item_id), None)
             if item:
                 item_copy = item.copy()
-                item_copy['recommendation_score'] = view_counts[item_id]
-                item_copy['recommendation_reasons'] = ['人気のアイテム']
+                item_copy["recommendation_score"] = view_counts[item_id]
+                item_copy["recommendation_reasons"] = ["人気のアイテム"]
                 result.append(item_copy)
 
         return result
@@ -564,13 +563,14 @@ class RecommendationEngine:
         """
         now = datetime.now().timestamp()
         valid_count = sum(
-            1 for key, timestamp in self.cache_timestamps.items()
+            1
+            for key, timestamp in self.cache_timestamps.items()
             if now - timestamp < self.cache_ttl
         )
 
         return {
-            'total_entries': len(self.cache),
-            'valid_entries': valid_count,
-            'expired_entries': len(self.cache) - valid_count,
-            'cache_ttl': self.cache_ttl
+            "total_entries": len(self.cache),
+            "valid_entries": valid_count,
+            "expired_entries": len(self.cache) - valid_count,
+            "cache_ttl": self.cache_ttl,
         }

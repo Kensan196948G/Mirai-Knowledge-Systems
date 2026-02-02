@@ -2,6 +2,7 @@
 MS365 Sync用のモックデータ
 テストで使用するMicrosoft Graph APIのレスポンスデータ
 """
+
 from datetime import datetime, timedelta
 
 # SharePointサイト一覧のモックデータ
@@ -10,7 +11,7 @@ MOCK_SITES = [
         "id": "site-123",
         "displayName": "Test SharePoint Site",
         "webUrl": "https://contoso.sharepoint.com/sites/test",
-        "createdDateTime": "2025-01-01T00:00:00Z"
+        "createdDateTime": "2025-01-01T00:00:00Z",
     }
 ]
 
@@ -20,7 +21,7 @@ MOCK_DRIVES = [
         "id": "drive-456",
         "name": "Documents",
         "driveType": "documentLibrary",
-        "createdDateTime": "2025-01-01T00:00:00Z"
+        "createdDateTime": "2025-01-01T00:00:00Z",
     }
 ]
 
@@ -34,11 +35,9 @@ MOCK_FILES = [
         "lastModifiedDateTime": "2025-01-15T10:00:00Z",
         "file": {
             "mimeType": "application/pdf",
-            "hashes": {
-                "quickXorHash": "abc123def456"
-            }
+            "hashes": {"quickXorHash": "abc123def456"},
         },
-        "webUrl": "https://contoso.sharepoint.com/sites/test/Documents/file-001.pdf"
+        "webUrl": "https://contoso.sharepoint.com/sites/test/Documents/file-001.pdf",
     },
     {
         "id": "file-002",
@@ -48,11 +47,9 @@ MOCK_FILES = [
         "lastModifiedDateTime": "2025-01-20T14:30:00Z",
         "file": {
             "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "hashes": {
-                "quickXorHash": "xyz789ghi012"
-            }
+            "hashes": {"quickXorHash": "xyz789ghi012"},
         },
-        "webUrl": "https://contoso.sharepoint.com/sites/test/Documents/file-002.docx"
+        "webUrl": "https://contoso.sharepoint.com/sites/test/Documents/file-002.docx",
     },
     {
         "id": "file-003",
@@ -62,19 +59,17 @@ MOCK_FILES = [
         "lastModifiedDateTime": "2025-01-17T09:00:00Z",
         "file": {
             "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "hashes": {
-                "quickXorHash": "mnopqr345stu678"
-            }
+            "hashes": {"quickXorHash": "mnopqr345stu678"},
         },
-        "webUrl": "https://contoso.sharepoint.com/sites/test/Documents/file-003.xlsx"
-    }
+        "webUrl": "https://contoso.sharepoint.com/sites/test/Documents/file-003.xlsx",
+    },
 ]
 
 # ファイルコンテンツのモック（バイト）
 MOCK_FILE_CONTENT = {
     "file-001": b"PDF content here...",
     "file-002": b"Word document content...",
-    "file-003": b"Excel spreadsheet content..."
+    "file-003": b"Excel spreadsheet content...",
 }
 
 # 同期設定のモックデータ
@@ -89,12 +84,9 @@ MOCK_SYNC_CONFIG = {
     "sync_schedule": "0 2 * * *",
     "sync_strategy": "incremental",
     "is_enabled": True,
-    "metadata_mapping": {
-        "category": "category_field",
-        "tags": "tags_field"
-    },
+    "metadata_mapping": {"category": "category_field", "tags": "tags_field"},
     "created_at": "2025-01-15T00:00:00Z",
-    "updated_at": "2025-01-15T00:00:00Z"
+    "updated_at": "2025-01-15T00:00:00Z",
 }
 
 # 同期履歴のモックデータ
@@ -112,7 +104,7 @@ MOCK_SYNC_HISTORY = [
         "files_failed": 0,
         "total_size": 5242880,
         "errors": [],
-        "summary": "同期が正常に完了しました"
+        "summary": "同期が正常に完了しました",
     },
     {
         "id": 2,
@@ -127,28 +119,25 @@ MOCK_SYNC_HISTORY = [
         "files_failed": 0,
         "total_size": 512000,
         "errors": [],
-        "summary": "同期が正常に完了しました"
-    }
+        "summary": "同期が正常に完了しました",
+    },
 ]
 
 # エラーケース用のモックデータ
 MOCK_AUTH_ERROR = {
     "error": {
         "code": "InvalidAuthenticationToken",
-        "message": "Access token has expired or is not yet valid."
+        "message": "Access token has expired or is not yet valid.",
     }
 }
 
 MOCK_PERMISSION_ERROR = {
     "error": {
         "code": "Forbidden",
-        "message": "The caller does not have permission to perform the action."
+        "message": "The caller does not have permission to perform the action.",
     }
 }
 
 MOCK_NOT_FOUND_ERROR = {
-    "error": {
-        "code": "itemNotFound",
-        "message": "The resource could not be found."
-    }
+    "error": {"code": "itemNotFound", "message": "The resource could not be found."}
 }

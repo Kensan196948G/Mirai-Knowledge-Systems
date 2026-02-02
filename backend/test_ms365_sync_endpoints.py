@@ -5,24 +5,19 @@ Usage:
     python test_ms365_sync_endpoints.py
 """
 
-import requests
 import json
 from datetime import datetime
 
+import requests
+
 # テスト設定
 BASE_URL = "http://localhost:5200/api/v1"
-TEST_USER = {
-    "username": "admin",
-    "password": "Admin123!"
-}
+TEST_USER = {"username": "admin", "password": "Admin123!"}
 
 
 def get_auth_token():
     """認証トークンを取得"""
-    response = requests.post(
-        f"{BASE_URL}/auth/login",
-        json=TEST_USER
-    )
+    response = requests.post(f"{BASE_URL}/auth/login", json=TEST_USER)
     if response.status_code == 200:
         data = response.json()
         return data.get("data", {}).get("access_token")
@@ -42,10 +37,7 @@ def test_endpoints():
         print("Failed to get auth token")
         return
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     print(f"✓ Token obtained: {token[:20]}...")
     print()
@@ -56,8 +48,7 @@ def test_endpoints():
     # 1. 設定一覧取得
     print("=== 1. GET /sync/configs (設定一覧) ===")
     response = requests.get(
-        f"{BASE_URL}/integrations/microsoft365/sync/configs",
-        headers=headers
+        f"{BASE_URL}/integrations/microsoft365/sync/configs", headers=headers
     )
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -73,12 +64,12 @@ def test_endpoints():
         "sync_schedule": "0 3 * * *",
         "sync_strategy": "incremental",
         "file_extensions": ["pdf", "docx", "xlsx"],
-        "is_enabled": False  # テストなので無効化
+        "is_enabled": False,  # テストなので無効化
     }
     response = requests.post(
         f"{BASE_URL}/integrations/microsoft365/sync/configs",
         headers=headers,
-        json=new_config
+        json=new_config,
     )
     print(f"Status: {response.status_code}")
     data = response.json()
@@ -97,7 +88,7 @@ def test_endpoints():
     print(f"=== 3. GET /sync/configs/{config_id} (設定取得) ===")
     response = requests.get(
         f"{BASE_URL}/integrations/microsoft365/sync/configs/{config_id}",
-        headers=headers
+        headers=headers,
     )
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -105,14 +96,11 @@ def test_endpoints():
 
     # 4. 設定更新
     print(f"=== 4. PUT /sync/configs/{config_id} (設定更新) ===")
-    update_data = {
-        "name": "更新されたテスト同期設定",
-        "sync_schedule": "0 4 * * *"
-    }
+    update_data = {"name": "更新されたテスト同期設定", "sync_schedule": "0 4 * * *"}
     response = requests.put(
         f"{BASE_URL}/integrations/microsoft365/sync/configs/{config_id}",
         headers=headers,
-        json=update_data
+        json=update_data,
     )
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -122,7 +110,7 @@ def test_endpoints():
     print(f"=== 5. POST /sync/configs/{config_id}/test (接続テスト) ===")
     response = requests.post(
         f"{BASE_URL}/integrations/microsoft365/sync/configs/{config_id}/test",
-        headers=headers
+        headers=headers,
     )
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -132,7 +120,7 @@ def test_endpoints():
     print(f"=== 6. GET /sync/configs/{config_id}/history (同期履歴) ===")
     response = requests.get(
         f"{BASE_URL}/integrations/microsoft365/sync/configs/{config_id}/history",
-        headers=headers
+        headers=headers,
     )
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -141,8 +129,7 @@ def test_endpoints():
     # 7. 統計情報取得
     print("=== 7. GET /sync/stats (統計情報) ===")
     response = requests.get(
-        f"{BASE_URL}/integrations/microsoft365/sync/stats",
-        headers=headers
+        f"{BASE_URL}/integrations/microsoft365/sync/stats", headers=headers
     )
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -151,8 +138,7 @@ def test_endpoints():
     # 8. ステータス取得
     print("=== 8. GET /sync/status (ステータス) ===")
     response = requests.get(
-        f"{BASE_URL}/integrations/microsoft365/sync/status",
-        headers=headers
+        f"{BASE_URL}/integrations/microsoft365/sync/status", headers=headers
     )
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -167,7 +153,7 @@ def test_endpoints():
     print(f"=== 10. DELETE /sync/configs/{config_id} (設定削除) ===")
     response = requests.delete(
         f"{BASE_URL}/integrations/microsoft365/sync/configs/{config_id}",
-        headers=headers
+        headers=headers,
     )
     print(f"Status: {response.status_code}")
     print(f"Response: {json.dumps(response.json(), indent=2, ensure_ascii=False)}")
@@ -182,4 +168,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"エラー: {e}")
         import traceback
+
         traceback.print_exc()

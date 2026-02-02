@@ -6,6 +6,7 @@ Playwrightのpageフィクスチャやbase_url設定を含みます。
 """
 
 import os
+
 import pytest
 from playwright.sync_api import sync_playwright
 
@@ -18,7 +19,7 @@ def base_url():
     環境変数 BASE_URL で上書き可能
     デフォルト: http://localhost:5100
     """
-    return os.getenv('BASE_URL', 'http://localhost:5100')
+    return os.getenv("BASE_URL", "http://localhost:5100")
 
 
 @pytest.fixture(scope="function")
@@ -31,12 +32,11 @@ def browser_context():
     """
     with sync_playwright() as p:
         browser = p.chromium.launch(
-            headless=True,
-            args=['--disable-dev-shm-usage']  # CI環境での安定性向上
+            headless=True, args=["--disable-dev-shm-usage"]  # CI環境での安定性向上
         )
         context = browser.new_context(
-            viewport={'width': 1280, 'height': 720},
-            ignore_https_errors=True  # 自己署名証明書対応
+            viewport={"width": 1280, "height": 720},
+            ignore_https_errors=True,  # 自己署名証明書対応
         )
         yield context
         context.close()
@@ -78,8 +78,8 @@ def authenticated_page(page, base_url):
     page.goto(f"{base_url}/login.html")
 
     # テスト用の認証情報でログイン
-    page.fill('input[name="username"]', 'admin')
-    page.fill('input[name="password"]', 'admin')
+    page.fill('input[name="username"]', "admin")
+    page.fill('input[name="password"]', "admin")
     page.click('button[type="submit"]')
 
     # ログイン完了を待機
@@ -96,13 +96,10 @@ def test_data():
     E2Eテストで使用する共通のテストデータを定義します。
     """
     return {
-        'admin_user': {
-            'username': 'admin',
-            'password': 'admin'
+        "admin_user": {"username": "admin", "password": "admin"},
+        "test_knowledge": {
+            "title": "E2Eテスト用ナレッジ",
+            "content": "これはE2Eテスト用のサンプルコンテンツです。",
+            "category": "建設",
         },
-        'test_knowledge': {
-            'title': 'E2Eテスト用ナレッジ',
-            'content': 'これはE2Eテスト用のサンプルコンテンツです。',
-            'category': '建設'
-        }
     }

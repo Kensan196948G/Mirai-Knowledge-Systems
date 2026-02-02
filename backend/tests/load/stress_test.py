@@ -2,14 +2,16 @@
 ストレステスト - システム限界値測定
 段階的に負荷を増加させ、システムの限界点を特定する
 """
-import requests
-import time
-import psutil
+
 import json
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List
 import statistics
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from typing import Dict, List
+
+import psutil
+import requests
 
 
 class StressTest:
@@ -24,17 +26,17 @@ class StressTest:
         """認証トークン取得"""
         response = requests.post(
             f"{self.base_url}/api/v1/auth/login",
-            json={"username": "admin", "password": "admin123"}
+            json={"username": "admin", "password": "admin123"},
         )
         if response.status_code == 200:
-            return response.json()['data']['access_token']
+            return response.json()["data"]["access_token"]
         return None
 
     def collect_system_metrics(self) -> Dict:
         """システムリソース監視"""
         cpu_percent = psutil.cpu_percent(interval=1)
         memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage("/")
 
         return {
             "timestamp": datetime.now().isoformat(),
@@ -42,19 +44,17 @@ class StressTest:
             "memory_percent": memory.percent,
             "memory_available_mb": memory.available / (1024 * 1024),
             "disk_percent": disk.percent,
-            "disk_free_gb": disk.free / (1024 * 1024 * 1024)
+            "disk_free_gb": disk.free / (1024 * 1024 * 1024),
         }
 
     def single_request(self, endpoint: str, token: str) -> Dict:
         """単一リクエスト実行"""
-        headers = {'Authorization': f'Bearer {token}'}
+        headers = {"Authorization": f"Bearer {token}"}
         start_time = time.time()
 
         try:
             response = requests.get(
-                f"{self.base_url}{endpoint}",
-                headers=headers,
-                timeout=10
+                f"{self.base_url}{endpoint}", headers=headers, timeout=10
             )
             elapsed = time.time() - start_time
 
@@ -62,7 +62,7 @@ class StressTest:
                 "success": response.status_code == 200,
                 "status_code": response.status_code,
                 "response_time": elapsed,
-                "error": None
+                "error": None,
             }
         except Exception as e:
             elapsed = time.time() - start_time
@@ -70,14 +70,11 @@ class StressTest:
                 "success": False,
                 "status_code": 0,
                 "response_time": elapsed,
-                "error": str(e)
+                "error": str(e),
             }
 
     def run_concurrent_requests(
-        self,
-        num_users: int,
-        endpoint: str,
-        token: str
+        self, num_users: int, endpoint: str, token: str
     ) -> Dict:
         """同時リクエスト実行"""
         print(f"\n{'='*60}")
@@ -106,15 +103,19 @@ class StressTest:
         end_metrics = self.collect_system_metrics()
 
         # 結果集計
-        success_count = sum(1 for r in results if r['success'])
+        success_count = sum(1 for r in results if r["success"])
         error_count = len(results) - success_count
-        response_times = [r['response_time'] for r in results if r['success']]
+        response_times = [r["response_time"] for r in results if r["success"]]
 
         if response_times:
             avg_response_time = statistics.mean(response_times)
             median_response_time = statistics.median(response_times)
-            p95_response_time = statistics.quantiles(response_times, n=20)[18]  # 95パーセンタイル
-            p99_response_time = statistics.quantiles(response_times, n=100)[98]  # 99パーセンタイル
+            p95_response_time = statistics.quantiles(response_times, n=20)[
+                18
+            ]  # 95パーセンタイル
+            p99_response_time = statistics.quantiles(response_times, n=100)[
+                98
+            ]  # 99パーセンタイル
             min_response_time = min(response_times)
             max_response_time = max(response_times)
         else:
@@ -141,7 +142,7 @@ class StressTest:
             "min_response_time": min_response_time,
             "max_response_time": max_response_time,
             "start_metrics": start_metrics,
-            "end_metrics": end_metrics
+            "end_metrics": end_metrics,
         }
 
         # 結果表示
@@ -171,21 +172,21 @@ class StressTest:
 
         # 目標値チェック
         print(f"\n目標値チェック:")
-        if result['error_rate'] <= 1.0:
+        if result["error_rate"] <= 1.0:
             print(f"  ✓ エラー率: {result['error_rate']:.2f}% <= 1%")
         else:
             print(f"  ✗ エラー率: {result['error_rate']:.2f}% > 1%")
 
-        if result['avg_response_time'] <= 3.0:
+        if result["avg_response_time"] <= 3.0:
             print(f"  ✓ 平均応答時間: {result['avg_response_time']:.3f}秒 <= 3秒")
         else:
             print(f"  ✗ 平均応答時間: {result['avg_response_time']:.3f}秒 > 3秒")
 
     def run_gradual_stress_test(self):
         """段階的負荷増加テスト（100→500ユーザー）"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("段階的ストレステスト開始")
-        print("="*60)
+        print("=" * 60)
 
         token = self.get_auth_token()
         if not token:
@@ -197,7 +198,7 @@ class StressTest:
             "/api/v1/knowledge",
             "/api/v1/knowledge?search=砂防",
             "/api/v1/dashboard/stats",
-            "/api/v1/notifications?limit=20"
+            "/api/v1/notifications?limit=20",
         ]
 
         # 段階的にユーザー数を増加
@@ -211,9 +212,11 @@ class StressTest:
                 all_results.append(result)
 
                 # エラー率が10%を超えたら限界点と判定
-                if result['error_rate'] > 10.0:
+                if result["error_rate"] > 10.0:
                     print(f"\n{'!'*60}")
-                    print(f"限界点検出: {num_users}ユーザー、エラー率{result['error_rate']:.2f}%")
+                    print(
+                        f"限界点検出: {num_users}ユーザー、エラー率{result['error_rate']:.2f}%"
+                    )
                     print(f"{'!'*60}")
                     self._save_results(all_results)
                     return all_results
@@ -230,13 +233,13 @@ class StressTest:
 
         # JSON保存
         json_file = f"/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/reports/stress_test_{timestamp}.json"
-        with open(json_file, 'w', encoding='utf-8') as f:
+        with open(json_file, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
         print(f"\n結果をJSON保存: {json_file}")
 
         # CSV保存
         csv_file = f"/mnt/LinuxHDD/Mirai-Knowledge-Systems/backend/tests/reports/stress_test_{timestamp}.csv"
-        with open(csv_file, 'w', encoding='utf-8') as f:
+        with open(csv_file, "w", encoding="utf-8") as f:
             # ヘッダー
             f.write("ユーザー数,エンドポイント,総リクエスト,成功,失敗,エラー率(%),")
             f.write("平均応答時間(秒),中央値(秒),P95(秒),P99(秒),")
@@ -245,8 +248,12 @@ class StressTest:
             # データ
             for r in results:
                 f.write(f"{r['num_users']},{r['endpoint']},{r['total_requests']},")
-                f.write(f"{r['success_count']},{r['error_count']},{r['error_rate']:.2f},")
-                f.write(f"{r['avg_response_time']:.3f},{r['median_response_time']:.3f},")
+                f.write(
+                    f"{r['success_count']},{r['error_count']},{r['error_rate']:.2f},"
+                )
+                f.write(
+                    f"{r['avg_response_time']:.3f},{r['median_response_time']:.3f},"
+                )
                 f.write(f"{r['p95_response_time']:.3f},{r['p99_response_time']:.3f},")
                 f.write(f"{r['requests_per_sec']:.2f},")
                 f.write(f"{r['end_metrics']['cpu_percent']:.1f},")
@@ -259,18 +266,18 @@ class StressTest:
 
     def _print_summary(self, results: List[Dict]):
         """テストサマリー表示"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("ストレステスト サマリー")
-        print("="*60)
+        print("=" * 60)
 
         # 最大成功ユーザー数
-        successful_results = [r for r in results if r['error_rate'] <= 1.0]
+        successful_results = [r for r in results if r["error_rate"] <= 1.0]
         if successful_results:
-            max_users = max(r['num_users'] for r in successful_results)
+            max_users = max(r["num_users"] for r in successful_results)
             print(f"最大安定ユーザー数: {max_users} (エラー率 <= 1%)")
 
         # 最も遅いエンドポイント
-        slowest = max(results, key=lambda x: x['avg_response_time'])
+        slowest = max(results, key=lambda x: x["avg_response_time"])
         print(f"\n最も遅いエンドポイント:")
         print(f"  {slowest['endpoint']}")
         print(f"  平均応答時間: {slowest['avg_response_time']:.3f}秒")
@@ -278,13 +285,14 @@ class StressTest:
 
         # 推奨最大同時接続数
         stable_300_results = [
-            r for r in results
-            if r['num_users'] == 300 and r['error_rate'] <= 1.0
+            r for r in results if r["num_users"] == 300 and r["error_rate"] <= 1.0
         ]
 
         if stable_300_results:
             print(f"\n✓ 目標達成: 300ユーザー同時接続可能")
-            avg_response = statistics.mean([r['avg_response_time'] for r in stable_300_results])
+            avg_response = statistics.mean(
+                [r["avg_response_time"] for r in stable_300_results]
+            )
             print(f"  平均応答時間: {avg_response:.3f}秒")
         else:
             print(f"\n✗ 目標未達成: 300ユーザー同時接続でエラー率が高い")

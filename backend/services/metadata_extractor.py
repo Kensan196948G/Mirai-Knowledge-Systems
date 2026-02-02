@@ -6,13 +6,14 @@ PDF、Word、Excelなどのファイルからテキストとメタデータを�
 
 import io
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 # オプション依存関係の遅延インポート
 try:
     from PyPDF2 import PdfReader
+
     PYPDF2_AVAILABLE = True
 except ImportError:
     PYPDF2_AVAILABLE = False
@@ -20,17 +21,23 @@ except ImportError:
 
 try:
     from docx import Document
+
     PYTHON_DOCX_AVAILABLE = True
 except ImportError:
     PYTHON_DOCX_AVAILABLE = False
-    logger.debug("python-docx未インストール。pip install python-docx でインストールしてください")
+    logger.debug(
+        "python-docx未インストール。pip install python-docx でインストールしてください"
+    )
 
 try:
     from openpyxl import load_workbook
+
     OPENPYXL_AVAILABLE = True
 except ImportError:
     OPENPYXL_AVAILABLE = False
-    logger.debug("openpyxl未インストール。pip install openpyxl でインストールしてください")
+    logger.debug(
+        "openpyxl未インストール。pip install openpyxl でインストールしてください"
+    )
 
 
 class MetadataExtractor:
@@ -47,10 +54,7 @@ class MetadataExtractor:
         self.metadata_mapping = metadata_mapping or {}
 
     def extract(
-        self,
-        file_content: bytes,
-        file_name: str,
-        sharepoint_metadata: Dict
+        self, file_content: bytes, file_name: str, sharepoint_metadata: Dict
     ) -> Dict[str, Any]:
         """
         ファイルからメタデータを抽出
@@ -128,7 +132,11 @@ class MetadataExtractor:
                 except Exception as e:
                     logger.warning(f"PDF ページ{page_num}のテキスト抽出エラー: {e}")
 
-            return "\n\n".join(text_parts) if text_parts else "[PDFからテキスト抽出できませんでした]"
+            return (
+                "\n\n".join(text_parts)
+                if text_parts
+                else "[PDFからテキスト抽出できませんでした]"
+            )
 
         except Exception as e:
             logger.error(f"PDF抽出エラー: {e}")
@@ -152,7 +160,11 @@ class MetadataExtractor:
             doc = Document(docx_file)
 
             paragraphs = [para.text for para in doc.paragraphs if para.text.strip()]
-            return "\n\n".join(paragraphs) if paragraphs else "[Wordファイルからテキスト抽出できませんでした]"
+            return (
+                "\n\n".join(paragraphs)
+                if paragraphs
+                else "[Wordファイルからテキスト抽出できませんでした]"
+            )
 
         except Exception as e:
             logger.error(f"Word抽出エラー: {e}")
@@ -209,7 +221,14 @@ class MetadataExtractor:
             テキスト内容
         """
         # エンコーディング自動検出
-        encodings = ["utf-8", "utf-8-sig", "shift_jis", "cp932", "euc-jp", "iso-2022-jp"]
+        encodings = [
+            "utf-8",
+            "utf-8-sig",
+            "shift_jis",
+            "cp932",
+            "euc-jp",
+            "iso-2022-jp",
+        ]
 
         for encoding in encodings:
             try:
@@ -313,6 +332,6 @@ class MetadataExtractor:
 
         cut_point = max(last_period, last_space)
         if cut_point > max_length * 0.7:  # 70%以上の位置で見つかった場合
-            return truncated[:cut_point + 1]
+            return truncated[: cut_point + 1]
 
         return truncated + "..."

@@ -2,19 +2,21 @@
 """
 詳細エンドポイントの手動テストスクリプト
 """
-import sys
-import os
+
 import json
+import os
+import sys
 
 # 環境変数を設定（テスト用）
-os.environ['MKS_ENV'] = 'development'
-os.environ['MKS_SECRET_KEY'] = 'test-secret-key-for-manual-testing'
-os.environ['MKS_USE_POSTGRESQL'] = 'false'
+os.environ["MKS_ENV"] = "development"
+os.environ["MKS_SECRET_KEY"] = "test-secret-key-for-manual-testing"
+os.environ["MKS_USE_POSTGRESQL"] = "false"
 
 # パスを追加
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from data_access import DataAccessLayer
+
 
 def test_data_access_layer():
     """DataAccessLayerのメソッドをテスト"""
@@ -96,12 +98,13 @@ def test_data_access_layer():
     return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         success = test_data_access_layer()
         sys.exit(0 if success else 1)
     except Exception as e:
         print(f"\n✗ エラー発生: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

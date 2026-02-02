@@ -3,66 +3,54 @@
 JSONベース + JWT認証 + RBAC
 """
 
-from flask import Flask, jsonify, request, send_from_directory, redirect
-from flask_cors import CORS
-from flask_jwt_extended import (
-    JWTManager,
-    create_access_token,
-    create_refresh_token,
-    jwt_required,
-    get_jwt_identity,
-    get_jwt,
-)
-from flask_socketio import SocketIO, emit, join_room, leave_room
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from datetime import datetime, timedelta
-from functools import wraps
+import hashlib
 import json
 import os
-import hashlib
+import threading
+import time
+from collections import Counter, defaultdict
+from datetime import datetime, timedelta
+from functools import wraps
+
 import bcrypt
+import psutil
 import pyotp
 from dotenv import load_dotenv
+from flask import (Flask, Response, jsonify, redirect, request,
+                   send_from_directory)
+from flask_cors import CORS
+from flask_jwt_extended import (JWTManager, create_access_token,
+                                create_refresh_token, get_jwt,
+                                get_jwt_identity, jwt_required)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from marshmallow import ValidationError
+from schemas import (ConsultationAnswerSchema, ConsultationCreateSchema,
+                     ConsultationUpdateSchema, KnowledgeCreateSchema,
+                     LoginSchema, MFALoginSchema, MFAVerifySchema,
+                     MS365ImportSchema, MS365SyncSchema)
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from werkzeug.utils import secure_filename
-from schemas import (
-    LoginSchema,
-    KnowledgeCreateSchema,
-    ConsultationCreateSchema,
-    ConsultationUpdateSchema,
-    ConsultationAnswerSchema,
-    MFALoginSchema,
-    MFAVerifySchema,
-    MS365ImportSchema,
-    MS365SyncSchema,
-)
-import time
-import psutil
-import threading
-from collections import defaultdict, Counter
 
 # スレッドセーフなファイルアクセス用ロック
 _file_lock = threading.RLock()
+import mimetypes
 import smtplib
 import ssl
-from email.message import EmailMessage
-import urllib.request
 import tempfile
-import mimetypes
-from prometheus_client import (
-    Counter as PrometheusCounter,
-    Histogram,
-    Gauge,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
-)
-from recommendation_engine import RecommendationEngine
-from data_access import DataAccessLayer
-from config import get_config
+import urllib.request
+from email.message import EmailMessage
+
 import msal
 from auth.totp_manager import TOTPManager
+from data_access import DataAccessLayer
+from prometheus_client import CONTENT_TYPE_LATEST
+from prometheus_client import Counter as PrometheusCounter
+from prometheus_client import Gauge, Histogram, generate_latest
+from recommendation_engine import RecommendationEngine
+
+from config import get_config
 
 try:
     from msgraph.core import GraphClient
@@ -71,8 +59,9 @@ except ImportError:
 
 # Microsoft 365同期サービス
 try:
-    from services.ms365_sync_service import MS365SyncService
     from services.ms365_scheduler_service import MS365SchedulerService
+    from services.ms365_sync_service import MS365SyncService
+
     MS365_SERVICES_AVAILABLE = True
 except ImportError:
     MS365SyncService = None
@@ -84,10 +73,13 @@ load_dotenv()
 
 # DEBUG: 環境変数の確認（一時的）
 import sys
+
 print("=" * 80, file=sys.stderr)
 print("DEBUG: Environment Variables Check", file=sys.stderr)
 print(f"MKS_USE_JSON: {os.getenv('MKS_USE_JSON', 'NOT_SET')}", file=sys.stderr)
-print(f"MKS_USE_POSTGRESQL: {os.getenv('MKS_USE_POSTGRESQL', 'NOT_SET')}", file=sys.stderr)
+print(
+    f"MKS_USE_POSTGRESQL: {os.getenv('MKS_USE_POSTGRESQL', 'NOT_SET')}", file=sys.stderr
+)
 print(f"DATABASE_URL: {os.getenv('DATABASE_URL', 'NOT_SET')}", file=sys.stderr)
 print(f"MKS_ENV: {os.getenv('MKS_ENV', 'NOT_SET')}", file=sys.stderr)
 print("=" * 80, file=sys.stderr)
@@ -278,6 +270,7 @@ AppConfig = get_config()
 def get_local_ip_addresses():
     """ローカルネットワークのIPアドレスを自動検出"""
     import socket
+
     ips = set()
 
     # 標準的なlocalhostアドレス
@@ -310,12 +303,18 @@ def get_local_ip_addresses():
             ips.add(local_ip)
             s.close()
         except Exception as e:
-            logger.debug("Failed to determine local IP via 8.8.8.8 connection: %s", str(e))
+            logger.debug(
+                "Failed to determine local IP via 8.8.8.8 connection: %s", str(e)
+            )
 
         # 一般的なプライベートIPレンジのプレフィックス
         # 192.168.x.x, 10.x.x.x, 172.16-31.x.x
         for ip in list(ips):
-            if ip.startswith("192.168.") or ip.startswith("10.") or ip.startswith("172."):
+            if (
+                ip.startswith("192.168.")
+                or ip.startswith("10.")
+                or ip.startswith("172.")
+            ):
                 pass  # 既に追加済み
 
     except Exception as e:
@@ -327,7 +326,7 @@ def get_local_ip_addresses():
 def build_cors_origins():
     """CORS許可オリジンリストを構築（動的IP対応）"""
     # 基本設定から取得
-    base_origins = getattr(AppConfig, 'CORS_ORIGINS', ['http://localhost:5200'])
+    base_origins = getattr(AppConfig, "CORS_ORIGINS", ["http://localhost:5200"])
     if isinstance(base_origins, str):
         base_origins = [base_origins]
 
@@ -534,25 +533,25 @@ if os.environ.get("TESTING") != "true":
     MS365_SYNC_EXECUTIONS = PrometheusCounter(
         "mks_ms365_sync_executions_total",
         "Total MS365 sync executions",
-        ["config_id", "status"]
+        ["config_id", "status"],
     )
 
     MS365_SYNC_DURATION = Histogram(
         "mks_ms365_sync_duration_seconds",
         "MS365 sync execution duration in seconds",
-        ["config_id"]
+        ["config_id"],
     )
 
     MS365_FILES_PROCESSED = PrometheusCounter(
         "mks_ms365_files_processed_total",
         "Total files processed from MS365",
-        ["config_id", "result"]  # result: created/updated/skipped/failed
+        ["config_id", "result"],  # result: created/updated/skipped/failed
     )
 
     MS365_SYNC_ERRORS = PrometheusCounter(
         "mks_ms365_sync_errors_total",
         "Total MS365 sync errors",
-        ["config_id", "error_type"]
+        ["config_id", "error_type"],
     )
 else:
     # テスト環境用のダミーメトリクス
@@ -883,29 +882,35 @@ def check_permission(required_permission):
                     return fn(*args, **kwargs)
 
                 print(f"[DEBUG] Permission denied")
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": {
-                            "code": "FORBIDDEN",
-                            "message": "Insufficient permissions",
-                        },
-                    }
-                ), 403
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {
+                                "code": "FORBIDDEN",
+                                "message": "Insufficient permissions",
+                            },
+                        }
+                    ),
+                    403,
+                )
             except Exception as e:
                 print(f"[DEBUG] Exception in check_permission: {e}")
                 import traceback
 
                 traceback.print_exc()
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": {
-                            "code": "INTERNAL_ERROR",
-                            "message": "Internal server error",
-                        },
-                    }
-                ), 500
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {
+                                "code": "INTERNAL_ERROR",
+                                "message": "Internal server error",
+                            },
+                        }
+                    ),
+                    500,
+                )
 
         return wrapper
 
@@ -932,26 +937,32 @@ def validate_request(schema_class):
                 request.validated_data = validated_data
                 return fn(*args, **kwargs)
             except BadRequest:
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": {
-                            "code": "INVALID_JSON",
-                            "message": "Invalid JSON payload",
-                        },
-                    }
-                ), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {
+                                "code": "INVALID_JSON",
+                                "message": "Invalid JSON payload",
+                            },
+                        }
+                    ),
+                    400,
+                )
             except ValidationError as err:
-                return jsonify(
-                    {
-                        "success": False,
-                        "error": {
-                            "code": "VALIDATION_ERROR",
-                            "message": "入力データが不正です",
-                            "details": err.messages,
-                        },
-                    }
-                ), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {
+                                "code": "VALIDATION_ERROR",
+                                "message": "入力データが不正です",
+                                "details": err.messages,
+                            },
+                        }
+                    ),
+                    400,
+                )
 
         return wrapper
 
@@ -985,7 +996,10 @@ def _flush_access_logs():
                 logs.append(entry)
             save_data("access_logs.json", logs)
     except Exception as e:
-        print(f"[WARN] _flush_access_logs failed: {type(e).__name__}: {e}", file=sys.stderr)
+        print(
+            f"[WARN] _flush_access_logs failed: {type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
 
 
 def log_access(
@@ -1022,7 +1036,9 @@ def log_access(
             jwt_data = get_jwt()
             session_id = jwt_data.get("jti", None)
         except Exception as e:
-            logger.debug("JWT not available for audit log - session_id will be None: %s", str(e))
+            logger.debug(
+                "JWT not available for audit log - session_id will be None: %s", str(e)
+            )
 
         # resource_idの型チェック（INTEGER型のため）
         safe_resource_id = None
@@ -1191,7 +1207,9 @@ def save_data(filename, data):
             print(f"[ERROR] OS error writing {filename}: {e}")
             raise
         except Exception as e:
-            print(f"[ERROR] Unexpected error writing {filename}: {type(e).__name__}: {e}")
+            print(
+                f"[ERROR] Unexpected error writing {filename}: {type(e).__name__}: {e}"
+            )
             raise
         finally:
             # 一時ファイルのクリーンアップ
@@ -1208,8 +1226,12 @@ def save_data(filename, data):
 
 
 @app.route("/api/v1/auth/login", methods=["POST"])
-@limiter.limit("100 per minute" if os.environ.get("MKS_ENV") == "development" else "5 per minute")
-@limiter.limit("1000 per hour" if os.environ.get("MKS_ENV") == "development" else "20 per hour")
+@limiter.limit(
+    "100 per minute" if os.environ.get("MKS_ENV") == "development" else "5 per minute"
+)
+@limiter.limit(
+    "1000 per hour" if os.environ.get("MKS_ENV") == "development" else "20 per hour"
+)
 @validate_request(LoginSchema)
 def login():
     """ログイン（レート制限: 開発環境では緩和、本番環境では5回/分、20回/時）
@@ -1223,40 +1245,43 @@ def login():
     password = data["password"]
 
     if not username or not password:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "VALIDATION_ERROR",
-                    "message": "Username and password are required",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Username and password are required",
+                    },
+                }
+            ),
+            400,
+        )
 
     users = load_users()
     user = next((u for u in users if u["username"] == username), None)
 
     if not user or not verify_password(password, user["password_hash"]):
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "UNAUTHORIZED",
-                    "message": "Invalid username or password",
-                },
-            }
-        ), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "Invalid username or password",
+                    },
+                }
+            ),
+            401,
+        )
 
     # MFA有効チェック
     if user.get("mfa_enabled", False):
         # MFA一時トークン発行（5分間有効）
         mfa_token = create_access_token(
             identity=str(user["id"]),
-            additional_claims={
-                "mfa_pending": True,
-                "type": "mfa_temp"
-            },
-            expires_delta=timedelta(minutes=5)
+            additional_claims={"mfa_pending": True, "type": "mfa_temp"},
+            expires_delta=timedelta(minutes=5),
         )
 
         # MFAが必要であることを通知
@@ -1266,7 +1291,7 @@ def login():
                 "data": {
                     "mfa_required": True,
                     "mfa_token": mfa_token,
-                    "message": "MFA verification required"
+                    "message": "MFA verification required",
                 },
             }
         )
@@ -1299,7 +1324,11 @@ def login():
 
 
 @app.route("/api/v1/auth/login/mfa", methods=["POST"])
-@limiter.limit("100 per minute" if os.environ.get("MKS_ENV") == "development" else "5 per 15 minutes")
+@limiter.limit(
+    "100 per minute"
+    if os.environ.get("MKS_ENV") == "development"
+    else "5 per 15 minutes"
+)
 def login_mfa():
     """MFAコード検証してログイン完了（TOTPまたはバックアップコード対応）
 
@@ -1315,62 +1344,87 @@ def login_mfa():
     """
     data = request.get_json()
     if not data:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "INVALID_REQUEST", "message": "Request body is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_REQUEST",
+                        "message": "Request body is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     mfa_token = data.get("mfa_token")
     code = data.get("code") or data.get("totp_code")
     backup_code = data.get("backup_code")
 
     if not mfa_token:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_MFA_TOKEN", "message": "MFA token is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_MFA_TOKEN",
+                        "message": "MFA token is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     if not code and not backup_code:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_CODE", "message": "Either TOTP code or backup code is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_CODE",
+                        "message": "Either TOTP code or backup code is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     # MFA一時トークンを検証
     try:
         from flask_jwt_extended import decode_token
+
         decoded = decode_token(mfa_token)
 
         # MFA一時トークンかどうか確認
         if not decoded.get("mfa_pending") or decoded.get("type") != "mfa_temp":
-            return jsonify(
-                {
-                    "success": False,
-                    "error": {
-                        "code": "INVALID_MFA_TOKEN",
-                        "message": "Invalid MFA token",
-                    },
-                }
-            ), 401
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "INVALID_MFA_TOKEN",
+                            "message": "Invalid MFA token",
+                        },
+                    }
+                ),
+                401,
+            )
 
         user_id = decoded.get("sub")
 
     except Exception as e:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "MFA_TOKEN_EXPIRED",
-                    "message": "MFA token expired or invalid. Please login again.",
-                },
-            }
-        ), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MFA_TOKEN_EXPIRED",
+                        "message": "MFA token expired or invalid. Please login again.",
+                    },
+                }
+            ),
+            401,
+        )
 
     # ユーザー取得（JSON mode と PostgreSQL mode の両方に対応）
     dal = get_dal()
@@ -1389,7 +1443,7 @@ def login_mfa():
                 "mfa_secret": user_obj.mfa_secret,
                 "mfa_enabled": user_obj.mfa_enabled,
                 "mfa_backup_codes": user_obj.mfa_backup_codes,
-                "roles": []  # TODO: Get roles
+                "roles": [],  # TODO: Get roles
             }
             is_postgres = True
         else:
@@ -1402,28 +1456,34 @@ def login_mfa():
         is_postgres = False
 
     if not user:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "USER_NOT_FOUND",
-                    "message": "User not found",
-                },
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "USER_NOT_FOUND",
+                        "message": "User not found",
+                    },
+                }
+            ),
+            404,
+        )
 
     # MFAシークレット確認
     mfa_secret = user.get("mfa_secret")
     if not mfa_secret or not user.get("mfa_enabled"):
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "MFA_NOT_CONFIGURED",
-                    "message": "MFA is not configured for this user",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MFA_NOT_CONFIGURED",
+                        "message": "MFA is not configured for this user",
+                    },
+                }
+            ),
+            400,
+        )
 
     totp_mgr = TOTPManager()
     verified = False
@@ -1467,31 +1527,41 @@ def login_mfa():
         # アクセスログ記録（失敗）
         log_access(int(user_id), "mfa_login_failed")
 
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_MFA_CODE",
-                    "message": "Invalid MFA code or backup code",
-                },
-            }
-        ), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_MFA_CODE",
+                        "message": "Invalid MFA code or backup code",
+                    },
+                }
+            ),
+            401,
+        )
 
     # 正規のトークン発行
     access_token = create_access_token(
-        identity=str(user["id"]),
-        additional_claims={"roles": user.get("roles", [])}
+        identity=str(user["id"]), additional_claims={"roles": user.get("roles", [])}
     )
     refresh_token = create_refresh_token(identity=str(user["id"]))
 
     # ログイン記録
-    log_access(int(user_id), "mfa_login_success_backup" if used_backup else "mfa_login_success")
+    log_access(
+        int(user_id), "mfa_login_success_backup" if used_backup else "mfa_login_success"
+    )
 
     # 残りのバックアップコード数を計算
-    remaining_backups = sum(1 for b in (user.get("mfa_backup_codes") or []) if not b.get("used"))
+    remaining_backups = sum(
+        1 for b in (user.get("mfa_backup_codes") or []) if not b.get("used")
+    )
 
     # レスポンス
-    user_data = {k: v for k, v in user.items() if k not in ["password_hash", "mfa_secret", "mfa_backup_codes"]}
+    user_data = {
+        k: v
+        for k, v in user.items()
+        if k not in ["password_hash", "mfa_secret", "mfa_backup_codes"]
+    }
 
     return jsonify(
         {
@@ -1538,12 +1608,7 @@ def logout():
     # ログアウト記録
     log_access(int(current_user_id), "logout")
 
-    return jsonify(
-        {
-            "success": True,
-            "message": "Logged out successfully"
-        }
-    )
+    return jsonify({"success": True, "message": "Logged out successfully"})
 
 
 # トークンブラックリストチェック用コールバック
@@ -1579,23 +1644,29 @@ def setup_mfa():
     dal = get_dal()
     user = dal.get_user_by_id(current_user_id)
     if not user:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
+                }
+            ),
+            404,
+        )
 
     if user.mfa_enabled:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "MFA_ALREADY_ENABLED",
-                    "message": "MFA is already enabled. Disable MFA first to regenerate codes.",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MFA_ALREADY_ENABLED",
+                        "message": "MFA is already enabled. Disable MFA first to regenerate codes.",
+                    },
+                }
+            ),
+            400,
+        )
 
     # TOTPシークレット生成
     totp_mgr = TOTPManager()
@@ -1627,7 +1698,7 @@ def setup_mfa():
                 "qr_code_base64": qr_code_base64,
                 "provisioning_uri": provisioning_uri,
                 "backup_codes": backup_codes,  # Plain text - 表示のみ、保存はハッシュ済み
-                "message": "MFA setup initiated. Please verify the code to enable MFA."
+                "message": "MFA setup initiated. Please verify the code to enable MFA.",
             },
         }
     )
@@ -1642,30 +1713,45 @@ def enable_mfa():
     dal = get_dal()
     user = dal.get_user_by_id(current_user_id)
     if not user:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
+                }
+            ),
+            404,
+        )
 
     data = request.get_json()
     if not data or "code" not in data:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_CODE", "message": "MFA code is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_CODE",
+                        "message": "MFA code is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     code = data["code"]
     if not user.mfa_secret:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MFA_NOT_SETUP", "message": "MFA not set up. Please run /api/v1/auth/mfa/setup first."},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MFA_NOT_SETUP",
+                        "message": "MFA not set up. Please run /api/v1/auth/mfa/setup first.",
+                    },
+                }
+            ),
+            400,
+        )
 
     # TOTPManager で検証
     totp_mgr = TOTPManager()
@@ -1676,24 +1762,34 @@ def enable_mfa():
         # アクセスログ記録
         log_access(int(current_user_id), "mfa_enabled")
 
-        return jsonify({
-            "success": True,
-            "message": "MFA enabled successfully. Save your backup codes in a safe place."
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": "MFA enabled successfully. Save your backup codes in a safe place.",
+            }
+        )
     else:
         # アクセスログ記録（失敗）
         log_access(int(current_user_id), "mfa_enable_failed")
 
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "INVALID_CODE", "message": "Invalid MFA code. Please try again."},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_CODE",
+                        "message": "Invalid MFA code. Please try again.",
+                    },
+                }
+            ),
+            400,
+        )
 
 
 @app.route("/api/v1/auth/mfa/verify", methods=["POST"])
-@app.route("/api/v1/auth/mfa/validate", methods=["POST"])  # Alias for backward compatibility
+@app.route(
+    "/api/v1/auth/mfa/validate", methods=["POST"]
+)  # Alias for backward compatibility
 @limiter.limit("5 per 15 minutes")
 def verify_mfa_login():
     """MFAログイン時のコード検証（TOTPまたはバックアップコード）
@@ -1703,89 +1799,120 @@ def verify_mfa_login():
     """
     data = request.get_json()
     if not data:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "INVALID_REQUEST", "message": "Request body is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_REQUEST",
+                        "message": "Request body is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     mfa_token = data.get("mfa_token")
     code = data.get("code") or data.get("totp_code")
     backup_code = data.get("backup_code")
 
     if not mfa_token:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_MFA_TOKEN", "message": "MFA token is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_MFA_TOKEN",
+                        "message": "MFA token is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     if not code and not backup_code:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_CODE", "message": "Either TOTP code or backup code is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_CODE",
+                        "message": "Either TOTP code or backup code is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     # MFA一時トークンを検証
     try:
         from flask_jwt_extended import decode_token
+
         decoded = decode_token(mfa_token)
 
         # MFA一時トークンかどうか確認
         if not decoded.get("mfa_pending") or decoded.get("type") != "mfa_temp":
-            return jsonify(
-                {
-                    "success": False,
-                    "error": {
-                        "code": "INVALID_MFA_TOKEN",
-                        "message": "Invalid MFA token",
-                    },
-                }
-            ), 401
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "INVALID_MFA_TOKEN",
+                            "message": "Invalid MFA token",
+                        },
+                    }
+                ),
+                401,
+            )
 
         user_id = decoded.get("sub")
 
     except Exception as e:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "MFA_TOKEN_EXPIRED",
-                    "message": "MFA token expired or invalid. Please login again.",
-                },
-            }
-        ), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MFA_TOKEN_EXPIRED",
+                        "message": "MFA token expired or invalid. Please login again.",
+                    },
+                }
+            ),
+            401,
+        )
 
     # ユーザー取得
     dal = get_dal()
     user = dal.get_user_by_id(user_id)
 
     if not user:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "USER_NOT_FOUND",
-                    "message": "User not found",
-                },
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "USER_NOT_FOUND",
+                        "message": "User not found",
+                    },
+                }
+            ),
+            404,
+        )
 
     # MFAシークレット確認
     if not user.mfa_secret or not user.mfa_enabled:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "MFA_NOT_CONFIGURED",
-                    "message": "MFA is not configured for this user",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MFA_NOT_CONFIGURED",
+                        "message": "MFA is not configured for this user",
+                    },
+                }
+            ),
+            400,
+        )
 
     totp_mgr = TOTPManager()
     verified = False
@@ -1818,15 +1945,18 @@ def verify_mfa_login():
         # アクセスログ記録（失敗）
         log_access(int(user_id), "mfa_login_failed")
 
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_MFA_CODE",
-                    "message": "Invalid MFA code or backup code",
-                },
-            }
-        ), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_MFA_CODE",
+                        "message": "Invalid MFA code or backup code",
+                    },
+                }
+            ),
+            401,
+        )
 
     # 正規のトークン発行
     # Get user roles
@@ -1834,20 +1964,23 @@ def verify_mfa_login():
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "roles": []  # TODO: Get actual roles from database
+        "roles": [],  # TODO: Get actual roles from database
     }
 
     access_token = create_access_token(
-        identity=str(user.id),
-        additional_claims={"roles": user_dict.get("roles", [])}
+        identity=str(user.id), additional_claims={"roles": user_dict.get("roles", [])}
     )
     refresh_token = create_refresh_token(identity=str(user.id))
 
     # ログイン記録
-    log_access(int(user_id), "mfa_login_success_backup" if used_backup else "mfa_login_success")
+    log_access(
+        int(user_id), "mfa_login_success_backup" if used_backup else "mfa_login_success"
+    )
 
     # 残りのバックアップコード数を計算
-    remaining_backups = sum(1 for b in (user.mfa_backup_codes or []) if not b.get("used"))
+    remaining_backups = sum(
+        1 for b in (user.mfa_backup_codes or []) if not b.get("used")
+    )
 
     return jsonify(
         {
@@ -1864,8 +1997,8 @@ def verify_mfa_login():
                     "username": user.username,
                     "email": user.email,
                     "full_name": user.full_name,
-                    "is_active": user.is_active
-                }
+                    "is_active": user.is_active,
+                },
             },
         }
     )
@@ -1880,29 +2013,44 @@ def disable_mfa():
     dal = get_dal()
     user = dal.get_user_by_id(current_user_id)
     if not user:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
+                }
+            ),
+            404,
+        )
 
     if not user.mfa_enabled:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MFA_NOT_ENABLED", "message": "MFA is not enabled"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MFA_NOT_ENABLED",
+                        "message": "MFA is not enabled",
+                    },
+                }
+            ),
+            400,
+        )
 
     data = request.get_json()
     if not data:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "INVALID_REQUEST", "message": "Request body is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_REQUEST",
+                        "message": "Request body is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     password = data.get("password")
     code = data.get("code") or data.get("totp_code")
@@ -1910,30 +2058,48 @@ def disable_mfa():
 
     # パスワード検証
     if not password:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_PASSWORD", "message": "Password is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_PASSWORD",
+                        "message": "Password is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     if not user.check_password(password):
         log_access(int(current_user_id), "mfa_disable_failed_password")
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "INVALID_PASSWORD", "message": "Invalid password"},
-            }
-        ), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_PASSWORD",
+                        "message": "Invalid password",
+                    },
+                }
+            ),
+            401,
+        )
 
     # TOTP or バックアップコード検証
     if not code and not backup_code:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_CODE", "message": "TOTP code or backup code is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_CODE",
+                        "message": "TOTP code or backup code is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     totp_mgr = TOTPManager()
     verified = False
@@ -1954,12 +2120,15 @@ def disable_mfa():
 
     if not verified:
         log_access(int(current_user_id), "mfa_disable_failed_code")
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "INVALID_CODE", "message": "Invalid MFA code"},
-            }
-        ), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "INVALID_CODE", "message": "Invalid MFA code"},
+                }
+            ),
+            401,
+        )
 
     # MFA無効化
     user.mfa_enabled = False
@@ -1970,10 +2139,7 @@ def disable_mfa():
     # アクセスログ記録
     log_access(int(current_user_id), "mfa_disabled")
 
-    return jsonify({
-        "success": True,
-        "message": "MFA disabled successfully"
-    })
+    return jsonify({"success": True, "message": "MFA disabled successfully"})
 
 
 @app.route("/api/v1/auth/mfa/backup-codes/regenerate", methods=["POST"])
@@ -1986,42 +2152,60 @@ def regenerate_backup_codes():
     user = dal.get_user_by_id(current_user_id)
 
     if not user:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
+                }
+            ),
+            404,
+        )
 
     if not user.mfa_enabled:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MFA_NOT_ENABLED", "message": "MFA is not enabled"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MFA_NOT_ENABLED",
+                        "message": "MFA is not enabled",
+                    },
+                }
+            ),
+            400,
+        )
 
     data = request.get_json()
     code = data.get("code") if data else None
 
     if not code:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_CODE", "message": "TOTP code is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_CODE",
+                        "message": "TOTP code is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     # TOTP検証
     totp_mgr = TOTPManager()
     if not totp_mgr.verify_totp(user.mfa_secret, code):
         log_access(int(current_user_id), "backup_codes_regen_failed")
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "INVALID_CODE", "message": "Invalid TOTP code"},
-            }
-        ), 401
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "INVALID_CODE", "message": "Invalid TOTP code"},
+                }
+            ),
+            401,
+        )
 
     # 新しいバックアップコード生成
     new_backup_codes = totp_mgr.generate_backup_codes(count=10)
@@ -2034,13 +2218,15 @@ def regenerate_backup_codes():
     # アクセスログ記録
     log_access(int(current_user_id), "backup_codes_regenerated")
 
-    return jsonify({
-        "success": True,
-        "data": {
-            "backup_codes": new_backup_codes,
-            "message": "New backup codes generated. Previous codes are now invalid."
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                "backup_codes": new_backup_codes,
+                "message": "New backup codes generated. Previous codes are now invalid.",
+            },
         }
-    })
+    )
 
 
 @app.route("/api/v1/auth/mfa/status", methods=["GET"])
@@ -2052,27 +2238,32 @@ def mfa_status():
     user = dal.get_user_by_id(current_user_id)
 
     if not user:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "USER_NOT_FOUND", "message": "User not found"},
+                }
+            ),
+            404,
+        )
 
     # 残りのバックアップコード数を計算
     remaining_backups = 0
     if user.mfa_backup_codes:
         remaining_backups = sum(1 for b in user.mfa_backup_codes if not b.get("used"))
 
-    return jsonify({
-        "success": True,
-        "data": {
-            "mfa_enabled": user.mfa_enabled,
-            "mfa_configured": user.mfa_secret is not None,
-            "remaining_backup_codes": remaining_backups,
-            "email": user.email
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                "mfa_enabled": user.mfa_enabled,
+                "mfa_configured": user.mfa_secret is not None,
+                "remaining_backup_codes": remaining_backups,
+                "email": user.email,
+            },
         }
-    })
+    )
 
 
 @app.route("/api/v1/auth/mfa/recovery", methods=["POST"])
@@ -2085,23 +2276,35 @@ def mfa_recovery():
     """
     data = request.get_json()
     if not data:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "INVALID_REQUEST", "message": "Request body is required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_REQUEST",
+                        "message": "Request body is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     email = data.get("email")
     username = data.get("username")
 
     if not email or not username:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "MISSING_FIELDS", "message": "Email and username are required"},
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_FIELDS",
+                        "message": "Email and username are required",
+                    },
+                }
+            ),
+            400,
+        )
 
     # ユーザー検索（メールとユーザー名が一致する必要がある）
     dal = get_dal()
@@ -2110,31 +2313,43 @@ def mfa_recovery():
     # Note: This is a simplified version. In production, use proper DAL methods
     try:
         from models import User
+
         user = dal.session.query(User).filter_by(username=username, email=email).first()
     except Exception:
         # Fallback for JSON mode
         users = load_users()
-        user = next((u for u in users if u.get("username") == username and u.get("email") == email), None)
+        user = next(
+            (
+                u
+                for u in users
+                if u.get("username") == username and u.get("email") == email
+            ),
+            None,
+        )
 
     if not user:
         # セキュリティのため、ユーザーが見つからない場合も成功レスポンスを返す
         # （列挙攻撃を防ぐため）
-        return jsonify({
-            "success": True,
-            "message": "If the email and username match, a recovery link will be sent to your email."
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": "If the email and username match, a recovery link will be sent to your email.",
+            }
+        )
 
     if not user.get("mfa_enabled") if isinstance(user, dict) else not user.mfa_enabled:
-        return jsonify({
-            "success": True,
-            "message": "If the email and username match, a recovery link will be sent to your email."
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": "If the email and username match, a recovery link will be sent to your email.",
+            }
+        )
 
     # リカバリートークン生成（1時間有効）
     recovery_token = create_access_token(
         identity=str(user.get("id") if isinstance(user, dict) else user.id),
         additional_claims={"type": "mfa_recovery"},
-        expires_delta=timedelta(hours=1)
+        expires_delta=timedelta(hours=1),
     )
 
     # TODO: メール送信実装
@@ -2145,11 +2360,15 @@ def mfa_recovery():
     user_id = user.get("id") if isinstance(user, dict) else user.id
     log_access(int(user_id), "mfa_recovery_requested")
 
-    return jsonify({
-        "success": True,
-        "message": "If the email and username match, a recovery link will be sent to your email.",
-        "dev_only_token": recovery_token if os.getenv("MKS_ENV") == "development" else None
-    })
+    return jsonify(
+        {
+            "success": True,
+            "message": "If the email and username match, a recovery link will be sent to your email.",
+            "dev_only_token": (
+                recovery_token if os.getenv("MKS_ENV") == "development" else None
+            ),
+        }
+    )
 
 
 # ============================================================
@@ -2166,6 +2385,7 @@ def get_ms_graph_client():
     if _ms_graph_client is None:
         try:
             from integrations.microsoft_graph import MicrosoftGraphClient
+
             _ms_graph_client = MicrosoftGraphClient()
         except Exception as e:
             print(f"[WARN] Microsoft Graph client initialization failed: {e}")
@@ -2179,30 +2399,31 @@ def ms365_status():
     """Microsoft 365接続状態を確認"""
     client = get_ms_graph_client()
     if not client:
-        return jsonify({
-            "success": True,
-            "data": {
-                "configured": False,
-                "connected": False,
-                "message": "Microsoft Graph client not available"
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "configured": False,
+                    "connected": False,
+                    "message": "Microsoft Graph client not available",
+                },
             }
-        })
+        )
 
     try:
         result = client.test_connection()
-        return jsonify({
-            "success": True,
-            "data": result
-        })
+        return jsonify({"success": True, "data": result})
     except Exception as e:
-        return jsonify({
-            "success": True,
-            "data": {
-                "configured": client.is_configured(),
-                "connected": False,
-                "error": str(e)
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "configured": client.is_configured(),
+                    "connected": False,
+                    "error": str(e),
+                },
             }
-        })
+        )
 
 
 @app.route("/api/v1/integrations/microsoft365/sites", methods=["GET"])
@@ -2211,29 +2432,41 @@ def ms365_sites():
     """SharePointサイト一覧を取得"""
     client = get_ms_graph_client()
     if not client or not client.is_configured():
-        return jsonify({
-            "success": False,
-            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
 
     search = request.args.get("search", "")
 
     try:
         sites = client.get_sites(search=search if search else None)
-        return jsonify({
-            "success": True,
-            "data": sites
-        })
+        return jsonify({"success": True, "data": sites})
     except PermissionError as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "PERMISSION_ERROR", "message": str(e)}
-        }), 403
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "PERMISSION_ERROR", "message": str(e)},
+                }
+            ),
+            403,
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "API_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "API_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
 @app.route("/api/v1/integrations/microsoft365/sites/<site_id>/drives", methods=["GET"])
@@ -2242,27 +2475,39 @@ def ms365_site_drives(site_id):
     """サイト内のドライブ（ドキュメントライブラリ）一覧を取得"""
     client = get_ms_graph_client()
     if not client or not client.is_configured():
-        return jsonify({
-            "success": False,
-            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
 
     try:
         drives = client.get_site_drives(site_id)
-        return jsonify({
-            "success": True,
-            "data": drives
-        })
+        return jsonify({"success": True, "data": drives})
     except PermissionError as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "PERMISSION_ERROR", "message": str(e)}
-        }), 403
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "PERMISSION_ERROR", "message": str(e)},
+                }
+            ),
+            403,
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "API_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "API_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
 @app.route("/api/v1/integrations/microsoft365/drives/<drive_id>/items", methods=["GET"])
@@ -2271,29 +2516,41 @@ def ms365_drive_items(drive_id):
     """ドライブ内のアイテム（ファイル/フォルダ）一覧を取得"""
     client = get_ms_graph_client()
     if not client or not client.is_configured():
-        return jsonify({
-            "success": False,
-            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
 
     path = request.args.get("path", "/")
 
     try:
         items = client.get_drive_items(drive_id, path)
-        return jsonify({
-            "success": True,
-            "data": items
-        })
+        return jsonify({"success": True, "data": items})
     except PermissionError as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "PERMISSION_ERROR", "message": str(e)}
-        }), 403
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "PERMISSION_ERROR", "message": str(e)},
+                }
+            ),
+            403,
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "API_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "API_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
 @app.route("/api/v1/integrations/microsoft365/import", methods=["POST"])
@@ -2304,10 +2561,18 @@ def ms365_import():
     """Microsoft 365からファイルをインポート"""
     client = get_ms_graph_client()
     if not client or not client.is_configured():
-        return jsonify({
-            "success": False,
-            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
 
     data = request.validated_data
     drive_id = data["drive_id"]
@@ -2326,28 +2591,29 @@ def ms365_import():
             content = client.download_file(drive_id, item_id)
 
             # インポート処理（実装はデータタイプに依存）
-            imported.append({
-                "item_id": item_id,
-                "name": metadata.get("name"),
-                "size": len(content),
-                "imported_as": import_as
-            })
+            imported.append(
+                {
+                    "item_id": item_id,
+                    "name": metadata.get("name"),
+                    "size": len(content),
+                    "imported_as": import_as,
+                }
+            )
 
         except Exception as e:
-            errors.append({
-                "item_id": item_id,
-                "error": str(e)
-            })
+            errors.append({"item_id": item_id, "error": str(e)})
 
-    return jsonify({
-        "success": True,
-        "data": {
-            "imported": imported,
-            "errors": errors,
-            "total_imported": len(imported),
-            "total_errors": len(errors)
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                "imported": imported,
+                "errors": errors,
+                "total_imported": len(imported),
+                "total_errors": len(errors),
+            },
         }
-    })
+    )
 
 
 @app.route("/api/v1/integrations/microsoft365/sync", methods=["POST"])
@@ -2358,10 +2624,18 @@ def ms365_sync():
     """Microsoft 365と同期"""
     client = get_ms_graph_client()
     if not client or not client.is_configured():
-        return jsonify({
-            "success": False,
-            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
 
     data = request.validated_data
     sync_type = data.get("sync_type", "incremental")
@@ -2369,14 +2643,16 @@ def ms365_sync():
     # 同期処理（実装は要件に依存）
     # ここでは基本的なレスポンスのみ返す
 
-    return jsonify({
-        "success": True,
-        "data": {
-            "sync_type": sync_type,
-            "status": "completed",
-            "message": "Sync completed successfully"
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                "sync_type": sync_type,
+                "status": "completed",
+                "message": "Sync completed successfully",
+            },
         }
-    })
+    )
 
 
 @app.route("/api/v1/integrations/microsoft365/teams", methods=["GET"])
@@ -2385,56 +2661,82 @@ def ms365_teams():
     """Teamsチーム一覧を取得"""
     client = get_ms_graph_client()
     if not client or not client.is_configured():
-        return jsonify({
-            "success": False,
-            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
 
     try:
         teams = client.get_teams()
-        return jsonify({
-            "success": True,
-            "data": teams
-        })
+        return jsonify({"success": True, "data": teams})
     except PermissionError as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "PERMISSION_ERROR", "message": str(e)}
-        }), 403
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "PERMISSION_ERROR", "message": str(e)},
+                }
+            ),
+            403,
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "API_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "API_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
-@app.route("/api/v1/integrations/microsoft365/teams/<team_id>/channels", methods=["GET"])
+@app.route(
+    "/api/v1/integrations/microsoft365/teams/<team_id>/channels", methods=["GET"]
+)
 @jwt_required()
 def ms365_team_channels(team_id):
     """Teamsチャネル一覧を取得"""
     client = get_ms_graph_client()
     if not client or not client.is_configured():
-        return jsonify({
-            "success": False,
-            "error": {"code": "NOT_CONFIGURED", "message": "Microsoft 365 is not configured"}
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
 
     try:
         channels = client.get_team_channels(team_id)
-        return jsonify({
-            "success": True,
-            "data": channels
-        })
+        return jsonify({"success": True, "data": channels})
     except PermissionError as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "PERMISSION_ERROR", "message": str(e)}
-        }), 403
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "PERMISSION_ERROR", "message": str(e)},
+                }
+            ),
+            403,
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "API_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "API_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
 # ============================================================
@@ -2454,15 +2756,14 @@ def ms365_sync_configs_list():
         dal = get_dal()
         configs = dal.get_all_ms365_sync_configs()
 
-        return jsonify({
-            "success": True,
-            "data": configs
-        })
+        return jsonify({"success": True, "data": configs})
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
 @app.route("/api/v1/integrations/microsoft365/sync/configs", methods=["POST"])
@@ -2479,10 +2780,18 @@ def ms365_sync_configs_create():
         required_fields = ["name", "site_id", "drive_id"]
         for field in required_fields:
             if not data.get(field):
-                return jsonify({
-                    "success": False,
-                    "error": {"code": "VALIDATION_ERROR", "message": f"{field} is required"}
-                }), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {
+                                "code": "VALIDATION_ERROR",
+                                "message": f"{field} is required",
+                            },
+                        }
+                    ),
+                    400,
+                )
 
         # デフォルト値設定
         config_data = {
@@ -2490,7 +2799,9 @@ def ms365_sync_configs_create():
             "site_id": data["site_id"],
             "drive_id": data["drive_id"],
             "folder_path": data.get("folder_path", "/"),
-            "sync_schedule": data.get("sync_schedule", "0 2 * * *"),  # デフォルト: 毎日2時
+            "sync_schedule": data.get(
+                "sync_schedule", "0 2 * * *"
+            ),  # デフォルト: 毎日2時
             "sync_strategy": data.get("sync_strategy", "incremental"),
             "file_extensions": data.get("file_extensions", []),
             "is_enabled": data.get("is_enabled", True),
@@ -2509,49 +2820,66 @@ def ms365_sync_configs_create():
             except Exception as e:
                 print(f"[WARN] Failed to schedule sync: {e}")
 
-        log_access(current_user_id, "ms365_sync_configs.create", "ms365_sync_config", result.get("id"))
+        log_access(
+            current_user_id,
+            "ms365_sync_configs.create",
+            "ms365_sync_config",
+            result.get("id"),
+        )
 
-        return jsonify({
-            "success": True,
-            "data": result
-        }), 201
+        return jsonify({"success": True, "data": result}), 201
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
-@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["GET"])
+@app.route(
+    "/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["GET"]
+)
 @jwt_required()
 @check_permission("integration.manage")
 def ms365_sync_configs_get(config_id):
     """同期設定を取得"""
     try:
         current_user_id = get_jwt_identity()
-        log_access(current_user_id, "ms365_sync_configs.get", "ms365_sync_config", config_id)
+        log_access(
+            current_user_id, "ms365_sync_configs.get", "ms365_sync_config", config_id
+        )
 
         dal = get_dal()
         config = dal.get_ms365_sync_config(config_id)
 
         if not config:
-            return jsonify({
-                "success": False,
-                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
-            }), 404
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "NOT_FOUND",
+                            "message": f"Sync config {config_id} not found",
+                        },
+                    }
+                ),
+                404,
+            )
 
-        return jsonify({
-            "success": True,
-            "data": config
-        })
+        return jsonify({"success": True, "data": config})
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
-@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["PUT"])
+@app.route(
+    "/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["PUT"]
+)
 @jwt_required()
 @check_permission("integration.manage")
 @limiter.limit("10 per minute")
@@ -2565,10 +2893,18 @@ def ms365_sync_configs_update(config_id):
         existing = dal.get_ms365_sync_config(config_id)
 
         if not existing:
-            return jsonify({
-                "success": False,
-                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
-            }), 404
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "NOT_FOUND",
+                            "message": f"Sync config {config_id} not found",
+                        },
+                    }
+                ),
+                404,
+            )
 
         # 更新データ準備
         update_data = {
@@ -2577,8 +2913,12 @@ def ms365_sync_configs_update(config_id):
 
         # 更新可能なフィールド
         updatable_fields = [
-            "name", "folder_path", "sync_schedule", "sync_strategy",
-            "file_extensions", "is_enabled"
+            "name",
+            "folder_path",
+            "sync_schedule",
+            "sync_strategy",
+            "file_extensions",
+            "is_enabled",
         ]
         for field in updatable_fields:
             if field in data:
@@ -2595,22 +2935,25 @@ def ms365_sync_configs_update(config_id):
             except Exception as e:
                 print(f"[WARN] Failed to reschedule sync: {e}")
 
-        log_access(current_user_id, "ms365_sync_configs.update", "ms365_sync_config", config_id)
+        log_access(
+            current_user_id, "ms365_sync_configs.update", "ms365_sync_config", config_id
+        )
 
         # 更新後のデータを返す
         result = dal.get_ms365_sync_config(config_id)
-        return jsonify({
-            "success": True,
-            "data": result
-        })
+        return jsonify({"success": True, "data": result})
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
-@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["DELETE"])
+@app.route(
+    "/api/v1/integrations/microsoft365/sync/configs/<int:config_id>", methods=["DELETE"]
+)
 @jwt_required()
 @check_permission("integration.manage")
 @limiter.limit("10 per minute")
@@ -2623,10 +2966,18 @@ def ms365_sync_configs_delete(config_id):
         existing = dal.get_ms365_sync_config(config_id)
 
         if not existing:
-            return jsonify({
-                "success": False,
-                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
-            }), 404
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "NOT_FOUND",
+                            "message": f"Sync config {config_id} not found",
+                        },
+                    }
+                ),
+                404,
+            )
 
         # スケジューラーから削除
         scheduler_service = get_ms365_scheduler_service()
@@ -2638,20 +2989,29 @@ def ms365_sync_configs_delete(config_id):
 
         dal.delete_ms365_sync_config(config_id)
 
-        log_access(current_user_id, "ms365_sync_configs.delete", "ms365_sync_config", config_id)
+        log_access(
+            current_user_id, "ms365_sync_configs.delete", "ms365_sync_config", config_id
+        )
 
-        return jsonify({
-            "success": True,
-            "message": f"Sync config {config_id} deleted successfully"
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": f"Sync config {config_id} deleted successfully",
+            }
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
-@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/execute", methods=["POST"])
+@app.route(
+    "/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/execute",
+    methods=["POST"],
+)
 @jwt_required()
 @check_permission("integration.manage")
 @limiter.limit("5 per minute")
@@ -2664,44 +3024,70 @@ def ms365_sync_configs_execute(config_id):
         config = dal.get_ms365_sync_config(config_id)
 
         if not config:
-            return jsonify({
-                "success": False,
-                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
-            }), 404
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "NOT_FOUND",
+                            "message": f"Sync config {config_id} not found",
+                        },
+                    }
+                ),
+                404,
+            )
 
         sync_service = get_ms365_sync_service()
         if not sync_service:
-            return jsonify({
-                "success": False,
-                "error": {"code": "SERVICE_UNAVAILABLE", "message": "MS365 sync service is not available"}
-            }), 503
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "SERVICE_UNAVAILABLE",
+                            "message": "MS365 sync service is not available",
+                        },
+                    }
+                ),
+                503,
+            )
 
         # 同期実行
         result = sync_service.sync_configuration(
-            config_id,
-            triggered_by="manual",
-            user_id=current_user_id
+            config_id, triggered_by="manual", user_id=current_user_id
         )
 
-        log_access(current_user_id, "ms365_sync_configs.execute", "ms365_sync_config", config_id)
+        log_access(
+            current_user_id,
+            "ms365_sync_configs.execute",
+            "ms365_sync_config",
+            config_id,
+        )
 
-        return jsonify({
-            "success": True,
-            "data": result
-        })
+        return jsonify({"success": True, "data": result})
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "VALIDATION_ERROR", "message": str(e)}
-        }), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "VALIDATION_ERROR", "message": str(e)},
+                }
+            ),
+            400,
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
-@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/test", methods=["POST"])
+@app.route(
+    "/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/test",
+    methods=["POST"],
+)
 @jwt_required()
 @check_permission("integration.manage")
 @limiter.limit("10 per minute")
@@ -2714,57 +3100,98 @@ def ms365_sync_configs_test(config_id):
         config = dal.get_ms365_sync_config(config_id)
 
         if not config:
-            return jsonify({
-                "success": False,
-                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
-            }), 404
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "NOT_FOUND",
+                            "message": f"Sync config {config_id} not found",
+                        },
+                    }
+                ),
+                404,
+            )
 
         sync_service = get_ms365_sync_service()
         if not sync_service:
-            return jsonify({
-                "success": False,
-                "error": {"code": "SERVICE_UNAVAILABLE", "message": "MS365 sync service is not available"}
-            }), 503
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "SERVICE_UNAVAILABLE",
+                            "message": "MS365 sync service is not available",
+                        },
+                    }
+                ),
+                503,
+            )
 
         # 接続テスト実行
         result = sync_service.test_connection(config_id)
 
-        log_access(current_user_id, "ms365_sync_configs.test", "ms365_sync_config", config_id)
+        log_access(
+            current_user_id, "ms365_sync_configs.test", "ms365_sync_config", config_id
+        )
 
         if result.get("success"):
-            return jsonify({
-                "success": True,
-                "data": result
-            })
+            return jsonify({"success": True, "data": result})
         else:
-            return jsonify({
-                "success": False,
-                "error": {"code": "CONNECTION_FAILED", "message": result.get("error")}
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "CONNECTION_FAILED",
+                            "message": result.get("error"),
+                        },
+                    }
+                ),
+                400,
+            )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
-@app.route("/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/history", methods=["GET"])
+@app.route(
+    "/api/v1/integrations/microsoft365/sync/configs/<int:config_id>/history",
+    methods=["GET"],
+)
 @jwt_required()
 @check_permission("integration.manage")
 def ms365_sync_configs_history(config_id):
     """同期履歴を取得"""
     try:
         current_user_id = get_jwt_identity()
-        log_access(current_user_id, "ms365_sync_configs.history", "ms365_sync_config", config_id)
+        log_access(
+            current_user_id,
+            "ms365_sync_configs.history",
+            "ms365_sync_config",
+            config_id,
+        )
 
         dal = get_dal()
         config = dal.get_ms365_sync_config(config_id)
 
         if not config:
-            return jsonify({
-                "success": False,
-                "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"}
-            }), 404
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "NOT_FOUND",
+                            "message": f"Sync config {config_id} not found",
+                        },
+                    }
+                ),
+                404,
+            )
 
         # ページネーション
         page = int(request.args.get("page", 1))
@@ -2778,23 +3205,27 @@ def ms365_sync_configs_history(config_id):
         end = start + per_page
         paginated = history[start:end]
 
-        return jsonify({
-            "success": True,
-            "data": {
-                "items": paginated,
-                "pagination": {
-                    "page": page,
-                    "per_page": per_page,
-                    "total": total,
-                    "pages": (total + per_page - 1) // per_page
-                }
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "items": paginated,
+                    "pagination": {
+                        "page": page,
+                        "per_page": per_page,
+                        "total": total,
+                        "pages": (total + per_page - 1) // per_page,
+                    },
+                },
             }
-        })
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
 @app.route("/api/v1/integrations/microsoft365/sync/stats", methods=["GET"])
@@ -2823,7 +3254,9 @@ def ms365_sync_stats():
 
         # 最後の同期時刻
         last_sync = None
-        for sync in sorted(recent_syncs, key=lambda x: x.get("sync_started_at", ""), reverse=True):
+        for sync in sorted(
+            recent_syncs, key=lambda x: x.get("sync_started_at", ""), reverse=True
+        ):
             if sync.get("sync_completed_at"):
                 last_sync = sync
                 break
@@ -2838,23 +3271,30 @@ def ms365_sync_stats():
                 "failed": status_counts.get("failed", 0),
                 "running": status_counts.get("running", 0),
             },
-            "last_sync": {
-                "config_id": last_sync.get("config_id") if last_sync else None,
-                "status": last_sync.get("status") if last_sync else None,
-                "completed_at": last_sync.get("sync_completed_at") if last_sync else None,
-                "files_processed": last_sync.get("files_processed", 0) if last_sync else 0,
-            } if last_sync else None,
+            "last_sync": (
+                {
+                    "config_id": last_sync.get("config_id") if last_sync else None,
+                    "status": last_sync.get("status") if last_sync else None,
+                    "completed_at": (
+                        last_sync.get("sync_completed_at") if last_sync else None
+                    ),
+                    "files_processed": (
+                        last_sync.get("files_processed", 0) if last_sync else 0
+                    ),
+                }
+                if last_sync
+                else None
+            ),
         }
 
-        return jsonify({
-            "success": True,
-            "data": stats
-        })
+        return jsonify({"success": True, "data": stats})
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
 @app.route("/api/v1/integrations/microsoft365/sync/status", methods=["GET"])
@@ -2872,8 +3312,12 @@ def ms365_sync_status():
         status = {
             "sync_service_available": sync_service is not None,
             "scheduler_service_available": scheduler_service is not None,
-            "scheduler_running": scheduler_service.is_running() if scheduler_service else False,
-            "scheduled_jobs": scheduler_service.get_scheduled_jobs() if scheduler_service else [],
+            "scheduler_running": (
+                scheduler_service.is_running() if scheduler_service else False
+            ),
+            "scheduled_jobs": (
+                scheduler_service.get_scheduled_jobs() if scheduler_service else []
+            ),
             "graph_api_configured": False,
         }
 
@@ -2883,15 +3327,352 @@ def ms365_sync_status():
             if graph_client and hasattr(graph_client, "is_configured"):
                 status["graph_api_configured"] = graph_client.is_configured()
 
-        return jsonify({
-            "success": True,
-            "data": status
-        })
+        return jsonify({"success": True, "data": status})
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": {"code": "SERVER_ERROR", "message": str(e)}
-        }), 500
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
+
+
+@app.route("/api/v1/integrations/microsoft365/files/<file_id>/preview", methods=["GET"])
+@jwt_required()
+@check_permission("ms365_sync.file.preview")
+def ms365_file_preview(file_id: str):
+    """
+    ファイルプレビューURLを取得
+
+    Query Parameters:
+        drive_id (required): ドライブID
+
+    Returns:
+        {
+            "success": True,
+            "data": {
+                "preview_url": "https://...",
+                "preview_type": "office_embed | download | image",
+                "mime_type": "application/pdf",
+                "file_name": "example.pdf",
+                "file_size": 1024
+            }
+        }
+    """
+    client = get_ms_graph_client()
+    if not client or not client.is_configured():
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
+
+    drive_id = request.args.get("drive_id")
+    if not drive_id:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_PARAMETER",
+                        "message": "drive_id parameter is required",
+                    },
+                }
+            ),
+            400,
+        )
+
+    try:
+        current_user_id = get_jwt_identity()
+
+        # プレビューURL取得
+        preview_info = client.get_file_preview_url(drive_id, file_id)
+
+        # ファイルメタデータ取得
+        metadata = client.get_file_metadata(drive_id, file_id)
+
+        # レスポンスデータ構築
+        response_data = {
+            **preview_info,
+            "file_name": metadata.get("name", ""),
+            "file_size": metadata.get("size", 0),
+        }
+
+        # 監査ログ記録
+        log_access(
+            current_user_id,
+            "ms365_file.preview",
+            "ms365_file",
+            file_id,
+            status="success",
+            details={
+                "drive_id": drive_id,
+                "file_name": response_data["file_name"],
+                "preview_type": preview_info["preview_type"],
+            },
+        )
+
+        return jsonify({"success": True, "data": response_data})
+    except PermissionError as e:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "PERMISSION_ERROR", "message": str(e)},
+                }
+            ),
+            403,
+        )
+    except Exception as e:
+        current_user_id = get_jwt_identity()
+        log_access(
+            current_user_id,
+            "ms365_file.preview",
+            "ms365_file",
+            file_id,
+            status="failure",
+            details={"error": str(e), "drive_id": drive_id},
+        )
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "API_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
+
+
+@app.route(
+    "/api/v1/integrations/microsoft365/files/<file_id>/download", methods=["GET"]
+)
+@jwt_required()
+@check_permission("ms365_sync.file.preview")
+def ms365_file_download(file_id: str):
+    """
+    ファイルをダウンロード
+
+    Query Parameters:
+        drive_id (required): ドライブID
+
+    Returns:
+        ファイルコンテンツ（バイナリ）
+    """
+    client = get_ms_graph_client()
+    if not client or not client.is_configured():
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
+
+    drive_id = request.args.get("drive_id")
+    if not drive_id:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_PARAMETER",
+                        "message": "drive_id parameter is required",
+                    },
+                }
+            ),
+            400,
+        )
+
+    try:
+        current_user_id = get_jwt_identity()
+
+        # ファイルメタデータ取得
+        metadata = client.get_file_metadata(drive_id, file_id)
+        file_name = metadata.get("name", "download")
+        mime_type = metadata.get("file", {}).get("mimeType", "application/octet-stream")
+
+        # ファイルダウンロード
+        file_content = client.download_file(drive_id, file_id)
+
+        # 監査ログ記録
+        log_access(
+            current_user_id,
+            "ms365_file.download",
+            "ms365_file",
+            file_id,
+            status="success",
+            details={
+                "drive_id": drive_id,
+                "file_name": file_name,
+                "file_size": len(file_content),
+            },
+        )
+
+        # ファイルレスポンス作成
+        response = Response(file_content, mimetype=mime_type)
+        response.headers["Content-Disposition"] = f"attachment; filename={file_name}"
+        return response
+
+    except PermissionError as e:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "PERMISSION_ERROR", "message": str(e)},
+                }
+            ),
+            403,
+        )
+    except Exception as e:
+        current_user_id = get_jwt_identity()
+        log_access(
+            current_user_id,
+            "ms365_file.download",
+            "ms365_file",
+            file_id,
+            status="failure",
+            details={"error": str(e), "drive_id": drive_id},
+        )
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "API_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
+
+
+@app.route(
+    "/api/v1/integrations/microsoft365/files/<file_id>/thumbnail", methods=["GET"]
+)
+@jwt_required()
+@check_permission("ms365_sync.file.preview")
+def ms365_file_thumbnail(file_id: str):
+    """
+    ファイルサムネイルを取得
+
+    Query Parameters:
+        drive_id (required): ドライブID
+        size (optional): サムネイルサイズ ("small" | "medium" | "large" | "c200x150")
+                        デフォルト: "large"
+
+    Returns:
+        サムネイル画像（image/jpeg）
+    """
+    client = get_ms_graph_client()
+    if not client or not client.is_configured():
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "Microsoft 365 is not configured",
+                    },
+                }
+            ),
+            400,
+        )
+
+    drive_id = request.args.get("drive_id")
+    if not drive_id:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_PARAMETER",
+                        "message": "drive_id parameter is required",
+                    },
+                }
+            ),
+            400,
+        )
+
+    size = request.args.get("size", "large")
+
+    try:
+        current_user_id = get_jwt_identity()
+
+        # サムネイル取得
+        thumbnail_content = client.get_file_thumbnail(drive_id, file_id, size)
+
+        if thumbnail_content is None:
+            # サムネイル利用不可
+            log_access(
+                current_user_id,
+                "ms365_file.thumbnail",
+                "ms365_file",
+                file_id,
+                status="failure",
+                details={"drive_id": drive_id, "error": "Thumbnail not available"},
+            )
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "NOT_FOUND",
+                            "message": "Thumbnail not available for this file",
+                        },
+                    }
+                ),
+                404,
+            )
+
+        # 監査ログ記録
+        log_access(
+            current_user_id,
+            "ms365_file.thumbnail",
+            "ms365_file",
+            file_id,
+            status="success",
+            details={
+                "drive_id": drive_id,
+                "size": size,
+                "thumbnail_size": len(thumbnail_content),
+            },
+        )
+
+        # 画像レスポンス作成
+        response = Response(thumbnail_content, mimetype="image/jpeg")
+        return response
+
+    except PermissionError as e:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "PERMISSION_ERROR", "message": str(e)},
+                }
+            ),
+            403,
+        )
+    except Exception as e:
+        current_user_id = get_jwt_identity()
+        log_access(
+            current_user_id,
+            "ms365_file.thumbnail",
+            "ms365_file",
+            file_id,
+            status="failure",
+            details={"error": str(e), "drive_id": drive_id},
+        )
+        return (
+            jsonify(
+                {"success": False, "error": {"code": "API_ERROR", "message": str(e)}}
+            ),
+            500,
+        )
 
 
 # ============================================================
@@ -3037,11 +3818,18 @@ def get_knowledge():
         )
     except Exception as e:
         print(f"[ERROR] get_knowledge: {type(e).__name__}: {e}", file=sys.stderr)
-        return jsonify({
-            "success": True,
-            "data": [],
-            "pagination": {"total_items": 0, "total_pages": 0, "current_page": 1, "per_page": 50}
-        })
+        return jsonify(
+            {
+                "success": True,
+                "data": [],
+                "pagination": {
+                    "total_items": 0,
+                    "total_pages": 0,
+                    "current_page": 1,
+                    "per_page": 50,
+                },
+            }
+        )
 
 
 @app.route("/api/v1/knowledge/<int:knowledge_id>", methods=["GET"])
@@ -3141,14 +3929,16 @@ def get_project_progress(project_id):
         return jsonify({"success": True, "data": progress})
     except Exception as e:
         print(f"[ERROR] get_project_progress: {type(e).__name__}: {e}", file=sys.stderr)
-        return jsonify({
-            "success": True,
-            "data": {
-                "progress_percentage": 0,
-                "completed_tasks": 0,
-                "total_tasks": 0,
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "progress_percentage": 0,
+                    "completed_tasks": 0,
+                    "total_tasks": 0,
+                },
             }
-        })
+        )
 
 
 @app.route("/api/v1/experts", methods=["GET"])
@@ -3194,7 +3984,10 @@ def get_expert_detail(expert_id):
 
         return jsonify({"success": True, "data": expert})
     except Exception as e:
-        print(f"[ERROR] get_expert_detail({expert_id}): {type(e).__name__}: {e}", file=sys.stderr)
+        print(
+            f"[ERROR] get_expert_detail({expert_id}): {type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
         return jsonify({"success": False, "error": "Expert not found"}), 404
 
 
@@ -3213,11 +4006,13 @@ def get_experts_stats():
         if stats and "experts" in stats:
             experts_list = stats["experts"]
             total_experts = len(experts_list) if experts_list else 0
-            available_experts = len(
-                [e for e in experts_list if e.get("is_available", True)]
-            ) if experts_list else 0
+            available_experts = (
+                len([e for e in experts_list if e.get("is_available", True)])
+                if experts_list
+                else 0
+            )
             specializations = {}
-            for expert in (experts_list or []):
+            for expert in experts_list or []:
                 spec = expert.get("specialization", "その他")
                 specializations[spec] = specializations.get(spec, 0) + 1
             average_rating = (
@@ -3244,15 +4039,17 @@ def get_experts_stats():
         return jsonify({"success": True, "data": stats})
     except Exception as e:
         print(f"[ERROR] get_experts_stats: {type(e).__name__}: {e}", file=sys.stderr)
-        return jsonify({
-            "success": True,
-            "data": {
-                "total_experts": 0,
-                "available_experts": 0,
-                "specializations": {},
-                "average_rating": 0,
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "total_experts": 0,
+                    "available_experts": 0,
+                    "specializations": {},
+                    "average_rating": 0,
+                },
             }
-        })
+        )
 
 
 @app.route("/api/v1/experts/<int:expert_id>/rating", methods=["GET"])
@@ -3325,15 +4122,18 @@ def update_knowledge(knowledge_id):
     data = request.get_json()
 
     if not data:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_INPUT",
-                    "message": "Request body is required",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_INPUT",
+                        "message": "Request body is required",
+                    },
+                }
+            ),
+            400,
+        )
 
     knowledge_list = load_data("knowledge.json")
     knowledge_index = next(
@@ -3341,12 +4141,15 @@ def update_knowledge(knowledge_id):
     )
 
     if knowledge_index is None:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "NOT_FOUND", "message": "Knowledge not found"},
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "NOT_FOUND", "message": "Knowledge not found"},
+                }
+            ),
+            404,
+        )
 
     # 更新可能なフィールド
     updatable_fields = [
@@ -3386,12 +4189,15 @@ def delete_knowledge(knowledge_id):
     )
 
     if knowledge_index is None:
-        return jsonify(
-            {
-                "success": False,
-                "error": {"code": "NOT_FOUND", "message": "Knowledge not found"},
-            }
-        ), 404
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {"code": "NOT_FOUND", "message": "Knowledge not found"},
+                }
+            ),
+            404,
+        )
 
     knowledge = knowledge_list[knowledge_index]
 
@@ -3406,15 +4212,18 @@ def delete_knowledge(knowledge_id):
     )
 
     if not is_admin and not is_owner:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "FORBIDDEN",
-                    "message": "You can only delete your own knowledge",
-                },
-            }
-        ), 403
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You can only delete your own knowledge",
+                    },
+                }
+            ),
+            403,
+        )
 
     deleted_knowledge = knowledge_list.pop(knowledge_index)
     save_data("knowledge.json", knowledge_list)
@@ -3450,26 +4259,32 @@ def get_related_knowledge(knowledge_id):
 
     # バリデーション
     if limit < 1 or limit > 20:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_LIMIT",
-                    "message": "limit must be between 1 and 20",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_LIMIT",
+                        "message": "limit must be between 1 and 20",
+                    },
+                }
+            ),
+            400,
+        )
 
     if algorithm not in ["tag", "category", "keyword", "hybrid"]:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_ALGORITHM",
-                    "message": "algorithm must be tag, category, keyword, or hybrid",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_ALGORITHM",
+                        "message": "algorithm must be tag, category, keyword, or hybrid",
+                    },
+                }
+            ),
+            400,
+        )
 
     # ナレッジ取得
     knowledge_list = load_data("knowledge.json")
@@ -3516,17 +4331,14 @@ def get_popular_knowledge():
 
         # 閲覧数でソート
         sorted_knowledge = sorted(
-            knowledge_list,
-            key=lambda k: k.get("views", 0) if k else 0,
-            reverse=True
+            knowledge_list, key=lambda k: k.get("views", 0) if k else 0, reverse=True
         )[:limit]
 
-        return jsonify({
-            "success": True,
-            "data": sorted_knowledge
-        })
+        return jsonify({"success": True, "data": sorted_knowledge})
     except Exception as e:
-        print(f"[ERROR] get_popular_knowledge: {type(e).__name__}: {e}", file=sys.stderr)
+        print(
+            f"[ERROR] get_popular_knowledge: {type(e).__name__}: {e}", file=sys.stderr
+        )
         return jsonify({"success": True, "data": []})
 
 
@@ -3544,33 +4356,37 @@ def get_recent_knowledge():
         limit = min(limit, 50)
 
         from datetime import datetime, timedelta
+
         cutoff_date = datetime.now() - timedelta(days=days)
 
         # 最近追加されたものをフィルタ＆ソート
         recent_knowledge = []
-        for k in (knowledge_list or []):
+        for k in knowledge_list or []:
             if not k:
                 continue
             created_at = k.get("created_at")
             if created_at:
                 try:
-                    created_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    created_date = datetime.fromisoformat(
+                        created_at.replace("Z", "+00:00")
+                    )
                     if created_date >= cutoff_date:
                         recent_knowledge.append(k)
                 except Exception as e:
-                    logger.debug("Failed to parse created_at date for knowledge: %s - %s", k.get('id'), str(e))
+                    logger.debug(
+                        "Failed to parse created_at date for knowledge: %s - %s",
+                        k.get("id"),
+                        str(e),
+                    )
 
         # 作成日時でソート
         sorted_knowledge = sorted(
             recent_knowledge,
             key=lambda k: k.get("created_at", "") if k else "",
-            reverse=True
+            reverse=True,
         )[:limit]
 
-        return jsonify({
-            "success": True,
-            "data": sorted_knowledge
-        })
+        return jsonify({"success": True, "data": sorted_knowledge})
     except Exception as e:
         print(f"[ERROR] get_recent_knowledge: {type(e).__name__}: {e}", file=sys.stderr)
         return jsonify({"success": True, "data": []})
@@ -3586,10 +4402,7 @@ def get_favorite_knowledge():
     # TODO: 実装時はユーザー毎のお気に入りをusers_favoritesから取得
     # 現在はダミー実装で空配列を返す
 
-    return jsonify({
-        "success": True,
-        "data": []
-    })
+    return jsonify({"success": True, "data": []})
 
 
 @app.route("/api/v1/knowledge/tags", methods=["GET"])
@@ -3604,7 +4417,7 @@ def get_knowledge_tags():
 
         # タグの使用頻度を集計
         tag_count = {}
-        for k in (knowledge_list or []):
+        for k in knowledge_list or []:
             if not k:
                 continue
             tags = k.get("tags", []) or []
@@ -3613,11 +4426,7 @@ def get_knowledge_tags():
                     tag_count[tag] = tag_count.get(tag, 0) + 1
 
         # 頻度順にソート
-        sorted_tags = sorted(
-            tag_count.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_tags = sorted(tag_count.items(), key=lambda x: x[1], reverse=True)
 
         # タグとカウントの配列に変換
         tag_list = [
@@ -3625,10 +4434,7 @@ def get_knowledge_tags():
             for tag, count in sorted_tags
         ]
 
-        return jsonify({
-            "success": True,
-            "data": tag_list
-        })
+        return jsonify({"success": True, "data": tag_list})
     except Exception as e:
         print(f"[ERROR] get_knowledge_tags: {type(e).__name__}: {e}", file=sys.stderr)
         return jsonify({"success": True, "data": []})
@@ -3685,15 +4491,18 @@ def unified_search():
     page = int(request.args.get("page", 1))
 
     if not query:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "MISSING_QUERY",
-                    "message": 'Query parameter "q" is required',
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "MISSING_QUERY",
+                        "message": 'Query parameter "q" is required',
+                    },
+                }
+            ),
+            400,
+        )
 
     results = {}
     total_count = 0
@@ -3906,7 +4715,7 @@ def _send_teams_notification(notification):
             webhook_url,
             data=data,
             headers={"Content-Type": "application/json"},
-            timeout=10
+            timeout=10,
         )
         if response.status_code not in (200, 201, 202):
             raise RuntimeError(f"Teams webhook response: {response.status_code}")
@@ -4151,11 +4960,7 @@ def get_sop():
         )
     except Exception as e:
         print(f"[ERROR] get_sop: {type(e).__name__}: {e}", file=sys.stderr)
-        return jsonify({
-            "success": True,
-            "data": [],
-            "pagination": {"total_items": 0}
-        })
+        return jsonify({"success": True, "data": [], "pagination": {"total_items": 0}})
 
 
 @app.route("/api/v1/sop/<int:sop_id>", methods=["GET"])
@@ -4195,26 +5000,32 @@ def get_related_sop(sop_id):
 
     # バリデーション
     if limit < 1 or limit > 20:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_LIMIT",
-                    "message": "limit must be between 1 and 20",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_LIMIT",
+                        "message": "limit must be between 1 and 20",
+                    },
+                }
+            ),
+            400,
+        )
 
     if algorithm not in ["tag", "category", "keyword", "hybrid"]:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_ALGORITHM",
-                    "message": "algorithm must be tag, category, keyword, or hybrid",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_ALGORITHM",
+                        "message": "algorithm must be tag, category, keyword, or hybrid",
+                    },
+                }
+            ),
+            400,
+        )
 
     # SOP取得
     sop_list = load_data("sop.json")
@@ -4259,11 +5070,13 @@ def get_incidents():
         )
     except Exception as e:
         print(f"[ERROR] get_incidents: {type(e).__name__}: {e}", file=sys.stderr)
-        return jsonify({
-            "success": True,
-            "data": [],
-            "pagination": {"total_items": 0},
-        })
+        return jsonify(
+            {
+                "success": True,
+                "data": [],
+                "pagination": {"total_items": 0},
+            }
+        )
 
 
 @app.route("/api/v1/incidents/<int:incident_id>", methods=["GET"])
@@ -4297,7 +5110,9 @@ def get_dashboard_stats():
     # 🔧 修正: ヘッダー表示用フィールドを追加
     from datetime import datetime
 
-    pending_approvals_count = len([a for a in approvals if a.get("status") == "pending"])
+    pending_approvals_count = len(
+        [a for a in approvals if a.get("status") == "pending"]
+    )
 
     stats = {
         "kpis": {
@@ -4342,11 +5157,7 @@ def get_approvals():
         )
     except Exception as e:
         print(f"[ERROR] get_approvals: {type(e).__name__}: {e}", file=sys.stderr)
-        return jsonify({
-            "success": True,
-            "data": [],
-            "pagination": {"total_items": 0}
-        })
+        return jsonify({"success": True, "data": [], "pagination": {"total_items": 0}})
 
 
 @app.route("/api/v1/approvals/<int:approval_id>/approve", methods=["POST"])
@@ -4429,37 +5240,46 @@ def get_personalized_recommendations():
 
     # バリデーション
     if limit < 1 or limit > 20:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_LIMIT",
-                    "message": "limit must be between 1 and 20",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_LIMIT",
+                        "message": "limit must be between 1 and 20",
+                    },
+                }
+            ),
+            400,
+        )
 
     if days < 1 or days > 365:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_DAYS",
-                    "message": "days must be between 1 and 365",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_DAYS",
+                        "message": "days must be between 1 and 365",
+                    },
+                }
+            ),
+            400,
+        )
 
     if rec_type not in ["knowledge", "sop", "all"]:
-        return jsonify(
-            {
-                "success": False,
-                "error": {
-                    "code": "INVALID_TYPE",
-                    "message": "type must be knowledge, sop, or all",
-                },
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INVALID_TYPE",
+                        "message": "type must be knowledge, sop, or all",
+                    },
+                }
+            ),
+            400,
+        )
 
     # データ読み込み
     access_logs = load_data("access_logs.json")
@@ -5140,25 +5960,28 @@ def get_access_logs():
             },
         )
 
-        return jsonify(
-            {
-                "logs": paginated_logs,
-                "pagination": {
-                    "page": page,
-                    "per_page": per_page,
-                    "total": total,
-                    "total_pages": (total + per_page - 1) // per_page,
-                },
-                "filters": {
-                    "user_id": user_id_filter,
-                    "action": action_filter,
-                    "resource": resource_filter,
-                    "status": status_filter,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                },
-            }
-        ), 200
+        return (
+            jsonify(
+                {
+                    "logs": paginated_logs,
+                    "pagination": {
+                        "page": page,
+                        "per_page": per_page,
+                        "total": total,
+                        "total_pages": (total + per_page - 1) // per_page,
+                    },
+                    "filters": {
+                        "user_id": user_id_filter,
+                        "action": action_filter,
+                        "resource": resource_filter,
+                        "status": status_filter,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                    },
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         print(f"[ERROR] Access logs error: {e}")
@@ -5220,18 +6043,21 @@ def get_access_logs_stats():
 
         log_access(current_user_id, "logs.access.stats", "audit_logs")
 
-        return jsonify(
-            {
-                "total_logs": total_logs,
-                "today_logs": today_logs,
-                "week_logs": week_logs,
-                "by_action": dict(action_counts.most_common(10)),
-                "by_resource": dict(resource_counts),
-                "by_status": dict(status_counts),
-                "top_active_users": top_users,
-                "generated_at": now.isoformat(),
-            }
-        ), 200
+        return (
+            jsonify(
+                {
+                    "total_logs": total_logs,
+                    "today_logs": today_logs,
+                    "week_logs": week_logs,
+                    "by_action": dict(action_counts.most_common(10)),
+                    "by_resource": dict(resource_counts),
+                    "by_status": dict(status_counts),
+                    "top_active_users": top_users,
+                    "generated_at": now.isoformat(),
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         print(f"[ERROR] Access logs stats error: {e}")
@@ -5284,16 +6110,19 @@ def health_check():
                     "disk_free_gb": disk.free // (1024 * 1024 * 1024),
                 },
             }
-        ), 200 if db_health.get("healthy", True) else 503
+        ), (200 if db_health.get("healthy", True) else 503)
 
     except Exception as e:
-        return jsonify(
-            {
-                "status": "error",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-            }
-        ), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ),
+            500,
+        )
 
 
 @app.route("/api/v1/health/db", methods=["GET"])
@@ -5315,20 +6144,30 @@ def db_health_check():
                 "details": health.get("details", {}),
                 "timestamp": datetime.now().isoformat(),
             }
-        ), 200 if health.get("healthy") else 503
+        ), (200 if health.get("healthy") else 503)
     except ImportError:
-        return jsonify(
-            {
-                "healthy": True,
-                "mode": "json",
-                "details": {"message": "Using JSON backend"},
-                "timestamp": datetime.now().isoformat(),
-            }
-        ), 200
+        return (
+            jsonify(
+                {
+                    "healthy": True,
+                    "mode": "json",
+                    "details": {"message": "Using JSON backend"},
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ),
+            200,
+        )
     except Exception as e:
-        return jsonify(
-            {"healthy": False, "error": str(e), "timestamp": datetime.now().isoformat()}
-        ), 503
+        return (
+            jsonify(
+                {
+                    "healthy": False,
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ),
+            503,
+        )
 
 
 # ============================================================
@@ -5471,9 +6310,7 @@ def get_consultation_detail(consultation_id):
     log_access(current_user_id, "consultation.view", "consultation", consultation_id)
 
     consultations = load_data("consultations.json")
-    consultation = next(
-        (c for c in consultations if c["id"] == consultation_id), None
-    )
+    consultation = next((c for c in consultations if c["id"] == consultation_id), None)
 
     if not consultation:
         return (
@@ -5517,7 +6354,9 @@ def create_consultation():
         "priority": data.get("priority", "通常"),
         "status": "pending",
         "requester_id": int(current_user_id),
-        "requester": current_user.get("full_name", "Unknown") if current_user else "Unknown",
+        "requester": (
+            current_user.get("full_name", "Unknown") if current_user else "Unknown"
+        ),
         "expert_id": None,
         "expert": None,
         "project": data.get("project"),
@@ -5664,10 +6503,16 @@ def post_consultation_answer(consultation_id):
         "content": data.get("content"),
         "references": data.get("references"),
         "is_best_answer": data.get("is_best_answer", False),
-        "expert": current_user.get("full_name", "Unknown") if current_user else "Unknown",
+        "expert": (
+            current_user.get("full_name", "Unknown") if current_user else "Unknown"
+        ),
         "expert_id": int(current_user_id),
-        "expert_title": current_user.get("department", "専門家") if current_user else "専門家",
-        "author_name": current_user.get("full_name", "Unknown") if current_user else "Unknown",
+        "expert_title": (
+            current_user.get("department", "専門家") if current_user else "専門家"
+        ),
+        "author_name": (
+            current_user.get("full_name", "Unknown") if current_user else "Unknown"
+        ),
         "created_at": datetime.now().isoformat(),
         "helpful_count": 0,
         "attachments": data.get("attachments", []),
@@ -5687,7 +6532,9 @@ def post_consultation_answer(consultation_id):
     # expert情報を更新（最初の回答者を専門家として設定）
     if consultations[consultation_index].get("expert_id") is None:
         consultations[consultation_index]["expert_id"] = int(current_user_id)
-        consultations[consultation_index]["expert"] = current_user.get("full_name", "Unknown") if current_user else "Unknown"
+        consultations[consultation_index]["expert"] = (
+            current_user.get("full_name", "Unknown") if current_user else "Unknown"
+        )
 
     consultations[consultation_index]["updated_at"] = datetime.now().isoformat()
 
@@ -5733,7 +6580,9 @@ if __name__ == "__main__":
         print("[DEVELOPMENT] 開発環境設定が有効です")
 
     # デモユーザー初期化（開発環境のみ or 環境変数で明示的に有効化）
-    create_demo_users = os.environ.get("MKS_CREATE_DEMO_USERS", "true" if not IS_PRODUCTION else "false").lower() in ("true", "1", "yes")
+    create_demo_users = os.environ.get(
+        "MKS_CREATE_DEMO_USERS", "true" if not IS_PRODUCTION else "false"
+    ).lower() in ("true", "1", "yes")
     if create_demo_users:
         init_demo_users()
     else:
@@ -5753,11 +6602,17 @@ if __name__ == "__main__":
     print("=" * 60)
 
     debug = os.environ.get("MKS_DEBUG", "false").lower() in ("1", "true", "yes")
-    bind_host = os.environ.get("MKS_BIND_HOST", "0.0.0.0")  # Default: all interfaces (production: set to 127.0.0.1)
+    bind_host = os.environ.get(
+        "MKS_BIND_HOST", "0.0.0.0"
+    )  # Default: all interfaces (production: set to 127.0.0.1)
 
     # 全環境でsocketio.runを使用（WebSocket対応）
-    print(f"[SERVER] Using SocketIO server with WebSocket support (binding to {bind_host}:{http_port})")
-    socketio.run(app, host=bind_host, port=http_port, debug=debug, allow_unsafe_werkzeug=True)
+    print(
+        f"[SERVER] Using SocketIO server with WebSocket support (binding to {bind_host}:{http_port})"
+    )
+    socketio.run(
+        app, host=bind_host, port=http_port, debug=debug, allow_unsafe_werkzeug=True
+    )
 
 
 # ============================================================

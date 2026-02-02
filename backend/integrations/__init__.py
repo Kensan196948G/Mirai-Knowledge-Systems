@@ -8,7 +8,7 @@ Mirai Knowledge System - 外部連携モジュール
 - サーバー直接接続
 """
 
-from .microsoft_graph import MicrosoftGraphClient
 from .data_import import DataImporter
+from .microsoft_graph import MicrosoftGraphClient
 
-__all__ = ['MicrosoftGraphClient', 'DataImporter']
+__all__ = ["MicrosoftGraphClient", "DataImporter"]

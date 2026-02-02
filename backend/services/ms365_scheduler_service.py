@@ -5,23 +5,26 @@ APSchedulerを使用した定期同期実行機能を提供
 """
 
 import logging
-from typing import List, Dict
 from datetime import datetime
+from typing import Dict, List
 
-from services.ms365_sync_service import MS365SyncService
 from data_access import DataAccessLayer
+from services.ms365_sync_service import MS365SyncService
 
 logger = logging.getLogger(__name__)
 
 # オプション依存関係の遅延インポート
 try:
+    from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
-    from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+
     APSCHEDULER_AVAILABLE = True
 except ImportError:
     APSCHEDULER_AVAILABLE = False
-    logger.warning("APScheduler未インストール。pip install APScheduler でインストールしてください")
+    logger.warning(
+        "APScheduler未インストール。pip install APScheduler でインストールしてください"
+    )
 
 
 class MS365SchedulerService:
@@ -44,7 +47,9 @@ class MS365SchedulerService:
             self.scheduler.add_listener(self._on_job_executed, EVENT_JOB_EXECUTED)
             self.scheduler.add_listener(self._on_job_error, EVENT_JOB_ERROR)
         else:
-            logger.error("APSchedulerが利用できません。スケジューラー機能が無効化されています")
+            logger.error(
+                "APSchedulerが利用できません。スケジューラー機能が無効化されています"
+            )
 
     def start(self):
         """スケジューラーを開始"""
@@ -112,7 +117,9 @@ class MS365SchedulerService:
                 max_instances=1,  # 同時実行を防ぐ
             )
 
-            logger.info(f"同期設定#{config_id}「{config_name}」をスケジュール登録: {cron_schedule}")
+            logger.info(
+                f"同期設定#{config_id}「{config_name}」をスケジュール登録: {cron_schedule}"
+            )
 
         except Exception as e:
             logger.error(f"スケジュール登録エラー: {e}")
@@ -160,12 +167,16 @@ class MS365SchedulerService:
 
         jobs = []
         for job in self.scheduler.get_jobs():
-            jobs.append({
-                "id": job.id,
-                "name": job.name,
-                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
-                "trigger": str(job.trigger),
-            })
+            jobs.append(
+                {
+                    "id": job.id,
+                    "name": job.name,
+                    "next_run_time": (
+                        job.next_run_time.isoformat() if job.next_run_time else None
+                    ),
+                    "trigger": str(job.trigger),
+                }
+            )
 
         return jobs
 
@@ -191,14 +202,15 @@ class MS365SchedulerService:
 
         try:
             result = self.sync_service.sync_configuration(
-                config_id,
-                triggered_by="scheduler",
-                user_id=None
+                config_id, triggered_by="scheduler", user_id=None
             )
             logger.info(f"スケジュール同期完了: config_id={config_id}, result={result}")
 
         except Exception as e:
-            logger.error(f"スケジュール同期エラー: config_id={config_id}, error={e}", exc_info=True)
+            logger.error(
+                f"スケジュール同期エラー: config_id={config_id}, error={e}",
+                exc_info=True,
+            )
             # エラーは記録されているので、ここでは再raiseしない
 
     def _on_job_executed(self, event):
