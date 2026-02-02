@@ -11,6 +11,9 @@ on:
       - 'backend/jest.config.js'
       - 'backend/playwright.config.js'
       - '.github/workflows/frontend-tests.yml'
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches: [ main, develop ]
     paths:
@@ -55,15 +58,23 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install dependencies
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies (cached)
         working-directory: backend
         run: |
-          npm ci
-          npm run test:unit:coverage
+          npm ci --prefer-offline
 
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         working-directory: backend
-        run: echo "Unit tests already run above"
+        run: |
+          npm run test:unit:coverage
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
@@ -111,6 +122,31 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: ${{ runner.os }}-node-e2e-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-e2e-
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-e2e-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-e2e-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Install Python dependencies
         working-directory: backend
@@ -118,16 +154,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Install Node dependencies
+      - name: Install Node dependencies (cached)
         working-directory: backend
-        run: npm ci
+        run: npm ci --prefer-offline
 
-      - name: Install Playwright browsers
+      - name: Install Playwright browsers (cached)
         run: npx playwright install --with-deps
 
       - name: Setup test database
         run: |
-          sudo systemctl start postgresql.service
+          sudo systemctl start postgresql.service || true
           sudo -u postgres psql -c "CREATE DATABASE mirai_test;" || true
           sudo -u postgres psql -c "CREATE USER mirai_user WITH PASSWORD 'test_password';" || true
           sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE mirai_test TO mirai_user;" || true

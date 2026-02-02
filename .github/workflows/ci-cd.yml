@@ -52,12 +52,22 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Cache Python linting tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lint-
 
       - name: Install Python dependencies
         working-directory: .
@@ -65,22 +75,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff flake8 bandit safety
 
-      - name: Install Node dependencies
+      - name: Install Node dependencies (cached)
         working-directory: backend
         run: |
-          npm ci
-
-      - name: Start Backend Server for E2E
-        working-directory: backend
-        env:
-          MKS_ENV: test
-          MKS_SECRET_KEY: test-secret-key-for-ci
-          MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
-          MKS_CORS_ORIGINS: http://localhost:5100
-        run: |
-          python app_v2.py &
-          sleep 10
-          curl -s http://localhost:5100/api/v1/health
+          npm ci --prefer-offline
 
       - name: Run Ruff (Python linter)
         working-directory: .
@@ -109,7 +107,7 @@ jobs:
           path: backend/bandit-report.json
 
   # ========================================
-  # Job 2: Unit Tests
+  # Job 2: Unit Tests (Parallel)
   # ========================================
   unit-tests:
     name: Unit Tests
@@ -124,15 +122,24 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: Cache pytest dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-pytest-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-pytest-
 
       - name: Install dependencies
         working-directory: .
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pytest-flask
+          pip install pytest pytest-cov pytest-flask pytest-xdist
           pip install -r requirements.txt --break-system-packages
 
-      - name: Run Unit Tests
+      - name: Run Unit Tests (Parallel with xdist)
         working-directory: .
         env:
           MKS_ENV: test
@@ -140,7 +147,7 @@ jobs:
           MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
           MKS_CORS_ORIGINS: http://localhost:5100
         run: |
-          pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing
+          pytest tests/ -v --tb=short -n auto --cov=. --cov-report=xml --cov-report=term-missing
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
@@ -160,7 +167,7 @@ jobs:
           echo "Coverage: $COVERAGE% (OK)"
 
   # ========================================
-  # Job 3: API Integration Tests
+  # Job 3: API Integration Tests (Parallel)
   # ========================================
   integration-tests:
     name: API Integration Tests
@@ -189,12 +196,21 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: Cache pytest dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-integration-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-integration-
 
       - name: Install dependencies
         working-directory: .
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov requests
+          pip install pytest pytest-cov pytest-xdist requests
           pip install -r requirements.txt --break-system-packages
 
       - name: Setup PostgreSQL
@@ -204,7 +220,7 @@ jobs:
           psql -h localhost -U postgres -c "CREATE DATABASE mirai_knowledge_db;" || true
           psql -h localhost -U postgres -d mirai_knowledge_db -f init-db.sql || true
 
-      - name: Run Integration Tests
+      - name: Run Integration Tests (Parallel with xdist)
         working-directory: .
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mirai_knowledge_db
@@ -214,7 +230,7 @@ jobs:
           MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
           MKS_CORS_ORIGINS: http://localhost:5100
         run: |
-          pytest tests/ -v --tb=short -k "not e2e" 2>&1 | head -100
+          pytest tests/ -v --tb=short -n auto -k "not e2e" 2>&1 | head -100
 
       - name: Show Integration Test Results
         if: always()
@@ -239,12 +255,30 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-e2e-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-e2e-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Install Python dependencies
         working-directory: .
@@ -252,9 +286,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt --break-system-packages
 
-      - name: Install Node dependencies
+      - name: Install Node dependencies (cached)
         run: |
-          npm ci
+          npm ci --prefer-offline
+
+      - name: Install Playwright browsers (cached)
+        run: |
           npx playwright install --with-deps
 
       - name: Start Backend Server for E2E
@@ -300,12 +337,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - name: Cache security tools
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/security-tools
-          key: ${{ runner.os }}-security-tools-${{ hashFiles('**/requirements.txt') }}
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -314,6 +345,15 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: Cache security tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-security-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-security-
 
       - name: Install security tools
         working-directory: .
@@ -346,16 +386,6 @@ jobs:
       name: development
       url: http://localhost:5100
     steps:
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.npm
-            ~/.cache/pip
-            backend/venv_linux/
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json', '**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -364,6 +394,17 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: Cache deployment dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.npm
+          key: ${{ runner.os }}-deploy-${{ hashFiles('**/requirements.txt', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-deploy-
 
       - name: Install dependencies
         working-directory: .
