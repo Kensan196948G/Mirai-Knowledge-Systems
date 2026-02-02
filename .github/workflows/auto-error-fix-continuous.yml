@@ -1,9 +1,9 @@
 name: 🤖 自動エラー検知・修復システム（5分間隔・無限ループ）
 
 on:
-  # 5分ごとに自動実行（15回ループ実行後、次のトリガーまで5分待機）
+  # 10分ごとに自動実行（15回ループ実行後、次のトリガーまで10分待機）
   schedule:
-    - cron: '*/5 * * * *'  # 毎5分（無限ループシステム）
+    - cron: '*/10 * * * *'  # 毎10分（無限ループシステム）- 実行重複を防ぐため5分から変更
 
   # 手動トリガー
   workflow_dispatch:
@@ -26,10 +26,16 @@ env:
   MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
   MKS_CORS_ORIGINS: http://localhost:5100
 
+# 同時実行制御 - 前回の実行が完了するまで新しい実行を待機
+concurrency:
+  group: auto-error-fix-continuous
+  cancel-in-progress: false
+
 jobs:
   auto-error-detection-and-fix:
     name: エラー自動検知・修復（15回ループ）
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # 30分でタイムアウト（予期せぬ無限ループを防止）
 
     permissions:
       contents: read
@@ -60,48 +66,6 @@ jobs:
           # Playwrightブラウザインストール
           playwright install --with-deps
 
-      - name: PostgreSQL起動（Docker）
-        run: |
-          docker run -d \
-            --name postgres \
-            -e POSTGRES_USER=mks_user \
-            -e POSTGRES_PASSWORD=mks_password \
-            -e POSTGRES_DB=mks_db \
-            -p 5432:5432 \
-            postgres:16-alpine
-
-          # PostgreSQL起動待機
-          for i in {1..30}; do
-            if docker exec postgres pg_isready -U mks_user; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            echo "Waiting for PostgreSQL... ($i/30)"
-            sleep 2
-          done
-
-      - name: Redis起動（Docker）
-        run: |
-          docker run -d \
-            --name redis \
-            -p 6379:6379 \
-            redis:7-alpine
-
-          # Redis起動待機
-          sleep 5
-
-      - name: データベース初期化
-        working-directory: ./backend
-        env:
-          DATABASE_URL: postgresql://mks_user:mks_password@localhost:5432/mks_db
-          REDIS_URL: redis://localhost:6379/0
-          MKS_ENV: test
-          MKS_SECRET_KEY: test-secret-key-for-ci
-          MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
-          MKS_CORS_ORIGINS: http://localhost:5100
-        run: |
-          python -c "from app_v2 import db, app; app.app_context().push(); db.create_all(); print('Database initialized')" || echo "Database already exists"
-
       - name: エラー検知・修復ループ（15回）
         id: error_fix_loop
         working-directory: ./backend
@@ -129,6 +93,10 @@ jobs:
           ERROR_COUNT=0
           FIX_COUNT=0
 
+          # 早期終了条件用カウンター
+          CONSECUTIVE_ERRORS=0
+          CONSECUTIVE_SUCCESS=0
+
           # 結果ファイル
           RESULT_FILE="${GITHUB_WORKSPACE}/error_fix_results.txt"
           echo "# エラー検知・修復ログ" > "$RESULT_FILE"
@@ -143,6 +111,9 @@ jobs:
             echo "----------------------------------------"
             echo "## ループ ${LOOP_COUNT}/${MAX_LOOPS}" >> "$RESULT_FILE"
 
+            # エラー検出フラグをリセット
+            ERROR_DETECTED=0
+
             # 1. ヘルスチェック実行
             echo "[STEP 1] ヘルスチェック実行中..."
             if python scripts/health_monitor.py > health_check.log 2>&1; then
@@ -150,6 +121,7 @@ jobs:
               cat health_check.log >> "$RESULT_FILE"
             else
               echo "✗ ヘルスチェックでエラー検出"
+              ERROR_DETECTED=1
               ERROR_COUNT=$((ERROR_COUNT + 1))
               cat health_check.log >> "$RESULT_FILE"
             fi
@@ -161,6 +133,7 @@ jobs:
               echo "### テスト結果: 合格" >> "$RESULT_FILE"
             else
               echo "✗ テスト失敗を検出"
+              ERROR_DETECTED=1
               ERROR_COUNT=$((ERROR_COUNT + 1))
               echo "### テスト結果: 失敗" >> "$RESULT_FILE"
               grep -A 3 "FAILED" test_results.log >> "$RESULT_FILE" || true
@@ -182,6 +155,7 @@ jobs:
               ERROR_LINES=$(grep -i "error\|exception\|critical" logs/app.log | tail -10 || true)
               if [ -n "$ERROR_LINES" ]; then
                 echo "✗ ログにエラーを検出"
+                ERROR_DETECTED=1
                 ERROR_COUNT=$((ERROR_COUNT + 1))
                 echo "### ログエラー:" >> "$RESULT_FILE"
                 echo "$ERROR_LINES" >> "$RESULT_FILE"
@@ -193,6 +167,27 @@ jobs:
             echo ""
             echo "ループ ${LOOP_COUNT} 完了 - エラー: ${ERROR_COUNT}, 修復: ${FIX_COUNT}"
             echo "" >> "$RESULT_FILE"
+
+            # 早期終了条件チェック
+            if [ $ERROR_DETECTED -eq 1 ]; then
+              CONSECUTIVE_ERRORS=$((CONSECUTIVE_ERRORS + 1))
+              CONSECUTIVE_SUCCESS=0
+              
+              if [ $CONSECUTIVE_ERRORS -ge 5 ]; then
+                echo "⚠️ 連続エラー5回検出 - 早期終了します"
+                echo "⚠️ **早期終了**: 連続エラー5回検出" >> "$RESULT_FILE"
+                break
+              fi
+            else
+              CONSECUTIVE_SUCCESS=$((CONSECUTIVE_SUCCESS + 1))
+              CONSECUTIVE_ERRORS=0
+              
+              if [ $CONSECUTIVE_SUCCESS -ge 5 ]; then
+                echo "✓ 連続成功5回 - 正常のため早期終了します"
+                echo "✓ **早期終了**: 連続成功5回 - システム正常" >> "$RESULT_FILE"
+                break
+              fi
+            fi
 
             # 最後のループでなければ5秒待機
             if [ $LOOP_COUNT -lt $MAX_LOOPS ]; then
@@ -224,6 +219,7 @@ jobs:
         id: generate_report
         run: |
           REPORT_FILE="${GITHUB_WORKSPACE}/error_fix_report.md"
+          RESULT_FILE="${GITHUB_WORKSPACE}/error_fix_results.txt"
 
           cat > "$REPORT_FILE" << 'REPORT_EOF'
           # 🤖 自動エラー検知・修復レポート
@@ -244,8 +240,24 @@ jobs:
 
           REPORT_EOF
 
-          # 詳細ログを追加
-          cat "${GITHUB_WORKSPACE}/error_fix_results.txt" >> "$REPORT_FILE" || echo "ログファイルが見つかりません" >> "$REPORT_FILE"
+          # 詳細ログのサイズチェックと最適化
+          # GitHub Issues APIは65KB制限があるため、50KBを超える場合は要約版を作成
+          MAX_LOG_LINES=500  # 先頭と末尾から保持する行数
+          
+          if [ -f "$RESULT_FILE" ]; then
+            FILE_SIZE=$(stat -c%s "$RESULT_FILE" 2>/dev/null || stat -f%z "$RESULT_FILE" 2>/dev/null || echo 0)
+            if [ $FILE_SIZE -gt 50000 ]; then
+              echo "⚠️ ログファイルが大きすぎます（${FILE_SIZE} bytes）- 要約版を作成"
+              # 最初のMAX_LOG_LINES行と最後のMAX_LOG_LINES行のみ保持（合計1000行）
+              head -n $MAX_LOG_LINES "$RESULT_FILE" > "${RESULT_FILE}.tmp"
+              echo -e "\n... (中略: ログサイズ ${FILE_SIZE} bytes) ...\n" >> "${RESULT_FILE}.tmp"
+              tail -n $MAX_LOG_LINES "$RESULT_FILE" >> "${RESULT_FILE}.tmp"
+              mv "${RESULT_FILE}.tmp" "$RESULT_FILE"
+            fi
+            cat "$RESULT_FILE" >> "$REPORT_FILE"
+          else
+            echo "ログファイルが見つかりません" >> "$REPORT_FILE"
+          fi
 
           echo "report_path=${REPORT_FILE}" >> $GITHUB_OUTPUT
 
@@ -317,12 +329,6 @@ jobs:
             error_fix_report.md
             backend/logs/*.log
           retention-days: 30
-
-      - name: クリーンアップ
-        if: always()
-        run: |
-          docker stop postgres redis || true
-          docker rm postgres redis || true
 
       - name: 次回実行までスリープ（オプション）
         if: false  # 通常は無効（cronで30分後に再実行）
