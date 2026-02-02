@@ -249,7 +249,7 @@ jobs:
 
             # 最後のループでなければ待機＆クリーンアップ
             if [ $LOOP_COUNT -lt $MAX_LOOPS ]; then
-              # メモリクリーンアップ
+              # メモリクリーンアップ（ベストエフォート - 権限不足の場合はスキップ）
               sync
               echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
               sleep 5
@@ -302,14 +302,17 @@ jobs:
           REPORT_EOF
 
           # 詳細ログのサイズチェックと最適化
+          # GitHub Issues APIは65KB制限があるため、50KBを超える場合は要約版を作成
+          MAX_LOG_LINES=500  # 先頭と末尾から保持する行数
+          
           if [ -f "$RESULT_FILE" ]; then
             FILE_SIZE=$(stat -c%s "$RESULT_FILE" 2>/dev/null || stat -f%z "$RESULT_FILE" 2>/dev/null || echo 0)
             if [ $FILE_SIZE -gt 50000 ]; then
               echo "⚠️ ログファイルが大きすぎます（${FILE_SIZE} bytes）- 要約版を作成"
-              # 最初の500行と最後の500行のみ保持
-              head -n 500 "$RESULT_FILE" > "${RESULT_FILE}.tmp"
+              # 最初のMAX_LOG_LINES行と最後のMAX_LOG_LINES行のみ保持（合計1000行）
+              head -n $MAX_LOG_LINES "$RESULT_FILE" > "${RESULT_FILE}.tmp"
               echo -e "\n... (中略: ログサイズ ${FILE_SIZE} bytes) ...\n" >> "${RESULT_FILE}.tmp"
-              tail -n 500 "$RESULT_FILE" >> "${RESULT_FILE}.tmp"
+              tail -n $MAX_LOG_LINES "$RESULT_FILE" >> "${RESULT_FILE}.tmp"
               mv "${RESULT_FILE}.tmp" "$RESULT_FILE"
             fi
             cat "$RESULT_FILE" >> "$REPORT_FILE"
