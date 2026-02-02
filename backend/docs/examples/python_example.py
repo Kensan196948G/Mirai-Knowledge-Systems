@@ -4,9 +4,10 @@ Mirai Knowledge System API - Python使用例
 このスクリプトは、MKS APIの基本的な使用方法を示します。
 """
 
-import requests
-from typing import Optional, Dict, List
 import time
+from typing import Dict, List, Optional
+
+import requests
 
 
 class MKSAPIClient:
@@ -31,7 +32,7 @@ class MKSAPIClient:
         """
         response = self.session.post(
             f"{self.base_url}/api/v1/auth/login",
-            json={"username": username, "password": password}
+            json={"username": username, "password": password},
         )
         response.raise_for_status()
 
@@ -39,9 +40,9 @@ class MKSAPIClient:
         if data["success"]:
             self.access_token = data["data"]["access_token"]
             self.refresh_token = data["data"]["refresh_token"]
-            self.session.headers.update({
-                "Authorization": f"Bearer {self.access_token}"
-            })
+            self.session.headers.update(
+                {"Authorization": f"Bearer {self.access_token}"}
+            )
             return data["data"]["user"]
         else:
             raise Exception(f"Login failed: {data.get('error')}")
@@ -53,16 +54,16 @@ class MKSAPIClient:
 
         response = self.session.post(
             f"{self.base_url}/api/v1/auth/refresh",
-            headers={"Authorization": f"Bearer {self.refresh_token}"}
+            headers={"Authorization": f"Bearer {self.refresh_token}"},
         )
         response.raise_for_status()
 
         data = response.json()
         if data["success"]:
             self.access_token = data["data"]["access_token"]
-            self.session.headers.update({
-                "Authorization": f"Bearer {self.access_token}"
-            })
+            self.session.headers.update(
+                {"Authorization": f"Bearer {self.access_token}"}
+            )
 
     def get_current_user(self) -> Dict:
         """現在のユーザー情報を取得"""
@@ -71,9 +72,12 @@ class MKSAPIClient:
         return response.json()["data"]
 
     # ナレッジ管理
-    def list_knowledge(self, category: Optional[str] = None,
-                      search: Optional[str] = None,
-                      tags: Optional[str] = None) -> List[Dict]:
+    def list_knowledge(
+        self,
+        category: Optional[str] = None,
+        search: Optional[str] = None,
+        tags: Optional[str] = None,
+    ) -> List[Dict]:
         """
         ナレッジ一覧を取得
 
@@ -93,24 +97,26 @@ class MKSAPIClient:
         if tags:
             params["tags"] = tags
 
-        response = self.session.get(
-            f"{self.base_url}/api/v1/knowledge",
-            params=params
-        )
+        response = self.session.get(f"{self.base_url}/api/v1/knowledge", params=params)
         response.raise_for_status()
         return response.json()["data"]
 
     def get_knowledge(self, knowledge_id: int) -> Dict:
         """ナレッジ詳細を取得"""
-        response = self.session.get(
-            f"{self.base_url}/api/v1/knowledge/{knowledge_id}"
-        )
+        response = self.session.get(f"{self.base_url}/api/v1/knowledge/{knowledge_id}")
         response.raise_for_status()
         return response.json()["data"]
 
-    def create_knowledge(self, title: str, summary: str, content: str,
-                        category: str, tags: List[str] = None,
-                        priority: str = "medium", **kwargs) -> Dict:
+    def create_knowledge(
+        self,
+        title: str,
+        summary: str,
+        content: str,
+        category: str,
+        tags: List[str] = None,
+        priority: str = "medium",
+        **kwargs,
+    ) -> Dict:
         """
         新規ナレッジを作成
 
@@ -133,19 +139,17 @@ class MKSAPIClient:
             "category": category,
             "tags": tags or [],
             "priority": priority,
-            **kwargs
+            **kwargs,
         }
 
-        response = self.session.post(
-            f"{self.base_url}/api/v1/knowledge",
-            json=data
-        )
+        response = self.session.post(f"{self.base_url}/api/v1/knowledge", json=data)
         response.raise_for_status()
         return response.json()["data"]
 
     # 横断検索
-    def unified_search(self, query: str, types: str = "knowledge,sop,incidents",
-                      highlight: bool = True) -> Dict:
+    def unified_search(
+        self, query: str, types: str = "knowledge,sop,incidents", highlight: bool = True
+    ) -> Dict:
         """
         横断検索を実行
 
@@ -157,15 +161,10 @@ class MKSAPIClient:
         Returns:
             検索結果
         """
-        params = {
-            "q": query,
-            "types": types,
-            "highlight": str(highlight).lower()
-        }
+        params = {"q": query, "types": types, "highlight": str(highlight).lower()}
 
         response = self.session.get(
-            f"{self.base_url}/api/v1/search/unified",
-            params=params
+            f"{self.base_url}/api/v1/search/unified", params=params
         )
         response.raise_for_status()
         return response.json()
@@ -203,6 +202,7 @@ class MKSAPIClient:
 # ============================================================
 # 使用例
 # ============================================================
+
 
 def main():
     """メイン処理"""
@@ -261,7 +261,7 @@ def main():
         tags=["鉄筋工事", "配筋検査", "品質管理"],
         priority="high",
         owner="山田太郎",
-        project="東京タワー建設プロジェクト"
+        project="東京タワー建設プロジェクト",
     )
     print(f"作成されたナレッジID: {new_knowledge['id']}")
     print(f"タイトル: {new_knowledge['title']}")

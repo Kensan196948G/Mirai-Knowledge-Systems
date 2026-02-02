@@ -3,14 +3,15 @@ TOTP (Time-based One-Time Password) Manager for MFA
 Handles TOTP secret generation, QR code generation, verification, and backup codes
 """
 
-import pyotp
-import qrcode
-import io
 import base64
+import io
 import secrets
 import string
-from typing import Tuple, List, Dict, Optional
-from bcrypt import hashpw, checkpw, gensalt
+from typing import Dict, List, Optional, Tuple
+
+import pyotp
+import qrcode
+from bcrypt import checkpw, gensalt, hashpw
 
 
 class TOTPManager:
@@ -27,7 +28,9 @@ class TOTPManager:
         return pyotp.random_base32()
 
     @staticmethod
-    def generate_qr_code(username: str, secret: str, issuer: str = "Mirai Knowledge Systems") -> str:
+    def generate_qr_code(
+        username: str, secret: str, issuer: str = "Mirai Knowledge Systems"
+    ) -> str:
         """
         Generate QR code for TOTP setup
 
@@ -43,10 +46,7 @@ class TOTPManager:
         totp = pyotp.TOTP(secret)
 
         # Generate provisioning URI
-        provisioning_uri = totp.provisioning_uri(
-            name=username,
-            issuer_name=issuer
-        )
+        provisioning_uri = totp.provisioning_uri(name=username, issuer_name=issuer)
 
         # Generate QR code
         qr = qrcode.QRCode(
@@ -63,9 +63,9 @@ class TOTPManager:
 
         # Convert to base64
         buffer = io.BytesIO()
-        img.save(buffer, format='PNG')
+        img.save(buffer, format="PNG")
         buffer.seek(0)
-        qr_code_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        qr_code_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
         return qr_code_base64
 
@@ -87,7 +87,7 @@ class TOTPManager:
             return False
 
         # Remove any whitespace or dashes
-        code = code.strip().replace('-', '').replace(' ', '')
+        code = code.strip().replace("-", "").replace(" ", "")
 
         # Validate code format (6 digits)
         if not code.isdigit() or len(code) != 6:
@@ -111,8 +111,10 @@ class TOTPManager:
 
         for _ in range(count):
             # Generate 12 random alphanumeric characters
-            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits)
-                          for _ in range(12))
+            code = "".join(
+                secrets.choice(string.ascii_uppercase + string.digits)
+                for _ in range(12)
+            )
 
             # Format as XXXX-XXXX-XXXX
             formatted_code = f"{code[0:4]}-{code[4:8]}-{code[8:12]}"
@@ -132,11 +134,11 @@ class TOTPManager:
             str: Bcrypt hashed code
         """
         # Remove dashes for consistent hashing
-        clean_code = code.replace('-', '')
+        clean_code = code.replace("-", "")
 
         # Hash with bcrypt
-        hashed = hashpw(clean_code.encode('utf-8'), gensalt())
-        return hashed.decode('utf-8')
+        hashed = hashpw(clean_code.encode("utf-8"), gensalt())
+        return hashed.decode("utf-8")
 
     @staticmethod
     def verify_backup_code(hashed_code: str, input_code: str) -> bool:
@@ -154,10 +156,10 @@ class TOTPManager:
             return False
 
         # Remove dashes from input for comparison
-        clean_input = input_code.replace('-', '').replace(' ', '')
+        clean_input = input_code.replace("-", "").replace(" ", "")
 
         try:
-            return checkpw(clean_input.encode('utf-8'), hashed_code.encode('utf-8'))
+            return checkpw(clean_input.encode("utf-8"), hashed_code.encode("utf-8"))
         except Exception:
             return False
 
@@ -177,13 +179,15 @@ class TOTPManager:
             {
                 "code_hash": TOTPManager.hash_backup_code(code),
                 "used": False,
-                "used_at": None
+                "used_at": None,
             }
             for code in codes
         ]
 
     @staticmethod
-    def get_provisioning_uri(username: str, secret: str, issuer: str = "Mirai Knowledge Systems") -> str:
+    def get_provisioning_uri(
+        username: str, secret: str, issuer: str = "Mirai Knowledge Systems"
+    ) -> str:
         """
         Get the provisioning URI for manual entry
 

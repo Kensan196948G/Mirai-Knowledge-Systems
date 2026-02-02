@@ -1,11 +1,9 @@
-from logging.config import fileConfig
 import os
 import sys
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from logging.config import fileConfig
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Add parent directory to path to import models
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -19,10 +17,9 @@ config = context.config
 
 # Set sqlalchemy.url from environment variable or default
 database_url = os.environ.get(
-    'DATABASE_URL',
-    'postgresql://postgres:password@localhost:5432/mirai_knowledge_db'
+    "DATABASE_URL", "postgresql://postgres:password@localhost:5432/mirai_knowledge_db"
 )
-config.set_main_option('sqlalchemy.url', database_url)
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -77,9 +74,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

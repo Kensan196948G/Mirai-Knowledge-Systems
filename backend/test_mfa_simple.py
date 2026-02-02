@@ -6,6 +6,7 @@
 
 import sys
 
+
 def test_imports():
     """依存関係のインポート確認"""
     print("=" * 60)
@@ -17,8 +18,11 @@ def test_imports():
     # pyotp確認
     try:
         import pyotp
+
         print("✅ pyotp インポート成功")
-        print(f"   バージョン: {pyotp.__version__ if hasattr(pyotp, '__version__') else '不明'}")
+        print(
+            f"   バージョン: {pyotp.__version__ if hasattr(pyotp, '__version__') else '不明'}"
+        )
         results.append(("pyotp", True))
     except ImportError as e:
         print(f"❌ pyotp インポート失敗: {e}")
@@ -27,8 +31,11 @@ def test_imports():
     # qrcode確認
     try:
         import qrcode
+
         print("✅ qrcode インポート成功")
-        print(f"   バージョン: {qrcode.__version__ if hasattr(qrcode, '__version__') else '不明'}")
+        print(
+            f"   バージョン: {qrcode.__version__ if hasattr(qrcode, '__version__') else '不明'}"
+        )
         results.append(("qrcode", True))
     except ImportError as e:
         print(f"❌ qrcode インポート失敗: {e}")
@@ -36,10 +43,13 @@ def test_imports():
 
     # Pillow確認
     try:
-        from PIL import Image
         import PIL
+        from PIL import Image
+
         print("✅ Pillow (PIL) インポート成功")
-        print(f"   バージョン: {PIL.__version__ if hasattr(PIL, '__version__') else '不明'}")
+        print(
+            f"   バージョン: {PIL.__version__ if hasattr(PIL, '__version__') else '不明'}"
+        )
         results.append(("Pillow", True))
     except ImportError as e:
         print(f"❌ Pillow インポート失敗: {e}")
@@ -48,8 +58,11 @@ def test_imports():
     # bcrypt確認
     try:
         import bcrypt
+
         print("✅ bcrypt インポート成功")
-        print(f"   バージョン: {bcrypt.__version__ if hasattr(bcrypt, '__version__') else '不明'}")
+        print(
+            f"   バージョン: {bcrypt.__version__ if hasattr(bcrypt, '__version__') else '不明'}"
+        )
         results.append(("bcrypt", True))
     except ImportError as e:
         print(f"❌ bcrypt インポート失敗: {e}")
@@ -82,6 +95,7 @@ def test_totp_manager():
         # 2. TOTP検証（現在のコード生成）
         print("\n[2] TOTP検証")
         import pyotp
+
         totp = pyotp.TOTP(secret)
         current_code = totp.now()
         print(f"   現在のコード: {current_code}")
@@ -96,8 +110,12 @@ def test_totp_manager():
         backup_codes = TOTPManager.generate_backup_codes(count=10)
         print(f"   生成数: {len(backup_codes)}個")
         print(f"   例: {backup_codes[0]}")
-        assert len(backup_codes) == 10, "バックアップコードは10個生成される必要があります"
-        assert "-" in backup_codes[0], "バックアップコードはXXXX-XXXX-XXXX形式である必要があります"
+        assert (
+            len(backup_codes) == 10
+        ), "バックアップコードは10個生成される必要があります"
+        assert (
+            "-" in backup_codes[0]
+        ), "バックアップコードはXXXX-XXXX-XXXX形式である必要があります"
         print("   ✅ バックアップコード生成成功")
 
         # 4. バックアップコードハッシュ化・検証
@@ -115,9 +133,13 @@ def test_totp_manager():
         # 5. QRコード生成（オプション）
         print("\n[5] QRコード生成")
         try:
-            qr_code_base64 = TOTPManager.generate_qr_code("testuser@example.com", secret)
+            qr_code_base64 = TOTPManager.generate_qr_code(
+                "testuser@example.com", secret
+            )
             print(f"   QRコード（Base64）: {qr_code_base64[:50]}...")
-            assert qr_code_base64.startswith("iVBOR"), "QRコードはPNG形式のBase64である必要があります"
+            assert qr_code_base64.startswith(
+                "iVBOR"
+            ), "QRコードはPNG形式のBase64である必要があります"
             print("   ✅ QRコード生成成功")
         except Exception as e:
             print(f"   ⚠️  QRコード生成スキップ: {e}")
@@ -126,7 +148,9 @@ def test_totp_manager():
         print("\n[6] Provisioning URI生成")
         uri = TOTPManager.get_provisioning_uri("testuser@example.com", secret)
         print(f"   URI: {uri}")
-        assert uri.startswith("otpauth://totp/"), "Provisioning URIはotpauth://totp/で始まる必要があります"
+        assert uri.startswith(
+            "otpauth://totp/"
+        ), "Provisioning URIはotpauth://totp/で始まる必要があります"
         print("   ✅ Provisioning URI生成成功")
 
         print("\n" + "=" * 60)
@@ -137,6 +161,7 @@ def test_totp_manager():
     except Exception as e:
         print(f"\n❌ エラーが発生しました: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

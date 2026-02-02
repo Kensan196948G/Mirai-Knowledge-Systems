@@ -9,14 +9,15 @@
     from config import Config
 """
 
-from .production import get_config, ProductionConfig, DevelopmentConfig, TestingConfig
-
 # レガシー互換性: config.py の Config クラスをインポート
 import importlib.util
 import os
 
+from .production import (DevelopmentConfig, ProductionConfig, TestingConfig,
+                         get_config)
+
 # config.py を直接読み込む
-config_py_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.py')
+config_py_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.py")
 if os.path.exists(config_py_path):
     spec = importlib.util.spec_from_file_location("legacy_config", config_py_path)
     if spec and spec.loader:
@@ -27,4 +28,10 @@ else:
     # config.pyが存在しない場合はDevelopmentConfigをデフォルトに
     Config = DevelopmentConfig
 
-__all__ = ['get_config', 'ProductionConfig', 'DevelopmentConfig', 'TestingConfig', 'Config']
+__all__ = [
+    "get_config",
+    "ProductionConfig",
+    "DevelopmentConfig",
+    "TestingConfig",
+    "Config",
+]

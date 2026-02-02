@@ -13,12 +13,12 @@ APIエンドポイントに対して並行リクエストを送信し、
 """
 
 import argparse
-import time
-import statistics
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError
 import json
+import statistics
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 
 def make_request(url: str, timeout: int = 10) -> dict:
@@ -26,13 +26,13 @@ def make_request(url: str, timeout: int = 10) -> dict:
     start_time = time.time()
     try:
         req = Request(url)
-        req.add_header('Content-Type', 'application/json')
+        req.add_header("Content-Type", "application/json")
         with urlopen(req, timeout=timeout) as response:
             elapsed = (time.time() - start_time) * 1000  # ms
             return {
                 "success": True,
                 "status_code": response.status,
-                "elapsed_ms": elapsed
+                "elapsed_ms": elapsed,
             }
     except HTTPError as e:
         elapsed = (time.time() - start_time) * 1000
@@ -40,7 +40,7 @@ def make_request(url: str, timeout: int = 10) -> dict:
             "success": False,
             "status_code": e.code,
             "elapsed_ms": elapsed,
-            "error": str(e)
+            "error": str(e),
         }
     except URLError as e:
         elapsed = (time.time() - start_time) * 1000
@@ -48,7 +48,7 @@ def make_request(url: str, timeout: int = 10) -> dict:
             "success": False,
             "status_code": 0,
             "elapsed_ms": elapsed,
-            "error": str(e)
+            "error": str(e),
         }
     except Exception as e:
         elapsed = (time.time() - start_time) * 1000
@@ -56,7 +56,7 @@ def make_request(url: str, timeout: int = 10) -> dict:
             "success": False,
             "status_code": 0,
             "elapsed_ms": elapsed,
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -82,7 +82,9 @@ def run_load_test(url: str, total_requests: int, concurrency: int) -> dict:
             results.append(result)
             completed += 1
             if completed % 10 == 0:
-                print(f"進捗: {completed}/{total_requests} ({completed*100//total_requests}%)")
+                print(
+                    f"進捗: {completed}/{total_requests} ({completed*100//total_requests}%)"
+                )
 
     total_time = time.time() - start_time
 
@@ -97,7 +99,7 @@ def run_load_test(url: str, total_requests: int, concurrency: int) -> dict:
         "failed": len(failed),
         "total_time_sec": round(total_time, 2),
         "requests_per_sec": round(total_requests / total_time, 2),
-        "response_time": {}
+        "response_time": {},
     }
 
     if response_times:
@@ -106,8 +108,16 @@ def run_load_test(url: str, total_requests: int, concurrency: int) -> dict:
             "max_ms": round(max(response_times), 2),
             "avg_ms": round(statistics.mean(response_times), 2),
             "median_ms": round(statistics.median(response_times), 2),
-            "p95_ms": round(sorted(response_times)[int(len(response_times) * 0.95)], 2) if len(response_times) >= 20 else None,
-            "p99_ms": round(sorted(response_times)[int(len(response_times) * 0.99)], 2) if len(response_times) >= 100 else None
+            "p95_ms": (
+                round(sorted(response_times)[int(len(response_times) * 0.95)], 2)
+                if len(response_times) >= 20
+                else None
+            ),
+            "p99_ms": (
+                round(sorted(response_times)[int(len(response_times) * 0.99)], 2)
+                if len(response_times) >= 100
+                else None
+            ),
         }
 
     return summary
@@ -134,9 +144,9 @@ def print_results(summary: dict):
         print(f"  最大: {rt['max_ms']} ms")
         print(f"  平均: {rt['avg_ms']} ms")
         print(f"  中央値: {rt['median_ms']} ms")
-        if rt.get('p95_ms'):
+        if rt.get("p95_ms"):
             print(f"  P95: {rt['p95_ms']} ms")
-        if rt.get('p99_ms'):
+        if rt.get("p99_ms"):
             print(f"  P99: {rt['p99_ms']} ms")
 
     print(f"{'='*60}")
@@ -158,26 +168,11 @@ def print_results(summary: dict):
 def main():
     parser = argparse.ArgumentParser(description="簡易負荷テストスクリプト")
     parser.add_argument(
-        "--url",
-        default="http://localhost:5100/api/v1/health",
-        help="テスト対象URL"
+        "--url", default="http://localhost:5100/api/v1/health", help="テスト対象URL"
     )
-    parser.add_argument(
-        "--requests",
-        type=int,
-        default=100,
-        help="総リクエスト数"
-    )
-    parser.add_argument(
-        "--concurrency",
-        type=int,
-        default=10,
-        help="同時接続数"
-    )
-    parser.add_argument(
-        "--output",
-        help="結果をJSONファイルに出力"
-    )
+    parser.add_argument("--requests", type=int, default=100, help="総リクエスト数")
+    parser.add_argument("--concurrency", type=int, default=10, help="同時接続数")
+    parser.add_argument("--output", help="結果をJSONファイルに出力")
 
     args = parser.parse_args()
 

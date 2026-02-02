@@ -3,8 +3,10 @@
 
 レート制限機能の統合テストを実施
 """
-import pytest
+
 import time
+
+import pytest
 
 
 class TestRateLimitingConfiguration:
@@ -21,14 +23,17 @@ class TestRateLimitingConfiguration:
         # 静的ファイルに連続アクセス（レート制限を超える回数）
         responses = []
         for _ in range(15):
-            response = client.get('/')  # index.html
+            response = client.get("/")  # index.html
             responses.append(response)
 
         # すべてのリクエストが成功（429が返されない）
         for response in responses:
             # 静的ファイルは200または304（キャッシュ）
-            assert response.status_code in [200, 304, 404], \
-                f"Expected 200/304/404 for static file, got {response.status_code}"
+            assert response.status_code in [
+                200,
+                304,
+                404,
+            ], f"Expected 200/304/404 for static file, got {response.status_code}"
 
     def test_static_files_css_exempt_from_rate_limit(self, client):
         """
@@ -40,7 +45,7 @@ class TestRateLimitingConfiguration:
         """
         # CSSファイルに連続アクセス
         for _ in range(10):
-            response = client.get('/styles.css')
+            response = client.get("/styles.css")
             # 429が返されないことを確認（ファイルが存在すれば200、存在しなければ404）
             assert response.status_code != 429
 
@@ -54,7 +59,7 @@ class TestRateLimitingConfiguration:
         """
         # ヘルスチェックに連続アクセス
         for _ in range(20):
-            response = client.get('/health')
+            response = client.get("/health")
             # 429が返されないことを確認
             assert response.status_code in [200, 404]
 
@@ -75,8 +80,8 @@ class TestAPIRateLimiting:
         responses = []
         for i in range(10):
             response = client.post(
-                '/api/v1/auth/login',
-                json={'username': f'test{i}', 'password': 'password'}
+                "/api/v1/auth/login",
+                json={"username": f"test{i}", "password": "password"},
             )
             responses.append(response)
             # レート制限回避のため短時間待機（テスト環境での調整）
@@ -88,8 +93,9 @@ class TestAPIRateLimiting:
 
         # レート制限が有効な場合、429が含まれる可能性がある
         # 開発環境では無効化されている可能性もあるため、401/400も許容
-        assert any(code in [400, 401, 429] for code in status_codes), \
-            f"Expected rate limiting or auth errors, got {status_codes}"
+        assert any(
+            code in [400, 401, 429] for code in status_codes
+        ), f"Expected rate limiting or auth errors, got {status_codes}"
 
     def test_api_endpoints_rate_limited_login_specific(self, client):
         """
@@ -105,8 +111,8 @@ class TestAPIRateLimiting:
 
         for i in range(12):
             response = client.post(
-                '/api/v1/auth/login',
-                json={'username': 'attacker', 'password': f'wrong{i}'}
+                "/api/v1/auth/login",
+                json={"username": "attacker", "password": f"wrong{i}"},
             )
 
             if response.status_code == 429:
@@ -118,8 +124,9 @@ class TestAPIRateLimiting:
             time.sleep(0.1)
 
         # レート制限が発動するか、すべて認証失敗
-        assert rate_limited or failure_count >= 5, \
-            "Expected rate limiting or authentication failures"
+        assert (
+            rate_limited or failure_count >= 5
+        ), "Expected rate limiting or authentication failures"
 
     def test_authenticated_endpoints_have_higher_limits(self, client, auth_headers):
         """
@@ -133,7 +140,7 @@ class TestAPIRateLimiting:
         success_count = 0
 
         for _ in range(10):
-            response = client.get('/api/v1/knowledge', headers=auth_headers)
+            response = client.get("/api/v1/knowledge", headers=auth_headers)
 
             if response.status_code == 200:
                 success_count += 1
@@ -144,8 +151,9 @@ class TestAPIRateLimiting:
             time.sleep(0.1)
 
         # 少なくとも数回は成功する（レート制限が緩い）
-        assert success_count >= 3, \
-            f"Expected at least 3 successful requests, got {success_count}"
+        assert (
+            success_count >= 3
+        ), f"Expected at least 3 successful requests, got {success_count}"
 
 
 class TestRateLimitPerIP:
@@ -164,8 +172,7 @@ class TestRateLimitPerIP:
 
         for i in range(15):
             response = client.post(
-                '/api/v1/auth/login',
-                json={'username': f'user{i}', 'password': 'test'}
+                "/api/v1/auth/login", json={"username": f"user{i}", "password": "test"}
             )
             responses.append(response)
             time.sleep(0.1)
@@ -188,8 +195,7 @@ class TestRateLimitPerIP:
 
         for i in range(20):
             response = client.post(
-                '/api/v1/auth/login',
-                json={'username': 'test', 'password': 'test'}
+                "/api/v1/auth/login", json={"username": "test", "password": "test"}
             )
 
             if response.status_code == 429:
@@ -201,7 +207,7 @@ class TestRateLimitPerIP:
         # レート制限が発動した場合、ヘッダーまたはボディにretry情報が含まれる
         if rate_limited_response:
             # Retry-Afterヘッダーが含まれる可能性
-            has_retry_after = 'Retry-After' in rate_limited_response.headers
+            has_retry_after = "Retry-After" in rate_limited_response.headers
 
             # またはレスポンスボディにretry情報が含まれる
             data = rate_limited_response.get_json()
@@ -209,13 +215,13 @@ class TestRateLimitPerIP:
             if data and isinstance(data, dict):
                 # retry_after, retry, message等のキーをチェック
                 has_retry_info = any(
-                    key in str(data).lower()
-                    for key in ['retry', 'wait', 'seconds']
+                    key in str(data).lower() for key in ["retry", "wait", "seconds"]
                 )
 
             # どちらかの形式でretry情報が提供される
-            assert has_retry_after or has_retry_info, \
-                "Expected Retry-After header or retry information in response"
+            assert (
+                has_retry_after or has_retry_info
+            ), "Expected Retry-After header or retry information in response"
 
 
 class TestRateLimitBypass:
@@ -231,7 +237,7 @@ class TestRateLimitBypass:
         """
         # /healthに大量アクセス
         for _ in range(30):
-            response = client.get('/health')
+            response = client.get("/health")
             # 429が返されないことを確認
             assert response.status_code != 429
 
@@ -245,7 +251,7 @@ class TestRateLimitBypass:
         """
         # /metricsに大量アクセス
         for _ in range(20):
-            response = client.get('/metrics')
+            response = client.get("/metrics")
             # 429または404（存在しない場合）
             assert response.status_code in [200, 404]
 
@@ -264,8 +270,7 @@ class TestRateLimitErrorResponse:
         # レート制限を発動させる
         for i in range(15):
             response = client.post(
-                '/api/v1/auth/login',
-                json={'username': 'test', 'password': 'test'}
+                "/api/v1/auth/login", json={"username": "test", "password": "test"}
             )
 
             if response.status_code == 429:
@@ -273,11 +278,15 @@ class TestRateLimitErrorResponse:
 
                 # エラーレスポンスが適切な形式
                 assert isinstance(data, dict)
-                assert 'error' in data or 'message' in data
+                assert "error" in data or "message" in data
 
                 # エラーコードまたはメッセージが含まれる
                 response_str = str(data).lower()
-                assert 'rate' in response_str or 'limit' in response_str or 'many' in response_str
+                assert (
+                    "rate" in response_str
+                    or "limit" in response_str
+                    or "many" in response_str
+                )
                 break
 
             time.sleep(0.05)
@@ -293,8 +302,7 @@ class TestRateLimitErrorResponse:
         # レート制限を発動させる
         for i in range(20):
             response = client.post(
-                '/api/v1/auth/login',
-                json={'username': 'test', 'password': 'test'}
+                "/api/v1/auth/login", json={"username": "test", "password": "test"}
             )
 
             if response.status_code == 429:

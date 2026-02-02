@@ -3,8 +3,10 @@
 
 推薦エンジンの詳細な振る舞いをテスト
 """
-import pytest
+
 from datetime import datetime, timedelta
+
+import pytest
 from recommendation_engine import RecommendationEngine
 
 
@@ -19,28 +21,28 @@ def sample_items():
     """サンプルアイテムデータ"""
     return [
         {
-            'id': 1,
-            'title': '橋梁工事の施工計画',
-            'summary': '橋梁工事における施工計画の立て方',
-            'content': '橋梁工事では、安全性と品質管理が重要です。',
-            'category': '施工計画',
-            'tags': ['橋梁', '施工計画', '安全'],
+            "id": 1,
+            "title": "橋梁工事の施工計画",
+            "summary": "橋梁工事における施工計画の立て方",
+            "content": "橋梁工事では、安全性と品質管理が重要です。",
+            "category": "施工計画",
+            "tags": ["橋梁", "施工計画", "安全"],
         },
         {
-            'id': 2,
-            'title': 'トンネル掘削の品質管理',
-            'summary': 'トンネル掘削における品質管理手法',
-            'content': 'トンネル掘削では計測管理が重要です。',
-            'category': '品質管理',
-            'tags': ['トンネル', '品質管理', '掘削'],
+            "id": 2,
+            "title": "トンネル掘削の品質管理",
+            "summary": "トンネル掘削における品質管理手法",
+            "content": "トンネル掘削では計測管理が重要です。",
+            "category": "品質管理",
+            "tags": ["トンネル", "品質管理", "掘削"],
         },
         {
-            'id': 3,
-            'title': '橋梁工事の品質管理',
-            'summary': '橋梁工事の品質管理ポイント',
-            'content': '橋梁工事では、コンクリート品質と溶接品質が重要です。',
-            'category': '品質管理',
-            'tags': ['橋梁', '品質管理', 'コンクリート'],
+            "id": 3,
+            "title": "橋梁工事の品質管理",
+            "summary": "橋梁工事の品質管理ポイント",
+            "content": "橋梁工事では、コンクリート品質と溶接品質が重要です。",
+            "category": "品質管理",
+            "tags": ["橋梁", "品質管理", "コンクリート"],
         },
     ]
 
@@ -56,8 +58,8 @@ class TestCalculateTagSimilarityVariousCases:
         - Jaccard係数が1.0を返す
         - 完全一致が正しく検出される
         """
-        tags1 = ['橋梁', '施工計画', '安全']
-        tags2 = ['橋梁', '施工計画', '安全']
+        tags1 = ["橋梁", "施工計画", "安全"]
+        tags2 = ["橋梁", "施工計画", "安全"]
 
         similarity = engine.calculate_tag_similarity(tags1, tags2)
 
@@ -71,8 +73,8 @@ class TestCalculateTagSimilarityVariousCases:
         - Jaccard係数が0.0を返す
         - 共通タグなしが正しく検出される
         """
-        tags1 = ['橋梁', '施工計画']
-        tags2 = ['トンネル', '品質管理']
+        tags1 = ["橋梁", "施工計画"]
+        tags2 = ["トンネル", "品質管理"]
 
         similarity = engine.calculate_tag_similarity(tags1, tags2)
 
@@ -86,8 +88,8 @@ class TestCalculateTagSimilarityVariousCases:
         - 適切なJaccard係数が計算される
         - 重複率に応じたスコアが返される
         """
-        tags1 = ['橋梁', '施工計画', '安全']
-        tags2 = ['橋梁', '品質管理', '検査']
+        tags1 = ["橋梁", "施工計画", "安全"]
+        tags2 = ["橋梁", "品質管理", "検査"]
 
         similarity = engine.calculate_tag_similarity(tags1, tags2)
 
@@ -104,7 +106,7 @@ class TestCalculateTagSimilarityVariousCases:
         - エラーが発生しない
         """
         tags1 = []
-        tags2 = ['橋梁', '施工計画']
+        tags2 = ["橋梁", "施工計画"]
 
         similarity = engine.calculate_tag_similarity(tags1, tags2)
 
@@ -118,8 +120,8 @@ class TestCalculateTagSimilarityVariousCases:
         - 大文字小文字が統一される
         - 'Bridge'と'bridge'が同一視される
         """
-        tags1 = ['Bridge', 'Construction']
-        tags2 = ['bridge', 'construction']
+        tags1 = ["Bridge", "Construction"]
+        tags2 = ["bridge", "construction"]
 
         similarity = engine.calculate_tag_similarity(tags1, tags2)
 
@@ -134,8 +136,8 @@ class TestCalculateTagSimilarityVariousCases:
         - 重複タグはセットとして処理される
         - 正しくユニーク化される
         """
-        tags1 = ['橋梁', '橋梁', '施工計画']
-        tags2 = ['橋梁', '施工計画', '施工計画']
+        tags1 = ["橋梁", "橋梁", "施工計画"]
+        tags2 = ["橋梁", "施工計画", "施工計画"]
 
         similarity = engine.calculate_tag_similarity(tags1, tags2)
 
@@ -168,8 +170,8 @@ class TestCategorySimilarityExactMatch:
         目的:
         - 同一カテゴリは1.0を返す
         """
-        cat1 = '施工計画'
-        cat2 = '施工計画'
+        cat1 = "施工計画"
+        cat2 = "施工計画"
 
         similarity = engine.calculate_category_similarity(cat1, cat2)
 
@@ -182,8 +184,8 @@ class TestCategorySimilarityExactMatch:
         目的:
         - 異なるカテゴリは0.0を返す
         """
-        cat1 = '施工計画'
-        cat2 = '品質管理'
+        cat1 = "施工計画"
+        cat2 = "品質管理"
 
         similarity = engine.calculate_category_similarity(cat1, cat2)
 
@@ -196,8 +198,8 @@ class TestCategorySimilarityExactMatch:
         目的:
         - 大文字小文字が統一される
         """
-        cat1 = 'Construction'
-        cat2 = 'construction'
+        cat1 = "Construction"
+        cat2 = "construction"
 
         similarity = engine.calculate_category_similarity(cat1, cat2)
 
@@ -211,8 +213,8 @@ class TestCategorySimilarityExactMatch:
         - 空カテゴリは0.0を返す
         - エラーが発生しない
         """
-        cat1 = ''
-        cat2 = '施工計画'
+        cat1 = ""
+        cat2 = "施工計画"
 
         similarity = engine.calculate_category_similarity(cat1, cat2)
 
@@ -225,8 +227,8 @@ class TestCategorySimilarityExactMatch:
         目的:
         - 両方空の場合は0.0を返す
         """
-        cat1 = ''
-        cat2 = ''
+        cat1 = ""
+        cat2 = ""
 
         similarity = engine.calculate_category_similarity(cat1, cat2)
 
@@ -249,18 +251,12 @@ class TestCacheMechanism:
 
         # 1回目の呼び出し
         result1 = engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=5,
-            algorithm='hybrid'
+            target_item, candidate_items, limit=5, algorithm="hybrid"
         )
 
         # 2回目の呼び出し（キャッシュから取得されるはず）
         result2 = engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=5,
-            algorithm='hybrid'
+            target_item, candidate_items, limit=5, algorithm="hybrid"
         )
 
         # 結果が同一
@@ -286,10 +282,7 @@ class TestCacheMechanism:
 
         # 1回目の呼び出し
         result1 = short_ttl_engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=5,
-            algorithm='hybrid'
+            target_item, candidate_items, limit=5, algorithm="hybrid"
         )
 
         # キャッシュが存在することを確認
@@ -298,14 +291,12 @@ class TestCacheMechanism:
 
         # TTL期限を待つ
         import time
+
         time.sleep(1.1)
 
         # 2回目の呼び出し（キャッシュ期限切れ）
         result2 = short_ttl_engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=5,
-            algorithm='hybrid'
+            target_item, candidate_items, limit=5, algorithm="hybrid"
         )
 
         # 結果は同じだが、再計算されている
@@ -324,26 +315,17 @@ class TestCacheMechanism:
 
         # hybrid, limit=5
         result1 = engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=5,
-            algorithm='hybrid'
+            target_item, candidate_items, limit=5, algorithm="hybrid"
         )
 
         # tag, limit=5
         result2 = engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=5,
-            algorithm='tag'
+            target_item, candidate_items, limit=5, algorithm="tag"
         )
 
         # hybrid, limit=3
         result3 = engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=3,
-            algorithm='hybrid'
+            target_item, candidate_items, limit=3, algorithm="hybrid"
         )
 
         # 異なるキャッシュキーが生成される
@@ -373,18 +355,14 @@ class TestGetRecommendationsEmptyInput:
         - エラーが発生しない
         """
         target_item = {
-            'id': 1,
-            'title': 'テスト',
-            'category': '施工計画',
-            'tags': ['橋梁']
+            "id": 1,
+            "title": "テスト",
+            "category": "施工計画",
+            "tags": ["橋梁"],
         }
         candidate_items = []
 
-        result = engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=5
-        )
+        result = engine.get_related_items(target_item, candidate_items, limit=5)
 
         assert result == []
 
@@ -397,18 +375,14 @@ class TestGetRecommendationsEmptyInput:
         - 空リストが返される
         """
         target_item = {
-            'id': 1,
-            'title': 'テスト',
-            'category': '施工計画',
-            'tags': ['橋梁']
+            "id": 1,
+            "title": "テスト",
+            "category": "施工計画",
+            "tags": ["橋梁"],
         }
         candidate_items = [target_item]
 
-        result = engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=5
-        )
+        result = engine.get_related_items(target_item, candidate_items, limit=5)
 
         assert result == []
 
@@ -427,8 +401,8 @@ class TestGetRecommendationsEmptyInput:
             target_item,
             candidate_items,
             limit=5,
-            algorithm='hybrid',
-            min_score=1.0  # 完全一致のみ（自分自身は除外されるので該当なし）
+            algorithm="hybrid",
+            min_score=1.0,  # 完全一致のみ（自分自身は除外されるので該当なし）
         )
 
         assert result == []
@@ -445,10 +419,7 @@ class TestGetRecommendationsEmptyInput:
         candidate_items = sample_items
 
         result = engine.get_related_items(
-            target_item,
-            candidate_items,
-            limit=1,  # 1件のみ
-            algorithm='hybrid'
+            target_item, candidate_items, limit=1, algorithm="hybrid"  # 1件のみ
         )
 
         # 最大1件
@@ -456,8 +427,8 @@ class TestGetRecommendationsEmptyInput:
 
         # 結果がある場合、recommendation_scoreが含まれる
         if result:
-            assert 'recommendation_score' in result[0]
-            assert 'recommendation_reasons' in result[0]
+            assert "recommendation_score" in result[0]
+            assert "recommendation_reasons" in result[0]
 
 
 class TestTokenization:
@@ -471,15 +442,15 @@ class TestTokenization:
         - Bi-gram方式で分割される
         - 適切なトークンが生成される
         """
-        text = '橋梁工事'
+        text = "橋梁工事"
 
         tokens = engine._tokenize(text)
 
         # Bi-gram: '橋梁', '梁工', '工事' + 元の単語 '橋梁工事'
-        assert '橋梁' in tokens
-        assert '梁工' in tokens
-        assert '工事' in tokens
-        assert '橋梁工事' in tokens
+        assert "橋梁" in tokens
+        assert "梁工" in tokens
+        assert "工事" in tokens
+        assert "橋梁工事" in tokens
 
     def test_tokenize_english_text(self, engine):
         """
@@ -489,14 +460,14 @@ class TestTokenization:
         - 英単語が小文字化される
         - 2文字以上の単語が抽出される
         """
-        text = 'Bridge Construction Project'
+        text = "Bridge Construction Project"
 
         tokens = engine._tokenize(text)
 
         # 英単語が小文字化されて含まれる
-        assert 'bridge' in tokens
-        assert 'construction' in tokens
-        assert 'project' in tokens
+        assert "bridge" in tokens
+        assert "construction" in tokens
+        assert "project" in tokens
 
     def test_tokenize_empty_text(self, engine):
         """
@@ -506,7 +477,7 @@ class TestTokenization:
         - 空リストが返される
         - エラーが発生しない
         """
-        text = ''
+        text = ""
 
         tokens = engine._tokenize(text)
 
@@ -520,14 +491,14 @@ class TestTokenization:
         - 日本語と英語が両方トークン化される
         - 適切に分割される
         """
-        text = '橋梁 Bridge 工事 Construction'
+        text = "橋梁 Bridge 工事 Construction"
 
         tokens = engine._tokenize(text)
 
         # 日本語トークン
-        assert '橋梁' in tokens
-        assert '工事' in tokens
+        assert "橋梁" in tokens
+        assert "工事" in tokens
 
         # 英語トークン
-        assert 'bridge' in tokens
-        assert 'construction' in tokens
+        assert "bridge" in tokens
+        assert "construction" in tokens

@@ -8,18 +8,19 @@ MS365 File Preview機能のユニットテスト
 - APIエンドポイント（/preview, /download, /thumbnail）
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from flask import Flask
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from flask import Flask
 
 
 @pytest.fixture
 def app():
     """Flaskアプリケーションのフィクスチャ"""
     app = Flask(__name__)
-    app.config['TESTING'] = True
-    app.config['JWT_SECRET_KEY'] = 'test-secret-key'
+    app.config["TESTING"] = True
+    app.config["JWT_SECRET_KEY"] = "test-secret-key"
     return app
 
 
@@ -32,7 +33,7 @@ def client(app):
 @pytest.fixture
 def mock_graph_client():
     """Microsoft Graph Clientのモック"""
-    with patch('backend.integrations.microsoft_graph.MicrosoftGraphClient') as mock:
+    with patch("backend.integrations.microsoft_graph.MicrosoftGraphClient") as mock:
         client_instance = mock.return_value
         client_instance.is_configured.return_value = True
         yield client_instance
@@ -41,7 +42,7 @@ def mock_graph_client():
 @pytest.fixture
 def mock_get_graph_client(mock_graph_client):
     """get_ms_graph_client() 関数のモック"""
-    with patch('backend.app_v2.get_ms_graph_client') as mock_func:
+    with patch("backend.app_v2.get_ms_graph_client") as mock_func:
         mock_func.return_value = mock_graph_client
         yield mock_func
 
@@ -49,9 +50,10 @@ def mock_get_graph_client(mock_graph_client):
 @pytest.fixture
 def mock_logging():
     """監査ログ関数のモック"""
-    with patch('backend.app_v2.log_change') as mock_change, \
-         patch('backend.app_v2.log_access') as mock_access:
-        yield {'change': mock_change, 'access': mock_access}
+    with patch("backend.app_v2.log_change") as mock_change, patch(
+        "backend.app_v2.log_access"
+    ) as mock_access:
+        yield {"change": mock_change, "access": mock_access}
 
 
 class TestMS365FilePreview:
@@ -66,11 +68,13 @@ class TestMS365FilePreview:
         file_id = "test-file-456"
         file_name = "document.docx"
 
-        expected_url = "https://contoso.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc={file_id}"
+        expected_url = (
+            "https://contoso.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc={file_id}"
+        )
         mock_graph_client.get_file_preview_url.return_value = {
-            'preview_url': expected_url,
-            'type': 'office',
-            'file_name': file_name
+            "preview_url": expected_url,
+            "type": "office",
+            "file_name": file_name,
         }
 
         # Act
@@ -78,11 +82,12 @@ class TestMS365FilePreview:
 
         # Assert
         assert result is not None
-        assert result['preview_url'] == expected_url
-        assert result['type'] == 'office'
-        assert result['file_name'] == file_name
-        mock_graph_client.get_file_preview_url.assert_called_once_with(drive_id, file_id)
-
+        assert result["preview_url"] == expected_url
+        assert result["type"] == "office"
+        assert result["file_name"] == file_name
+        mock_graph_client.get_file_preview_url.assert_called_once_with(
+            drive_id, file_id
+        )
 
     def test_get_file_preview_url_pdf(self, mock_graph_client):
         """
@@ -93,11 +98,13 @@ class TestMS365FilePreview:
         file_id = "test-pdf-789"
         file_name = "report.pdf"
 
-        expected_url = "https://contoso.sharepoint.com/_layouts/15/embed.aspx?UniqueId={file_id}"
+        expected_url = (
+            "https://contoso.sharepoint.com/_layouts/15/embed.aspx?UniqueId={file_id}"
+        )
         mock_graph_client.get_file_preview_url.return_value = {
-            'preview_url': expected_url,
-            'type': 'pdf',
-            'file_name': file_name
+            "preview_url": expected_url,
+            "type": "pdf",
+            "file_name": file_name,
         }
 
         # Act
@@ -105,10 +112,9 @@ class TestMS365FilePreview:
 
         # Assert
         assert result is not None
-        assert result['preview_url'] == expected_url
-        assert result['type'] == 'pdf'
-        assert result['file_name'] == file_name
-
+        assert result["preview_url"] == expected_url
+        assert result["type"] == "pdf"
+        assert result["file_name"] == file_name
 
     def test_get_file_preview_url_image(self, mock_graph_client):
         """
@@ -119,11 +125,13 @@ class TestMS365FilePreview:
         file_id = "test-image-101"
         file_name = "photo.jpg"
 
-        expected_url = "https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{file_id}/content"
+        expected_url = (
+            "https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{file_id}/content"
+        )
         mock_graph_client.get_file_preview_url.return_value = {
-            'preview_url': expected_url.format(drive_id=drive_id, file_id=file_id),
-            'type': 'image',
-            'file_name': file_name
+            "preview_url": expected_url.format(drive_id=drive_id, file_id=file_id),
+            "type": "image",
+            "file_name": file_name,
         }
 
         # Act
@@ -131,10 +139,9 @@ class TestMS365FilePreview:
 
         # Assert
         assert result is not None
-        assert 'preview_url' in result
-        assert result['type'] == 'image'
-        assert result['file_name'] == file_name
-
+        assert "preview_url" in result
+        assert result["type"] == "image"
+        assert result["file_name"] == file_name
 
     def test_get_file_thumbnail_success(self, mock_graph_client):
         """
@@ -145,11 +152,11 @@ class TestMS365FilePreview:
         file_id = "test-file-456"
         size = "medium"
 
-        thumbnail_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR...'  # PNG header
+        thumbnail_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR..."  # PNG header
         mock_graph_client.get_file_thumbnail.return_value = {
-            'data': thumbnail_data,
-            'content_type': 'image/png',
-            'size': size
+            "data": thumbnail_data,
+            "content_type": "image/png",
+            "size": size,
         }
 
         # Act
@@ -157,11 +164,12 @@ class TestMS365FilePreview:
 
         # Assert
         assert result is not None
-        assert result['data'] == thumbnail_data
-        assert result['content_type'] == 'image/png'
-        assert result['size'] == size
-        mock_graph_client.get_file_thumbnail.assert_called_once_with(drive_id, file_id, size)
-
+        assert result["data"] == thumbnail_data
+        assert result["content_type"] == "image/png"
+        assert result["size"] == size
+        mock_graph_client.get_file_thumbnail.assert_called_once_with(
+            drive_id, file_id, size
+        )
 
     def test_get_file_thumbnail_not_available(self, mock_graph_client):
         """
@@ -179,8 +187,9 @@ class TestMS365FilePreview:
 
         # Assert
         assert result is None
-        mock_graph_client.get_file_thumbnail.assert_called_once_with(drive_id, file_id, size)
-
+        mock_graph_client.get_file_thumbnail.assert_called_once_with(
+            drive_id, file_id, size
+        )
 
     def test_get_file_mime_type(self, mock_graph_client):
         """
@@ -188,13 +197,22 @@ class TestMS365FilePreview:
         """
         # Arrange
         test_cases = [
-            ('document.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
-            ('spreadsheet.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
-            ('presentation.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'),
-            ('report.pdf', 'application/pdf'),
-            ('photo.jpg', 'image/jpeg'),
-            ('image.png', 'image/png'),
-            ('document.txt', 'text/plain'),
+            (
+                "document.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ),
+            (
+                "spreadsheet.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            (
+                "presentation.pptx",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ),
+            ("report.pdf", "application/pdf"),
+            ("photo.jpg", "image/jpeg"),
+            ("image.png", "image/png"),
+            ("document.txt", "text/plain"),
         ]
 
         for file_name, expected_mime in test_cases:
@@ -206,10 +224,11 @@ class TestMS365FilePreview:
             # Assert
             assert result == expected_mime
 
-
-    @patch('backend.app_v2.get_ms_graph_client')
-    @patch('backend.app_v2.log_access')
-    def test_preview_endpoint_success(self, mock_log_access, mock_get_client, app, client, mock_graph_client):
+    @patch("backend.app_v2.get_ms_graph_client")
+    @patch("backend.app_v2.log_access")
+    def test_preview_endpoint_success(
+        self, mock_log_access, mock_get_client, app, client, mock_graph_client
+    ):
         """
         /preview エンドポイント成功を検証
         """
@@ -218,30 +237,38 @@ class TestMS365FilePreview:
 
         drive_id = "test-drive-123"
         file_id = "test-file-456"
-        preview_url = "https://contoso.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc={file_id}"
+        preview_url = (
+            "https://contoso.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc={file_id}"
+        )
 
         mock_graph_client.get_file_preview_url.return_value = {
-            'preview_url': preview_url,
-            'type': 'office',
-            'file_name': 'document.docx'
+            "preview_url": preview_url,
+            "type": "office",
+            "file_name": "document.docx",
         }
 
         # Mock JWT authentication
-        with patch('backend.app_v2.jwt_required', lambda fn: fn):
-            with patch('backend.app_v2.get_jwt_identity', return_value='test-user'):
+        with patch("backend.app_v2.jwt_required", lambda fn: fn):
+            with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Import the route handler
                     from backend.app_v2 import app as flask_app
 
                     # Act
-                    response = client.get(f'/api/ms365/files/preview?drive_id={drive_id}&file_id={file_id}')
+                    response = client.get(
+                        f"/api/ms365/files/preview?drive_id={drive_id}&file_id={file_id}"
+                    )
 
         # Assert (構造的な検証のみ - 実装依存の詳細は検証しない)
-        assert mock_graph_client.get_file_preview_url.called or response.status_code in [200, 404, 500]
+        assert (
+            mock_graph_client.get_file_preview_url.called
+            or response.status_code in [200, 404, 500]
+        )
 
-
-    @patch('backend.app_v2.get_ms_graph_client')
-    def test_preview_endpoint_missing_drive_id(self, mock_get_client, app, client, mock_graph_client):
+    @patch("backend.app_v2.get_ms_graph_client")
+    def test_preview_endpoint_missing_drive_id(
+        self, mock_get_client, app, client, mock_graph_client
+    ):
         """
         drive_id パラメータ欠如を検証（400エラー）
         """
@@ -250,19 +277,20 @@ class TestMS365FilePreview:
         file_id = "test-file-456"
 
         # Mock JWT authentication
-        with patch('backend.app_v2.jwt_required', lambda fn: fn):
-            with patch('backend.app_v2.get_jwt_identity', return_value='test-user'):
+        with patch("backend.app_v2.jwt_required", lambda fn: fn):
+            with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Act
-                    response = client.get(f'/api/ms365/files/preview?file_id={file_id}')
+                    response = client.get(f"/api/ms365/files/preview?file_id={file_id}")
 
         # Assert (実装依存のためステータスコードのみ検証)
         assert response.status_code in [400, 404, 500]
 
-
-    @patch('backend.app_v2.get_ms_graph_client')
-    @patch('backend.app_v2.log_access')
-    def test_download_endpoint_success(self, mock_log_access, mock_get_client, app, client, mock_graph_client):
+    @patch("backend.app_v2.get_ms_graph_client")
+    @patch("backend.app_v2.log_access")
+    def test_download_endpoint_success(
+        self, mock_log_access, mock_get_client, app, client, mock_graph_client
+    ):
         """
         /download エンドポイント成功を検証
         """
@@ -275,25 +303,32 @@ class TestMS365FilePreview:
         file_name = "document.docx"
 
         mock_graph_client.download_file.return_value = {
-            'content': file_content,
-            'file_name': file_name,
-            'mime_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            "content": file_content,
+            "file_name": file_name,
+            "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         }
 
         # Mock JWT authentication
-        with patch('backend.app_v2.jwt_required', lambda fn: fn):
-            with patch('backend.app_v2.get_jwt_identity', return_value='test-user'):
+        with patch("backend.app_v2.jwt_required", lambda fn: fn):
+            with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Act
-                    response = client.get(f'/api/ms365/files/download?drive_id={drive_id}&file_id={file_id}')
+                    response = client.get(
+                        f"/api/ms365/files/download?drive_id={drive_id}&file_id={file_id}"
+                    )
 
         # Assert (構造的な検証のみ)
-        assert mock_graph_client.download_file.called or response.status_code in [200, 404, 500]
+        assert mock_graph_client.download_file.called or response.status_code in [
+            200,
+            404,
+            500,
+        ]
 
-
-    @patch('backend.app_v2.get_ms_graph_client')
-    @patch('backend.app_v2.log_access')
-    def test_thumbnail_endpoint_success(self, mock_log_access, mock_get_client, app, client, mock_graph_client):
+    @patch("backend.app_v2.get_ms_graph_client")
+    @patch("backend.app_v2.log_access")
+    def test_thumbnail_endpoint_success(
+        self, mock_log_access, mock_get_client, app, client, mock_graph_client
+    ):
         """
         /thumbnail エンドポイント成功を検証
         """
@@ -303,24 +338,30 @@ class TestMS365FilePreview:
         drive_id = "test-drive-123"
         file_id = "test-file-456"
         size = "medium"
-        thumbnail_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR...'
+        thumbnail_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR..."
 
         mock_graph_client.get_file_thumbnail.return_value = {
-            'data': thumbnail_data,
-            'content_type': 'image/png',
-            'size': size
+            "data": thumbnail_data,
+            "content_type": "image/png",
+            "size": size,
         }
 
         # Mock JWT authentication
-        with patch('backend.app_v2.jwt_required', lambda fn: fn):
-            with patch('backend.app_v2.get_jwt_identity', return_value='test-user'):
+        with patch("backend.app_v2.jwt_required", lambda fn: fn):
+            with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Act
-                    response = client.get(f'/api/ms365/files/thumbnail?drive_id={drive_id}&file_id={file_id}&size={size}')
+                    response = client.get(
+                        f"/api/ms365/files/thumbnail?drive_id={drive_id}&file_id={file_id}&size={size}"
+                    )
 
         # Assert (構造的な検証のみ)
-        assert mock_graph_client.get_file_thumbnail.called or response.status_code in [200, 404, 500]
+        assert mock_graph_client.get_file_thumbnail.called or response.status_code in [
+            200,
+            404,
+            500,
+        ]
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

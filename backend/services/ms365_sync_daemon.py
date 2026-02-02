@@ -6,10 +6,10 @@ Microsoft 365同期デーモン
 systemdサービスとして実行されることを想定
 """
 
-import os
-import sys
 import logging
+import os
 import signal
+import sys
 import time
 from pathlib import Path
 
@@ -17,17 +17,19 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
 
-from services.ms365_scheduler_service import MS365SchedulerService
 from data_access import DataAccessLayer
+from services.ms365_scheduler_service import MS365SchedulerService
 
 # ロギング設定
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler(os.environ.get('MKS_LOG_FILE', 'logs/ms365-sync-daemon.log'))
-    ]
+        logging.FileHandler(
+            os.environ.get("MKS_LOG_FILE", "logs/ms365-sync-daemon.log")
+        ),
+    ],
 )
 
 logger = logging.getLogger(__name__)

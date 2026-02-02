@@ -2,13 +2,13 @@
 Unit tests for TOTP Manager (MFA functionality)
 """
 
-import pytest
-import pyotp
 import base64
 from io import BytesIO
-from PIL import Image
 
+import pyotp
+import pytest
 from auth.totp_manager import TOTPManager
+from PIL import Image
 
 
 class TestTOTPManager:
@@ -22,7 +22,7 @@ class TestTOTPManager:
         # Check format
         assert secret is not None
         assert len(secret) == 32
-        assert all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567' for c in secret)
+        assert all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" for c in secret)
 
         # Check uniqueness
         secret2 = manager.generate_totp_secret()
@@ -49,7 +49,7 @@ class TestTOTPManager:
         # Verify it's a valid PNG image
         try:
             img = Image.open(BytesIO(qr_data))
-            assert img.format == 'PNG'
+            assert img.format == "PNG"
         except Exception as e:
             pytest.fail(f"Invalid PNG image: {e}")
 
@@ -85,7 +85,9 @@ class TestTOTPManager:
         assert manager.verify_totp(secret, "12345") is False  # Too short
         assert manager.verify_totp(secret, "1234567") is False  # Too long
         assert manager.verify_totp(secret, "abcdef") is False  # Not digits
-        assert manager.verify_totp(secret, "12-34-56") is False  # Contains dashes (after stripping)
+        assert (
+            manager.verify_totp(secret, "12-34-56") is False
+        )  # Contains dashes (after stripping)
 
     def test_verify_totp_with_whitespace(self):
         """Test TOTP verification handles whitespace"""
@@ -97,7 +99,10 @@ class TestTOTPManager:
 
         # Test with whitespace
         assert manager.verify_totp(secret, f" {current_code} ") is True
-        assert manager.verify_totp(secret, f"{current_code[:3]} {current_code[3:]}") is True
+        assert (
+            manager.verify_totp(secret, f"{current_code[:3]} {current_code[3:]}")
+            is True
+        )
 
     def test_generate_backup_codes(self):
         """Test backup code generation"""
@@ -111,10 +116,14 @@ class TestTOTPManager:
 
         # Check format (XXXX-XXXX-XXXX)
         for code in codes:
-            parts = code.split('-')
+            parts = code.split("-")
             assert len(parts) == 3
             assert all(len(part) == 4 for part in parts)
-            assert all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' for part in parts for c in part)
+            assert all(
+                c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+                for part in parts
+                for c in part
+            )
 
     def test_generate_backup_codes_custom_count(self):
         """Test backup code generation with custom count"""
@@ -135,7 +144,7 @@ class TestTOTPManager:
 
         # Check format (bcrypt hash starts with $2b$)
         assert hashed is not None
-        assert hashed.startswith('$2b$') or hashed.startswith('$2a$')
+        assert hashed.startswith("$2b$") or hashed.startswith("$2a$")
         assert len(hashed) == 60  # Bcrypt hash length
 
         # Check uniqueness (same code should produce different hashes due to salt)
@@ -219,9 +228,7 @@ class TestTOTPManager:
 
         secret = "JBSWY3DPEHPK3PXP"
         uri = manager.get_provisioning_uri(
-            "test@example.com",
-            secret,
-            issuer="Custom Issuer"
+            "test@example.com", secret, issuer="Custom Issuer"
         )
 
         assert uri.startswith("otpauth://totp/")
@@ -269,5 +276,5 @@ class TestTOTPManager:
         assert manager.verify_totp(secret, None) is False
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

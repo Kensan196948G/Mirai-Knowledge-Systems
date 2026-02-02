@@ -14,46 +14,44 @@ PostgreSQLとJSON両方のバックエンドをサポート
     MKS_DB_POOL_RECYCLE: 接続再利用時間（秒）
     MKS_DB_ECHO: SQLログ出力
 """
-import os
+
 import json
-from pathlib import Path
-from datetime import datetime, date
+import os
 from contextlib import contextmanager
-from typing import Any, Optional, Generator
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any, Generator, Optional
 
-from sqlalchemy import create_engine, text, event
-from sqlalchemy.orm import sessionmaker, scoped_session, Session
-from sqlalchemy.pool import QueuePool, NullPool
-
-from models import (
-    Base, User, Role, Permission, UserRole, RolePermission,
-    Knowledge, SOP, Regulation, Incident, Consultation, Approval,
-    Notification, NotificationRead, AccessLog, ChangeLog, DistributionLog
-)
-
+from models import (SOP, AccessLog, Approval, Base, ChangeLog, Consultation,
+                    DistributionLog, Incident, Knowledge, Notification,
+                    NotificationRead, Permission, Regulation, Role,
+                    RolePermission, User, UserRole)
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool, QueuePool
 
 # ============================================================
 # 設定クラス
 # ============================================================
+
 
 class DatabaseConfig:
     """データベース設定クラス"""
 
     def __init__(self):
         self.database_url = os.getenv(
-            'DATABASE_URL',
-            'postgresql://postgres:password@localhost:5432/mirai_knowledge_db'
+            "DATABASE_URL",
+            "postgresql://postgres:password@localhost:5432/mirai_knowledge_db",
         )
-        self.use_json = os.getenv('MKS_USE_JSON', 'false').lower() == 'true'
-        self.json_data_dir = Path(os.getenv(
-            'MKS_DATA_DIR',
-            Path(__file__).parent / 'data'
-        ))
-        self.pool_size = int(os.getenv('MKS_DB_POOL_SIZE', '10'))
-        self.max_overflow = int(os.getenv('MKS_DB_MAX_OVERFLOW', '20'))
-        self.pool_timeout = int(os.getenv('MKS_DB_POOL_TIMEOUT', '30'))
-        self.pool_recycle = int(os.getenv('MKS_DB_POOL_RECYCLE', '3600'))
-        self.echo = os.getenv('MKS_DB_ECHO', 'false').lower() in ('true', '1', 'yes')
+        self.use_json = os.getenv("MKS_USE_JSON", "false").lower() == "true"
+        self.json_data_dir = Path(
+            os.getenv("MKS_DATA_DIR", Path(__file__).parent / "data")
+        )
+        self.pool_size = int(os.getenv("MKS_DB_POOL_SIZE", "10"))
+        self.max_overflow = int(os.getenv("MKS_DB_MAX_OVERFLOW", "20"))
+        self.pool_timeout = int(os.getenv("MKS_DB_POOL_TIMEOUT", "30"))
+        self.pool_recycle = int(os.getenv("MKS_DB_POOL_RECYCLE", "3600"))
+        self.echo = os.getenv("MKS_DB_ECHO", "false").lower() in ("true", "1", "yes")
         self._postgres_available = None
 
     def is_postgres_available(self) -> bool:
@@ -68,7 +66,7 @@ class DatabaseConfig:
             test_engine = create_engine(
                 self.database_url,
                 poolclass=NullPool,
-                connect_args={'connect_timeout': 3}
+                connect_args={"connect_timeout": 3},
             )
             with test_engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
@@ -108,10 +106,10 @@ def get_engine():
             pool_timeout=config.pool_timeout,
             pool_recycle=config.pool_recycle,
             pool_pre_ping=True,
-            echo=config.echo
+            echo=config.echo,
         )
 
-        @event.listens_for(_engine, 'connect')
+        @event.listens_for(_engine, "connect")
         def set_search_path(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             cursor.execute("SET search_path TO public, auth, audit")
@@ -126,7 +124,9 @@ def get_session_factory():
     if _session_factory is None and not config.use_json:
         engine = get_engine()
         if engine:
-            _session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            _session_factory = sessionmaker(
+                autocommit=False, autoflush=False, bind=engine
+            )
     return _session_factory
 
 
@@ -148,7 +148,9 @@ def get_db_session() -> Generator[Session, None, None]:
     """データベースセッションのコンテキストマネージャ"""
     factory = get_session_factory()
     if factory is None:
-        raise RuntimeError("Database not configured. Use JSON mode or configure PostgreSQL.")
+        raise RuntimeError(
+            "Database not configured. Use JSON mode or configure PostgreSQL."
+        )
 
     session = factory()
     try:
@@ -200,6 +202,7 @@ def init_db():
 # JSONバックエンド（開発・フォールバック用）
 # ============================================================
 
+
 class JSONBackend:
     """JSON形式のデータバックエンド"""
 
@@ -216,7 +219,7 @@ class JSONBackend:
         if not filepath.exists():
             return []
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (json.JSONDecodeError, IOError):
             return []
@@ -224,9 +227,9 @@ class JSONBackend:
     def save(self, filename: str, data: list) -> None:
         """JSONファイルに保存（アトミック書き込み）"""
         filepath = self._get_filepath(filename)
-        temp_path = filepath.with_suffix('.tmp')
+        temp_path = filepath.with_suffix(".tmp")
         try:
-            with open(temp_path, 'w', encoding='utf-8') as f:
+            with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2, default=str)
             temp_path.replace(filepath)
         except Exception:
@@ -238,17 +241,17 @@ class JSONBackend:
         """IDでアイテムを検索"""
         data = self.load(filename)
         for item in data:
-            if item.get('id') == id:
+            if item.get("id") == id:
                 return item
         return None
 
     def insert(self, filename: str, item: dict) -> dict:
         """アイテムを挿入"""
         data = self.load(filename)
-        max_id = max((d.get('id', 0) for d in data), default=0)
-        item['id'] = max_id + 1
-        item['created_at'] = datetime.now().isoformat()
-        item['updated_at'] = datetime.now().isoformat()
+        max_id = max((d.get("id", 0) for d in data), default=0)
+        item["id"] = max_id + 1
+        item["created_at"] = datetime.now().isoformat()
+        item["updated_at"] = datetime.now().isoformat()
         data.append(item)
         self.save(filename, data)
         return item
@@ -257,8 +260,8 @@ class JSONBackend:
         """アイテムを更新"""
         data = self.load(filename)
         for i, item in enumerate(data):
-            if item.get('id') == id:
-                updates['updated_at'] = datetime.now().isoformat()
+            if item.get("id") == id:
+                updates["updated_at"] = datetime.now().isoformat()
                 data[i].update(updates)
                 self.save(filename, data)
                 return data[i]
@@ -268,7 +271,7 @@ class JSONBackend:
         """アイテムを削除"""
         data = self.load(filename)
         initial_len = len(data)
-        data = [d for d in data if d.get('id') != id]
+        data = [d for d in data if d.get("id") != id]
         if len(data) < initial_len:
             self.save(filename, data)
             return True
@@ -285,15 +288,15 @@ json_backend = JSONBackend(config.json_data_dir)
 
 # テーブル名とモデルのマッピング
 TABLE_MODEL_MAP = {
-    'knowledge.json': ('public.knowledge', Knowledge),
-    'sop.json': ('public.sop', SOP),
-    'regulations.json': ('public.regulations', Regulation),
-    'incidents.json': ('public.incidents', Incident),
-    'consultations.json': ('public.consultations', Consultation),
-    'approvals.json': ('public.approvals', Approval),
-    'notifications.json': ('public.notifications', Notification),
-    'users.json': ('auth.users', User),
-    'access_logs.json': ('audit.access_logs', AccessLog),
+    "knowledge.json": ("public.knowledge", Knowledge),
+    "sop.json": ("public.sop", SOP),
+    "regulations.json": ("public.regulations", Regulation),
+    "incidents.json": ("public.incidents", Incident),
+    "consultations.json": ("public.consultations", Consultation),
+    "approvals.json": ("public.approvals", Approval),
+    "notifications.json": ("public.notifications", Notification),
+    "users.json": ("auth.users", User),
+    "access_logs.json": ("audit.access_logs", AccessLog),
 }
 
 
@@ -339,40 +342,37 @@ def save_data(filename: str, data: list) -> None:
 def get_storage_mode() -> str:
     """現在のストレージモードを取得"""
     if config.use_json:
-        return 'json'
+        return "json"
     if config.is_postgres_available():
-        return 'postgresql'
-    return 'json_fallback'
+        return "postgresql"
+    return "json_fallback"
 
 
 # ============================================================
 # ヘルスチェック
 # ============================================================
 
+
 def check_database_health() -> dict:
     """データベースの健全性をチェック"""
     mode = get_storage_mode()
-    status = {
-        'mode': mode,
-        'healthy': False,
-        'details': {}
-    }
+    status = {"mode": mode, "healthy": False, "details": {}}
 
-    if mode in ('json', 'json_fallback'):
-        status['healthy'] = config.json_data_dir.exists()
-        status['details']['data_dir'] = str(config.json_data_dir)
-        status['details']['files'] = len(list(config.json_data_dir.glob('*.json')))
-        if mode == 'json_fallback':
-            status['details']['fallback_reason'] = 'PostgreSQL unavailable'
+    if mode in ("json", "json_fallback"):
+        status["healthy"] = config.json_data_dir.exists()
+        status["details"]["data_dir"] = str(config.json_data_dir)
+        status["details"]["files"] = len(list(config.json_data_dir.glob("*.json")))
+        if mode == "json_fallback":
+            status["details"]["fallback_reason"] = "PostgreSQL unavailable"
     else:
         try:
             with get_db_session() as session:
                 result = session.execute(text("SELECT version()")).fetchone()
-                status['healthy'] = True
-                status['details']['version'] = result[0] if result else 'unknown'
-                status['details']['pool_size'] = config.pool_size
+                status["healthy"] = True
+                status["details"]["version"] = result[0] if result else "unknown"
+                status["details"]["pool_size"] = config.pool_size
         except Exception as e:
-            status['healthy'] = False
-            status['details']['error'] = str(e)
+            status["healthy"] = False
+            status["details"]["error"] = str(e)
 
     return status

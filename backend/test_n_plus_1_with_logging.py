@@ -21,6 +21,7 @@ from sqlalchemy.engine import Engine
 # グローバルクエリカウンタ
 query_count = 0
 
+
 @event.listens_for(Engine, "before_cursor_execute")
 def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
     """クエリ実行前にカウントとログ出力"""
@@ -45,9 +46,9 @@ def get_count():
 
 def test_knowledge_list_optimization():
     """ナレッジ一覧取得のN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト1: ナレッジ一覧取得のN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
 
     from data_access import DataAccessLayer
 
@@ -72,9 +73,9 @@ def test_knowledge_list_optimization():
 
 def test_knowledge_by_id_optimization():
     """ナレッジ詳細取得のN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト2: ナレッジ詳細取得のN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
 
     from data_access import DataAccessLayer
 
@@ -107,9 +108,9 @@ def test_knowledge_by_id_optimization():
 
 def test_related_knowledge_optimization():
     """関連ナレッジ取得のN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト3: 関連ナレッジ取得のN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
 
     from data_access import DataAccessLayer
 
@@ -154,9 +155,9 @@ def test_related_knowledge_optimization():
 
 def test_batch_knowledge_access():
     """複数ナレッジアクセスのN+1クエリ最適化検証"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト4: 複数ナレッジアクセスのN+1クエリ最適化")
-    print("="*80)
+    print("=" * 80)
     print("  （一覧取得後に各アイテムのリレーションにアクセスするケース）")
 
     from data_access import DataAccessLayer
@@ -184,16 +185,18 @@ def test_batch_knowledge_access():
     if queries_after_access - queries_after_list == 0:
         print("  ✅ N+1クエリ最適化成功！リレーションが正しく先読みされています")
     else:
-        print(f"  ❌ N+1クエリ発生（{queries_after_access - queries_after_list}回の追加クエリ）")
+        print(
+            f"  ❌ N+1クエリ発生（{queries_after_access - queries_after_list}回の追加クエリ）"
+        )
 
     return queries_after_access
 
 
 def main():
     """メイン実行関数"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("N+1クエリ最適化検証スクリプト（SQLログ付き）")
-    print("="*80)
+    print("=" * 80)
 
     # PostgreSQL接続確認
     try:
@@ -220,13 +223,14 @@ def main():
     except Exception as e:
         print(f"\n❌ テスト実行エラー: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
     # サマリー
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("テスト結果サマリー")
-    print("="*80)
+    print("=" * 80)
 
     for test_name, query_count in results.items():
         if query_count <= 4:

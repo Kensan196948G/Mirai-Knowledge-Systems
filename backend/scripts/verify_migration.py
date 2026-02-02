@@ -11,23 +11,25 @@ JSONからPostgreSQLへのマイグレーション結果を検証するスクリ
     3. インデックスの存在確認
     4. サンプルデータの比較
 """
+
+import json
 import os
 import sys
-import json
 from typing import Dict, List, Tuple
 
 # パスを追加
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from database import SessionLocal
-from models import Knowledge, SOP, Incident, Consultation, Approval, Notification, User
+from models import (SOP, Approval, Consultation, Incident, Knowledge,
+                    Notification, User)
 from sqlalchemy import inspect
 
 
 class MigrationVerifier:
     """マイグレーション検証クラス"""
 
-    def __init__(self, data_dir='data'):
+    def __init__(self, data_dir="data"):
         self.data_dir = data_dir
         self.db = SessionLocal()
         self.errors = []
@@ -35,7 +37,7 @@ class MigrationVerifier:
 
     def __del__(self):
         """デストラクタでセッションをクローズ"""
-        if hasattr(self, 'db'):
+        if hasattr(self, "db"):
             self.db.close()
 
     def load_json(self, filename: str) -> List[Dict]:
@@ -46,14 +48,16 @@ class MigrationVerifier:
             return []
 
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 return data if isinstance(data, list) else []
         except Exception as e:
             self.errors.append(f"JSONファイル読み込みエラー ({filename}): {e}")
             return []
 
-    def verify_record_count(self, model, json_filename: str, entity_name: str) -> Tuple[bool, int, int]:
+    def verify_record_count(
+        self, model, json_filename: str, entity_name: str
+    ) -> Tuple[bool, int, int]:
         """
         レコード数を検証
 
@@ -87,7 +91,9 @@ class MigrationVerifier:
                 print(f"❌ {msg}")
             return False, json_count, db_count
 
-    def verify_data_integrity(self, model, json_filename: str, entity_name: str, sample_size: int = 5):
+    def verify_data_integrity(
+        self, model, json_filename: str, entity_name: str, sample_size: int = 5
+    ):
         """
         データ整合性を検証（サンプルデータ比較）
 
@@ -106,7 +112,7 @@ class MigrationVerifier:
 
         sample_data = json_data[:sample_size]
         for item in sample_data:
-            item_id = item.get('id')
+            item_id = item.get("id")
             if not item_id:
                 continue
 
@@ -118,8 +124,8 @@ class MigrationVerifier:
                     continue
 
                 # 主要フィールドを比較
-                if hasattr(db_record, 'title'):
-                    if item.get('title') == db_record.title:
+                if hasattr(db_record, "title"):
+                    if item.get("title") == db_record.title:
                         print(f"✅ ID={item_id}: タイトル一致")
                     else:
                         self.warnings.append(
@@ -137,26 +143,26 @@ class MigrationVerifier:
         print("-" * 60)
 
         expected_indexes = {
-            'knowledge': [
-                'idx_knowledge_category',
-                'idx_knowledge_status',
-                'idx_knowledge_updated',
-                'idx_knowledge_title',
-                'idx_knowledge_owner',
-                'idx_knowledge_project'
+            "knowledge": [
+                "idx_knowledge_category",
+                "idx_knowledge_status",
+                "idx_knowledge_updated",
+                "idx_knowledge_title",
+                "idx_knowledge_owner",
+                "idx_knowledge_project",
             ],
-            'sop': [
-                'idx_sop_category',
-                'idx_sop_status',
-                'idx_sop_title',
-                'idx_sop_version'
+            "sop": [
+                "idx_sop_category",
+                "idx_sop_status",
+                "idx_sop_title",
+                "idx_sop_version",
             ],
-            'incidents': [
-                'idx_incident_project',
-                'idx_incident_severity',
-                'idx_incident_status',
-                'idx_incident_date'
-            ]
+            "incidents": [
+                "idx_incident_project",
+                "idx_incident_severity",
+                "idx_incident_status",
+                "idx_incident_date",
+            ],
         }
 
         inspector = inspect(self.db.bind)
@@ -164,17 +170,21 @@ class MigrationVerifier:
         for table_name, expected_idx_list in expected_indexes.items():
             # publicスキーマのテーブルを指定
             try:
-                indexes = inspector.get_indexes(table_name, schema='public')
-                index_names = [idx['name'] for idx in indexes]
+                indexes = inspector.get_indexes(table_name, schema="public")
+                index_names = [idx["name"] for idx in indexes]
 
                 for expected_idx in expected_idx_list:
                     if expected_idx in index_names:
                         print(f"✅ {table_name}.{expected_idx}")
                     else:
-                        self.warnings.append(f"インデックス未作成: {table_name}.{expected_idx}")
+                        self.warnings.append(
+                            f"インデックス未作成: {table_name}.{expected_idx}"
+                        )
                         print(f"⚠️  {table_name}.{expected_idx} - 未作成")
             except Exception as e:
-                self.warnings.append(f"テーブル {table_name} のインデックス確認エラー: {e}")
+                self.warnings.append(
+                    f"テーブル {table_name} のインデックス確認エラー: {e}"
+                )
                 print(f"⚠️  {table_name}: インデックス確認エラー")
 
     def verify_foreign_keys(self):
@@ -184,15 +194,17 @@ class MigrationVerifier:
 
         inspector = inspect(self.db.bind)
 
-        tables_with_fk = ['knowledge', 'sop', 'incidents', 'consultations', 'approvals']
+        tables_with_fk = ["knowledge", "sop", "incidents", "consultations", "approvals"]
 
         for table_name in tables_with_fk:
             try:
-                foreign_keys = inspector.get_foreign_keys(table_name, schema='public')
+                foreign_keys = inspector.get_foreign_keys(table_name, schema="public")
                 if foreign_keys:
                     print(f"✅ {table_name}: {len(foreign_keys)}個の外部キー")
                     for fk in foreign_keys:
-                        print(f"   - {fk['name']}: {fk['constrained_columns']} -> {fk['referred_table']}.{fk['referred_columns']}")
+                        print(
+                            f"   - {fk['name']}: {fk['constrained_columns']} -> {fk['referred_table']}.{fk['referred_columns']}"
+                        )
                 else:
                     print(f"ℹ️  {table_name}: 外部キーなし")
             except Exception as e:
@@ -209,19 +221,21 @@ class MigrationVerifier:
         print("レコード数検証:")
         print("-" * 60)
         verifications = [
-            (Knowledge, 'knowledge.json', 'ナレッジ'),
-            (SOP, 'sop.json', 'SOP'),
-            (Incident, 'incidents.json', 'インシデント'),
-            (Consultation, 'consultations.json', '相談'),
-            (Approval, 'approvals.json', '承認'),
-            (Notification, 'notifications.json', '通知'),
-            (User, 'users.json', 'ユーザー')
+            (Knowledge, "knowledge.json", "ナレッジ"),
+            (SOP, "sop.json", "SOP"),
+            (Incident, "incidents.json", "インシデント"),
+            (Consultation, "consultations.json", "相談"),
+            (Approval, "approvals.json", "承認"),
+            (Notification, "notifications.json", "通知"),
+            (User, "users.json", "ユーザー"),
         ]
 
         total_json = 0
         total_db = 0
         for model, json_file, name in verifications:
-            success, json_count, db_count = self.verify_record_count(model, json_file, name)
+            success, json_count, db_count = self.verify_record_count(
+                model, json_file, name
+            )
             total_json += json_count
             total_db += db_count
 
@@ -230,8 +244,10 @@ class MigrationVerifier:
         print()
 
         # データ整合性検証（主要エンティティのみ）
-        self.verify_data_integrity(Knowledge, 'knowledge.json', 'ナレッジ', sample_size=5)
-        self.verify_data_integrity(SOP, 'sop.json', 'SOP', sample_size=3)
+        self.verify_data_integrity(
+            Knowledge, "knowledge.json", "ナレッジ", sample_size=5
+        )
+        self.verify_data_integrity(SOP, "sop.json", "SOP", sample_size=3)
 
         # インデックス検証
         self.verify_indexes()
@@ -270,8 +286,8 @@ def main():
     """メイン処理"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='PostgreSQLマイグレーション検証')
-    parser.add_argument('--data-dir', default='data', help='JSONデータディレクトリ')
+    parser = argparse.ArgumentParser(description="PostgreSQLマイグレーション検証")
+    parser.add_argument("--data-dir", default="data", help="JSONデータディレクトリ")
     args = parser.parse_args()
 
     verifier = MigrationVerifier(data_dir=args.data_dir)
@@ -288,5 +304,5 @@ def main():
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

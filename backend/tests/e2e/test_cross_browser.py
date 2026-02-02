@@ -2,12 +2,15 @@
 クロスブラウザE2Eテスト
 Playwright使用
 """
-import pytest
+
 import os
+
+import pytest
 
 # Playwrightのインポートを条件付きに
 try:
-    from playwright.sync_api import sync_playwright, expect
+    from playwright.sync_api import expect, sync_playwright
+
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
@@ -15,15 +18,14 @@ except ImportError:
 
 # Playwrightが利用不可の場合はスキップ
 pytestmark = pytest.mark.skipif(
-    not PLAYWRIGHT_AVAILABLE,
-    reason="Playwright is not installed"
+    not PLAYWRIGHT_AVAILABLE, reason="Playwright is not installed"
 )
 
 
 class TestCrossBrowserCompatibility:
     """クロスブラウザ互換性テスト"""
 
-    BASE_URL = os.environ.get('TEST_BASE_URL', 'http://localhost:5100')
+    BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:5100")
 
     @pytest.fixture(scope="class")
     def browser_contexts(self):
@@ -36,21 +38,21 @@ class TestCrossBrowserCompatibility:
             # Chromium
             try:
                 chromium = p.chromium.launch(headless=True)
-                contexts['chromium'] = chromium.new_context()
+                contexts["chromium"] = chromium.new_context()
             except Exception as e:
                 print(f"Chromium launch failed: {e}")
 
             # Firefox
             try:
                 firefox = p.firefox.launch(headless=True)
-                contexts['firefox'] = firefox.new_context()
+                contexts["firefox"] = firefox.new_context()
             except Exception as e:
                 print(f"Firefox launch failed: {e}")
 
             # WebKit
             try:
                 webkit = p.webkit.launch(headless=True)
-                contexts['webkit'] = webkit.new_context()
+                contexts["webkit"] = webkit.new_context()
             except Exception as e:
                 print(f"WebKit launch failed: {e}")
 
@@ -106,19 +108,22 @@ class TestCrossBrowserCompatibility:
 class TestResponsiveDesign:
     """レスポンシブデザインテスト"""
 
-    BASE_URL = os.environ.get('TEST_BASE_URL', 'http://localhost:5100')
+    BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:5100")
 
     VIEWPORTS = {
-        'desktop': {'width': 1920, 'height': 1080},
-        'tablet': {'width': 768, 'height': 1024},
-        'mobile': {'width': 375, 'height': 667},
+        "desktop": {"width": 1920, "height": 1080},
+        "tablet": {"width": 768, "height": 1024},
+        "mobile": {"width": 375, "height": 667},
     }
 
-    @pytest.mark.parametrize("device_name,viewport", [
-        ("desktop", {'width': 1920, 'height': 1080}),
-        ("tablet", {'width': 768, 'height': 1024}),
-        ("mobile", {'width': 375, 'height': 667}),
-    ])
+    @pytest.mark.parametrize(
+        "device_name,viewport",
+        [
+            ("desktop", {"width": 1920, "height": 1080}),
+            ("tablet", {"width": 768, "height": 1024}),
+            ("mobile", {"width": 375, "height": 667}),
+        ],
+    )
     def test_login_page_responsive(self, device_name, viewport):
         """ログインページがレスポンシブに対応"""
         if not PLAYWRIGHT_AVAILABLE:
@@ -139,11 +144,14 @@ class TestResponsiveDesign:
             finally:
                 browser.close()
 
-    @pytest.mark.parametrize("device_name,viewport", [
-        ("desktop", {'width': 1920, 'height': 1080}),
-        ("tablet", {'width': 768, 'height': 1024}),
-        ("mobile", {'width': 375, 'height': 667}),
-    ])
+    @pytest.mark.parametrize(
+        "device_name,viewport",
+        [
+            ("desktop", {"width": 1920, "height": 1080}),
+            ("tablet", {"width": 768, "height": 1024}),
+            ("mobile", {"width": 375, "height": 667}),
+        ],
+    )
     def test_admin_page_responsive(self, device_name, viewport):
         """管理画面がレスポンシブに対応"""
         if not PLAYWRIGHT_AVAILABLE:
@@ -168,7 +176,7 @@ class TestResponsiveDesign:
 class TestAccessibility:
     """アクセシビリティテスト"""
 
-    BASE_URL = os.environ.get('TEST_BASE_URL', 'http://localhost:5100')
+    BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:5100")
 
     def test_login_page_has_labels(self):
         """ログインページのフォームにラベルがある"""
