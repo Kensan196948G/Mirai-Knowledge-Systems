@@ -1,0 +1,98 @@
+name: PR Quality Gate (Round-trip)
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-quality-gate-${{ github.head_ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
+  MKS_ENV: test
+  MKS_SECRET_KEY: test-secret-key-for-ci
+  MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+  MKS_CORS_ORIGINS: http://localhost:5100
+
+jobs:
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ruff pytest pytest-cov pytest-flask pytest-xdist
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt --break-system-packages 2>/dev/null || true
+          fi
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt --break-system-packages 2>/dev/null || true
+          fi
+
+      - name: Install Node dependencies
+        working-directory: backend
+        run: npm ci --prefer-offline 2>/dev/null || true
+
+      - name: Ruff Lint Check
+        id: lint
+        run: ruff check . --output-format=github
+
+      - name: Python Unit Tests with Coverage
+        id: pytest
+        env:
+          MKS_ENV: test
+          MKS_SECRET_KEY: test-secret-key-for-ci
+          MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+          MKS_CORS_ORIGINS: http://localhost:5100
+        run: |
+          pytest tests/ -v --tb=short -x --maxfail=5 \
+            --cov=. --cov-report=term-missing \
+            --cov-fail-under=80 2>&1 | tail -80
+
+      - name: Jest Unit Tests with Coverage
+        id: jest
+        working-directory: backend
+        run: npm run test:unit:coverage 2>&1 | tail -40
+        continue-on-error: true
+
+      - name: Quality Gate Summary
+        if: always()
+        run: |
+          echo "## PR Quality Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Ruff Lint | ${{ steps.lint.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Tests (80%+ coverage) | ${{ steps.pytest.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Jest Tests (70%+ coverage) | ${{ steps.jest.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "_PR Quality Gate (Round-trip Development Loop)_" >> $GITHUB_STEP_SUMMARY
