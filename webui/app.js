@@ -374,6 +374,9 @@ async function refreshAccessToken() {
   }
 }
 
+// グローバルに公開（file-preview.js等で使用）
+window.refreshAccessToken = refreshAccessToken;
+
 async function fetchAPI(endpoint, options = {}) {
   const token = localStorage.getItem('access_token');
 

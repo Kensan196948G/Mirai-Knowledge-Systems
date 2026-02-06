@@ -1,15 +1,17 @@
 /**
  * Service Worker - Mirai Knowledge Systems PWA
- * Version: 1.3.0
+ * Version: 1.4.0 (Phase E-4: MS365 File Preview)
  *
  * Cache Strategies:
  * - Static Assets: Cache First
  * - API Responses: Network First with Cache Fallback
  * - Images: Stale-While-Revalidate
+ * - Thumbnails: Cache First (NEW)
+ * - Previews: Network First (NEW)
  */
 
 // Service Worker Version
-const SW_VERSION = 'v1.3.0';
+const SW_VERSION = 'v1.4.0';
 const CACHE_PREFIX = 'mks-';
 
 // Cache Names
@@ -17,6 +19,8 @@ const CACHE_NAMES = {
   static: `${CACHE_PREFIX}static-${SW_VERSION}`,
   api: `${CACHE_PREFIX}api-${SW_VERSION}`,
   images: `${CACHE_PREFIX}images-${SW_VERSION}`,
+  thumbnails: `${CACHE_PREFIX}thumbnails-${SW_VERSION}`,
+  previews: `${CACHE_PREFIX}previews-${SW_VERSION}`,
 };
 
 // Cache Expiration (milliseconds)
@@ -50,6 +54,7 @@ const STATIC_ASSETS = [
   '/actions.js',
   '/mfa.js',
   '/ms365-sync.js',
+  '/file-preview.js',
   '/recommendations.js',
   '/search-history.js',
   '/search-pagination.js',
