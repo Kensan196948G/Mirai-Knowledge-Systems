@@ -747,34 +747,52 @@ review_checklist:
 
 ---
 
-## 🔄 自動修復CIループ（将来実装予定）
+## 🔄 運用モード定義
 
-### 目的
+### Mode 1: CI/CD自動修復（既存）
 
-> **ビルド失敗 → Claude Code が原因解析 → 最小修正 → 自動 push → 再ビルド**
+- **ワークフロー**: `auto-error-fix-pr.yml`, `auto-error-fix-continuous.yml`
+- **対象**: Lint/Import/構文エラーの自動修復
+- **トリガー**: CI失敗時自動（PR向け）、5分間隔スケジュール（継続監視）
+- **ラベル**: `auto-fix`, `error-detected`, `healthy`
+- **制限**: black/isort フォーマットと基本的な構文修復のみ
 
-PowerShell/Bash ビルドスクリプトのCI自動修復を実現する。
+### Mode 2: 往復開発ループ（Round-trip Development Loop）
 
-### 構成要素
+- **ワークフロー**: `pr-quality-gate.yml`, `post-merge-notify.yml`
+- **対象**: 設計品質・テスト網羅性・セキュリティの段階的改善
+- **サイクル**: Copilot Agent PR → Quality Gate → Human Review → Merge → Issue自動作成 → ClaudeCode精製 → 新PR
+- **ラベル**: `refinement-needed`, `round-trip`
+- **上限**: 最大3イテレーション
+- **ブランチ命名**: `refinement/{N}/pr-{source_pr_number}`
+- **コミットタグ**: `[round-trip:N]`（N = イテレーション番号）
 
-1. **GitHub Actions**: self-hosted runner（Windows/Linux）
-2. **ビルドスクリプト**: `build.ps1` または `build.sh`
-3. **Claude Code**: CI修理工ロール
-4. **ガードスクリプト**: 暴走防止（回数制限、差分制限、対象ファイル制限）
+#### ループ防止機構（5層）
 
-### 暴走防止機構
+1. **PRタイトルゲート**: `[round-trip:3]` を含むPRのマージ時はIssue作成スキップ
+2. **アクター除外**: `github-actions[bot]` からのPRはIssue作成スキップ
+3. **イテレーション上限**: N > 3 で強制停止
+4. **重複Issue検知**: Source-PR番号で既存Issueを照合
+5. **ラベル名前空間分離**: `round-trip`系 vs `auto-fix`系で衝突防止
 
-- **最大試行回数**: 5回
-- **同一エラー検出**: SHA1ハッシュで判定→2回目で停止
-- **差分量制限**: 20行超でabort
-- **対象ファイル制限**: `.ps1`/`.sh`/`ci/*`のみ
-- **証跡保存**: すべてのdiffとログを`ci_logs/`に保存
+#### SubAgent対応表（Round-trip）
 
-### 実装状況
+| フェーズ | SubAgent | 責務 |
+|---------|---------|------|
+| コードレビュー指摘反映 | code-implementer | 修正実装 |
+| テストカバレッジ改善 | test-designer | テスト追加 |
+| セキュリティチェック | sec-auditor | 脆弱性スキャン |
+| CI/リリース | ci-specialist | ワークフロー調整 |
 
-- ⬜ 未実装（Phase D-6で予定）
-- 設計文書: 本セクション
-- 参考: ITSM志向（証跡・説明責任・再現性）
+#### ClaudeCodeプロンプトテンプレート
+
+詳細は `docs/CLAUDECODE_PROMPTS_TEMPLATE.md` を参照。
+
+### Mode 1 と Mode 2 の共存
+
+- **ラベル名前空間**: Mode 1（`auto-fix`系）と Mode 2（`round-trip`系）は完全に分離
+- **concurrencyグループ**: 各ワークフローに `concurrency` を設定し、同一ブランチでの多重実行を防止
+- **トリガー分離**: Mode 1 は `workflow_run`/`schedule`、Mode 2 は `pull_request` イベント
 
 ---
 
