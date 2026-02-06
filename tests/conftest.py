@@ -16,7 +16,11 @@ os.environ.setdefault("MKS_FORCE_HTTPS", "false")
 os.environ.setdefault("MKS_HSTS_ENABLED", "false")
 os.environ.setdefault("MKS_USE_POSTGRESQL", "false")
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+# プロジェクトルートとbackendディレクトリをPythonパスに追加
+project_root = os.path.join(os.path.dirname(__file__), "..")
+sys.path.insert(0, os.path.abspath(project_root))
+sys.path.insert(0, os.path.abspath(os.path.join(project_root, "backend")))
+
 from faker import Faker
 
 
