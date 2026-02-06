@@ -96,9 +96,19 @@ def clear_postgres():
     """PostgreSQLデータをクリア"""
     try:
         from database import SessionLocal, engine
-        from models import (SOP, AccessLog, Approval, ChangeLog, Consultation,
-                            DistributionLog, Incident, Knowledge, Notification,
-                            NotificationRead, Regulation)
+        from models import (
+            SOP,
+            AccessLog,
+            Approval,
+            ChangeLog,
+            Consultation,
+            DistributionLog,
+            Incident,
+            Knowledge,
+            Notification,
+            NotificationRead,
+            Regulation,
+        )
 
         db = SessionLocal()
 

@@ -1,6 +1,7 @@
 import pytest
-from backend.data_access import DataAccessLayer
 from faker import Faker
+
+from backend.data_access import DataAccessLayer
 
 fake = Faker()
 

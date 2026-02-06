@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """簡易APIテストスクリプト - PostgreSQLモード検証用"""
 
-import json
 import sys
 
 import requests
@@ -112,7 +111,7 @@ def test_dashboard_stats(token):
         data = response.json()
         if data.get("success"):
             stats = data.get("data", {})
-            print(f"✓ Dashboard stats:")
+            print("✓ Dashboard stats:")
             for key, value in stats.items():
                 if isinstance(value, (int, float)):
                     print(f"  - {key}: {value}")

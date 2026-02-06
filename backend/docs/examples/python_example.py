@@ -4,7 +4,6 @@ Mirai Knowledge System API - Python使用例
 このスクリプトは、MKS APIの基本的な使用方法を示します。
 """
 
-import time
 from typing import Dict, List, Optional
 
 import requests

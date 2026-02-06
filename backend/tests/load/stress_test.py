@@ -152,26 +152,26 @@ class StressTest:
 
     def _print_result(self, result: Dict):
         """結果を整形して表示"""
-        print(f"\n結果:")
+        print("\n結果:")
         print(f"  総リクエスト数: {result['total_requests']}")
         print(f"  成功: {result['success_count']}")
         print(f"  失敗: {result['error_count']}")
         print(f"  エラー率: {result['error_rate']:.2f}%")
         print(f"  処理時間: {result['total_time']:.2f}秒")
         print(f"  RPS: {result['requests_per_sec']:.2f}")
-        print(f"\n応答時間:")
+        print("\n応答時間:")
         print(f"  平均: {result['avg_response_time']:.3f}秒")
         print(f"  中央値: {result['median_response_time']:.3f}秒")
         print(f"  95%ile: {result['p95_response_time']:.3f}秒")
         print(f"  99%ile: {result['p99_response_time']:.3f}秒")
         print(f"  最小: {result['min_response_time']:.3f}秒")
         print(f"  最大: {result['max_response_time']:.3f}秒")
-        print(f"\nシステムリソース:")
+        print("\nシステムリソース:")
         print(f"  CPU: {result['end_metrics']['cpu_percent']:.1f}%")
         print(f"  メモリ: {result['end_metrics']['memory_percent']:.1f}%")
 
         # 目標値チェック
-        print(f"\n目標値チェック:")
+        print("\n目標値チェック:")
         if result["error_rate"] <= 1.0:
             print(f"  ✓ エラー率: {result['error_rate']:.2f}% <= 1%")
         else:
@@ -278,7 +278,7 @@ class StressTest:
 
         # 最も遅いエンドポイント
         slowest = max(results, key=lambda x: x["avg_response_time"])
-        print(f"\n最も遅いエンドポイント:")
+        print("\n最も遅いエンドポイント:")
         print(f"  {slowest['endpoint']}")
         print(f"  平均応答時間: {slowest['avg_response_time']:.3f}秒")
         print(f"  ユーザー数: {slowest['num_users']}")
@@ -289,13 +289,13 @@ class StressTest:
         ]
 
         if stable_300_results:
-            print(f"\n✓ 目標達成: 300ユーザー同時接続可能")
+            print("\n✓ 目標達成: 300ユーザー同時接続可能")
             avg_response = statistics.mean(
                 [r["avg_response_time"] for r in stable_300_results]
             )
             print(f"  平均応答時間: {avg_response:.3f}秒")
         else:
-            print(f"\n✗ 目標未達成: 300ユーザー同時接続でエラー率が高い")
+            print("\n✗ 目標未達成: 300ユーザー同時接続でエラー率が高い")
 
 
 def main():

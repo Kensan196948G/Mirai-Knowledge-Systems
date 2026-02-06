@@ -22,7 +22,6 @@ import json
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
 
 # パッケージのインポート確認
 try:
@@ -151,7 +150,7 @@ class MS365Exporter:
     def _extract_tags(self, doc):
         """ドキュメントからタグを抽出"""
         tags = []
-        name_lower = doc["name"].lower()
+        doc["name"].lower()
 
         # ファイル名からキーワード抽出
         keywords = ["コンクリート", "鉄筋", "型枠", "足場", "測量", "安全", "品質"]

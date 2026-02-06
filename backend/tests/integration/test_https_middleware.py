@@ -6,7 +6,6 @@ HTTPS強制リダイレクトミドルウェアのテスト
 
 import os
 
-import pytest
 from app_v2 import HTTPSRedirectMiddleware, app
 
 
@@ -167,7 +166,7 @@ class TestHTTPSRedirectBehavior:
             if status.startswith("30"):
                 redirected["value"] = True
 
-        result = middleware(environ, start_response)
+        middleware(environ, start_response)
 
         # リダイレクトされないことを確認
         assert not redirected["value"]

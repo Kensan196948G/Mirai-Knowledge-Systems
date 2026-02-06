@@ -4,7 +4,6 @@
 
 import os
 import sys
-from datetime import date, datetime
 
 # パスを追加
 sys.path.insert(0, os.path.dirname(__file__))

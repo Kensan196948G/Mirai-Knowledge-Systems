@@ -8,8 +8,7 @@ MS365 File Preview機能のユニットテスト
 - APIエンドポイント（/preview, /download, /thumbnail）
 """
 
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 from flask import Flask
@@ -252,7 +251,6 @@ class TestMS365FilePreview:
             with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Import the route handler
-                    from backend.app_v2 import app as flask_app
 
                     # Act
                     response = client.get(

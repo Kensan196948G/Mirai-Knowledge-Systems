@@ -12,9 +12,8 @@ import unittest
 # プロジェクトのルートディレクトリをパスに追加
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from datetime import datetime, timedelta
 
-from app_v2 import app, hash_password, load_data, save_data
+from app_v2 import app, hash_password, load_data
 
 
 class TestRecommendationAPI(unittest.TestCase):

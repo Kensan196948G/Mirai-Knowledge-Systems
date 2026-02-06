@@ -9,7 +9,7 @@ import socket
 import subprocess
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from urllib.parse import urlparse
 
 import psutil

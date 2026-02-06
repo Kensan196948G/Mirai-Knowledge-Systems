@@ -16,7 +16,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from database import get_session_factory
-from models import SOP, Expert, Incident, Knowledge, Project, User
+from models import SOP, Expert, Incident, Knowledge, Project
 
 # カラー出力
 GREEN = "\033[92m"

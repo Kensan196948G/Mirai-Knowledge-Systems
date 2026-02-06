@@ -19,7 +19,7 @@ import argparse
 
 from database import DATABASE_URL, engine
 from models import Base
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
 

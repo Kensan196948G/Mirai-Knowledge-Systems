@@ -131,7 +131,7 @@ def test_error_response_format():
     response, status_code = error_response("Test error", "TEST_ERROR", 400)
     response_data = response.get_json()
 
-    assert response_data["success"] == False
+    assert not response_data["success"]
     assert response_data["error"]["code"] == "TEST_ERROR"
     assert response_data["error"]["message"] == "Test error"
     assert status_code == 400

@@ -2,7 +2,6 @@
 ヘルスチェックAPIの統合テスト
 """
 
-import pytest
 
 
 class TestHealthAPI:

@@ -189,7 +189,7 @@ class TestKnowledgeUpdate:
         token = _login(client)
 
         # 元のナレッジ取得
-        original = client.get(
+        client.get(
             "/api/v1/knowledge/1", headers={"Authorization": f"Bearer {token}"}
         ).get_json()["data"]
 
@@ -323,7 +323,6 @@ class TestKnowledgePagination:
 
     def test_knowledge_list_pagination(self, client, tmp_path):
         """ページネーションが機能する"""
-        import app_v2
 
         # 15件のナレッジを作成
         knowledge_file = tmp_path / "knowledge.json"

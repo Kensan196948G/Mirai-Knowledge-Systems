@@ -6,7 +6,6 @@
 
 import json
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytest
 
@@ -288,7 +287,6 @@ class TestRateLimitingAdvanced:
         try:
             # 連続リクエスト
             success_count = 0
-            rate_limited = False
 
             for i in range(20):
                 response = client.get("/api/v1/knowledge", headers=auth_headers)
@@ -296,7 +294,6 @@ class TestRateLimitingAdvanced:
                 if response.status_code == 200:
                     success_count += 1
                 elif response.status_code == 429:
-                    rate_limited = True
                     break
 
                 time.sleep(0.1)

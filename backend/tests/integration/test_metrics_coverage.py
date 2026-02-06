@@ -2,7 +2,6 @@
 メトリクスAPIの追加カバレッジテスト
 """
 
-import pytest
 
 
 class TestMetricsCompleteCoverage:

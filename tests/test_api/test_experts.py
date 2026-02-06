@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_get_experts_stats_api(client, auth_headers):

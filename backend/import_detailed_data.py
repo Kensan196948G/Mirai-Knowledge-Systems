@@ -12,7 +12,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(__file__))
 
 from database import get_session_factory
-from models import SOP, Consultation, Incident, Knowledge
+from models import SOP, Incident, Knowledge
 
 
 def parse_datetime(date_str):

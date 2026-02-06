@@ -6,8 +6,6 @@
 
 import time
 
-import pytest
-
 
 class TestRateLimitingConfiguration:
     """レート制限設定のテスト"""

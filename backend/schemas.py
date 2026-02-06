@@ -3,7 +3,7 @@ Marshmallow schemas for request/response validation
 リクエスト/レスポンスの検証スキーマ
 """
 
-from marshmallow import Schema, ValidationError, fields, validate
+from marshmallow import Schema, fields, validate
 
 # ============================================================
 # Authentication Schemas

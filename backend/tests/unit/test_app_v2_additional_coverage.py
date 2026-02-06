@@ -5,7 +5,6 @@ import types
 import urllib.request
 
 import app_v2
-import pytest
 
 
 def _write_json(path, data):

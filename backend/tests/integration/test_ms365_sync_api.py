@@ -5,7 +5,6 @@ MS365同期API統合テスト
 import json
 import os
 import sys
-from datetime import datetime
 
 import pytest
 

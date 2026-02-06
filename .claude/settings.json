@@ -1,7 +1,1 @@
-{
-  "statusLine": {
-    "padding": 0,
-    "type": "command",
-    "command": "/mnt/LinuxHDD/Mirai-Knowledge-Systems/.claude/statusline.sh"
-  }
-}
+{"statusLine":{"command":"/mnt/LinuxHDD/Mirai-Knowledge-Systems/.claude/statusline.sh","type":"command","padding":0}}

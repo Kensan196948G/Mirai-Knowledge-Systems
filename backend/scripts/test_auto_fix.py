@@ -7,7 +7,6 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
 
 # モジュールのインポート
 sys.path.insert(0, os.path.dirname(__file__))

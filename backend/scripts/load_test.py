@@ -63,7 +63,7 @@ def make_request(url: str, timeout: int = 10) -> dict:
 def run_load_test(url: str, total_requests: int, concurrency: int) -> dict:
     """負荷テストを実行"""
     print(f"\n{'='*60}")
-    print(f"負荷テスト開始")
+    print("負荷テスト開始")
     print(f"{'='*60}")
     print(f"URL: {url}")
     print(f"総リクエスト数: {total_requests}")
@@ -126,7 +126,7 @@ def run_load_test(url: str, total_requests: int, concurrency: int) -> dict:
 def print_results(summary: dict):
     """結果を出力"""
     print(f"\n{'='*60}")
-    print(f"負荷テスト結果")
+    print("負荷テスト結果")
     print(f"{'='*60}")
     print(f"総リクエスト数: {summary['total_requests']}")
     print(f"成功: {summary['successful']}")
@@ -139,7 +139,7 @@ def print_results(summary: dict):
 
     if summary["response_time"]:
         rt = summary["response_time"]
-        print(f"レスポンス時間:")
+        print("レスポンス時間:")
         print(f"  最小: {rt['min_ms']} ms")
         print(f"  最大: {rt['max_ms']} ms")
         print(f"  平均: {rt['avg_ms']} ms")

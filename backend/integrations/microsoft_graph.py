@@ -21,7 +21,6 @@ Microsoft Graph API 連携モジュール
 import json
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)

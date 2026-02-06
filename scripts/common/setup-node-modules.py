@@ -25,12 +25,10 @@ Node.jsモジュール互換性問題を解決します。
     本番環境: HTTP 8100, HTTPS 8443
 """
 
-import os
-import sys
-import platform
-import subprocess
-import shutil
 import argparse
+import platform
+import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -88,7 +86,7 @@ def setup_node_modules(target_dir: Path, os_name: str):
     # シンボリックリンクを削除
     if node_modules.is_symlink():
         node_modules.unlink()
-        print(f"[INFO] 既存のシンボリックリンクを削除")
+        print("[INFO] 既存のシンボリックリンクを削除")
 
     # OS別ディレクトリを作成
     if not node_modules_os.exists():
@@ -121,7 +119,7 @@ def setup_node_modules(target_dir: Path, os_name: str):
         return False
 
     # npm install 実行
-    print(f"[INFO] npm install を実行中...")
+    print("[INFO] npm install を実行中...")
     try:
         result = subprocess.run(
             ['npm', 'install'],
@@ -130,13 +128,13 @@ def setup_node_modules(target_dir: Path, os_name: str):
             text=True
         )
         if result.returncode == 0:
-            print(f"[OK] npm install 完了")
+            print("[OK] npm install 完了")
         else:
-            print(f"[WARN] npm install に警告があります:")
+            print("[WARN] npm install に警告があります:")
             if result.stderr:
                 print(result.stderr[:500])
     except FileNotFoundError:
-        print(f"[WARN] npm が見つかりません。手動で npm install を実行してください。")
+        print("[WARN] npm が見つかりません。手動で npm install を実行してください。")
 
     return True
 

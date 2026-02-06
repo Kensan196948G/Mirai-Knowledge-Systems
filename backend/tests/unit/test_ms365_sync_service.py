@@ -5,15 +5,13 @@ MS365同期サービスのユニットテスト
 import os
 import sys
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from tests.fixtures.ms365_mock_data import (MOCK_AUTH_ERROR, MOCK_DRIVES,
-                                            MOCK_FILE_CONTENT, MOCK_FILES,
-                                            MOCK_SITES, MOCK_SYNC_CONFIG)
+from tests.fixtures.ms365_mock_data import MOCK_DRIVES, MOCK_FILE_CONTENT, MOCK_FILES, MOCK_SITES
 
 
 class TestMS365SyncService:

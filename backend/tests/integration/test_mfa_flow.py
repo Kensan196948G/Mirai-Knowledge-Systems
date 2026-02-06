@@ -4,12 +4,10 @@ Tests the complete MFA setup, login, and management workflows
 """
 
 import json
-from datetime import datetime
 
 import pyotp
 import pytest
 from app_v2 import app
-from data_access import DataAccessLayer
 
 
 @pytest.fixture
@@ -458,7 +456,7 @@ class TestRateLimiting:
         # The next request should be rate limited
         # Note: This depends on rate limit configuration
         # and might need adjustment based on actual limits
-        response = client.post(
+        client.post(
             "/api/v1/auth/login/mfa", json={"mfa_token": mfa_token, "code": "000000"}
         )
 

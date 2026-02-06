@@ -7,7 +7,6 @@ import logging
 import os
 import time
 from datetime import datetime
-from functools import wraps
 
 import psutil
 from flask import Flask, jsonify, request, send_from_directory
@@ -150,29 +149,29 @@ def metrics():
         # アプリケーションメトリクス
         uptime = (datetime.now() - APP_START_TIME).total_seconds()
         metrics_output.append(
-            f"# HELP mks_uptime_seconds Application uptime in seconds"
+            "# HELP mks_uptime_seconds Application uptime in seconds"
         )
-        metrics_output.append(f"# TYPE mks_uptime_seconds gauge")
+        metrics_output.append("# TYPE mks_uptime_seconds gauge")
         metrics_output.append(f"mks_uptime_seconds {uptime:.2f}")
 
         # リクエストメトリクス
-        metrics_output.append(f"# HELP mks_requests_total Total number of requests")
-        metrics_output.append(f"# TYPE mks_requests_total counter")
+        metrics_output.append("# HELP mks_requests_total Total number of requests")
+        metrics_output.append("# TYPE mks_requests_total counter")
         metrics_output.append(f'mks_requests_total {REQUEST_METRICS["total_requests"]}')
 
         # システムメトリクス
         metrics_output.append(
-            f"# HELP mks_memory_usage_percent Memory usage percentage"
+            "# HELP mks_memory_usage_percent Memory usage percentage"
         )
-        metrics_output.append(f"# TYPE mks_memory_usage_percent gauge")
+        metrics_output.append("# TYPE mks_memory_usage_percent gauge")
         metrics_output.append(f"mks_memory_usage_percent {memory.percent}")
 
-        metrics_output.append(f"# HELP mks_disk_usage_percent Disk usage percentage")
-        metrics_output.append(f"# TYPE mks_disk_usage_percent gauge")
+        metrics_output.append("# HELP mks_disk_usage_percent Disk usage percentage")
+        metrics_output.append("# TYPE mks_disk_usage_percent gauge")
         metrics_output.append(f"mks_disk_usage_percent {disk.percent}")
 
-        metrics_output.append(f"# HELP mks_cpu_usage_percent CPU usage percentage")
-        metrics_output.append(f"# TYPE mks_cpu_usage_percent gauge")
+        metrics_output.append("# HELP mks_cpu_usage_percent CPU usage percentage")
+        metrics_output.append("# TYPE mks_cpu_usage_percent gauge")
         metrics_output.append(f"mks_cpu_usage_percent {cpu_percent}")
 
         return (
@@ -751,7 +750,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print("建設土木ナレッジシステム - サーバー起動中")
     print("=" * 60)
-    print(f"アクセスURL: http://localhost:5000")
+    print("アクセスURL: http://localhost:5000")
     if debug_mode:
         print(
             "[WARNING] Debug mode is ENABLED. This should NEVER be used in production!"

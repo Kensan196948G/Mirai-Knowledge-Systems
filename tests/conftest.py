@@ -1,8 +1,8 @@
-import pytest
-from flask import Flask
-import sys
 import os
+import sys
 import tempfile
+
+import pytest
 
 # テスト環境変数を設定
 os.environ.setdefault(
@@ -17,9 +17,6 @@ os.environ.setdefault("MKS_HSTS_ENABLED", "false")
 os.environ.setdefault("MKS_USE_POSTGRESQL", "false")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
-from app_v2 import app
-from database import init_db
-import sqlite3
 from faker import Faker
 
 

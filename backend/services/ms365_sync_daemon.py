@@ -18,6 +18,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
 
 from data_access import DataAccessLayer
+
 from services.ms365_scheduler_service import MS365SchedulerService
 
 # ロギング設定

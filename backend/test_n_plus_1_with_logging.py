@@ -58,10 +58,10 @@ def test_knowledge_list_optimization():
     result = dal.get_knowledge_list(filters={})
     queries = get_count()
 
-    print(f"\n[結果]")
+    print("\n[結果]")
     print(f"  取得件数: {len(result)}件")
     print(f"  実行クエリ数: {queries}回")
-    print(f"  期待値: 1-2回（メインクエリ + リレーション先読み）")
+    print("  期待値: 1-2回（メインクエリ + リレーション先読み）")
 
     if queries <= 2:
         print("  ✅ N+1クエリ最適化成功！")
@@ -90,13 +90,13 @@ def test_knowledge_by_id_optimization():
     knowledge_id = knowledge_list[0]["id"]
 
     reset_counter()
-    result = dal.get_knowledge_by_id(knowledge_id)
+    dal.get_knowledge_by_id(knowledge_id)
     queries = get_count()
 
-    print(f"\n[結果]")
+    print("\n[結果]")
     print(f"  ナレッジID: {knowledge_id}")
     print(f"  実行クエリ数: {queries}回")
-    print(f"  期待値: 1-2回")
+    print("  期待値: 1-2回")
 
     if queries <= 2:
         print("  ✅ N+1クエリ最適化成功！")
@@ -139,11 +139,11 @@ def test_related_knowledge_optimization():
     result = dal.get_related_knowledge_by_tags(tags, limit=5, exclude_id=exclude_id)
     queries = get_count()
 
-    print(f"\n[結果]")
+    print("\n[結果]")
     print(f"  対象タグ: {tags}")
     print(f"  取得件数: {len(result)}件")
     print(f"  実行クエリ数: {queries}回")
-    print(f"  期待値: 1-3回（メインクエリ + フォールバック可能性 + リレーション）")
+    print("  期待値: 1-3回（メインクエリ + フォールバック可能性 + リレーション）")
 
     if queries <= 4:
         print("  ✅ N+1クエリ最適化成功！")
@@ -170,17 +170,17 @@ def test_batch_knowledge_access():
 
     # 各アイテムのcreated_by_idやupdated_by_idにアクセスしてもN+1が発生しないことを確認
     for item in result[:5]:  # 最初の5件だけテスト
-        created_by = item.get("created_by_id")
-        updated_by = item.get("updated_by_id")
+        item.get("created_by_id")
+        item.get("updated_by_id")
 
     queries_after_access = get_count()
 
-    print(f"\n[結果]")
+    print("\n[結果]")
     print(f"  取得件数: {len(result)}件")
     print(f"  一覧取得後のクエリ数: {queries_after_list}回")
     print(f"  リレーションアクセス後のクエリ数: {queries_after_access}回")
     print(f"  追加クエリ: {queries_after_access - queries_after_list}回")
-    print(f"  期待値: 追加クエリ0回（先読みにより追加クエリなし）")
+    print("  期待値: 追加クエリ0回（先読みにより追加クエリなし）")
 
     if queries_after_access - queries_after_list == 0:
         print("  ✅ N+1クエリ最適化成功！リレーションが正しく先読みされています")

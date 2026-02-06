@@ -7,7 +7,7 @@ import base64
 import io
 import secrets
 import string
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import pyotp
 import qrcode

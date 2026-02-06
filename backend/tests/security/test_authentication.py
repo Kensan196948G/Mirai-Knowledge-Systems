@@ -17,7 +17,6 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import jwt
-import pytest
 
 
 class TestPasswordAuthentication:
@@ -391,7 +390,6 @@ class TestSecureTokenStorage:
     def test_token_response_over_https_recommended(self, client):
         """トークンレスポンスはHTTPS経由が推奨される（設定確認）"""
         # HTTPS強制の設定を確認
-        import os
 
         from app_v2 import HTTPSRedirectMiddleware
 

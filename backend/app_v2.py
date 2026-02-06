@@ -14,40 +14,42 @@ from functools import wraps
 
 import bcrypt
 import psutil
-import pyotp
 from dotenv import load_dotenv
-from flask import (Flask, Response, jsonify, redirect, request,
-                   send_from_directory)
+from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_cors import CORS
-from flask_jwt_extended import (JWTManager, create_access_token,
-                                create_refresh_token, get_jwt,
-                                get_jwt_identity, jwt_required)
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    create_refresh_token,
+    get_jwt,
+    get_jwt_identity,
+    jwt_required,
+)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from marshmallow import ValidationError
-from schemas import (ConsultationAnswerSchema, ConsultationCreateSchema,
-                     ConsultationUpdateSchema, KnowledgeCreateSchema,
-                     LoginSchema, MFALoginSchema, MFAVerifySchema,
-                     MS365ImportSchema, MS365SyncSchema)
+from schemas import (
+    ConsultationAnswerSchema,
+    ConsultationCreateSchema,
+    KnowledgeCreateSchema,
+    LoginSchema,
+    MS365ImportSchema,
+    MS365SyncSchema,
+)
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
-from werkzeug.utils import secure_filename
 
 # スレッドセーフなファイルアクセス用ロック
 _file_lock = threading.RLock()
-import mimetypes
 import smtplib
 import ssl
 import tempfile
-import urllib.request
 from email.message import EmailMessage
 
-import msal
 from auth.totp_manager import TOTPManager
 from data_access import DataAccessLayer
-from prometheus_client import CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Gauge, Histogram, generate_latest
 from prometheus_client import Counter as PrometheusCounter
-from prometheus_client import Gauge, Histogram, generate_latest
 from recommendation_engine import RecommendationEngine
 
 from config import get_config
@@ -766,7 +768,7 @@ def verify_password(password, password_hash):
     else:
         # レガシーSHA256サポート（後方互換性）
         print(
-            f"[WARNING] Using legacy SHA256 verification for password. Please update user password."
+            "[WARNING] Using legacy SHA256 verification for password. Please update user password."
         )
         legacy_hash = hashlib.sha256(password.encode()).hexdigest()
         return legacy_hash == password_hash
@@ -878,10 +880,10 @@ def check_permission(required_permission):
 
                 # 管理者または必要な権限を持っている
                 if "*" in permissions or required_permission in permissions:
-                    print(f"[DEBUG] Permission granted")
+                    print("[DEBUG] Permission granted")
                     return fn(*args, **kwargs)
 
-                print(f"[DEBUG] Permission denied")
+                print("[DEBUG] Permission denied")
                 return (
                     jsonify(
                         {
@@ -1412,7 +1414,7 @@ def login_mfa():
 
         user_id = decoded.get("sub")
 
-    except Exception as e:
+    except Exception:
         return (
             jsonify(
                 {
@@ -1867,7 +1869,7 @@ def verify_mfa_login():
 
         user_id = decoded.get("sub")
 
-    except Exception as e:
+    except Exception:
         return (
             jsonify(
                 {
@@ -5421,9 +5423,9 @@ def get_metrics():
     response_time_metrics = []
     for endpoint, durations in metrics_storage["http_request_duration_seconds"].items():
         if durations:
-            avg_duration = sum(durations) / len(durations)
+            sum(durations) / len(durations)
             max_duration = max(durations)
-            min_duration = min(durations)
+            min(durations)
 
             # パーセンタイル計算
             sorted_durations = sorted(durations)
@@ -5794,7 +5796,7 @@ def metrics_summary():
     人間が読みやすい形式でメトリクスを返す
     """
     try:
-        current_user = get_jwt_identity()
+        get_jwt_identity()
 
         # CPU使用率
         cpu_percent = psutil.cpu_percent(interval=0.1)
@@ -6194,7 +6196,7 @@ def track_db_query(operation):
                 duration = time.time() - start_time
                 DB_QUERY_DURATION.labels(operation=operation).observe(duration)
                 return result
-            except Exception as e:
+            except Exception:
                 duration = time.time() - start_time
                 DB_QUERY_DURATION.labels(operation=operation).observe(duration)
                 ERROR_COUNT.labels(type="db_error", endpoint=operation).inc()

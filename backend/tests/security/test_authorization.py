@@ -286,7 +286,7 @@ class TestPrivilegeEscalation:
         users_file.write_text(json.dumps(users, ensure_ascii=False, indent=2))
 
         # 同じトークンで再度アクセス試行
-        response2 = client.post(
+        client.post(
             "/api/v1/knowledge",
             headers={"Authorization": f"Bearer {editor_token}"},
             json={

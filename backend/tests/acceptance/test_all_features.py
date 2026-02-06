@@ -15,8 +15,6 @@
 import json
 from datetime import datetime
 
-import pytest
-
 
 class TestKnowledgeCRUDFeature:
     """ナレッジCRUD機能の包括的テスト"""
@@ -152,7 +150,7 @@ class TestIncidentReportFeature:
         login_response = client.post(
             "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
         )
-        token = login_response.json["data"]["access_token"]
+        login_response.json["data"]["access_token"]
 
         # incidents.jsonファイルを作成
         incidents_file = tmp_path / "incidents.json"
@@ -186,7 +184,7 @@ class TestExpertConsultationFeature:
         login_response = client.post(
             "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
         )
-        token = login_response.json["data"]["access_token"]
+        login_response.json["data"]["access_token"]
 
         # consultations.jsonファイルを作成
         consultations_file = tmp_path / "consultations.json"
@@ -607,7 +605,7 @@ class TestEndToEndScenarios:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert count_response.status_code == 200
-        initial_count = count_response.json["data"]["unread_count"]
+        count_response.json["data"]["unread_count"]
 
         # 4. 通知一覧取得
         list_response = client.get(

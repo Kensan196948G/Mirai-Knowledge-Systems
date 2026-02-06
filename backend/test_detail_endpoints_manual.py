@@ -3,7 +3,6 @@
 詳細エンドポイントの手動テストスクリプト
 """
 
-import json
 import os
 import sys
 

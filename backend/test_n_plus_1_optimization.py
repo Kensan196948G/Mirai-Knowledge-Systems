@@ -69,10 +69,10 @@ def test_knowledge_list_optimization():
 
     result, query_count = get_knowledge_list()
 
-    print(f"\n結果:")
+    print("\n結果:")
     print(f"  取得件数: {len(result)}件")
     print(f"  クエリ数: {query_count}回")
-    print(f"  期待値: 1回（selectinloadによる先読み）")
+    print("  期待値: 1回（selectinloadによる先読み）")
 
     if query_count <= 2:
         print("  ✅ N+1クエリ最適化成功！")
@@ -104,10 +104,10 @@ def test_knowledge_by_id_optimization():
 
     result, query_count = get_knowledge_by_id()
 
-    print(f"\n結果:")
+    print("\n結果:")
     print(f"  ナレッジID: {knowledge_id}")
     print(f"  クエリ数: {query_count}回")
-    print(f"  期待値: 1回（selectinloadによる先読み）")
+    print("  期待値: 1回（selectinloadによる先読み）")
 
     if query_count <= 2:
         print("  ✅ N+1クエリ最適化成功！")
@@ -151,11 +151,11 @@ def test_related_knowledge_optimization():
 
     result, query_count = get_related_knowledge()
 
-    print(f"\n結果:")
+    print("\n結果:")
     print(f"  対象タグ: {tags}")
     print(f"  取得件数: {len(result)}件")
     print(f"  クエリ数: {query_count}回")
-    print(f"  期待値: 1-2回（メインクエリ + フォールバック）")
+    print("  期待値: 1-2回（メインクエリ + フォールバック）")
 
     if query_count <= 3:
         print("  ✅ N+1クエリ最適化成功！")
@@ -179,10 +179,10 @@ def test_sop_list_optimization():
 
     result, query_count = get_sop_list()
 
-    print(f"\n結果:")
+    print("\n結果:")
     print(f"  取得件数: {len(result)}件")
     print(f"  クエリ数: {query_count}回")
-    print(f"  期待値: 1回（selectinloadによる先読み）")
+    print("  期待値: 1回（selectinloadによる先読み）")
 
     if query_count <= 2:
         print("  ✅ N+1クエリ最適化成功！")
@@ -206,10 +206,10 @@ def test_incident_list_optimization():
 
     result, query_count = get_incidents_list()
 
-    print(f"\n結果:")
+    print("\n結果:")
     print(f"  取得件数: {len(result)}件")
     print(f"  クエリ数: {query_count}回")
-    print(f"  期待値: 1回（selectinloadによる先読み）")
+    print("  期待値: 1回（selectinloadによる先読み）")
 
     if query_count <= 2:
         print("  ✅ N+1クエリ最適化成功！")

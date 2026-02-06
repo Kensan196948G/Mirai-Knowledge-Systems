@@ -14,8 +14,6 @@ HTTPS・セキュリティヘッダーテスト
 
 import os
 
-import pytest
-
 
 class TestHTTPSEnforcement:
     """HTTPS強制テスト"""
@@ -47,11 +45,11 @@ class TestHTTPSEnforcement:
             os.environ["MKS_FORCE_HTTPS"] = "true"
             from app_v2 import HTTPSRedirectMiddleware
 
-            middleware = HTTPSRedirectMiddleware(None)
+            HTTPSRedirectMiddleware(None)
             # 環境変数が読み込まれている
 
             os.environ["MKS_FORCE_HTTPS"] = "false"
-            middleware_off = HTTPSRedirectMiddleware(None)
+            HTTPSRedirectMiddleware(None)
             # 環境変数が読み込まれている
 
         finally:
@@ -163,7 +161,6 @@ class TestSecurityHeaders:
 
             # アプリケーションをリロード（実際のテストでは再起動が必要）
             # 注: このテストは設定の確認のみ
-            from app_v2 import HSTS_ENABLED, IS_PRODUCTION
 
             # 本番環境では有効化される
             # 実際のヘッダー確認は統合テストで実施
@@ -182,7 +179,7 @@ class TestSecurityHeaders:
 
     def test_cache_control_for_api_responses(self, client, admin_token):
         """APIレスポンスにキャッシュ制御ヘッダーが設定されること"""
-        response = client.get(
+        client.get(
             "/api/v1/knowledge", headers={"Authorization": f"Bearer {admin_token}"}
         )
 
@@ -241,7 +238,6 @@ class TestContentSecurityPolicy:
             os.environ["MKS_ENV"] = "production"
 
             # 設定の確認（実際のヘッダーテストは統合テストで実施）
-            from app_v2 import IS_PRODUCTION
 
             # 本番環境フラグが立っていることを確認
 
@@ -307,7 +303,6 @@ class TestSecureConfiguration:
 
     def test_debug_mode_disabled_in_production(self):
         """本番環境でデバッグモードが無効であること"""
-        from app_v2 import app
 
         # テスト環境ではTRUEだが、本番環境では FALSE であるべき
         # 注: 環境変数で制御されることを確認
@@ -322,7 +317,7 @@ class TestSecureConfiguration:
 
     def test_secret_key_not_default_in_production(self):
         """本番環境でデフォルトのシークレットキーが使用されていないこと"""
-        from app_v2 import JWT_SECRET_KEY, app
+        from app_v2 import JWT_SECRET_KEY
 
         # テスト環境ではデフォルト値が使用されるが、
         # 本番環境では環境変数から読み込まれるべき
@@ -369,9 +364,9 @@ class TestErrorHandling:
         data = response.get_json()
         error_payload = data.get("error", "")
         if isinstance(error_payload, dict):
-            error_message = error_payload.get("message", "").lower()
+            error_payload.get("message", "").lower()
         else:
-            error_message = str(error_payload).lower()
+            str(error_payload).lower()
 
         # 「ユーザーが見つかりません」等の詳細は含まない
         # 「認証に失敗しました」等の汎用的メッセージであるべき
@@ -408,7 +403,6 @@ class TestRateLimiting:
 
     def test_rate_limit_configuration(self):
         """レート制限の設定値確認"""
-        from app_v2 import limiter
 
         # デフォルトリミットが設定されていることを確認
         # 注: 実際のレート制限テストは時間がかかるため、設定確認のみ
@@ -478,7 +472,7 @@ class TestDataProtection:
     def test_sensitive_data_not_logged(self, client):
         """機密データがログに記録されないこと"""
         # ログイン試行
-        response = client.post(
+        client.post(
             "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
         )
 

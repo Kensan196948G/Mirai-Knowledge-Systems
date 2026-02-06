@@ -3,7 +3,6 @@
 regulations, projects, experts の詳細取得APIをテスト
 """
 
-import pytest
 from flask import json
 
 

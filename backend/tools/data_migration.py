@@ -17,7 +17,6 @@ import csv
 import json
 import logging
 import os
-import shutil
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -26,9 +25,8 @@ from typing import Any, Dict, List, Optional
 # プロジェクトルートをPYTHONPATHに追加
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database import SessionLocal, engine
-from models import SOP, Incident, Knowledge, Regulation, User
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from database import SessionLocal
+from models import SOP, Knowledge
 from sqlalchemy.orm import Session
 
 # ロギング設定
@@ -626,7 +624,7 @@ def main():
     )
 
     # list-backups コマンド
-    parser_list = subparsers.add_parser("list-backups", help="バックアップ一覧を表示")
+    subparsers.add_parser("list-backups", help="バックアップ一覧を表示")
 
     args = parser.parse_args()
 

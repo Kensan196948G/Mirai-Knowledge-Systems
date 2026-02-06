@@ -12,15 +12,12 @@ from typing import Any, Dict, List, Optional
 
 from data_access import DataAccessLayer
 from integrations.microsoft_graph import MicrosoftGraphClient
-from models import (Knowledge, MS365FileMapping, MS365SyncConfig,
-                    MS365SyncHistory)
 
 logger = logging.getLogger(__name__)
 
 # Prometheusメトリクス（app_v2.pyから参照）
 try:
-    from app_v2 import (MS365_FILES_PROCESSED, MS365_SYNC_DURATION,
-                        MS365_SYNC_ERRORS, MS365_SYNC_EXECUTIONS)
+    from app_v2 import MS365_FILES_PROCESSED, MS365_SYNC_DURATION, MS365_SYNC_ERRORS, MS365_SYNC_EXECUTIONS
 
     METRICS_AVAILABLE = True
 except ImportError:

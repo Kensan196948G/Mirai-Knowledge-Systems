@@ -1,0 +1,35 @@
+# E2E tests (JavaScript/Playwright tests with .py extension)
+**/tests/e2e/test_login.py
+**/tests/e2e/test_knowledge.py
+tests/e2e/*.py
+backend/tests/e2e/*.py
+
+# Auto-generated files
+*.pyc
+__pycache__/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv*/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules
+node_modules/
+node_modules.windows/
+node_modules.linux/
+
+# Documentation
+docs/_build/
+
+# Legacy files (deprecated)
+backend/app.py

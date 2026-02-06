@@ -14,9 +14,6 @@
 """
 
 import json
-import os
-
-import pytest
 
 
 class TestXSSPrevention:
@@ -227,7 +224,7 @@ class TestSQLInjectionPrevention:
 
         # 全データが返されていないこと（OR '1'='1' が無効化されている）
         if response.status_code == 200:
-            data = response.get_json()
+            response.get_json()
             # 注: JSONベースのシステムではSQLインジェクションは発生しにくいが、
             # 将来的なDB移行に備えた確認
 

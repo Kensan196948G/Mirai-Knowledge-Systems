@@ -2,9 +2,7 @@
 監査ログAPIの統合テスト
 """
 
-from datetime import datetime, timedelta
 
-import pytest
 
 
 class TestAuditLogsAPI:

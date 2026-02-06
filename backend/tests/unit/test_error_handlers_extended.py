@@ -4,8 +4,6 @@
 エラーハンドラーの詳細な振る舞いをテスト
 """
 
-import pytest
-from marshmallow import ValidationError
 
 
 class TestValidationErrorHandlerExtended:

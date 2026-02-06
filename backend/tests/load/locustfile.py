@@ -3,10 +3,9 @@
 同時接続300ユーザー想定の5つのユーザーシナリオ
 """
 
-import json
 import random
 
-from locust import HttpUser, TaskSet, between, task
+from locust import HttpUser, between, task
 
 
 class LoginSearchBrowseUser(HttpUser):

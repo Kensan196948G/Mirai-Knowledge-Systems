@@ -8,7 +8,7 @@ import json
 import statistics
 import time
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict
 
 import requests
 
@@ -353,14 +353,14 @@ class PerformanceBenchmark:
 
         # 主要画面（3秒以内）
         main_screen_ok = [r for r in main_screens if r["avg_time"] <= 3.0]
-        print(f"主要画面（目標: 3秒以内）:")
+        print("主要画面（目標: 3秒以内）:")
         print(f"  合格: {len(main_screen_ok)}/{len(main_screens)}")
         for r in main_screens:
             status = "✓" if r["avg_time"] <= 3.0 else "✗"
             print(f"  {status} {r['name']}: {r['avg_time']:.3f}秒")
 
         # 検索（2秒以内）
-        print(f"\n検索機能（目標: 2秒以内）:")
+        print("\n検索機能（目標: 2秒以内）:")
         search_ok = [r for r in search_functions if r["avg_time"] <= 2.0]
         print(f"  合格: {len(search_ok)}/{len(search_functions)}")
         for r in search_functions:
@@ -369,12 +369,12 @@ class PerformanceBenchmark:
 
         # 最も遅い処理
         slowest = max(self.results, key=lambda x: x["avg_time"])
-        print(f"\n最も遅い処理:")
+        print("\n最も遅い処理:")
         print(f"  {slowest['name']}: {slowest['avg_time']:.3f}秒")
 
         # 最も速い処理
         fastest = min(self.results, key=lambda x: x["avg_time"])
-        print(f"\n最も速い処理:")
+        print("\n最も速い処理:")
         print(f"  {fastest['name']}: {fastest['avg_time']:.3f}秒")
 
         # エラー率

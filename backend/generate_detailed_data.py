@@ -3,7 +3,6 @@
 詳細ページ表示用の大量ダミーデータ生成スクリプト
 """
 
-import hashlib
 import json
 import random
 from datetime import datetime, timedelta
@@ -849,7 +848,7 @@ def main():
     print(f"✅ 専門家データ: {len(experts_data)}件\n")
 
     print("=== すべてのデータ生成完了 ===")
-    print(f"\n生成されたファイル:")
+    print("\n生成されたファイル:")
     print(f"  - {data_dir}/knowledge_details.json")
     print(f"  - {data_dir}/sop_details.json")
     print(f"  - {data_dir}/incidents_details.json")

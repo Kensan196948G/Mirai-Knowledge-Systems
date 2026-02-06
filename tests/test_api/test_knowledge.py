@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_create_knowledge_api(client, auth_headers, sample_knowledge):

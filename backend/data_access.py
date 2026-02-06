@@ -9,10 +9,22 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from database import get_session_factory
-from models import (SOP, AccessLog, Approval, Consultation, Expert,
-                    ExpertRating, Incident, Knowledge, MS365FileMapping,
-                    MS365SyncConfig, MS365SyncHistory, Notification, Project,
-                    ProjectTask, User)
+from models import (
+    SOP,
+    AccessLog,
+    Approval,
+    Consultation,
+    Expert,
+    ExpertRating,
+    Incident,
+    Knowledge,
+    MS365FileMapping,
+    MS365SyncConfig,
+    MS365SyncHistory,
+    Notification,
+    Project,
+    ProjectTask,
+)
 
 from config import Config
 
@@ -200,14 +212,14 @@ class DataAccessLayer:
             db = factory()
             try:
                 # N+1クエリ最適化: PostgreSQLのCTE（Common Table Expression）と配列関数を使用
-                from sqlalchemy import and_, case, func, literal_column
+                from sqlalchemy import func
                 from sqlalchemy.orm import selectinload
 
                 # タグ一致数をSQLで直接計算（N+1回避）
                 # cardinality(array_intersect(tags, :tags)) でタグ一致数を計算
                 if tags:
                     # PostgreSQLのarray演算子を使用してタグ一致数を計算
-                    tag_match_count = func.cardinality(
+                    func.cardinality(
                         func.array(func.unnest(Knowledge.tags)).op("&&")(
                             func.array(tags)
                         )
@@ -346,7 +358,7 @@ class DataAccessLayer:
                 db.commit()
                 db.refresh(knowledge)
                 return self._knowledge_to_dict(knowledge)
-            except Exception as e:
+            except Exception:
                 db.rollback()
                 raise
             finally:
@@ -408,7 +420,7 @@ class DataAccessLayer:
                 db.commit()
                 db.refresh(knowledge)
                 return self._knowledge_to_dict(knowledge)
-            except Exception as e:
+            except Exception:
                 db.rollback()
                 raise
             finally:
@@ -453,7 +465,7 @@ class DataAccessLayer:
                 db.delete(knowledge)
                 db.commit()
                 return True
-            except Exception as e:
+            except Exception:
                 db.rollback()
                 raise
             finally:
@@ -541,7 +553,7 @@ class DataAccessLayer:
                 db.commit()
                 db.refresh(notification)
                 return self._notification_to_dict(notification)
-            except Exception as e:
+            except Exception:
                 db.rollback()
                 raise
             finally:
@@ -1456,7 +1468,7 @@ class DataAccessLayer:
                 db.commit()
                 db.refresh(access_log)
                 return self._access_log_to_dict(access_log)
-            except Exception as e:
+            except Exception:
                 db.rollback()
                 raise
             finally:
@@ -1792,7 +1804,7 @@ class DataAccessLayer:
                 db.close()
         else:
             # JSONベースの実装
-            projects = self._load_json("projects.json")
+            self._load_json("projects.json")
             project_tasks = self._load_json("project_tasks.json")
 
             # プロジェクトのタスクを取得

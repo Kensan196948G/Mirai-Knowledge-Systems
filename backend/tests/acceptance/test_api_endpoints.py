@@ -11,8 +11,6 @@
 
 import json
 
-import pytest
-
 
 class TestAuthEndpoints:
     """認証関連エンドポイントのテスト"""

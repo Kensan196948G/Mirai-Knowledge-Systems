@@ -5,10 +5,10 @@ APSchedulerを使用した定期同期実行機能を提供
 """
 
 import logging
-from datetime import datetime
 from typing import Dict, List
 
 from data_access import DataAccessLayer
+
 from services.ms365_sync_service import MS365SyncService
 
 logger = logging.getLogger(__name__)

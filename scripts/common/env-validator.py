@@ -21,10 +21,10 @@ Mirai Knowledge Systems - 環境変数バリデーター
 ============================================================
 """
 
-import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
+
 
 # カラー出力
 class Colors:

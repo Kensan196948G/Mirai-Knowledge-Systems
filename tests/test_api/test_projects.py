@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_get_project_progress_api(client, auth_headers):

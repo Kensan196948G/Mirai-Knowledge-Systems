@@ -1,0 +1,51 @@
+[tool.ruff]
+# Exclude E2E test files (JavaScript in .py files)
+exclude = [
+    "tests/e2e/*.py",
+    "backend/tests/e2e/*.py",
+    "**/e2e/**/*.py",
+    "backend/app.py",  # Legacy file
+    ".git",
+    ".ruff_cache",
+    "__pycache__",
+    "venv*",
+    "node_modules",
+    "node_modules.windows",
+    "node_modules.linux",
+]
+
+# Line length
+line-length = 120
+
+# Assume Python 3.12
+target-version = "py312"
+
+[tool.ruff.lint]
+# Enable specific rule sets
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+]
+
+# Ignore specific rules
+ignore = [
+    "E402",  # Module level import not at top (多くのファイルで動的import使用)
+    "E501",  # Line too long (コメントや文字列で超過する場合がある)
+    "E721",  # Type comparison (テストコードでtype()比較を使用)
+    "E722",  # Bare except (一部の旧コードで使用)
+    "E741",  # Ambiguous variable name (一部の旧コードで単文字変数使用)
+    "F401",  # Imported but unused (一部のimportは将来使用予定)
+    "F541",  # f-string without placeholders (多くのログで使用)
+    "F811",  # Redefinition of unused (一部の関数が複数バージョン存在)
+    "F821",  # Undefined name (動的に定義される変数)
+    "F841",  # Local variable assigned but never used (一部の例外処理)
+]
+
+[tool.ruff.format]
+# Use double quotes
+quote-style = "double"
+
+# Indent with 4 spaces
+indent-style = "space"
