@@ -137,11 +137,14 @@ jobs:
             ${{ runner.os }}-pip-pytest-
 
       - name: Install dependencies
-        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pytest-flask pytest-xdist
-          pip install -r requirements.txt --break-system-packages
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt --break-system-packages
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt --break-system-packages
+          fi
 
       - name: Run Unit Tests (Parallel with xdist)
         working-directory: .
@@ -211,11 +214,14 @@ jobs:
             ${{ runner.os }}-pip-integration-
 
       - name: Install dependencies
-        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pytest-xdist requests
-          pip install -r requirements.txt --break-system-packages
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt --break-system-packages
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt --break-system-packages
+          fi
 
       - name: Setup PostgreSQL
         working-directory: .
@@ -285,10 +291,13 @@ jobs:
             ${{ runner.os }}-playwright-
 
       - name: Install Python dependencies
-        working-directory: .
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt --break-system-packages
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt --break-system-packages
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt --break-system-packages
+          fi
 
       - name: Install Node dependencies (cached)
         run: |
@@ -411,10 +420,13 @@ jobs:
             ${{ runner.os }}-deploy-
 
       - name: Install dependencies
-        working-directory: .
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt --break-system-packages
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt --break-system-packages
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt --break-system-packages
+          fi
 
       - name: Create deployment package
         run: |
@@ -474,10 +486,13 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        working-directory: .
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt --break-system-packages
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt --break-system-packages
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt --break-system-packages
+          fi
 
       - name: Create production package
         run: |
