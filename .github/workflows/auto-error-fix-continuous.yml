@@ -250,8 +250,56 @@ jobs:
 
           echo "report_path=${REPORT_FILE}" >> $GITHUB_OUTPUT
 
-      - name: GitHub Issueに結果を投稿
+      - name: 重複Issue確認
+        id: dedup
         if: always() && github.event.inputs.create_issue != 'no'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const errorCount = '${{ steps.error_fix_loop.outputs.error_count }}';
+
+            console.log(`Checking for duplicate issues on ${today}...`);
+
+            // エラー数が0の場合は重複チェック不要（作成しない）
+            if (errorCount === '0') {
+              core.setOutput('duplicate', 'false');
+              core.setOutput('skip_reason', 'no_errors');
+              console.log('No errors detected. Skipping issue creation.');
+              return;
+            }
+
+            // 同日の auto-fix ラベル付きIssueを検索
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'auto-fix',
+              state: 'open',
+              per_page: 100
+            });
+
+            // 同日 + 同じエラー数のIssueが存在するか確認
+            const duplicate = issues.data.find(i => {
+              const titleMatch = i.title.includes(today) && i.title.includes(`エラー${errorCount}件`);
+              return titleMatch;
+            });
+
+            if (duplicate) {
+              core.setOutput('duplicate', 'true');
+              core.setOutput('skip_reason', 'duplicate_found');
+              console.log(`Duplicate issue found: #${duplicate.number} - ${duplicate.title}`);
+            } else {
+              core.setOutput('duplicate', 'false');
+              core.setOutput('skip_reason', 'none');
+              console.log('No duplicate issue found. Proceeding with issue creation.');
+            }
+
+      - name: GitHub Issueに結果を投稿
+        if: >-
+          always() &&
+          github.event.inputs.create_issue != 'no' &&
+          steps.dedup.outputs.duplicate == 'false' &&
+          steps.dedup.outputs.skip_reason == 'none'
         uses: actions/github-script@v7
         with:
           script: |
