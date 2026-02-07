@@ -3,8 +3,6 @@
 """
 
 
-
-
 class TestAuditLogsAPI:
     """監査ログAPIのテスト"""
 

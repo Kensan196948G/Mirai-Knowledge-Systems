@@ -5,7 +5,6 @@
 """
 
 
-
 class TestValidationErrorHandlerExtended:
     """バリデーションエラーハンドラーの拡張テスト"""
 
