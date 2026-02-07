@@ -41,6 +41,7 @@ ignore = [
     "F811",  # Redefinition of unused (一部の関数が複数バージョン存在)
     "F821",  # Undefined name (動的に定義される変数)
     "F841",  # Local variable assigned but never used (一部の例外処理)
+    "I001",  # Import block is un-sorted (自動修正と手動編集の競合回避)
 ]
 
 [tool.ruff.format]
