@@ -79,7 +79,7 @@ test.describe('PWA Functionality Tests', () => {
       });
     });
 
-    expect(swVersion).toBe('v1.3.0');
+    expect(swVersion).toBe('v1.4.0');
     console.log('✅ Service Worker version:', swVersion);
   });
 
