@@ -468,6 +468,18 @@ else:
 # Prometheusメトリクス定義
 # ============================================================
 
+# Prometheusレジストリをクリア（重複登録エラー回避）
+from prometheus_client import REGISTRY
+try:
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        try:
+            REGISTRY.unregister(collector)
+        except Exception:
+            pass
+except Exception:
+    pass
+
 # テスト環境ではメトリクスを定義しない（重複回避）
 if os.environ.get("TESTING") != "true":
     # リクエストカウンター
