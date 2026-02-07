@@ -5,7 +5,6 @@ Note: This module uses the 'client' fixture from conftest.py
 """
 
 
-
 class TestAuthFlow:
     """認証フロー統合テスト"""
 

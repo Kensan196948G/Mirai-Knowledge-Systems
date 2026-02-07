@@ -12,7 +12,8 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from marshmallow import ValidationError
-from schemas import IncidentCreateSchema, KnowledgeCreateSchema, KnowledgeUpdateSchema, LoginSchema
+from schemas import (IncidentCreateSchema, KnowledgeCreateSchema,
+                     KnowledgeUpdateSchema, LoginSchema)
 
 
 class TestLoginSchema:
