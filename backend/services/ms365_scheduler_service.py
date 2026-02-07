@@ -8,7 +8,6 @@ import logging
 from typing import Dict, List
 
 from data_access import DataAccessLayer
-
 from services.ms365_sync_service import MS365SyncService
 
 logger = logging.getLogger(__name__)

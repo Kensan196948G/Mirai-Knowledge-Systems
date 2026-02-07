@@ -13,7 +13,8 @@
 import importlib.util
 import os
 
-from .production import DevelopmentConfig, ProductionConfig, TestingConfig, get_config
+from .production import (DevelopmentConfig, ProductionConfig, TestingConfig,
+                         get_config)
 
 # config.py を直接読み込む
 config_py_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.py")
