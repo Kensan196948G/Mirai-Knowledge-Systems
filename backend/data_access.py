@@ -9,22 +9,10 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from database import get_session_factory
-from models import (
-    SOP,
-    AccessLog,
-    Approval,
-    Consultation,
-    Expert,
-    ExpertRating,
-    Incident,
-    Knowledge,
-    MS365FileMapping,
-    MS365SyncConfig,
-    MS365SyncHistory,
-    Notification,
-    Project,
-    ProjectTask,
-)
+from models import (SOP, AccessLog, Approval, Consultation, Expert,
+                    ExpertRating, Incident, Knowledge, MS365FileMapping,
+                    MS365SyncConfig, MS365SyncHistory, Notification, Project,
+                    ProjectTask)
 
 from config import Config
 
@@ -803,8 +791,7 @@ class DataAccessLayer:
                 from sqlalchemy.orm import selectinload
 
                 query = db.query(Approval).options(
-                    selectinload(Approval.requester),
-                    selectinload(Approval.approver)
+                    selectinload(Approval.requester), selectinload(Approval.approver)
                 )
 
                 # フィルタリング
@@ -1176,11 +1163,7 @@ class DataAccessLayer:
                     # 全専門家の統計（N+1最適化: selectinloadで関連データ一括取得）
                     from sqlalchemy.orm import selectinload
 
-                    experts = (
-                        db.query(Expert)
-                        .options(selectinload(Expert.user))
-                        .all()
-                    )
+                    experts = db.query(Expert).options(selectinload(Expert.user)).all()
 
                     # ExpertRating と Consultation を一括取得
                     expert_ids = [e.id for e in experts]
@@ -1208,7 +1191,9 @@ class DataAccessLayer:
                     for consultation in all_consultations:
                         if consultation.expert_id not in consultations_by_expert:
                             consultations_by_expert[consultation.expert_id] = []
-                        consultations_by_expert[consultation.expert_id].append(consultation)
+                        consultations_by_expert[consultation.expert_id].append(
+                            consultation
+                        )
 
                     stats = []
 

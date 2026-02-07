@@ -17,26 +17,16 @@ import psutil
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_cors import CORS
-from flask_jwt_extended import (
-    JWTManager,
-    create_access_token,
-    create_refresh_token,
-    get_jwt,
-    get_jwt_identity,
-    jwt_required,
-)
+from flask_jwt_extended import (JWTManager, create_access_token,
+                                create_refresh_token, get_jwt,
+                                get_jwt_identity, jwt_required)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from marshmallow import ValidationError
-from schemas import (
-    ConsultationAnswerSchema,
-    ConsultationCreateSchema,
-    KnowledgeCreateSchema,
-    LoginSchema,
-    MS365ImportSchema,
-    MS365SyncSchema,
-)
+from schemas import (ConsultationAnswerSchema, ConsultationCreateSchema,
+                     KnowledgeCreateSchema, LoginSchema, MS365ImportSchema,
+                     MS365SyncSchema)
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 # スレッドセーフなファイルアクセス用ロック
@@ -48,8 +38,9 @@ from email.message import EmailMessage
 
 from auth.totp_manager import TOTPManager
 from data_access import DataAccessLayer
-from prometheus_client import CONTENT_TYPE_LATEST, Gauge, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST
 from prometheus_client import Counter as PrometheusCounter
+from prometheus_client import Gauge, Histogram, generate_latest
 from recommendation_engine import RecommendationEngine
 
 from config import get_config

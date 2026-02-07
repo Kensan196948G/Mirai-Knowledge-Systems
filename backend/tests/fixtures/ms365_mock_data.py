@@ -3,7 +3,6 @@ MS365 Sync用のモックデータ
 テストで使用するMicrosoft Graph APIのレスポンスデータ
 """
 
-
 # SharePointサイト一覧のモックデータ
 MOCK_SITES = [
     {
