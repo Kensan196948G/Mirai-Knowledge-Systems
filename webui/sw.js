@@ -156,13 +156,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy 2: Network First (API Requests)
+  // Strategy 2: MS365 Thumbnails - Cache First (7 days)
+  if (url.pathname.includes('/api/v1/integrations/microsoft365/files/') &&
+      url.pathname.includes('/thumbnail')) {
+    event.respondWith(cacheFirstMS365Thumbnail(request));
+    return;
+  }
+
+  // Strategy 3: MS365 Previews - Network First with Cache Fallback (7 days)
+  if (url.pathname.includes('/api/v1/integrations/microsoft365/files/') &&
+      (url.pathname.includes('/preview') || url.pathname.includes('/download'))) {
+    event.respondWith(networkFirstMS365Preview(request));
+    return;
+  }
+
+  // Strategy 4: Network First (API Requests)
   if (API_CACHE_PATTERNS.some(pattern => pattern.test(url.pathname))) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // Strategy 3: Stale-While-Revalidate (Images)
+  // Strategy 5: Stale-While-Revalidate (Images)
   if (request.destination === 'image') {
     event.respondWith(staleWhileRevalidate(request));
     return;
@@ -264,6 +278,101 @@ async function staleWhileRevalidate(request) {
   }).catch(() => {});
 
   return cached || fetchPromise;
+}
+
+// ============================================================
+// Cache First - MS365 Thumbnails (7 days)
+// ============================================================
+async function cacheFirstMS365Thumbnail(request) {
+  const cache = await caches.open(CACHE_NAMES.thumbnails);
+  const cached = await cache.match(request);
+
+  if (cached) {
+    // Check if cache is expired (7 days)
+    const cacheTime = cached.headers.get('sw-cache-time');
+    if (cacheTime) {
+      const age = Date.now() - parseInt(cacheTime);
+      if (age < CACHE_EXPIRATION.static) {
+        console.log('[SW] Thumbnail cache hit:', request.url);
+        return cached;
+      }
+    }
+  }
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      // Clone response and add cache timestamp
+      const clonedResponse = response.clone();
+      const blob = await clonedResponse.blob();
+      const headers = new Headers(clonedResponse.headers);
+      headers.set('sw-cache-time', Date.now().toString());
+
+      const cachedResponse = new Response(blob, {
+        status: clonedResponse.status,
+        statusText: clonedResponse.statusText,
+        headers: headers
+      });
+
+      await cache.put(request, cachedResponse);
+      console.log('[SW] Thumbnail cached:', request.url);
+    }
+    return response;
+  } catch (error) {
+    // Network failed, return cached if available
+    if (cached) {
+      console.log('[SW] Thumbnail offline fallback:', request.url);
+      return cached;
+    }
+    throw error;
+  }
+}
+
+// ============================================================
+// Network First - MS365 Previews (7 days cache fallback)
+// ============================================================
+async function networkFirstMS365Preview(request) {
+  const cache = await caches.open(CACHE_NAMES.previews);
+
+  try {
+    const response = await fetch(request);
+
+    if (response.ok) {
+      // Clone response and add cache timestamp
+      const clonedResponse = response.clone();
+      const blob = await clonedResponse.blob();
+      const headers = new Headers(clonedResponse.headers);
+      headers.set('sw-cache-time', Date.now().toString());
+
+      const cachedResponse = new Response(blob, {
+        status: clonedResponse.status,
+        statusText: clonedResponse.statusText,
+        headers: headers
+      });
+
+      await cache.put(request, cachedResponse);
+      console.log('[SW] Preview cached:', request.url);
+    }
+
+    return response;
+  } catch (error) {
+    // Network failed, try cache
+    const cached = await cache.match(request);
+
+    if (cached) {
+      // Check if cache is expired (7 days)
+      const cacheTime = cached.headers.get('sw-cache-time');
+      if (cacheTime) {
+        const age = Date.now() - parseInt(cacheTime);
+        if (age < CACHE_EXPIRATION.static) {
+          console.log('[SW] Preview offline fallback:', request.url);
+          return cached;
+        }
+      }
+    }
+
+    throw error;
+  }
 }
 
 // ============================================================
