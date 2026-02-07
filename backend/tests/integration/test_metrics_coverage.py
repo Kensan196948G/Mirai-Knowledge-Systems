@@ -3,7 +3,6 @@
 """
 
 
-
 class TestMetricsCompleteCoverage:
     """メトリクスエンドポイントのカバレッジ向上テスト"""
 
