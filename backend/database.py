@@ -22,8 +22,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Generator, Optional
 
-from models import (SOP, AccessLog, Approval, Base, Consultation, Incident,
-                    Knowledge, Notification, Regulation, User)
+from models import SOP, AccessLog, Approval, Base, Consultation, Incident, Knowledge, Notification, Regulation, User
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool, QueuePool

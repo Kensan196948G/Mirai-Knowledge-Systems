@@ -9,10 +9,22 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from database import get_session_factory
-from models import (SOP, AccessLog, Approval, Consultation, Expert,
-                    ExpertRating, Incident, Knowledge, MS365FileMapping,
-                    MS365SyncConfig, MS365SyncHistory, Notification, Project,
-                    ProjectTask)
+from models import (
+    SOP,
+    AccessLog,
+    Approval,
+    Consultation,
+    Expert,
+    ExpertRating,
+    Incident,
+    Knowledge,
+    MS365FileMapping,
+    MS365SyncConfig,
+    MS365SyncHistory,
+    Notification,
+    Project,
+    ProjectTask,
+)
 
 from config import Config
 

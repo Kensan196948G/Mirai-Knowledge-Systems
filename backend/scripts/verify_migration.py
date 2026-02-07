@@ -21,8 +21,7 @@ from typing import Dict, List, Tuple
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from database import SessionLocal
-from models import (SOP, Approval, Consultation, Incident, Knowledge,
-                    Notification, User)
+from models import SOP, Approval, Consultation, Incident, Knowledge, Notification, User
 from sqlalchemy import inspect
 
 

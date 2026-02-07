@@ -4,8 +4,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import (ARRAY, BigInteger, Boolean, Column, Date, DateTime,
-                        ForeignKey, Index, Integer, String, Text)
+from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
