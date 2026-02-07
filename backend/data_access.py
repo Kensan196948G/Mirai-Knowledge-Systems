@@ -799,7 +799,13 @@ class DataAccessLayer:
                 return []
             db = factory()
             try:
-                query = db.query(Approval)
+                # N+1最適化: 関連User（requester, approver）を一括取得
+                from sqlalchemy.orm import selectinload
+
+                query = db.query(Approval).options(
+                    selectinload(Approval.requester),
+                    selectinload(Approval.approver)
+                )
 
                 # フィルタリング
                 if filters:
@@ -1052,7 +1058,10 @@ class DataAccessLayer:
                 return []
             db = factory()
             try:
-                query = db.query(Expert)
+                # N+1最適化: 関連User情報を一括取得
+                from sqlalchemy.orm import selectinload
+
+                query = db.query(Expert).options(selectinload(Expert.user))
 
                 # フィルタリング
                 if filters:
@@ -1164,26 +1173,53 @@ class DataAccessLayer:
                         "is_available": expert.is_available,
                     }
                 else:
-                    # 全専門家の統計
-                    experts = db.query(Expert).all()
+                    # 全専門家の統計（N+1最適化: selectinloadで関連データ一括取得）
+                    from sqlalchemy.orm import selectinload
+
+                    experts = (
+                        db.query(Expert)
+                        .options(selectinload(Expert.user))
+                        .all()
+                    )
+
+                    # ExpertRating と Consultation を一括取得
+                    expert_ids = [e.id for e in experts]
+                    user_ids = [e.user_id for e in experts]
+
+                    # 全専門家の評価を一括取得
+                    all_ratings = (
+                        db.query(ExpertRating)
+                        .filter(ExpertRating.expert_id.in_(expert_ids))
+                        .all()
+                    )
+                    ratings_by_expert = {}
+                    for rating in all_ratings:
+                        if rating.expert_id not in ratings_by_expert:
+                            ratings_by_expert[rating.expert_id] = []
+                        ratings_by_expert[rating.expert_id].append(rating)
+
+                    # 全専門家の相談を一括取得
+                    all_consultations = (
+                        db.query(Consultation)
+                        .filter(Consultation.expert_id.in_(user_ids))
+                        .all()
+                    )
+                    consultations_by_expert = {}
+                    for consultation in all_consultations:
+                        if consultation.expert_id not in consultations_by_expert:
+                            consultations_by_expert[consultation.expert_id] = []
+                        consultations_by_expert[consultation.expert_id].append(consultation)
+
                     stats = []
 
                     for expert in experts:
-                        ratings = (
-                            db.query(ExpertRating)
-                            .filter(ExpertRating.expert_id == expert.id)
-                            .all()
-                        )
+                        ratings = ratings_by_expert.get(expert.id, [])
                         avg_rating = (
                             sum(r.rating for r in ratings) / len(ratings)
                             if ratings
                             else 0
                         )
-                        consultations = (
-                            db.query(Consultation)
-                            .filter(Consultation.expert_id == expert.user_id)
-                            .all()
-                        )
+                        consultations = consultations_by_expert.get(expert.user_id, [])
 
                         stats.append(
                             {
