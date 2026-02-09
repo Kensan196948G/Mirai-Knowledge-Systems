@@ -81,6 +81,7 @@ module.exports = defineConfig({
     reuseExistingServer: !process.env.CI,
     stdout: 'pipe',
     stderr: 'pipe',
+    shell: true,
   },
 
   // Global setup/teardown

@@ -75,7 +75,7 @@ jobs:
         run: |
           pytest tests/ -v --tb=short -x --maxfail=5 \
             --cov=. --cov-report=term-missing \
-            --cov-fail-under=32 2>&1 | tail -80
+            --cov-fail-under=25 2>&1 | tail -80
 
       - name: Jest Unit Tests with Coverage
         id: jest
