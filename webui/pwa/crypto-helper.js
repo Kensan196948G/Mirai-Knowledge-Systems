@@ -8,6 +8,29 @@
  * - Browser fingerprint-based key derivation
  * - Token expiration validation
  */
+
+// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
+const IS_PRODUCTION = (() => {
+  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
+  if (typeof window !== 'undefined' && window.MKS_ENV) {
+    return window.MKS_ENV === 'production';
+  }
+  // 優先順位2: self.MKS_ENV（Service Worker用）
+  if (typeof self !== 'undefined' && self.MKS_ENV) {
+    return self.MKS_ENV === 'production';
+  }
+  // フォールバック: ポート番号判定
+  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
+  return port === '9100' || port === '9443';
+})();
+
+// ロガー
+const logger = {
+  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
+  error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
+};
+
 class CryptoHelper {
   constructor() {
     this.algorithm = 'AES-GCM';
@@ -134,7 +157,7 @@ class CryptoHelper {
       const decoder = new TextDecoder();
       return decoder.decode(decrypted);
     } catch (error) {
-      console.error('[CryptoHelper] Decryption failed:', error);
+      logger.error('[CryptoHelper] Decryption failed:', error);
       throw new Error('Token decryption failed');
     }
   }
@@ -157,7 +180,7 @@ class CryptoHelper {
       const now = Math.floor(Date.now() / 1000);
       return now < exp;
     } catch (error) {
-      console.error('[CryptoHelper] Token validation failed:', error);
+      logger.error('[CryptoHelper] Token validation failed:', error);
       return false;
     }
   }
@@ -168,7 +191,7 @@ class CryptoHelper {
   async rotateKey() {
     // Clear old salt, force new key derivation on next encrypt()
     localStorage.removeItem(this.saltKey);
-    console.log('[CryptoHelper] Key rotation triggered');
+    logger.log('[CryptoHelper] Key rotation triggered');
   }
 }
 

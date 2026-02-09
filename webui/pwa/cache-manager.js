@@ -7,6 +7,29 @@
  * - 50MB maximum cache size
  * - IndexedDB metadata tracking
  */
+
+// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
+const IS_PRODUCTION = (() => {
+  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
+  if (typeof window !== 'undefined' && window.MKS_ENV) {
+    return window.MKS_ENV === 'production';
+  }
+  // 優先順位2: self.MKS_ENV（Service Worker用）
+  if (typeof self !== 'undefined' && self.MKS_ENV) {
+    return self.MKS_ENV === 'production';
+  }
+  // フォールバック: ポート番号判定
+  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
+  return port === '9100' || port === '9443';
+})();
+
+// ロガー
+const logger = {
+  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
+  error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
+};
+
 class CacheManager {
   constructor() {
     this.maxCacheSize = 50 * 1024 * 1024; // 50MB
@@ -74,7 +97,7 @@ class CacheManager {
         getRequest.onerror = () => reject(getRequest.error);
       });
     } catch (error) {
-      console.error('[CacheManager] Track access failed:', error);
+      logger.error('[CacheManager] Track access failed:', error);
     }
   }
 
@@ -105,7 +128,7 @@ class CacheManager {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error('[CacheManager] Get LRU entries failed:', error);
+      logger.error('[CacheManager] Get LRU entries failed:', error);
       return [];
     }
   }
@@ -116,13 +139,13 @@ class CacheManager {
   async evictIfNeeded() {
     const totalSize = await this.getTotalCacheSize();
 
-    console.log(`[CacheManager] Current cache size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+    logger.log(`[CacheManager] Current cache size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
 
     if (totalSize < this.evictionThreshold) {
       return; // No eviction needed
     }
 
-    console.log('[CacheManager] Cache size exceeded threshold, starting LRU eviction...');
+    logger.log('[CacheManager] Cache size exceeded threshold, starting LRU eviction...');
 
     const lruEntries = await this.getLRUEntries(20);
     const targetSize = this.maxCacheSize * 0.8; // Evict down to 80% capacity
@@ -140,7 +163,7 @@ class CacheManager {
         const deleted = await cache.delete(entry.key);
 
         if (deleted) {
-          console.log(`[CacheManager] Evicted: ${entry.key}`);
+          logger.log(`[CacheManager] Evicted: ${entry.key}`);
           // Estimate size (actual size calculation after deletion is complex)
           evictedSize += 10240; // Estimate 10KB per entry
         }
@@ -152,11 +175,11 @@ class CacheManager {
         const transaction = db.transaction([this.storeName], 'readwrite');
         await transaction.objectStore(this.storeName).delete(entry.key);
       } catch (error) {
-        console.error('[CacheManager] Metadata deletion failed:', error);
+        logger.error('[CacheManager] Metadata deletion failed:', error);
       }
     }
 
-    console.log(`[CacheManager] Evicted approximately ${(evictedSize / 1024 / 1024).toFixed(2)}MB`);
+    logger.log(`[CacheManager] Evicted approximately ${(evictedSize / 1024 / 1024).toFixed(2)}MB`);
   }
 
   /**
@@ -184,7 +207,7 @@ class CacheManager {
           store.createIndex('last_accessed_at', 'last_accessed_at', { unique: false });
         }
 
-        console.log('[CacheManager] IndexedDB stores created');
+        logger.log('[CacheManager] IndexedDB stores created');
       };
     });
   }
@@ -197,9 +220,9 @@ class CacheManager {
       const db = await this.openDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
       await transaction.objectStore(this.storeName).clear();
-      console.log('[CacheManager] Metadata cleared');
+      logger.log('[CacheManager] Metadata cleared');
     } catch (error) {
-      console.error('[CacheManager] Clear metadata failed:', error);
+      logger.error('[CacheManager] Clear metadata failed:', error);
     }
   }
 }
