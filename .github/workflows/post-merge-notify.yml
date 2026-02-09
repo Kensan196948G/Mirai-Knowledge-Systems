@@ -57,22 +57,37 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = context.payload.pull_request.number;
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: 'refinement-needed',
-              state: 'open',
-              per_page: 50
-            });
-            const duplicate = issues.data.find(i =>
-              i.body && i.body.includes(`Source-PR: #${prNumber}`)
-            );
-            if (duplicate) {
-              core.setOutput('duplicate', 'true');
-              console.log(`Duplicate issue found: #${duplicate.number}`);
-            } else {
+            try {
+              const prNumber = context.payload.pull_request.number;
+              console.log(`[Dedup] Checking for duplicate issues for PR #${prNumber}...`);
+
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'refinement-needed',
+                state: 'open',
+                per_page: 50
+              });
+
+              console.log(`[Dedup] Found ${issues.data.length} open refinement-needed issues`);
+
+              const duplicate = issues.data.find(i =>
+                i.body && i.body.includes(`Source-PR: #${prNumber}`)
+              );
+
+              if (duplicate) {
+                core.setOutput('duplicate', 'true');
+                console.log(`[Dedup] ✗ Duplicate issue found: #${duplicate.number}`);
+                console.log('[Dedup] Skipping issue creation to prevent duplicates.');
+              } else {
+                core.setOutput('duplicate', 'false');
+                console.log('[Dedup] ✓ No duplicate issue found. Proceeding with issue creation.');
+              }
+            } catch (error) {
+              // API失敗時はフェイルセーフ: Issue作成を許可（重複リスクより見逃しリスクを優先）
+              console.error(`[Dedup] Error during duplicate check: ${error.message}`);
               core.setOutput('duplicate', 'false');
+              console.log('[Dedup] ⚠️ Proceeding with issue creation due to API error (fail-safe).');
             }
 
       - name: Get PR diff stats
