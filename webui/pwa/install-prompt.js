@@ -2,6 +2,29 @@
  * PWA Install Prompt Manager
  * Manages installation UI and user engagement
  */
+
+// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
+const IS_PRODUCTION = (() => {
+  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
+  if (typeof window !== 'undefined' && window.MKS_ENV) {
+    return window.MKS_ENV === 'production';
+  }
+  // 優先順位2: self.MKS_ENV（Service Worker用）
+  if (typeof self !== 'undefined' && self.MKS_ENV) {
+    return self.MKS_ENV === 'production';
+  }
+  // フォールバック: ポート番号判定
+  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
+  return port === '9100' || port === '9443';
+})();
+
+// ロガー
+const logger = {
+  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
+  error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
+};
+
 class InstallPromptManager {
   constructor() {
     this.deferredPrompt = null;
@@ -15,7 +38,7 @@ class InstallPromptManager {
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       this.deferredPrompt = e;
-      console.log('[PWA] Install prompt ready');
+      logger.log('[PWA] Install prompt ready');
 
       // Show install button after delay or page views
       this.scheduleInstallPrompt();
@@ -26,14 +49,14 @@ class InstallPromptManager {
       this.isInstalled = true;
       this.hideInstallButton();
       this.trackInstallation();
-      console.log('[PWA] App installed successfully');
+      logger.log('[PWA] App installed successfully');
     });
 
     // Check if already installed (standalone mode)
     if (window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true) {
       this.isInstalled = true;
-      console.log('[PWA] App running in standalone mode');
+      logger.log('[PWA] App running in standalone mode');
     }
   }
 
@@ -43,7 +66,7 @@ class InstallPromptManager {
     if (dismissedAt) {
       const daysSinceDismissed = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
       if (daysSinceDismissed < 7) {
-        console.log('[PWA] Install prompt on cooldown');
+        logger.log('[PWA] Install prompt on cooldown');
         return;
       }
     }
@@ -99,12 +122,12 @@ class InstallPromptManager {
       this.dismissInstall();
     });
 
-    console.log('[PWA] Install banner displayed');
+    logger.log('[PWA] Install banner displayed');
   }
 
   async promptInstall() {
     if (!this.deferredPrompt) {
-      console.warn('[PWA] No deferred prompt available');
+      logger.warn('[PWA] No deferred prompt available');
       return;
     }
 
@@ -113,12 +136,12 @@ class InstallPromptManager {
 
     // Wait for user choice
     const { outcome } = await this.deferredPrompt.userChoice;
-    console.log('[PWA] User choice:', outcome);
+    logger.log('[PWA] User choice:', outcome);
 
     if (outcome === 'accepted') {
-      console.log('[PWA] User accepted install');
+      logger.log('[PWA] User accepted install');
     } else {
-      console.log('[PWA] User dismissed install');
+      logger.log('[PWA] User dismissed install');
     }
 
     // Clear deferred prompt
@@ -130,7 +153,7 @@ class InstallPromptManager {
     // Set cooldown period (7 days)
     localStorage.setItem(this.dismissKey, Date.now().toString());
     this.hideInstallButton();
-    console.log('[PWA] Install prompt dismissed');
+    logger.log('[PWA] Install prompt dismissed');
   }
 
   hideInstallButton() {
@@ -157,7 +180,7 @@ class InstallPromptManager {
         displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser'
       })
     }).catch((error) => {
-      console.error('[PWA] Install tracking failed:', error);
+      logger.error('[PWA] Install tracking failed:', error);
     });
   }
 

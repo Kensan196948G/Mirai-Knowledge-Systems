@@ -10,6 +10,28 @@
  * - Previews: Network First (NEW)
  */
 
+// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
+const IS_PRODUCTION = (() => {
+  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
+  if (typeof window !== 'undefined' && window.MKS_ENV) {
+    return window.MKS_ENV === 'production';
+  }
+  // 優先順位2: self.MKS_ENV（Service Worker用）
+  if (typeof self !== 'undefined' && self.MKS_ENV) {
+    return self.MKS_ENV === 'production';
+  }
+  // フォールバック: ポート番号判定
+  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
+  return port === '9100' || port === '9443';
+})();
+
+// ロガー
+const logger = {
+  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
+  error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
+};
+
 // Service Worker Version
 const SW_VERSION = 'v1.4.0';
 const CACHE_PREFIX = 'mks-';
@@ -84,22 +106,22 @@ const API_CACHE_PATTERNS = [
 // Install Event
 // ============================================================
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install event:', SW_VERSION);
+  logger.log('[SW] Install event:', SW_VERSION);
 
   event.waitUntil(
     caches.open(CACHE_NAMES.static)
       .then((cache) => {
-        console.log('[SW] Caching static assets');
+        logger.log('[SW] Caching static assets');
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
-        console.log('[SW] Static cache complete');
+        logger.log('[SW] Static cache complete');
         // Do NOT call skipWaiting() automatically
         // Wait for user confirmation (see PWA_IMPLEMENTATION_GUIDE.md)
-        console.log('[SW] Installed, waiting for activation signal');
+        logger.log('[SW] Installed, waiting for activation signal');
       })
       .catch((error) => {
-        console.error('[SW] Install failed:', error);
+        logger.error('[SW] Install failed:', error);
       })
   );
 });
@@ -108,7 +130,7 @@ self.addEventListener('install', (event) => {
 // Activate Event
 // ============================================================
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate event:', SW_VERSION);
+  logger.log('[SW] Activate event:', SW_VERSION);
 
   event.waitUntil(
     caches.keys()
@@ -121,13 +143,13 @@ self.addEventListener('activate', (event) => {
                      !Object.values(CACHE_NAMES).includes(cacheName);
             })
             .map((cacheName) => {
-              console.log('[SW] Deleting old cache:', cacheName);
+              logger.log('[SW] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             })
         );
       })
       .then(() => {
-        console.log('[SW] Claiming clients');
+        logger.log('[SW] Claiming clients');
         return self.clients.claim();
       })
   );
@@ -270,7 +292,7 @@ async function staleWhileRevalidate(request) {
 // Background Sync Event
 // ============================================================
 self.addEventListener('sync', (event) => {
-  console.log('[SW] Background sync:', event.tag);
+  logger.log('[SW] Background sync:', event.tag);
 
   if (event.tag === 'sync-queue') {
     event.waitUntil(processSyncQueue());
@@ -297,13 +319,13 @@ async function processSyncQueue() {
 
         if (response.ok) {
           await store.delete(item.id);
-          console.log('[SW] Sync success:', item.id);
+          logger.log('[SW] Sync success:', item.id);
         } else if (item.retries < 5) {
           item.retries = (item.retries || 0) + 1;
           await store.put(item);
         }
       } catch (error) {
-        console.error('[SW] Sync failed:', item.id, error);
+        logger.error('[SW] Sync failed:', item.id, error);
         if ((item.retries || 0) < 5) {
           item.retries = (item.retries || 0) + 1;
           await store.put(item);
@@ -344,7 +366,7 @@ function openIndexedDB() {
         store.createIndex('last_accessed_at', 'last_accessed_at', { unique: false });
       }
 
-      console.log('[SW] IndexedDB upgraded, stores:', Array.from(db.objectStoreNames));
+      logger.log('[SW] IndexedDB upgraded, stores:', Array.from(db.objectStoreNames));
     };
   });
 }
@@ -362,14 +384,14 @@ function getAllFromStore(store) {
 // ============================================================
 self.addEventListener('message', (event) => {
   if (event.data && event.data.action === 'SKIP_WAITING') {
-    console.log('[SW] Skip waiting signal received');
+    logger.log('[SW] Skip waiting signal received');
     self.skipWaiting();
   }
 
   if (event.data && event.data.type === 'CACHE_ACCESS') {
     // Track cache access for LRU (handled by cache-manager.js)
-    console.log('[SW] Cache access tracked:', event.data.url);
+    logger.log('[SW] Cache access tracked:', event.data.url);
   }
 });
 
-console.log('[SW] Service Worker script loaded:', SW_VERSION);
+logger.log('[SW] Service Worker script loaded:', SW_VERSION);

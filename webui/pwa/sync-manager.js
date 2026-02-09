@@ -7,6 +7,29 @@
  * - Retry logic with exponential backoff (1s, 2s, 4s, 8s, 16s)
  * - Fallback for browsers without Background Sync API
  */
+
+// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
+const IS_PRODUCTION = (() => {
+  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
+  if (typeof window !== 'undefined' && window.MKS_ENV) {
+    return window.MKS_ENV === 'production';
+  }
+  // 優先順位2: self.MKS_ENV（Service Worker用）
+  if (typeof self !== 'undefined' && self.MKS_ENV) {
+    return self.MKS_ENV === 'production';
+  }
+  // フォールバック: ポート番号判定
+  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
+  return port === '9100' || port === '9443';
+})();
+
+// ロガー
+const logger = {
+  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
+  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
+  error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
+};
+
 class SyncManager {
   constructor() {
     this.dbName = 'mks-pwa';
@@ -19,16 +42,16 @@ class SyncManager {
   async init() {
     try {
       this.db = await this.openDB();
-      console.log('[SyncManager] Initialized');
+      logger.log('[SyncManager] Initialized');
 
       // Register sync event if supported
       if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
         await this.registerSync();
       } else {
-        console.warn('[SyncManager] Background Sync API not available, using immediate sync');
+        logger.warn('[SyncManager] Background Sync API not available, using immediate sync');
       }
     } catch (error) {
-      console.error('[SyncManager] Initialization failed:', error);
+      logger.error('[SyncManager] Initialization failed:', error);
     }
   }
 
@@ -57,7 +80,7 @@ class SyncManager {
           store.createIndex('last_accessed_at', 'last_accessed_at', { unique: false });
         }
 
-        console.log('[SyncManager] IndexedDB stores created');
+        logger.log('[SyncManager] IndexedDB stores created');
       };
     });
   }
@@ -90,7 +113,7 @@ class SyncManager {
 
       request.onsuccess = async () => {
         item.id = request.result;
-        console.log('[SyncManager] Item added to queue:', item.id);
+        logger.log('[SyncManager] Item added to queue:', item.id);
         await this.registerSync();
         resolve(item);
       };
@@ -107,15 +130,15 @@ class SyncManager {
       try {
         const registration = await navigator.serviceWorker.ready;
         await registration.sync.register('sync-queue');
-        console.log('[SyncManager] Background sync registered');
+        logger.log('[SyncManager] Background sync registered');
       } catch (error) {
-        console.error('[SyncManager] Failed to register sync:', error);
+        logger.error('[SyncManager] Failed to register sync:', error);
         // Fallback to immediate sync
         await this.processSyncQueue();
       }
     } else {
       // Fallback for browsers without Background Sync API (iOS Safari)
-      console.warn('[SyncManager] Background Sync not supported, using immediate sync');
+      logger.warn('[SyncManager] Background Sync not supported, using immediate sync');
       await this.processSyncQueue();
     }
   }
@@ -130,7 +153,7 @@ class SyncManager {
 
     const items = await this.getAllQueueItems();
 
-    console.log(`[SyncManager] Processing ${items.length} queued items`);
+    logger.log(`[SyncManager] Processing ${items.length} queued items`);
 
     for (const item of items) {
       try {
@@ -142,17 +165,17 @@ class SyncManager {
 
         if (response.ok) {
           await this.deleteQueueItem(item.id);
-          console.log('[SyncManager] Sync success:', item.id);
+          logger.log('[SyncManager] Sync success:', item.id);
         } else if (item.retries < this.maxRetries) {
           item.retries++;
           await this.updateQueueItem(item);
-          console.warn(`[SyncManager] Sync failed, retry ${item.retries}/${this.maxRetries}:`, item.id);
+          logger.warn(`[SyncManager] Sync failed, retry ${item.retries}/${this.maxRetries}:`, item.id);
         } else {
-          console.error('[SyncManager] Max retries reached:', item.id);
+          logger.error('[SyncManager] Max retries reached:', item.id);
           await this.deleteQueueItem(item.id);
         }
       } catch (error) {
-        console.error('[SyncManager] Sync failed:', item.id, error);
+        logger.error('[SyncManager] Sync failed:', item.id, error);
 
         if (item.retries < this.maxRetries) {
           item.retries++;
@@ -160,10 +183,10 @@ class SyncManager {
 
           // Exponential backoff
           const backoffDelay = Math.pow(2, item.retries) * 1000; // 1s, 2s, 4s, 8s, 16s
-          console.log(`[SyncManager] Retrying in ${backoffDelay}ms`);
+          logger.log(`[SyncManager] Retrying in ${backoffDelay}ms`);
           setTimeout(() => this.processSyncQueue(), backoffDelay);
         } else {
-          console.error('[SyncManager] Max retries reached, removing from queue:', item.id);
+          logger.error('[SyncManager] Max retries reached, removing from queue:', item.id);
           await this.deleteQueueItem(item.id);
         }
       }
@@ -236,7 +259,7 @@ class SyncManager {
       const request = store.clear();
 
       request.onsuccess = () => {
-        console.log('[SyncManager] Queue cleared');
+        logger.log('[SyncManager] Queue cleared');
         resolve();
       };
       request.onerror = () => reject(request.error);
