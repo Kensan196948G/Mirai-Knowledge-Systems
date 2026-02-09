@@ -88,7 +88,7 @@ class TestMS365SyncService:
         # サンプルデータ
         content = b"Test file content for checksum"
 
-        # MD5ハッシュ計算
+        # セキュリティ注意: MD5はテスト目的のみで使用（本番環境では使用禁止）
         md5_hash = hashlib.md5(content).hexdigest()
         assert len(md5_hash) == 32
 
