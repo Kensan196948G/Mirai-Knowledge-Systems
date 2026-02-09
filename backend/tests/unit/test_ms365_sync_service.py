@@ -11,7 +11,8 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from tests.fixtures.ms365_mock_data import MOCK_DRIVES, MOCK_FILE_CONTENT, MOCK_FILES, MOCK_SITES
+from tests.fixtures.ms365_mock_data import (MOCK_DRIVES, MOCK_FILE_CONTENT,
+                                            MOCK_FILES, MOCK_SITES)
 
 
 class TestMS365SyncService:
