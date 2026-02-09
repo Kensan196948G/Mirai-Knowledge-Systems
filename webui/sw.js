@@ -29,6 +29,8 @@ const CACHE_EXPIRATION = {
   apiSearch: 60 * 60 * 1000,             // 1 hour
   apiDetail: 24 * 60 * 60 * 1000,        // 24 hours
   images: 30 * 24 * 60 * 60 * 1000,      // 30 days
+  thumbnails: 7 * 24 * 60 * 60 * 1000,   // 7 days
+  previews: 60 * 60 * 1000               // 1 hour
 };
 
 // Static Assets to Cache
@@ -156,13 +158,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy 2: Network First (API Requests)
+  // Strategy 2: Thumbnail Requests (Cache First)
+  if (url.pathname.includes('/thumbnail')) {
+    event.respondWith(handleThumbnailRequest(request));
+    return;
+  }
+
+  // Strategy 3: Preview Requests (Network First)
+  if (url.pathname.includes('/preview')) {
+    event.respondWith(handlePreviewRequest(request));
+    return;
+  }
+
+  // Strategy 4: Network First (API Requests)
   if (API_CACHE_PATTERNS.some(pattern => pattern.test(url.pathname))) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // Strategy 3: Stale-While-Revalidate (Images)
+  // Strategy 5: Stale-While-Revalidate (Images)
   if (request.destination === 'image') {
     event.respondWith(staleWhileRevalidate(request));
     return;
@@ -264,6 +278,78 @@ async function staleWhileRevalidate(request) {
   }).catch(() => {});
 
   return cached || fetchPromise;
+}
+
+// ============================================================
+// Thumbnail Request Handler (Cache First)
+// ============================================================
+async function handleThumbnailRequest(request) {
+  const cache = await caches.open(CACHE_NAMES.thumbnails);
+
+  // Check cache
+  const cached = await cache.match(request);
+  if (cached) {
+    // Check expiration
+    const cacheTime = cached.headers.get('sw-cache-time');
+    if (cacheTime) {
+      const age = Date.now() - parseInt(cacheTime);
+      if (age < CACHE_EXPIRATION.thumbnails) {
+        return cached;
+      }
+    }
+  }
+
+  // Fetch from network
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      // Add cache time metadata
+      const clonedResponse = response.clone();
+      const blob = await clonedResponse.blob();
+      const headers = new Headers(clonedResponse.headers);
+      headers.set('sw-cache-time', Date.now().toString());
+
+      const cachedResponse = new Response(blob, {
+        status: clonedResponse.status,
+        statusText: clonedResponse.statusText,
+        headers: headers
+      });
+
+      // Cache response
+      cache.put(request, cachedResponse);
+    }
+    return response;
+  } catch (error) {
+    // Offline: return cached even if expired
+    if (cached) {
+      return cached;
+    }
+    throw error;
+  }
+}
+
+// ============================================================
+// Preview Request Handler (Network First)
+// ============================================================
+async function handlePreviewRequest(request) {
+  const cache = await caches.open(CACHE_NAMES.previews);
+
+  try {
+    // Fetch from network
+    const response = await fetch(request);
+    if (response.ok) {
+      // Cache response
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    // Network error: fallback to cache
+    const cached = await cache.match(request);
+    if (cached) {
+      return cached;
+    }
+    throw error;
+  }
 }
 
 // ============================================================

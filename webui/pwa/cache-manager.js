@@ -202,6 +202,48 @@ class CacheManager {
       console.error('[CacheManager] Clear metadata failed:', error);
     }
   }
+
+  /**
+   * Get thumbnail cache size
+   * @returns {Promise<number>} - Total size in bytes
+   */
+  async getThumbnailCacheSize() {
+    try {
+      const cache = await caches.open('mks-thumbnails-v1.4.0');
+      const requests = await cache.keys();
+
+      let totalSize = 0;
+      for (const request of requests) {
+        const response = await cache.match(request);
+        if (response) {
+          const blob = await response.blob();
+          totalSize += blob.size;
+        }
+      }
+      return totalSize;
+    } catch (error) {
+      console.error('[CacheManager] Get thumbnail cache size failed:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Clear preview cache
+   */
+  async clearPreviewCache() {
+    try {
+      const cache = await caches.open('mks-previews-v1.4.0');
+      const requests = await cache.keys();
+
+      for (const request of requests) {
+        await cache.delete(request);
+      }
+
+      console.log('[CacheManager] Preview cache cleared');
+    } catch (error) {
+      console.error('[CacheManager] Clear preview cache failed:', error);
+    }
+  }
 }
 
 // Export
