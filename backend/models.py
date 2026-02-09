@@ -438,6 +438,8 @@ class Expert(Base):
 
     # リレーション
     user = relationship("User")
+    ratings = relationship("ExpertRating", foreign_keys="ExpertRating.expert_id", backref="expert_ref")
+    consultations = relationship("Consultation", foreign_keys="Consultation.expert_id", backref="expert_ref")
 
     # インデックス
     __table_args__ = (

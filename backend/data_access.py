@@ -8,6 +8,8 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.orm import selectinload, joinedload
+
 from database import get_session_factory
 from models import (
     SOP,
@@ -814,7 +816,15 @@ class DataAccessLayer:
                     if "priority" in filters:
                         query = query.filter(Approval.priority == filters["priority"])
 
-                results = query.order_by(Approval.created_at.desc()).all()
+                # N+1クエリ最適化: requesterとapproverを先読み
+                results = (
+                    query.options(
+                        selectinload(Approval.requester),
+                        selectinload(Approval.approver),
+                    )
+                    .order_by(Approval.created_at.desc())
+                    .all()
+                )
                 return [self._approval_to_dict(a) for a in results]
             finally:
                 db.close()
@@ -1065,7 +1075,12 @@ class DataAccessLayer:
                             Expert.is_available == filters["is_available"]
                         )
 
-                results = query.order_by(Expert.rating.desc()).all()
+                # N+1クエリ最適化: userをJOINで先読み
+                results = (
+                    query.options(joinedload(Expert.user))
+                    .order_by(Expert.rating.desc())
+                    .all()
+                )
                 return [self._expert_to_dict(e) for e in results]
             finally:
                 db.close()
@@ -1164,26 +1179,27 @@ class DataAccessLayer:
                         "is_available": expert.is_available,
                     }
                 else:
-                    # 全専門家の統計
-                    experts = db.query(Expert).all()
+                    # 全専門家の統計（N+1クエリ最適化済み）
+                    experts = (
+                        db.query(Expert)
+                        .options(
+                            joinedload(Expert.user),
+                            selectinload(Expert.ratings),
+                            selectinload(Expert.consultations),
+                        )
+                        .all()
+                    )
                     stats = []
 
                     for expert in experts:
-                        ratings = (
-                            db.query(ExpertRating)
-                            .filter(ExpertRating.expert_id == expert.id)
-                            .all()
-                        )
+                        # 既に先読み済みのデータにアクセス（追加クエリなし）
+                        ratings = expert.ratings
                         avg_rating = (
                             sum(r.rating for r in ratings) / len(ratings)
                             if ratings
                             else 0
                         )
-                        consultations = (
-                            db.query(Consultation)
-                            .filter(Consultation.expert_id == expert.user_id)
-                            .all()
-                        )
+                        consultations = expert.consultations
 
                         stats.append(
                             {
