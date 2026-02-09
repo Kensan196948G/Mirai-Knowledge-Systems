@@ -8,25 +8,12 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import selectinload, joinedload
-
 from database import get_session_factory
-from models import (
-    SOP,
-    AccessLog,
-    Approval,
-    Consultation,
-    Expert,
-    ExpertRating,
-    Incident,
-    Knowledge,
-    MS365FileMapping,
-    MS365SyncConfig,
-    MS365SyncHistory,
-    Notification,
-    Project,
-    ProjectTask,
-)
+from models import (SOP, AccessLog, Approval, Consultation, Expert,
+                    ExpertRating, Incident, Knowledge, MS365FileMapping,
+                    MS365SyncConfig, MS365SyncHistory, Notification, Project,
+                    ProjectTask)
+from sqlalchemy.orm import joinedload, selectinload
 
 from config import Config
 

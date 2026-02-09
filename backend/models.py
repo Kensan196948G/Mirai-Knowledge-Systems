@@ -4,7 +4,8 @@
 
 from datetime import datetime
 
-from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (ARRAY, BigInteger, Boolean, Column, Date, DateTime,
+                        ForeignKey, Index, Integer, String, Text)
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -438,8 +439,12 @@ class Expert(Base):
 
     # リレーション
     user = relationship("User")
-    ratings = relationship("ExpertRating", foreign_keys="ExpertRating.expert_id", backref="expert_ref")
-    consultations = relationship("Consultation", foreign_keys="Consultation.expert_id", backref="expert_ref")
+    ratings = relationship(
+        "ExpertRating", foreign_keys="ExpertRating.expert_id", backref="expert_ref"
+    )
+    consultations = relationship(
+        "Consultation", foreign_keys="Consultation.expert_id", backref="expert_ref"
+    )
 
     # インデックス
     __table_args__ = (
