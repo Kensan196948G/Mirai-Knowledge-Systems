@@ -56,6 +56,8 @@ const CACHE_EXPIRATION = {
   apiSearch: 60 * 60 * 1000,             // 1 hour
   apiDetail: 24 * 60 * 60 * 1000,        // 24 hours
   images: 30 * 24 * 60 * 60 * 1000,      // 30 days
+  thumbnails: 7 * 24 * 60 * 60 * 1000,   // 7 days
+  previews: 60 * 60 * 1000               // 1 hour
 };
 
 // Static Assets to Cache
@@ -397,6 +399,7 @@ async function networkFirstMS365Preview(request) {
         }
       }
     }
+
 
     throw error;
   }
