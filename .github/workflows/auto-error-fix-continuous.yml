@@ -256,45 +256,66 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const today = new Date().toISOString().split('T')[0];
-            const errorCount = '${{ steps.error_fix_loop.outputs.error_count }}';
+            try {
+              const today = new Date().toISOString().split('T')[0];
+              const errorCount = '${{ steps.error_fix_loop.outputs.error_count }}';
 
-            console.log(`Checking for duplicate issues on ${today}...`);
+              console.log(`[Dedup] Checking for duplicate issues on ${today}...`);
+              console.log(`[Dedup] Error count: ${errorCount}`);
 
-            // エラー数が0の場合は重複チェック不要（作成しない）
-            if (errorCount === '0') {
-              core.setOutput('duplicate', 'false');
-              core.setOutput('skip_reason', 'no_errors');
-              console.log('No errors detected. Skipping issue creation.');
-              return;
-            }
+              // エラー数が0の場合は重複チェック不要（作成しない）
+              if (errorCount === '0' || errorCount === '') {
+                core.setOutput('duplicate', 'false');
+                core.setOutput('skip_reason', 'no_errors');
+                console.log('[Dedup] No errors detected. Skipping issue creation.');
+                return;
+              }
 
-            // 同日の auto-fix ラベル付きIssueを検索
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: 'auto-fix',
-              state: 'open',
-              per_page: 100
-            });
+              // 同日の auto-fix ラベル付きIssueを検索
+              console.log('[Dedup] Fetching existing issues with auto-fix label...');
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'auto-fix',
+                state: 'open',
+                per_page: 100
+              });
 
-            // 同日 + 同じエラー数のIssueが存在するか確認
-            const duplicate = issues.data.find(i => {
-              const titleMatch = i.title.includes(today) && i.title.includes(`エラー${errorCount}件`);
-              return titleMatch;
-            });
+              console.log(`[Dedup] Found ${issues.data.length} open issues with auto-fix label`);
 
-            if (duplicate) {
+              // 同日 + 同じエラー数のIssueが存在するか確認
+              const duplicate = issues.data.find(i => {
+                const titleMatch = i.title.includes(today) && i.title.includes(`エラー${errorCount}件`);
+                if (titleMatch) {
+                  console.log(`[Dedup] Potential duplicate: #${i.number} - ${i.title}`);
+                }
+                return titleMatch;
+              });
+
+              if (duplicate) {
+                core.setOutput('duplicate', 'true');
+                core.setOutput('skip_reason', 'duplicate_found');
+                console.log(`[Dedup] ✗ Duplicate issue found: #${duplicate.number} - ${duplicate.title}`);
+                console.log('[Dedup] Skipping issue creation to prevent duplicates.');
+              } else {
+                core.setOutput('duplicate', 'false');
+                core.setOutput('skip_reason', 'none');
+                console.log('[Dedup] ✓ No duplicate issue found. Proceeding with issue creation.');
+              }
+            } catch (error) {
+              // API失敗時はフェイルセーフ: Issue作成をスキップ
+              console.error(`[Dedup] Error during duplicate check: ${error.message}`);
               core.setOutput('duplicate', 'true');
-              core.setOutput('skip_reason', 'duplicate_found');
-              console.log(`Duplicate issue found: #${duplicate.number} - ${duplicate.title}`);
-            } else {
-              core.setOutput('duplicate', 'false');
-              core.setOutput('skip_reason', 'none');
-              console.log('No duplicate issue found. Proceeding with issue creation.');
+              core.setOutput('skip_reason', 'api_error');
+              console.log('[Dedup] ⚠️ Skipping issue creation due to API error (fail-safe).');
             }
 
       - name: GitHub Issueに結果を投稿
+        # Issue作成条件:
+        # - always(): 前ステップの失敗に関わらず実行
+        # - create_issue != 'no': 手動トリガーでのスキップ可能
+        # - duplicate == 'false': 重複Issueではない
+        # - skip_reason == 'none': エラー0件、重複、API失敗でない
         if: >-
           always() &&
           github.event.inputs.create_issue != 'no' &&
