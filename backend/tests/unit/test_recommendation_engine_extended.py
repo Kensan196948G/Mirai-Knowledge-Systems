@@ -4,7 +4,6 @@
 推薦エンジンの詳細な振る舞いをテスト
 """
 
-
 import pytest
 from recommendation_engine import RecommendationEngine
 
