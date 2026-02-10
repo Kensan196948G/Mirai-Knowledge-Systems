@@ -79,6 +79,8 @@ Mirai-Knowledge-Systems/
 ### 前提条件
 - Python 3.8以上
 - pip（Pythonパッケージマネージャー）
+- Node.js 18以上（フロントエンド開発時）
+- npm または yarn（フロントエンド開発時）
 - モダンブラウザ（Chrome, Firefox, Edge等）
 
 ### インストール手順
@@ -160,8 +162,36 @@ Mirai-Knowledge-Systems/
 - バックエンドAPI: `http://localhost:5100`
 - ログイン画面: `http://localhost:5100/login.html`
 - ダッシュボード: `http://localhost:5100/index.html`（認証要）
+- フロントエンド開発サーバー: `http://localhost:5173`（Vite）
 
 > **注**: ポート5100で起動します。ネットワーク経由でアクセスする場合は、サーバーのIPアドレスを使用してください（例: `http://<server-ip>:5100`）
+
+### フロントエンド開発モード
+
+フロントエンドの開発時は、Vite開発サーバーを使用することで高速なホットリロードが可能です。
+
+```bash
+# フロントエンド開発サーバー起動
+npm install
+npm run dev
+# http://localhost:5173 でアクセス
+```
+
+Vite開発サーバーは自動的にバックエンドAPI（localhost:5200）へプロキシします。
+
+### 本番ビルド
+
+フロントエンドのコードをバンドル・最適化してビルドします。
+
+```bash
+# 本番ビルド実行
+npm run build
+# dist/ ディレクトリに出力
+
+# ビルド結果のプレビュー
+npm run preview
+# http://localhost:4173 でアクセス
+```
 
 ## 📊 API エンドポイント
 

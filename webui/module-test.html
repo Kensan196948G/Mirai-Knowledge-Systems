@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>モジュールテスト - Mirai Knowledge Systems</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2d5016;
+    }
+    h2 {
+      color: #556b2f;
+      border-bottom: 2px solid #556b2f;
+      padding-bottom: 10px;
+    }
+    button {
+      background: #556b2f;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #6b8e23;
+    }
+    .result {
+      background: #f0f0f0;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Phase F-1: モジュール動作確認</h1>
+
+  <div class="test-section">
+    <h2>1. Logger テスト</h2>
+    <button onclick="testLogger()">logger.debug/info/warn/error をテスト</button>
+    <div id="logger-result" class="result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. API Client テスト</h2>
+    <button onclick="testAPIClient()">fetchAPI() をテスト（/api/v1/auth/me）</button>
+    <div id="api-result" class="result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Auth テスト</h2>
+    <button onclick="testAuth()">checkAuth() / getCurrentUser() をテスト</button>
+    <div id="auth-result" class="result"></div>
+  </div>
+
+  <script type="module">
+    import { logger } from './src/core/logger.js';
+    import { fetchAPI, API_BASE } from './src/core/api-client.js';
+    import { checkAuth, getCurrentUser, logout } from './src/core/auth.js';
+
+    // グローバルに公開（テスト用）
+    window.logger = logger;
+    window.fetchAPI = fetchAPI;
+    window.API_BASE = API_BASE;
+    window.checkAuth = checkAuth;
+    window.getCurrentUser = getCurrentUser;
+    window.logout = logout;
+
+    // Logger テスト
+    window.testLogger = function() {
+      const result = document.getElementById('logger-result');
+      result.textContent = '実行中...\n';
+
+      logger.debug('これはDEBUGログです（開発環境のみ表示）');
+      logger.info('これはINFOログです（開発環境のみ表示）');
+      logger.warn('これはWARNログです（常に表示）');
+      logger.error('これはERRORログです（常に表示）');
+
+      logger.group('グループログテスト');
+      logger.debug('グループ内のログ1');
+      logger.debug('グループ内のログ2');
+      logger.groupEnd();
+
+      logger.time('パフォーマンステスト');
+      setTimeout(() => {
+        logger.timeEnd('パフォーマンステスト');
+      }, 100);
+
+      result.textContent = '✅ Logger テスト完了\n\nコンソールを確認してください。\n\n';
+      result.textContent += `API_BASE: ${API_BASE}\n`;
+      result.textContent += `開発環境: ${window.location.hostname === 'localhost'}`;
+    };
+
+    // API Client テスト
+    window.testAPIClient = async function() {
+      const result = document.getElementById('api-result');
+      result.textContent = '実行中...\n';
+
+      try {
+        const response = await fetchAPI('/api/v1/auth/me');
+        result.textContent = '✅ API Client テスト成功\n\n';
+        result.textContent += JSON.stringify(response, null, 2);
+      } catch (error) {
+        result.textContent = '❌ API Client テスト失敗\n\n';
+        result.textContent += `エラー: ${error.message}\n\n`;
+        result.textContent += '※ 認証トークンがない場合、401エラーになります。';
+      }
+    };
+
+    // Auth テスト
+    window.testAuth = async function() {
+      const result = document.getElementById('auth-result');
+      result.textContent = '実行中...\n';
+
+      const isAuthenticated = checkAuth();
+      result.textContent = `認証状態: ${isAuthenticated ? '✅ 認証済み' : '❌ 未認証'}\n\n`;
+
+      if (isAuthenticated) {
+        try {
+          const user = await getCurrentUser();
+          if (user) {
+            result.textContent += 'ユーザー情報:\n';
+            result.textContent += JSON.stringify(user, null, 2);
+          } else {
+            result.textContent += '❌ ユーザー情報取得失敗';
+          }
+        } catch (error) {
+          result.textContent += `❌ エラー: ${error.message}`;
+        }
+      } else {
+        result.textContent += '※ ログインしていないため、/login.html へリダイレクトされます。';
+      }
+    };
+  </script>
+</body>
+</html>
