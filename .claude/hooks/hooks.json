@@ -1,0 +1,51 @@
+{
+  "$schema": "https://claude.ai/schemas/hooks.json",
+  "version": "1.0.0",
+  "hooks": {
+    "SessionStart": {
+      "enabled": true,
+      "script": ".claude/hooks/session-start.sh",
+      "description": "プロジェクト初期化時に状態を確認",
+      "timeout": 30000,
+      "runInBackground": false
+    },
+    "UserPromptSubmit": {
+      "enabled": true,
+      "script": ".claude/hooks/user-prompt-submit.sh",
+      "description": "ユーザープロンプト送信時のセキュリティチェック",
+      "timeout": 5000,
+      "runInBackground": false
+    },
+    "ToolCall": {
+      "enabled": false,
+      "script": ".claude/hooks/tool-call.sh",
+      "description": "ツール呼び出し前の確認（未実装）",
+      "timeout": 5000,
+      "runInBackground": false
+    },
+    "ToolResult": {
+      "enabled": false,
+      "script": ".claude/hooks/tool-result.sh",
+      "description": "ツール結果受信後の処理（未実装）",
+      "timeout": 5000,
+      "runInBackground": false
+    },
+    "SessionEnd": {
+      "enabled": false,
+      "script": ".claude/hooks/session-end.sh",
+      "description": "セッション終了時のクリーンアップ（未実装）",
+      "timeout": 10000,
+      "runInBackground": false
+    }
+  },
+  "parallelExecution": {
+    "enabled": true,
+    "maxConcurrency": 3,
+    "description": "並列実行を有効化（最大3同時実行）"
+  },
+  "logging": {
+    "enabled": true,
+    "logLevel": "info",
+    "logFile": ".claude/logs/hooks.log"
+  }
+}
