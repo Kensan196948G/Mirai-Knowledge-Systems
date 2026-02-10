@@ -286,9 +286,20 @@ class AutoFixDaemon:
 
             for pattern in temp_patterns:
                 subprocess.run(
-                    f"find {os.path.dirname(pattern)} -name '{os.path.basename(pattern)}' -type f -mtime +1 -delete",
-                    shell=True,
+                    [
+                        "find",
+                        os.path.dirname(pattern),
+                        "-name",
+                        os.path.basename(pattern),
+                        "-type",
+                        "f",
+                        "-mtime",
+                        "+1",
+                        "-delete",
+                    ],
+                    shell=False,
                     capture_output=True,
+                    check=True,
                 )
 
             self.logger.info("一時ファイルクリーンアップ完了")
@@ -349,14 +360,18 @@ class AutoFixDaemon:
     def _kill_process_on_port(self, port: int) -> bool:
         """ポートを使用しているプロセスを終了"""
         try:
+            # lsof + xargs の組み合わせを2段階に分割
             result = subprocess.run(
-                f"lsof -ti:{port}", shell=True, capture_output=True, text=True
+                ["lsof", "-ti", f":{port}"],
+                capture_output=True,
+                text=True,
+                check=False,
             )
 
             if result.stdout.strip():
                 pids = result.stdout.strip().split("\n")
                 for pid in pids:
-                    subprocess.run(["kill", "-9", pid])
+                    subprocess.run(["kill", "-9", pid], check=False)
                     self.logger.info(f"プロセス終了: PID {pid} (Port {port})")
 
                 return True
