@@ -41,6 +41,10 @@ node_modules.linux/
 npm-debug.log
 yarn-error.log
 
+# Vite
+dist/
+*.local
+
 # IDE
 .vscode/
 .idea/

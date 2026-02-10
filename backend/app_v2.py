@@ -5,6 +5,7 @@ JSONベース + JWT認証 + RBAC
 
 import hashlib
 import json
+import logging
 import os
 import threading
 import time
@@ -28,6 +29,13 @@ from schemas import (ConsultationAnswerSchema, ConsultationCreateSchema,
                      KnowledgeCreateSchema, LoginSchema, MS365ImportSchema,
                      MS365SyncSchema)
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
+
+# ロガー設定
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # スレッドセーフなファイルアクセス用ロック
 _file_lock = threading.RLock()
@@ -3749,12 +3757,32 @@ def get_knowledge():
         current_user_id = get_jwt_identity()
         log_access(current_user_id, "knowledge.list", "knowledge")
 
-        knowledge_list = load_data("knowledge.json") or []
-
         # クエリパラメータでのフィルタリング
         category = request.args.get("category")
         search = request.args.get("search")
         tags = request.args.get("tags")
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 50, type=int)
+
+        # キャッシュキー生成
+        highlight_key = request.args.get("highlight", "false")
+        cache_key = get_cache_key(
+            "knowledge_list",
+            category or "",
+            search or "",
+            tags or "",
+            highlight_key,
+            page,
+            per_page,
+        )
+
+        # キャッシュチェック
+        cached_result = cache_get(cache_key)
+        if cached_result:
+            logger.info(f"Cache hit: knowledge_list - {cache_key}")
+            return jsonify(cached_result)
+
+        knowledge_list = load_data("knowledge.json") or []
 
         filtered = knowledge_list
 
@@ -3798,8 +3826,6 @@ def get_knowledge():
 
         # ページネーション
         total_items = len(filtered)
-        page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 50, type=int)
 
         # per_pageの上限を設定
         per_page = min(per_page, 100)
@@ -3810,18 +3836,21 @@ def get_knowledge():
         end_idx = start_idx + per_page
         paginated_data = filtered[start_idx:end_idx]
 
-        return jsonify(
-            {
-                "success": True,
-                "data": paginated_data,
-                "pagination": {
-                    "total_items": total_items,
-                    "total_pages": total_pages,
-                    "current_page": page,
-                    "per_page": per_page,
-                },
-            }
-        )
+        # 結果をキャッシュ
+        response_data = {
+            "success": True,
+            "data": paginated_data,
+            "pagination": {
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "current_page": page,
+                "per_page": per_page,
+            },
+        }
+        cache_set(cache_key, response_data, ttl=3600)  # 1時間
+        logger.info(f"Cache set: knowledge_list - {cache_key}")
+
+        return jsonify(response_data)
     except Exception as e:
         print(f"[ERROR] get_knowledge: {type(e).__name__}: {e}", file=sys.stderr)
         return jsonify(
@@ -4104,6 +4133,18 @@ def create_knowledge():
     knowledge_list.append(new_knowledge)
     save_data("knowledge.json", knowledge_list)
 
+    # キャッシュ無効化
+    if redis_client:
+        try:
+            # knowledge_list、popularキャッシュを削除
+            for key in redis_client.scan_iter("knowledge_list:*"):
+                redis_client.delete(key)
+            for key in redis_client.scan_iter("knowledge_popular:*"):
+                redis_client.delete(key)
+            logger.info("Cache invalidated: knowledge_list, knowledge_popular")
+        except Exception as e:
+            logger.warning(f"Cache invalidation failed: {e}")
+
     log_access(current_user_id, "knowledge.create", "knowledge", new_id)
 
     # 通知作成（承認者に通知）
@@ -4178,6 +4219,21 @@ def update_knowledge(knowledge_id):
     knowledge_list[knowledge_index]["updated_by_id"] = current_user_id
 
     save_data("knowledge.json", knowledge_list)
+
+    # キャッシュ無効化
+    if redis_client:
+        try:
+            # 該当IDと一覧キャッシュを削除
+            for key in redis_client.scan_iter(f"knowledge:{knowledge_id}:*"):
+                redis_client.delete(key)
+            for key in redis_client.scan_iter("knowledge_list:*"):
+                redis_client.delete(key)
+            for key in redis_client.scan_iter("knowledge_popular:*"):
+                redis_client.delete(key)
+            logger.info(f"Cache invalidated: knowledge {knowledge_id}")
+        except Exception as e:
+            logger.warning(f"Cache invalidation failed: {e}")
+
     log_access(current_user_id, "knowledge.update", "knowledge", knowledge_id)
 
     return jsonify({"success": True, "data": knowledge_list[knowledge_index]})
@@ -4331,16 +4387,31 @@ def get_popular_knowledge():
         current_user_id = get_jwt_identity()
         log_access(current_user_id, "knowledge.popular", "knowledge")
 
-        knowledge_list = load_data("knowledge.json") or []
         limit = request.args.get("limit", 10, type=int)
         limit = min(limit, 50)  # 最大50件
+
+        # キャッシュキー生成
+        cache_key = get_cache_key("knowledge_popular", limit)
+
+        # キャッシュチェック
+        cached_result = cache_get(cache_key)
+        if cached_result:
+            logger.info(f"Cache hit: knowledge_popular - {cache_key}")
+            return jsonify(cached_result)
+
+        knowledge_list = load_data("knowledge.json") or []
 
         # 閲覧数でソート
         sorted_knowledge = sorted(
             knowledge_list, key=lambda k: k.get("views", 0) if k else 0, reverse=True
         )[:limit]
 
-        return jsonify({"success": True, "data": sorted_knowledge})
+        # 結果をキャッシュ
+        response_data = {"success": True, "data": sorted_knowledge}
+        cache_set(cache_key, response_data, ttl=3600)  # 1時間
+        logger.info(f"Cache set: knowledge_popular - {cache_key}")
+
+        return jsonify(response_data)
     except Exception as e:
         print(
             f"[ERROR] get_popular_knowledge: {type(e).__name__}: {e}", file=sys.stderr
@@ -4510,6 +4581,19 @@ def unified_search():
             400,
         )
 
+    # キャッシュキー生成
+    search_types = ",".join(sorted(types))
+    highlight_key = "true" if highlight else "false"
+    cache_key = get_cache_key(
+        "search", query, search_types, highlight_key, page, page_size, sort_by, order
+    )
+
+    # キャッシュチェック
+    cached_result = cache_get(cache_key)
+    if cached_result:
+        logger.info(f"Cache hit: unified_search - {cache_key}")
+        return jsonify(cached_result)
+
     results = {}
     total_count = 0
 
@@ -4597,9 +4681,17 @@ def unified_search():
 
     log_access(current_user_id, "search.unified", "search", query)
 
-    return jsonify(
-        {"success": True, "data": results, "total_results": total_count, "query": query}
-    )
+    # 検索結果をキャッシュ
+    response_data = {
+        "success": True,
+        "data": results,
+        "total_results": total_count,
+        "query": query,
+    }
+    cache_set(cache_key, response_data, ttl=3600)  # 1時間
+    logger.info(f"Cache set: unified_search - {cache_key}")
+
+    return jsonify(response_data)
 
 
 # ============================================================

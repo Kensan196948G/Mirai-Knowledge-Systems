@@ -787,7 +787,12 @@ class DataAccessLayer:
                 return []
             db = factory()
             try:
-                query = db.query(Approval)
+                from sqlalchemy.orm import selectinload
+
+                # N+1最適化: requesterとapproverを事前ロード
+                query = db.query(Approval).options(
+                    selectinload(Approval.requester), selectinload(Approval.approver)
+                )
 
                 # フィルタリング
                 if filters:
@@ -1152,27 +1157,53 @@ class DataAccessLayer:
                         "is_available": expert.is_available,
                     }
                 else:
-                    # 全専門家の統計
-                    experts = db.query(Expert).all()
+                    # 全専門家の統計（N+1最適化）
+                    from sqlalchemy.orm import selectinload
+                    from sqlalchemy import func
+
+                    # サブクエリで集計（N+1回避）
+                    ratings_subquery = (
+                        db.query(
+                            ExpertRating.expert_id,
+                            func.avg(ExpertRating.rating).label("avg_rating"),
+                            func.count(ExpertRating.id).label("rating_count"),
+                        )
+                        .group_by(ExpertRating.expert_id)
+                        .subquery()
+                    )
+
+                    consultations_subquery = (
+                        db.query(
+                            Consultation.expert_id,
+                            func.count(Consultation.id).label("consultation_count"),
+                        )
+                        .group_by(Consultation.expert_id)
+                        .subquery()
+                    )
+
+                    # LEFT JOINで一括取得
+                    experts_query = (
+                        db.query(
+                            Expert,
+                            ratings_subquery.c.avg_rating,
+                            ratings_subquery.c.rating_count,
+                            consultations_subquery.c.consultation_count,
+                        )
+                        .outerjoin(
+                            ratings_subquery,
+                            Expert.id == ratings_subquery.c.expert_id,
+                        )
+                        .outerjoin(
+                            consultations_subquery,
+                            Expert.user_id == consultations_subquery.c.expert_id,
+                        )
+                        .options(selectinload(Expert.user))
+                    )
+
                     stats = []
-
-                    for expert in experts:
-                        ratings = (
-                            db.query(ExpertRating)
-                            .filter(ExpertRating.expert_id == expert.id)
-                            .all()
-                        )
-                        avg_rating = (
-                            sum(r.rating for r in ratings) / len(ratings)
-                            if ratings
-                            else 0
-                        )
-                        consultations = (
-                            db.query(Consultation)
-                            .filter(Consultation.expert_id == expert.user_id)
-                            .all()
-                        )
-
+                    for expert, avg_rating, rating_count, consultation_count in (
+                        experts_query.all()
+                    ):
                         stats.append(
                             {
                                 "expert_id": expert.id,
@@ -1180,9 +1211,11 @@ class DataAccessLayer:
                                     expert.user.full_name if expert.user else "Unknown"
                                 ),
                                 "specialization": expert.specialization,
-                                "consultation_count": len(consultations),
-                                "average_rating": round(avg_rating, 1),
-                                "total_ratings": len(ratings),
+                                "consultation_count": consultation_count or 0,
+                                "average_rating": (
+                                    round(float(avg_rating), 1) if avg_rating else 0
+                                ),
+                                "total_ratings": rating_count or 0,
                                 "experience_years": expert.experience_years,
                                 "is_available": expert.is_available,
                             }
