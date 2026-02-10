@@ -12,8 +12,8 @@ test.describe('Login Flow', () => {
   });
 
   test('should display login form correctly', async ({ page }) => {
-    // ページタイトルの確認
-    await expect(page).toHaveTitle(/Mirai Knowledge Systems/);
+    // ページタイトルの確認（日本語タイトルに対応）
+    await expect(page).toHaveTitle(/ログイン - 建設土木ナレッジシステム/);
 
     // ログインフォームの要素が表示されているか確認
     await expect(page.locator('input[name="username"]')).toBeVisible();
@@ -29,8 +29,8 @@ test.describe('Login Flow', () => {
     // ログインボタンをクリック
     await page.click('button[type="submit"]');
 
-    // エラーメッセージが表示されることを確認
-    const errorMessage = page.locator('.error-message, .alert-danger, [role="alert"]');
+    // エラーメッセージが表示されることを確認（strict mode対応）
+    const errorMessage = page.locator('#usernameError, #passwordError').first();
     await expect(errorMessage).toBeVisible({ timeout: 5000 });
   });
 
