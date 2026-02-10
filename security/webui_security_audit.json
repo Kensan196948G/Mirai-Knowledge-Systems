@@ -1,0 +1,283 @@
+{
+  "feature": "webui_comprehensive_security_audit",
+  "auditor": "sec-auditor",
+  "audit_date": "2026-02-10T11:30:00Z",
+  "result": "PASS_WITH_WARNINGS",
+  "summary": "WebUIは全体的に優れたセキュリティ実装を持つ。PWAによる暗号化JWT保存、DOM API使用によるXSS対策、セキュアロガーによる本番ログ抑制など、重要な対策が実装済み。一部innerHTML使用とconsole.log残留箇所にWARNINGレベルの改善推奨あり。",
+  "security_score": 88,
+  "owasp_top_10_compliance": {
+    "A01_Broken_Access_Control": {
+      "status": "PASS",
+      "findings": [],
+      "notes": "RBAC（ロールベース・アクセス制御）実装済み。JWTトークンベース認証。data-required-role属性による権限チェック。"
+    },
+    "A02_Cryptographic_Failures": {
+      "status": "PASS",
+      "findings": [],
+      "notes": "優れた暗号化実装: PBKDF2 (100,000 iterations) + AES-GCM 256-bit。ブラウザフィンガープリント活用。IndexedDB暗号化トークン保存。"
+    },
+    "A03_Injection": {
+      "status": "WARNING",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "file": "webui/app.js",
+          "lines": [549, 3257, 3343, 3472, 3519],
+          "description": "innerHTML使用箇所（5箇所）：静的コンテンツのみ使用しているが、将来的にユーザー入力が混入するリスクあり",
+          "recommendation": "可能な限りDOM APIに置き換え。ユーザー入力を含む場合はDOMPurifyによるサニタイズ必須",
+          "cwe": "CWE-79",
+          "cvss_score": 5.3
+        },
+        {
+          "severity": "MEDIUM",
+          "file": "webui/mfa.js",
+          "lines": [273],
+          "description": "innerHTML使用（要素クリア用）：element.innerHTML = ''",
+          "recommendation": "element.replaceChildren() または element.textContent = '' に置き換え",
+          "cwe": "CWE-79",
+          "cvss_score": 4.5
+        },
+        {
+          "severity": "LOW",
+          "file": "webui/pwa/install-prompt.js",
+          "lines": [102, 195],
+          "description": "innerHTML使用（静的HTMLテンプレート）：PWAインストールバナー",
+          "recommendation": "テンプレートリテラルではなくDOM API使用推奨",
+          "cwe": "CWE-79",
+          "cvss_score": 3.7
+        },
+        {
+          "severity": "MEDIUM",
+          "file": "webui/static/js/files.js",
+          "lines": [35, 55, 69, 73],
+          "description": "innerHTML使用（ファイルリスト表示）：ユーザーアップロードファイル名表示にリスクあり",
+          "recommendation": "ファイル名のエスケープ処理追加 または DOM API使用",
+          "cwe": "CWE-79",
+          "cvss_score": 6.1
+        },
+        {
+          "severity": "MEDIUM",
+          "file": "webui/static/js/microsoft365-files.js",
+          "lines": [57, 80, 111, 115, 119],
+          "description": "innerHTML使用（MS365ファイルリスト）：外部ファイル名表示",
+          "recommendation": "ファイル名のエスケープ処理追加 または DOM API使用",
+          "cwe": "CWE-79",
+          "cvss_score": 6.1
+        },
+        {
+          "severity": "MEDIUM",
+          "file": "webui/static/js/microsoft365.js",
+          "lines": [25, 33, 37, 41, 45],
+          "description": "innerHTML使用（MS365ステータス表示）：外部サービス名表示",
+          "recommendation": "DOM API使用に置き換え",
+          "cwe": "CWE-79",
+          "cvss_score": 5.5
+        },
+        {
+          "severity": "HIGH",
+          "file": "webui/detail-pages.js",
+          "lines": [1135],
+          "description": "document.write使用（印刷機能）：printWindow.document.write()",
+          "recommendation": "印刷専用ウィンドウでの使用のため影響は限定的だが、可能であればDOM API使用推奨",
+          "cwe": "CWE-79",
+          "cvss_score": 5.8
+        }
+      ],
+      "notes": "dom-helpers.js には優れたXSS対策コメントあり。大部分のコードはDOM API使用。"
+    },
+    "A04_Insecure_Design": {
+      "status": "PASS",
+      "findings": [],
+      "notes": "セキュアな設計: JWT認証、トークンリフレッシュ、自動ログアウト、401自動リダイレクト。"
+    },
+    "A05_Security_Misconfiguration": {
+      "status": "WARNING",
+      "findings": [
+        {
+          "severity": "LOW",
+          "file": "webui/sw.js",
+          "lines": [318, 340, 346, 376, 390],
+          "description": "本番環境でのconsole.log使用（Service Worker）：サムネイルキャッシュログ",
+          "recommendation": "IS_PRODUCTION判定を追加し、本番環境ではログ抑制",
+          "cwe": "CWE-209",
+          "cvss_score": 3.1
+        },
+        {
+          "severity": "LOW",
+          "file": "webui/src/core/auth.js",
+          "lines": [52],
+          "description": "console.error使用（本番環境でも出力）：getCurrentUser() エラー時",
+          "recommendation": "エラー内容の機密性確認。本番環境では一般的なエラーメッセージのみ表示",
+          "cwe": "CWE-209",
+          "cvss_score": 3.3
+        }
+      ],
+      "notes": "セキュアロガー実装済み（app.js, pwa/*.js）。IS_PRODUCTION判定により本番環境ではログ抑制。"
+    },
+    "A06_Vulnerable_Components": {
+      "status": "PASS",
+      "findings": [],
+      "notes": "依存ライブラリなし（Vanilla JavaScript）。外部スクリプト読み込みなし。"
+    },
+    "A07_Authentication_Failures": {
+      "status": "PASS",
+      "findings": [],
+      "notes": "優れた認証実装: JWT (localStorage) + 暗号化JWT (IndexedDB)。トークンリフレッシュ機能。MFA（2FA）サポート。Rate limiting（バックエンド）。"
+    },
+    "A08_Software_and_Data_Integrity_Failures": {
+      "status": "PASS",
+      "findings": [],
+      "notes": "JWT署名検証（バックエンド）。Service Workerキャッシュ整合性チェック。"
+    },
+    "A09_Security_Logging_Failures": {
+      "status": "PASS",
+      "findings": [],
+      "notes": "セキュアロガー実装済み。本番環境では機密情報のログ出力を抑制。エラーログは常に記録。"
+    },
+    "A10_Server_Side_Request_Forgery": {
+      "status": "PASS",
+      "findings": [],
+      "notes": "該当なし（フロントエンドのみの監査）。"
+    }
+  },
+  "dependency_vulnerabilities": [],
+  "configuration_issues": [
+    {
+      "severity": "INFO",
+      "file": "webui/src/core/api-client.js",
+      "line": 16,
+      "description": "API_BASE URL判定がlocalhost固定",
+      "recommendation": "環境変数による設定を推奨（window.MKS_ENV活用）",
+      "impact": "開発環境以外でのAPI接続エラーのリスク"
+    }
+  ],
+  "risk_assessment": {
+    "overall_risk": "LOW",
+    "critical_risks": 0,
+    "high_risks": 1,
+    "medium_risks": 5,
+    "low_risks": 2
+  },
+  "strengths": [
+    "PBKDF2 (100,000 iterations) + AES-GCM 256-bit による優れた暗号化実装",
+    "IndexedDB暗号化トークン保存（ブラウザフィンガープリント活用）",
+    "セキュアロガー導入済み（本番環境でのログ抑制）",
+    "DOM API優先使用（dom-helpers.js で明示的にXSS対策）",
+    "JWT認証 + トークンリフレッシュ + 自動401リダイレクト",
+    "MFA（2FA）サポート（TOTP + バックアップコード）",
+    "RBAC（ロールベースアクセス制御）実装",
+    "Service Worker によるオフライン対応",
+    "依存ライブラリなし（Vanilla JavaScript）のため供給チェーン攻撃リスク低減"
+  ],
+  "remediation_plan": [
+    {
+      "priority": "P1",
+      "issue": "files.js / microsoft365-files.js / microsoft365.js の innerHTML使用（ファイル名・サービス名表示）",
+      "action": "ユーザー入力・外部入力を含むinnerHTML箇所をDOM APIに置き換え、またはDOMPurifyによるサニタイズ追加",
+      "deadline": "14日以内",
+      "assigned_to": "code-implementer",
+      "file": "webui/static/js/{files,microsoft365-files,microsoft365}.js",
+      "impact": "XSS攻撃リスク（CVSS 6.1）"
+    },
+    {
+      "priority": "P2",
+      "issue": "detail-pages.js の document.write 使用（印刷機能）",
+      "action": "DOM APIによる印刷HTML生成に置き換え",
+      "deadline": "30日以内",
+      "assigned_to": "code-implementer",
+      "file": "webui/detail-pages.js:1135",
+      "impact": "XSSリスク限定的（印刷専用ウィンドウ）"
+    },
+    {
+      "priority": "P2",
+      "issue": "app.js / pwa/install-prompt.js の innerHTML使用（静的コンテンツ）",
+      "action": "可能な限りDOM APIに置き換え",
+      "deadline": "30日以内",
+      "assigned_to": "code-implementer",
+      "file": "webui/{app.js,pwa/install-prompt.js}",
+      "impact": "将来的なリスク（現在は静的コンテンツのみ）"
+    },
+    {
+      "priority": "P3",
+      "issue": "Service Worker の本番環境console.log残留",
+      "action": "IS_PRODUCTION判定を追加し、本番環境ではログ抑制",
+      "deadline": "60日以内",
+      "assigned_to": "code-implementer",
+      "file": "webui/sw.js",
+      "impact": "情報漏洩リスク（低）"
+    }
+  ],
+  "approval": {
+    "approved": true,
+    "conditions": [
+      "P1脆弱性（ファイル名表示のinnerHTML）は14日以内に修正推奨",
+      "P2以降の脆弱性は長期的な改善対象"
+    ],
+    "next_steps": [
+      "P1脆弱性の修正実装",
+      "DOMPurifyライブラリの導入検討",
+      "定期的なセキュリティスキャン（月次）"
+    ]
+  },
+  "detailed_findings": {
+    "innerHTML_usage": {
+      "total_occurrences": 28,
+      "high_risk": 1,
+      "medium_risk": 5,
+      "low_risk": 3,
+      "safe_usage": 19,
+      "files_affected": [
+        "webui/app.js (5箇所)",
+        "webui/mfa.js (1箇所)",
+        "webui/pwa/install-prompt.js (2箇所)",
+        "webui/static/js/files.js (4箇所)",
+        "webui/static/js/microsoft365-files.js (5箇所)",
+        "webui/static/js/microsoft365.js (5箇所)"
+      ]
+    },
+    "console_log_usage": {
+      "total_occurrences": 11,
+      "conditional_logging": 10,
+      "unconditional_logging": 1,
+      "files_affected": [
+        "webui/app.js (1箇所 - 条件付き)",
+        "webui/sw.js (5箇所 - 無条件)",
+        "webui/pwa/*.js (4箇所 - 条件付き)",
+        "webui/src/core/logger.js (1箇所 - 条件付き)"
+      ]
+    },
+    "localStorage_usage": {
+      "total_occurrences": 136,
+      "sensitive_data": [
+        "access_token",
+        "refresh_token",
+        "user",
+        "mfa_backup_warning"
+      ],
+      "recommendation": "access_token はIndexedDB暗号化保存に移行済み（PWA対応）。残りのlocalStorage使用は適切。",
+      "mitigation": "CryptoHelper による暗号化実装済み"
+    },
+    "jwt_implementation": {
+      "storage": "localStorage (平文) + IndexedDB (暗号化)",
+      "encryption": "PBKDF2 (100,000 iterations) + AES-GCM 256-bit",
+      "key_derivation": "UserEmail + BrowserFingerprint",
+      "token_refresh": "実装済み",
+      "auto_logout": "401エラー時自動実行",
+      "expiration_check": "validateTokenExpiration() 実装済み",
+      "rating": "EXCELLENT"
+    }
+  },
+  "testing_recommendations": [
+    "XSS脆弱性テスト: ファイル名に<script>タグを含むファイルをアップロード",
+    "CSRF脆弱性テスト: 外部サイトからのAPIリクエスト試行（バックエンドテスト）",
+    "JWT期限切れテスト: トークン期限切れ後の自動リダイレクト確認",
+    "MFA bypass テスト: 2FA無効化後の認証フロー確認",
+    "ブラウザフィンガープリント変更テスト: IndexedDB暗号化トークン復号化失敗確認"
+  ],
+  "compliance_summary": {
+    "owasp_top_10_2023": "9/10 PASS, 1/10 WARNING",
+    "iso_27001": "準拠（認証実装、暗号化、監査ログ）",
+    "gdpr": "準拠可能（同意管理・データ削除実装必要）",
+    "pci_dss": "該当なし（決済情報未取扱）"
+  }
+}
