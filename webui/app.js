@@ -3,55 +3,49 @@
 // ============================================================
 
 /**
- * 環境ポート番号定義（固定 - 変更不可）
- * 開発環境: HTTP 5100, HTTPS 5443
- * 本番環境: HTTP 8100, HTTPS 8443
+ * Import centralized configuration
+ * Use window.IS_PRODUCTION and window.ENV_PORTS from config.js
+ * These are set by loading config.js in the HTML file
  */
-const ENV_PORTS = {
-  development: { http: 5100, https: 5443 },
-  production: { http: 8100, https: 8443 }
-};
 
-/**
- * 本番環境フラグ
- * true: 本番環境（ダミーデータを表示しない、APIからデータ取得）
- * false: 開発環境（ダミーデータを表示、開発用データ使用）
- *
- * 本番環境では以下の方法で切り替え（優先順位順）:
- * 1. URLパラメータ: ?env=production
- * 2. localStorage: localStorage.setItem('MKS_ENV', 'production')
- * 3. ポート番号: 8100/8443 = 本番、5100/5443 = 開発
- * 4. ホスト名: localhost/127.0.0.1 以外は本番モード
- */
-const IS_PRODUCTION = (() => {
-  // URLパラメータをチェック
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('env') === 'production') return true;
-  if (urlParams.get('env') === 'development') return false;
+// Fallback if config.js is not loaded (should not happen in normal operation)
+if (typeof window.IS_PRODUCTION === 'undefined') {
+  console.warn('[app.js] config.js not loaded, using fallback environment detection');
 
-  // localStorageをチェック
-  const envSetting = localStorage.getItem('MKS_ENV');
-  if (envSetting === 'production') return true;
-  if (envSetting === 'development') return false;
+  window.ENV_PORTS = {
+    development: { http: 5200, https: 5243 },
+    production: { http: 9100, https: 9443 }
+  };
 
-  // ポート番号で判定（最も信頼性が高い）
-  const port = parseInt(window.location.port || (window.location.protocol === 'https:' ? '443' : '80'));
-  if (port === ENV_PORTS.production.http || port === ENV_PORTS.production.https) {
-    return true;
-  }
-  if (port === ENV_PORTS.development.http || port === ENV_PORTS.development.https) {
+  window.IS_PRODUCTION = (() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('env') === 'production') return true;
+    if (urlParams.get('env') === 'development') return false;
+
+    const envSetting = localStorage.getItem('MKS_ENV');
+    if (envSetting === 'production') return true;
+    if (envSetting === 'development') return false;
+
+    const port = parseInt(window.location.port || (window.location.protocol === 'https:' ? '443' : '80'));
+    if (port === window.ENV_PORTS.production.http || port === window.ENV_PORTS.production.https) {
+      return true;
+    }
+    if (port === window.ENV_PORTS.development.http || port === window.ENV_PORTS.development.https) {
+      return false;
+    }
+
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return false;
+    }
+
     return false;
-  }
+  })();
+}
 
-  // ホスト名で判定（localhost以外は本番）
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return false;
-  }
-
-  // デフォルトは開発環境
-  return false;
-})();
+// Use the global configuration
+const IS_PRODUCTION = window.IS_PRODUCTION;
+const ENV_PORTS = window.ENV_PORTS;
 
 /**
  * 現在の環境名を取得
@@ -79,8 +73,11 @@ window.MKS_ENV = {
 /**
  * 開発環境でのみログを出力するロガー
  * 本番環境では機密情報漏洩を防ぐためログを抑制
+ *
+ * Note: webui/src/core/logger.js で定義済みのloggerを使用
+ * window.loggerが未定義の場合のみフォールバック定義を作成
  */
-const logger = {
+const logger = window.logger || {
   log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
   warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
   error: (...args) => { console.error(...args); }, // エラーは常に出力
@@ -88,8 +85,10 @@ const logger = {
   info: (...args) => { if (!IS_PRODUCTION) console.info(...args); }
 };
 
-// グローバルに公開（他のファイルからも使用可能）
-window.logger = logger;
+// グローバルに公開（まだ定義されていない場合のみ）
+if (!window.logger) {
+  window.logger = logger;
+}
 
 logger.log(`[ENV] 環境モード: ${ENV_NAME}`);
 logger.log(`[ENV] ポート: ${window.location.port || 'default'}`);
@@ -546,7 +545,7 @@ async function loadMonitoringData() {
       // 最初の3つのプロジェクトの進捗を取得
       const monitoringSection = document.querySelector('.progress-list');
       if (monitoringSection) {
-        monitoringSection.innerHTML = '';
+        monitoringSection.textContent = '';
 
         for (let i = 0; i < Math.min(3, projectsResult.data.length); i++) {
           const project = projectsResult.data[i];
@@ -3254,10 +3253,16 @@ function updateProjectProgress(projectId, progressData) {
       if (progressFill && progressMeta) {
         const progressPercent = progressData.progress_percentage || 0;
         progressFill.style.width = `${progressPercent}%`;
-        progressMeta.innerHTML = `
-          <span>工程 ${progressPercent}%</span>
-          <span>予定 ${Math.max(0, progressPercent - 3)}%</span>
-        `;
+        progressMeta.textContent = '';
+
+        const actualSpan = document.createElement('span');
+        actualSpan.textContent = `工程 ${progressPercent}%`;
+
+        const plannedSpan = document.createElement('span');
+        plannedSpan.textContent = `予定 ${Math.max(0, progressPercent - 3)}%`;
+
+        progressMeta.appendChild(actualSpan);
+        progressMeta.appendChild(plannedSpan);
       }
     }
   });
@@ -3340,7 +3345,7 @@ function updateDutyExperts(expertStats) {
     experts.forEach((expert, index) => {
       if (expertDocuments[index]) {
         const doc = expertDocuments[index];
-        doc.innerHTML = '';
+        doc.textContent = '';
 
         const title = createElement('strong', {}, [`${expert.specialization}: ${expert.name || 'Unknown'}`]);
         const small = createElement('small', {}, [
@@ -3469,16 +3474,16 @@ function registerServiceWorker() {
 function showUpdatePrompt(newWorker) {
   const banner = document.createElement('div');
   banner.className = 'update-banner';
-  banner.innerHTML = `
-    <div class="update-content">
-      <strong>新しいバージョンが利用可能です</strong>
-      <button onclick="applyUpdate()">今すぐ更新</button>
-      <button onclick="dismissUpdate()">後で</button>
-    </div>
-  `;
-  document.body.appendChild(banner);
 
-  window.applyUpdate = () => {
+  const content = document.createElement('div');
+  content.className = 'update-content';
+
+  const message = document.createElement('strong');
+  message.textContent = '新しいバージョンが利用可能です';
+
+  const updateButton = document.createElement('button');
+  updateButton.textContent = '今すぐ更新';
+  updateButton.onclick = () => {
     newWorker.postMessage({ action: 'SKIP_WAITING' });
     banner.remove();
 
@@ -3488,9 +3493,21 @@ function showUpdatePrompt(newWorker) {
     });
   };
 
-  window.dismissUpdate = () => {
+  const dismissButton = document.createElement('button');
+  dismissButton.textContent = '後で';
+  dismissButton.onclick = () => {
     banner.remove();
   };
+
+  content.appendChild(message);
+  content.appendChild(updateButton);
+  content.appendChild(dismissButton);
+  banner.appendChild(content);
+  document.body.appendChild(banner);
+
+  // Store functions in window for backward compatibility
+  window.applyUpdate = updateButton.onclick;
+  window.dismissUpdate = dismissButton.onclick;
 }
 
 /**
@@ -3516,7 +3533,7 @@ function showOfflineIndicator() {
     indicator = document.createElement('div');
     indicator.id = 'offline-indicator';
     indicator.className = 'offline-indicator visible';
-    indicator.innerHTML = '📡 オフラインモード - キャッシュされたコンテンツのみ利用可能';
+    indicator.textContent = '📡 オフラインモード - キャッシュされたコンテンツのみ利用可能';
     document.body.insertBefore(indicator, document.body.firstChild);
   }
   indicator.classList.add('visible');

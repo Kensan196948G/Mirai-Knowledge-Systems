@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#2f4b52">
     <title>ログイン - 建設土木ナレッジシステム</title>
     <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="stylesheet" href="styles.css">
     <style>
         /* ログイン画面専用スタイル */
@@ -259,6 +260,9 @@
             color: #3b82f6;
         }
     </style>
+
+    <!-- Centralized Configuration (MUST load first) -->
+    <script src="/src/core/config.js"></script>
 </head>
 
 <body>
@@ -356,24 +360,6 @@
 
         // 動的にAPIベースURLを設定（現在のホストを使用）
         const API_BASE = `${window.location.origin}/api/v1`;
-
-        // 本番環境判定
-        const IS_PRODUCTION = (() => {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('env') === 'production') return true;
-            if (urlParams.get('env') === 'development') return false;
-            const envSetting = localStorage.getItem('MKS_ENV');
-            if (envSetting === 'production') return true;
-            if (envSetting === 'development') return false;
-            const hostname = window.location.hostname;
-            return hostname !== 'localhost' && hostname !== '127.0.0.1';
-        })();
-
-        // セキュアロガー（本番環境ではログ出力を抑制）
-        const logger = {
-            log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
-            error: (...args) => { console.error(...args); }
-        };
 
         // MFA一時トークン保持用
         let mfaToken = null;

@@ -22,28 +22,64 @@ class MS365Manager {
             const servicesDiv = document.getElementById('services');
 
             if (result.success && result.authenticated) {
-                statusDiv.innerHTML = `
-                    <span class="status-success">✅ 認証済み</span>
-                    <div class="user-info">
-                        <strong>${result.user.display_name}</strong><br>
-                        ${result.user.email}
-                    </div>
-                `;
+                statusDiv.textContent = '';
 
-                servicesDiv.innerHTML = result.services.map(service =>
-                    `<li class="service-item">${service}</li>`
-                ).join('');
+                const statusSuccess = document.createElement('span');
+                statusSuccess.className = 'status-success';
+                statusSuccess.textContent = '✅ 認証済み';
+
+                const userInfo = document.createElement('div');
+                userInfo.className = 'user-info';
+
+                const displayName = document.createElement('strong');
+                displayName.textContent = result.user.display_name;
+
+                const br = document.createElement('br');
+
+                const email = document.createTextNode(result.user.email);
+
+                userInfo.appendChild(displayName);
+                userInfo.appendChild(br);
+                userInfo.appendChild(email);
+
+                statusDiv.appendChild(statusSuccess);
+                statusDiv.appendChild(userInfo);
+
+                servicesDiv.textContent = '';
+                result.services.forEach(service => {
+                    const li = document.createElement('li');
+                    li.className = 'service-item';
+                    li.textContent = service;
+                    servicesDiv.appendChild(li);
+                });
             } else {
-                statusDiv.innerHTML = `
-                    <span class="status-error">❌ 未認証</span>
-                    <div class="error-details">${result.error || '認証に失敗しました'}</div>
-                `;
-                servicesDiv.innerHTML = '<li class="service-error">サービス利用不可</li>';
+                statusDiv.textContent = '';
+
+                const statusError = document.createElement('span');
+                statusError.className = 'status-error';
+                statusError.textContent = '❌ 未認証';
+
+                const errorDetails = document.createElement('div');
+                errorDetails.className = 'error-details';
+                errorDetails.textContent = result.error || '認証に失敗しました';
+
+                statusDiv.appendChild(statusError);
+                statusDiv.appendChild(errorDetails);
+
+                servicesDiv.textContent = '';
+                const li = document.createElement('li');
+                li.className = 'service-error';
+                li.textContent = 'サービス利用不可';
+                servicesDiv.appendChild(li);
             }
         } catch (error) {
             console.error('Auth check error:', error);
-            document.getElementById('authStatus').innerHTML =
-                '<span class="status-error">❌ 接続エラー</span>';
+            const statusDiv = document.getElementById('authStatus');
+            statusDiv.textContent = '';
+            const statusError = document.createElement('span');
+            statusError.className = 'status-error';
+            statusError.textContent = '❌ 接続エラー';
+            statusDiv.appendChild(statusError);
         }
     }
 

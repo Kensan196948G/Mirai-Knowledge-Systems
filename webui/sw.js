@@ -10,23 +10,28 @@
  * - Previews: Network First (NEW)
  */
 
-// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
-const IS_PRODUCTION = (() => {
-  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
-  if (typeof window !== 'undefined' && window.MKS_ENV) {
-    return window.MKS_ENV === 'production';
-  }
-  // 優先順位2: self.MKS_ENV（Service Worker用）
-  if (typeof self !== 'undefined' && self.MKS_ENV) {
-    return self.MKS_ENV === 'production';
-  }
-  // フォールバック: ポート番号判定
-  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
-  return port === '9100' || port === '9443';
-})();
+// Import centralized configuration
+// Note: Service Workers cannot use ES6 imports, so we use importScripts
+try {
+  importScripts('./src/core/config.js');
+} catch (e) {
+  // Fallback if config.js is not available
+  self.IS_PRODUCTION = (() => {
+    if (typeof self !== 'undefined' && self.MKS_ENV) {
+      return self.MKS_ENV === 'production';
+    }
+    const port = self.location?.port || '';
+    return port === '9100' || port === '9443';
+  })();
+}
 
-// ロガー
-const logger = {
+// Use self.IS_PRODUCTION from config.js (or fallback)
+const IS_PRODUCTION = self.IS_PRODUCTION;
+
+// ロガー（Service Worker独立スコープ用）
+// Note: Service Workerはwindowスコープにアクセスできないため、独自のlogger定義が必要
+// Try to use logger from config.js (via MKS_CONFIG), otherwise use fallback
+const logger = (self.MKS_CONFIG && self.MKS_CONFIG.logger) || {
   log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
   warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
   error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
@@ -315,7 +320,7 @@ async function cacheFirstMS365Thumbnail(request) {
     if (cacheTime) {
       const age = Date.now() - parseInt(cacheTime);
       if (age < CACHE_EXPIRATION.static) {
-        console.log('[SW] Thumbnail cache hit:', request.url);
+        logger.log('[SW] Thumbnail cache hit:', request.url);
         return cached;
       }
     }
@@ -337,13 +342,13 @@ async function cacheFirstMS365Thumbnail(request) {
       });
 
       await cache.put(request, cachedResponse);
-      console.log('[SW] Thumbnail cached:', request.url);
+      logger.log('[SW] Thumbnail cached:', request.url);
     }
     return response;
   } catch (error) {
     // Network failed, return cached if available
     if (cached) {
-      console.log('[SW] Thumbnail offline fallback:', request.url);
+      logger.log('[SW] Thumbnail offline fallback:', request.url);
       return cached;
     }
     throw error;
@@ -373,7 +378,7 @@ async function networkFirstMS365Preview(request) {
       });
 
       await cache.put(request, cachedResponse);
-      console.log('[SW] Preview cached:', request.url);
+      logger.log('[SW] Preview cached:', request.url);
     }
 
     return response;
@@ -387,7 +392,7 @@ async function networkFirstMS365Preview(request) {
       if (cacheTime) {
         const age = Date.now() - parseInt(cacheTime);
         if (age < CACHE_EXPIRATION.static) {
-          console.log('[SW] Preview offline fallback:', request.url);
+          logger.log('[SW] Preview offline fallback:', request.url);
           return cached;
         }
       }
@@ -442,7 +447,7 @@ async function processSyncQueue() {
       }
     }
   } catch (error) {
-    console.error('[SW] Sync queue processing failed:', error);
+    logger.error('[SW] Sync queue processing failed:', error);
   }
 }
 

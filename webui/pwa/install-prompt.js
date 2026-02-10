@@ -3,27 +3,11 @@
  * Manages installation UI and user engagement
  */
 
-// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
-const IS_PRODUCTION = (() => {
-  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
-  if (typeof window !== 'undefined' && window.MKS_ENV) {
-    return window.MKS_ENV === 'production';
-  }
-  // 優先順位2: self.MKS_ENV（Service Worker用）
-  if (typeof self !== 'undefined' && self.MKS_ENV) {
-    return self.MKS_ENV === 'production';
-  }
-  // フォールバック: ポート番号判定
-  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
-  return port === '9100' || port === '9443';
-})();
+// Use centralized configuration from config.js (window.IS_PRODUCTION, window.logger)
+// config.js should be loaded in the HTML file before this script
 
-// ロガー
-const logger = {
-  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
-  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
-  error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
-};
+// ロガー参照（グローバルスコープ汚染防止のため、window経由で参照）
+// const logger は宣言せず、直接 window.logger または MKS_CONFIG.logger を使用
 
 class InstallPromptManager {
   constructor() {
@@ -38,7 +22,7 @@ class InstallPromptManager {
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       this.deferredPrompt = e;
-      logger.log('[PWA] Install prompt ready');
+      (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] Install prompt ready');
 
       // Show install button after delay or page views
       this.scheduleInstallPrompt();
@@ -49,14 +33,14 @@ class InstallPromptManager {
       this.isInstalled = true;
       this.hideInstallButton();
       this.trackInstallation();
-      logger.log('[PWA] App installed successfully');
+      (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] App installed successfully');
     });
 
     // Check if already installed (standalone mode)
     if (window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true) {
       this.isInstalled = true;
-      logger.log('[PWA] App running in standalone mode');
+      (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] App running in standalone mode');
     }
   }
 
@@ -66,7 +50,7 @@ class InstallPromptManager {
     if (dismissedAt) {
       const daysSinceDismissed = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
       if (daysSinceDismissed < 7) {
-        logger.log('[PWA] Install prompt on cooldown');
+        (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] Install prompt on cooldown');
         return;
       }
     }
@@ -99,35 +83,59 @@ class InstallPromptManager {
     const banner = document.createElement('div');
     banner.id = 'pwa-install-banner';
     banner.className = 'pwa-install-banner';
-    banner.innerHTML = `
-      <div class="pwa-install-content">
-        <div class="pwa-install-icon">📱</div>
-        <div class="pwa-install-text">
-          <strong>アプリとしてインストール</strong>
-          <p>オフラインでも使用できます</p>
-        </div>
-        <button class="cta" id="pwa-install-button">インストール</button>
-        <button class="cta ghost" id="pwa-install-dismiss">後で</button>
-      </div>
-    `;
+
+    const content = document.createElement('div');
+    content.className = 'pwa-install-content';
+
+    const icon = document.createElement('div');
+    icon.className = 'pwa-install-icon';
+    icon.textContent = '📱';
+
+    const textDiv = document.createElement('div');
+    textDiv.className = 'pwa-install-text';
+
+    const strong = document.createElement('strong');
+    strong.textContent = 'アプリとしてインストール';
+
+    const p = document.createElement('p');
+    p.textContent = 'オフラインでも使用できます';
+
+    textDiv.appendChild(strong);
+    textDiv.appendChild(p);
+
+    const installButton = document.createElement('button');
+    installButton.className = 'cta';
+    installButton.id = 'pwa-install-button';
+    installButton.textContent = 'インストール';
+
+    const dismissButton = document.createElement('button');
+    dismissButton.className = 'cta ghost';
+    dismissButton.id = 'pwa-install-dismiss';
+    dismissButton.textContent = '後で';
+
+    content.appendChild(icon);
+    content.appendChild(textDiv);
+    content.appendChild(installButton);
+    content.appendChild(dismissButton);
+    banner.appendChild(content);
 
     document.body.appendChild(banner);
 
     // Event listeners
-    document.getElementById('pwa-install-button').addEventListener('click', () => {
+    installButton.addEventListener('click', () => {
       this.promptInstall();
     });
 
-    document.getElementById('pwa-install-dismiss').addEventListener('click', () => {
+    dismissButton.addEventListener('click', () => {
       this.dismissInstall();
     });
 
-    logger.log('[PWA] Install banner displayed');
+    (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] Install banner displayed');
   }
 
   async promptInstall() {
     if (!this.deferredPrompt) {
-      logger.warn('[PWA] No deferred prompt available');
+      (window.logger || window.MKS_CONFIG?.logger || console).warn('[PWA] No deferred prompt available');
       return;
     }
 
@@ -136,12 +144,12 @@ class InstallPromptManager {
 
     // Wait for user choice
     const { outcome } = await this.deferredPrompt.userChoice;
-    logger.log('[PWA] User choice:', outcome);
+    (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] User choice:', outcome);
 
     if (outcome === 'accepted') {
-      logger.log('[PWA] User accepted install');
+      (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] User accepted install');
     } else {
-      logger.log('[PWA] User dismissed install');
+      (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] User dismissed install');
     }
 
     // Clear deferred prompt
@@ -153,7 +161,7 @@ class InstallPromptManager {
     // Set cooldown period (7 days)
     localStorage.setItem(this.dismissKey, Date.now().toString());
     this.hideInstallButton();
-    logger.log('[PWA] Install prompt dismissed');
+    (window.logger || window.MKS_CONFIG?.logger || console).log('[PWA] Install prompt dismissed');
   }
 
   hideInstallButton() {
@@ -180,7 +188,7 @@ class InstallPromptManager {
         displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser'
       })
     }).catch((error) => {
-      logger.error('[PWA] Install tracking failed:', error);
+      (window.logger || window.MKS_CONFIG?.logger || console).error('[PWA] Install tracking failed:', error);
     });
   }
 
@@ -192,16 +200,38 @@ class InstallPromptManager {
     if (isIOS && isSafari) {
       const banner = document.createElement('div');
       banner.className = 'pwa-install-banner';
-      banner.innerHTML = `
-        <div class="pwa-install-content">
-          <div class="pwa-install-icon">📱</div>
-          <div class="pwa-install-text">
-            <strong>ホーム画面に追加</strong>
-            <p>Safari共有ボタン → 「ホーム画面に追加」をタップ</p>
-          </div>
-          <button class="cta ghost" onclick="this.parentElement.parentElement.remove()">OK</button>
-        </div>
-      `;
+
+      const content = document.createElement('div');
+      content.className = 'pwa-install-content';
+
+      const icon = document.createElement('div');
+      icon.className = 'pwa-install-icon';
+      icon.textContent = '📱';
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'pwa-install-text';
+
+      const strong = document.createElement('strong');
+      strong.textContent = 'ホーム画面に追加';
+
+      const p = document.createElement('p');
+      p.textContent = 'Safari共有ボタン → 「ホーム画面に追加」をタップ';
+
+      textDiv.appendChild(strong);
+      textDiv.appendChild(p);
+
+      const okButton = document.createElement('button');
+      okButton.className = 'cta ghost';
+      okButton.textContent = 'OK';
+      okButton.onclick = () => {
+        banner.remove();
+      };
+
+      content.appendChild(icon);
+      content.appendChild(textDiv);
+      content.appendChild(okButton);
+      banner.appendChild(content);
+
       document.body.appendChild(banner);
     }
   }

@@ -54,37 +54,84 @@ class MS365FileManager {
 
     renderFileList(files) {
         if (files.length === 0) {
-            this.fileListDiv.innerHTML = '<div class="no-files">ファイルがありません</div>';
+            this.fileListDiv.textContent = '';
+            const noFilesDiv = document.createElement('div');
+            noFilesDiv.className = 'no-files';
+            noFilesDiv.textContent = 'ファイルがありません';
+            this.fileListDiv.appendChild(noFilesDiv);
             return;
         }
 
-        const html = files.map(file => `
-            <div class="file-item ${file.type}" data-id="${file.id}" data-type="${file.type}">
-                <div class="file-icon">
-                    ${file.type === 'folder' ? '📁' : '📄'}
-                </div>
-                <div class="file-info">
-                    <div class="file-name">${this.escapeHtml(file.name)}</div>
-                    <div class="file-meta">
-                        ${file.type === 'file' ? `<span class="file-size">${this.formatFileSize(file.size)}</span>` : ''}
-                        <span class="file-date">${new Date(file.last_modified).toLocaleString('ja-JP')}</span>
-                    </div>
-                </div>
-                <div class="file-actions">
-                    ${file.type === 'file' ? `<a href="${file.download_url}" class="btn btn-secondary" target="_blank">ダウンロード</a>` : ''}
-                    ${file.web_url ? `<a href="${file.web_url}" class="btn btn-secondary" target="_blank">Webで開く</a>` : ''}
-                </div>
-            </div>
-        `).join('');
+        this.fileListDiv.textContent = '';
 
-        this.fileListDiv.innerHTML = html;
+        files.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = `file-item ${file.type}`;
+            fileItem.dataset.id = file.id;
+            fileItem.dataset.type = file.type;
 
-        // フォルダクリックイベント
-        document.querySelectorAll('.file-item.folder').forEach(item => {
-            item.addEventListener('click', () => {
-                const folderName = item.querySelector('.file-name').textContent;
-                this.navigateToFolder(folderName);
-            });
+            const fileIcon = document.createElement('div');
+            fileIcon.className = 'file-icon';
+            fileIcon.textContent = file.type === 'folder' ? '📁' : '📄';
+
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'file-info';
+
+            const fileName = document.createElement('div');
+            fileName.className = 'file-name';
+            fileName.textContent = file.name;
+
+            const fileMeta = document.createElement('div');
+            fileMeta.className = 'file-meta';
+
+            if (file.type === 'file') {
+                const fileSize = document.createElement('span');
+                fileSize.className = 'file-size';
+                fileSize.textContent = this.formatFileSize(file.size);
+                fileMeta.appendChild(fileSize);
+            }
+
+            const fileDate = document.createElement('span');
+            fileDate.className = 'file-date';
+            fileDate.textContent = new Date(file.last_modified).toLocaleString('ja-JP');
+            fileMeta.appendChild(fileDate);
+
+            fileInfo.appendChild(fileName);
+            fileInfo.appendChild(fileMeta);
+
+            const fileActions = document.createElement('div');
+            fileActions.className = 'file-actions';
+
+            if (file.type === 'file') {
+                const downloadLink = document.createElement('a');
+                downloadLink.href = file.download_url;
+                downloadLink.className = 'btn btn-secondary';
+                downloadLink.target = '_blank';
+                downloadLink.textContent = 'ダウンロード';
+                fileActions.appendChild(downloadLink);
+            }
+
+            if (file.web_url) {
+                const webLink = document.createElement('a');
+                webLink.href = file.web_url;
+                webLink.className = 'btn btn-secondary';
+                webLink.target = '_blank';
+                webLink.textContent = 'Webで開く';
+                fileActions.appendChild(webLink);
+            }
+
+            fileItem.appendChild(fileIcon);
+            fileItem.appendChild(fileInfo);
+            fileItem.appendChild(fileActions);
+
+            this.fileListDiv.appendChild(fileItem);
+
+            // フォルダクリックイベント
+            if (file.type === 'folder') {
+                fileItem.addEventListener('click', () => {
+                    this.navigateToFolder(file.name);
+                });
+            }
         });
     }
 
@@ -112,11 +159,19 @@ class MS365FileManager {
     }
 
     showLoading() {
-        this.fileListDiv.innerHTML = '<div class="loading">読み込み中...</div>';
+        this.fileListDiv.textContent = '';
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'loading';
+        loadingDiv.textContent = '読み込み中...';
+        this.fileListDiv.appendChild(loadingDiv);
     }
 
     showError(message) {
-        this.fileListDiv.innerHTML = `<div class="error-message">${message}</div>`;
+        this.fileListDiv.textContent = '';
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = message;
+        this.fileListDiv.appendChild(errorDiv);
     }
 
     getToken() {

@@ -1132,55 +1132,71 @@ function printChecklist() {
     const printWindow = window.open('', '', 'height=600,width=800');
     const title = titleEl ? titleEl.textContent : 'チェックリスト';
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${title} - チェックリスト</title>
-          <style>
-            body {
-              font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
-              padding: 20px;
-              line-height: 1.6;
-            }
-            h1 {
-              font-size: 18px;
-              margin-bottom: 20px;
-              border-bottom: 2px solid #333;
-              padding-bottom: 10px;
-            }
-            .checklist {
-              display: flex;
-              flex-direction: column;
-              gap: 10px;
-            }
-            .checkbox-item {
-              display: flex;
-              align-items: center;
-              padding: 8px;
-              border: 1px solid #ddd;
-            }
-            input[type="checkbox"] {
-              margin-right: 10px;
-              width: 18px;
-              height: 18px;
-            }
-            @media print {
-              body { padding: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${title} - チェックリスト</h1>
-          ${checklistEl.outerHTML}
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    // Create document structure using DOM API
+    const doc = printWindow.document;
+
+    const html = doc.createElement('html');
+    const head = doc.createElement('head');
+    const titleTag = doc.createElement('title');
+    titleTag.textContent = `${title} - チェックリスト`;
+
+    const style = doc.createElement('style');
+    style.textContent = `
+      body {
+        font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1 {
+        font-size: 18px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #333;
+        padding-bottom: 10px;
+      }
+      .checklist {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid #ddd;
+      }
+      input[type="checkbox"] {
+        margin-right: 10px;
+        width: 18px;
+        height: 18px;
+      }
+      @media print {
+        body { padding: 0; }
+      }
+    `;
+
+    head.appendChild(titleTag);
+    head.appendChild(style);
+
+    const body = doc.createElement('body');
+    const h1 = doc.createElement('h1');
+    h1.textContent = `${title} - チェックリスト`;
+
+    // Clone checklist element
+    const checklistClone = checklistEl.cloneNode(true);
+
+    body.appendChild(h1);
+    body.appendChild(checklistClone);
+
+    html.appendChild(head);
+    html.appendChild(body);
+
+    doc.appendChild(html);
+    doc.close();
+
+    // Trigger print after page loads
+    printWindow.onload = function() {
+      printWindow.print();
+    };
   }
 }
 

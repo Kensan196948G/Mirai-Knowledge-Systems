@@ -8,27 +8,11 @@
  * - Fallback for browsers without Background Sync API
  */
 
-// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
-const IS_PRODUCTION = (() => {
-  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
-  if (typeof window !== 'undefined' && window.MKS_ENV) {
-    return window.MKS_ENV === 'production';
-  }
-  // 優先順位2: self.MKS_ENV（Service Worker用）
-  if (typeof self !== 'undefined' && self.MKS_ENV) {
-    return self.MKS_ENV === 'production';
-  }
-  // フォールバック: ポート番号判定
-  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
-  return port === '9100' || port === '9443';
-})();
+// Use centralized configuration from config.js (window.IS_PRODUCTION, window.logger)
+// config.js should be loaded in the HTML file before this script
 
-// ロガー
-const logger = {
-  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
-  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
-  error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
-};
+// ロガー参照（グローバルスコープ汚染防止のため、window経由で参照）
+// const logger は宣言せず、直接 window.logger または MKS_CONFIG.logger を使用
 
 class SyncManager {
   constructor() {
@@ -42,16 +26,16 @@ class SyncManager {
   async init() {
     try {
       this.db = await this.openDB();
-      logger.log('[SyncManager] Initialized');
+      (window.logger || window.MKS_CONFIG?.logger || console).log('[SyncManager] Initialized');
 
       // Register sync event if supported
       if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
         await this.registerSync();
       } else {
-        logger.warn('[SyncManager] Background Sync API not available, using immediate sync');
+        (window.logger || window.MKS_CONFIG?.logger || console).warn('[SyncManager] Background Sync API not available, using immediate sync');
       }
     } catch (error) {
-      logger.error('[SyncManager] Initialization failed:', error);
+      (window.logger || window.MKS_CONFIG?.logger || console).error('[SyncManager] Initialization failed:', error);
     }
   }
 
@@ -80,7 +64,7 @@ class SyncManager {
           store.createIndex('last_accessed_at', 'last_accessed_at', { unique: false });
         }
 
-        logger.log('[SyncManager] IndexedDB stores created');
+        (window.logger || window.MKS_CONFIG?.logger || console).log('[SyncManager] IndexedDB stores created');
       };
     });
   }
@@ -113,7 +97,7 @@ class SyncManager {
 
       request.onsuccess = async () => {
         item.id = request.result;
-        logger.log('[SyncManager] Item added to queue:', item.id);
+        (window.logger || window.MKS_CONFIG?.logger || console).log('[SyncManager] Item added to queue:', item.id);
         await this.registerSync();
         resolve(item);
       };
@@ -130,15 +114,15 @@ class SyncManager {
       try {
         const registration = await navigator.serviceWorker.ready;
         await registration.sync.register('sync-queue');
-        logger.log('[SyncManager] Background sync registered');
+        (window.logger || window.MKS_CONFIG?.logger || console).log('[SyncManager] Background sync registered');
       } catch (error) {
-        logger.error('[SyncManager] Failed to register sync:', error);
+        (window.logger || window.MKS_CONFIG?.logger || console).error('[SyncManager] Failed to register sync:', error);
         // Fallback to immediate sync
         await this.processSyncQueue();
       }
     } else {
       // Fallback for browsers without Background Sync API (iOS Safari)
-      logger.warn('[SyncManager] Background Sync not supported, using immediate sync');
+      (window.logger || window.MKS_CONFIG?.logger || console).warn('[SyncManager] Background Sync not supported, using immediate sync');
       await this.processSyncQueue();
     }
   }
@@ -153,7 +137,7 @@ class SyncManager {
 
     const items = await this.getAllQueueItems();
 
-    logger.log(`[SyncManager] Processing ${items.length} queued items`);
+    (window.logger || window.MKS_CONFIG?.logger || console).log(`[SyncManager] Processing ${items.length} queued items`);
 
     for (const item of items) {
       try {
@@ -165,17 +149,17 @@ class SyncManager {
 
         if (response.ok) {
           await this.deleteQueueItem(item.id);
-          logger.log('[SyncManager] Sync success:', item.id);
+          (window.logger || window.MKS_CONFIG?.logger || console).log('[SyncManager] Sync success:', item.id);
         } else if (item.retries < this.maxRetries) {
           item.retries++;
           await this.updateQueueItem(item);
-          logger.warn(`[SyncManager] Sync failed, retry ${item.retries}/${this.maxRetries}:`, item.id);
+          (window.logger || window.MKS_CONFIG?.logger || console).warn(`[SyncManager] Sync failed, retry ${item.retries}/${this.maxRetries}:`, item.id);
         } else {
-          logger.error('[SyncManager] Max retries reached:', item.id);
+          (window.logger || window.MKS_CONFIG?.logger || console).error('[SyncManager] Max retries reached:', item.id);
           await this.deleteQueueItem(item.id);
         }
       } catch (error) {
-        logger.error('[SyncManager] Sync failed:', item.id, error);
+        (window.logger || window.MKS_CONFIG?.logger || console).error('[SyncManager] Sync failed:', item.id, error);
 
         if (item.retries < this.maxRetries) {
           item.retries++;
@@ -183,10 +167,10 @@ class SyncManager {
 
           // Exponential backoff
           const backoffDelay = Math.pow(2, item.retries) * 1000; // 1s, 2s, 4s, 8s, 16s
-          logger.log(`[SyncManager] Retrying in ${backoffDelay}ms`);
+          (window.logger || window.MKS_CONFIG?.logger || console).log(`[SyncManager] Retrying in ${backoffDelay}ms`);
           setTimeout(() => this.processSyncQueue(), backoffDelay);
         } else {
-          logger.error('[SyncManager] Max retries reached, removing from queue:', item.id);
+          (window.logger || window.MKS_CONFIG?.logger || console).error('[SyncManager] Max retries reached, removing from queue:', item.id);
           await this.deleteQueueItem(item.id);
         }
       }
@@ -259,7 +243,7 @@ class SyncManager {
       const request = store.clear();
 
       request.onsuccess = () => {
-        logger.log('[SyncManager] Queue cleared');
+        (window.logger || window.MKS_CONFIG?.logger || console).log('[SyncManager] Queue cleared');
         resolve();
       };
       request.onerror = () => reject(request.error);

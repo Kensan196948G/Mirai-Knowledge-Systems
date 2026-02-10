@@ -838,3 +838,15 @@ async function loadSyncHistoryWithFilter() {
         renderSyncHistory([]);
     }
 }
+
+// ========================================
+// グローバルエクスポート（互換性レイヤー）
+// ========================================
+// HTMLファイル内のインラインスクリプトから呼び出せるようにする
+window.checkAuth = checkAuth;
+window.loadAllData = loadAllData;
+window.showCreateConfigModal = showCreateConfigModal;
+window.closeConfigModal = closeConfigModal;
+window.handleConfigFormSubmit = handleConfigFormSubmit;
+window.closeTestResultModal = closeTestResultModal;
+window.loadSyncHistory = loadSyncHistory;

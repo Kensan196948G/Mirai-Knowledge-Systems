@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Config.js Load Test</title>
+    <script src="/src/core/config.js"></script>
+</head>
+<body>
+    <h1>Config.js Load Test</h1>
+    <div id="result"></div>
+
+    <script>
+        setTimeout(() => {
+            const result = document.getElementById('result');
+            result.innerHTML = `
+                <p>IS_PRODUCTION type: ${typeof window.IS_PRODUCTION}</p>
+                <p>IS_PRODUCTION value: ${window.IS_PRODUCTION}</p>
+                <p>MKS_CONFIG exists: ${!!window.MKS_CONFIG}</p>
+                <p>logger exists: ${!!window.logger}</p>
+                <p>Config script in DOM: ${!!document.querySelector('script[src*="config.js"]')}</p>
+            `;
+        }, 500);
+    </script>
+</body>
+</html>

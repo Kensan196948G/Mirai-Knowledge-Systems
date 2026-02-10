@@ -270,7 +270,7 @@ function displayQRCode(qrCodeBase64, element) {
     img.alt = 'QR Code for MFA Setup';
     img.style.maxWidth = '300px';
 
-    element.innerHTML = '';
+    element.textContent = '';
     element.appendChild(img);
 }
 

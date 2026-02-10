@@ -32,27 +32,65 @@ class FileListManager {
 
     renderFileList(files) {
         if (files.length === 0) {
-            this.fileListDiv.innerHTML = '<div class="no-files">アップロードされたファイルはありません</div>';
+            this.fileListDiv.textContent = '';
+            const noFilesDiv = document.createElement('div');
+            noFilesDiv.className = 'no-files';
+            noFilesDiv.textContent = 'アップロードされたファイルはありません';
+            this.fileListDiv.appendChild(noFilesDiv);
             return;
         }
 
-        const html = files.map(file => `
-            <div class="file-item">
-                <div class="file-info">
-                    <div class="file-name">${this.escapeHtml(file.name)}</div>
-                    <div class="file-meta">
-                        <span class="file-size">${this.formatFileSize(file.size)}</span>
-                        <span class="file-date">${new Date(file.uploaded_at).toLocaleString('ja-JP')}</span>
-                        <span class="file-type">${file.mime_type}</span>
-                    </div>
-                </div>
-                <div class="file-actions">
-                    <a href="/api/v1/files/${file.id}" class="btn btn-secondary download-link" target="_blank">ダウンロード</a>
-                </div>
-            </div>
-        `).join('');
+        this.fileListDiv.textContent = '';
 
-        this.fileListDiv.innerHTML = html;
+        files.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'file-info';
+
+            const fileName = document.createElement('div');
+            fileName.className = 'file-name';
+            fileName.textContent = file.name;
+
+            const fileMeta = document.createElement('div');
+            fileMeta.className = 'file-meta';
+
+            const fileSize = document.createElement('span');
+            fileSize.className = 'file-size';
+            fileSize.textContent = this.formatFileSize(file.size);
+
+            const fileDate = document.createElement('span');
+            fileDate.className = 'file-date';
+            fileDate.textContent = new Date(file.uploaded_at).toLocaleString('ja-JP');
+
+            const fileType = document.createElement('span');
+            fileType.className = 'file-type';
+            fileType.textContent = file.mime_type;
+
+            fileMeta.appendChild(fileSize);
+            fileMeta.appendChild(fileDate);
+            fileMeta.appendChild(fileType);
+
+            fileInfo.appendChild(fileName);
+            fileInfo.appendChild(fileMeta);
+
+            const fileActions = document.createElement('div');
+            fileActions.className = 'file-actions';
+
+            const downloadLink = document.createElement('a');
+            downloadLink.href = `/api/v1/files/${file.id}`;
+            downloadLink.className = 'btn btn-secondary download-link';
+            downloadLink.target = '_blank';
+            downloadLink.textContent = 'ダウンロード';
+
+            fileActions.appendChild(downloadLink);
+
+            fileItem.appendChild(fileInfo);
+            fileItem.appendChild(fileActions);
+
+            this.fileListDiv.appendChild(fileItem);
+        });
     }
 
     formatFileSize(bytes) {
@@ -70,7 +108,11 @@ class FileListManager {
     }
 
     showError(message) {
-        this.fileListDiv.innerHTML = `<div class="error-message">${message}</div>`;
+        this.fileListDiv.textContent = '';
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = message;
+        this.fileListDiv.appendChild(errorDiv);
     }
 
     getToken() {

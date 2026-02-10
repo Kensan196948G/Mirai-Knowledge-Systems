@@ -8,27 +8,11 @@
  * - IndexedDB metadata tracking
  */
 
-// 環境判定（window.MKS_ENV優先、ポート番号フォールバック）
-const IS_PRODUCTION = (() => {
-  // 優先順位1: window.MKS_ENV（バックエンドから設定される環境変数）
-  if (typeof window !== 'undefined' && window.MKS_ENV) {
-    return window.MKS_ENV === 'production';
-  }
-  // 優先順位2: self.MKS_ENV（Service Worker用）
-  if (typeof self !== 'undefined' && self.MKS_ENV) {
-    return self.MKS_ENV === 'production';
-  }
-  // フォールバック: ポート番号判定
-  const port = (typeof self !== 'undefined' ? self.location?.port : window.location?.port) || '';
-  return port === '9100' || port === '9443';
-})();
+// Use centralized configuration from config.js (window.IS_PRODUCTION, window.logger)
+// config.js should be loaded in the HTML file before this script
 
-// ロガー
-const logger = {
-  log: (...args) => { if (!IS_PRODUCTION) console.log(...args); },
-  warn: (...args) => { if (!IS_PRODUCTION) console.warn(...args); },
-  error: (...args) => { if (!IS_PRODUCTION) console.error(...args); }
-};
+// ロガー参照（グローバルスコープ汚染防止のため、window経由で参照）
+// const logger は宣言せず、直接 window.logger または MKS_CONFIG.logger を使用
 
 class CacheManager {
   constructor() {
@@ -97,7 +81,7 @@ class CacheManager {
         getRequest.onerror = () => reject(getRequest.error);
       });
     } catch (error) {
-      logger.error('[CacheManager] Track access failed:', error);
+      (window.logger || window.MKS_CONFIG?.logger || console).error('[CacheManager] Track access failed:', error);
     }
   }
 
@@ -128,7 +112,7 @@ class CacheManager {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      logger.error('[CacheManager] Get LRU entries failed:', error);
+      (window.logger || window.MKS_CONFIG?.logger || console).error('[CacheManager] Get LRU entries failed:', error);
       return [];
     }
   }
@@ -139,13 +123,13 @@ class CacheManager {
   async evictIfNeeded() {
     const totalSize = await this.getTotalCacheSize();
 
-    logger.log(`[CacheManager] Current cache size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+    (window.logger || window.MKS_CONFIG?.logger || console).log(`[CacheManager] Current cache size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
 
     if (totalSize < this.evictionThreshold) {
       return; // No eviction needed
     }
 
-    logger.log('[CacheManager] Cache size exceeded threshold, starting LRU eviction...');
+    (window.logger || window.MKS_CONFIG?.logger || console).log('[CacheManager] Cache size exceeded threshold, starting LRU eviction...');
 
     const lruEntries = await this.getLRUEntries(20);
     const targetSize = this.maxCacheSize * 0.8; // Evict down to 80% capacity
@@ -163,7 +147,7 @@ class CacheManager {
         const deleted = await cache.delete(entry.key);
 
         if (deleted) {
-          logger.log(`[CacheManager] Evicted: ${entry.key}`);
+          (window.logger || window.MKS_CONFIG?.logger || console).log(`[CacheManager] Evicted: ${entry.key}`);
           // Estimate size (actual size calculation after deletion is complex)
           evictedSize += 10240; // Estimate 10KB per entry
         }
@@ -175,11 +159,11 @@ class CacheManager {
         const transaction = db.transaction([this.storeName], 'readwrite');
         await transaction.objectStore(this.storeName).delete(entry.key);
       } catch (error) {
-        logger.error('[CacheManager] Metadata deletion failed:', error);
+        (window.logger || window.MKS_CONFIG?.logger || console).error('[CacheManager] Metadata deletion failed:', error);
       }
     }
 
-    logger.log(`[CacheManager] Evicted approximately ${(evictedSize / 1024 / 1024).toFixed(2)}MB`);
+    (window.logger || window.MKS_CONFIG?.logger || console).log(`[CacheManager] Evicted approximately ${(evictedSize / 1024 / 1024).toFixed(2)}MB`);
   }
 
   /**
@@ -207,7 +191,7 @@ class CacheManager {
           store.createIndex('last_accessed_at', 'last_accessed_at', { unique: false });
         }
 
-        logger.log('[CacheManager] IndexedDB stores created');
+        (window.logger || window.MKS_CONFIG?.logger || console).log('[CacheManager] IndexedDB stores created');
       };
     });
   }
@@ -220,9 +204,9 @@ class CacheManager {
       const db = await this.openDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
       await transaction.objectStore(this.storeName).clear();
-      logger.log('[CacheManager] Metadata cleared');
+      (window.logger || window.MKS_CONFIG?.logger || console).log('[CacheManager] Metadata cleared');
     } catch (error) {
-      logger.error('[CacheManager] Clear metadata failed:', error);
+      (window.logger || window.MKS_CONFIG?.logger || console).error('[CacheManager] Clear metadata failed:', error);
     }
   }
 }

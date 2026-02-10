@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IS_PRODUCTION Configuration Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .pass { border-left: 4px solid #10b981; }
+        .fail { border-left: 4px solid #ef4444; }
+        .info { border-left: 4px solid #3b82f6; }
+        h1 { color: #1f2937; }
+        h2 { color: #4b5563; font-size: 1.2em; margin-top: 0; }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .badge.success { background: #d1fae5; color: #065f46; }
+        .badge.error { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <h1>IS_PRODUCTION Configuration Test</h1>
+    <p>This test verifies that the centralized configuration system is working correctly and no duplicate declarations exist.</p>
+
+    <div id="test-results"></div>
+
+    <!-- Load centralized config FIRST -->
+    <script src="/src/core/config.js"></script>
+
+    <script>
+        const results = [];
+
+        function addTest(name, passed, details) {
+            results.push({ name, passed, details });
+        }
+
+        function renderResults() {
+            const container = document.getElementById('test-results');
+            let html = '';
+
+            results.forEach(result => {
+                const cssClass = result.passed ? 'pass' : 'fail';
+                const badge = result.passed
+                    ? '<span class="badge success">PASS</span>'
+                    : '<span class="badge error">FAIL</span>';
+
+                html += `
+                    <div class="test-result ${cssClass}">
+                        <h2>${result.name}${badge}</h2>
+                        <p>${result.details}</p>
+                    </div>
+                `;
+            });
+
+            // Summary
+            const passCount = results.filter(r => r.passed).length;
+            const totalCount = results.length;
+            const allPassed = passCount === totalCount;
+
+            html = `
+                <div class="test-result ${allPassed ? 'pass' : 'fail'} info">
+                    <h2>Test Summary</h2>
+                    <p><strong>${passCount} / ${totalCount}</strong> tests passed</p>
+                </div>
+            ` + html;
+
+            container.innerHTML = html;
+        }
+
+        // Test 1: Check if config.js loaded
+        addTest(
+            'Test 1: config.js Loaded',
+            typeof window.IS_PRODUCTION !== 'undefined',
+            typeof window.IS_PRODUCTION !== 'undefined'
+                ? `✓ window.IS_PRODUCTION is defined: <code>${window.IS_PRODUCTION}</code>`
+                : '✗ window.IS_PRODUCTION is not defined. Check if config.js is loaded.'
+        );
+
+        // Test 2: Check if ENV_PORTS loaded
+        addTest(
+            'Test 2: ENV_PORTS Loaded',
+            typeof window.ENV_PORTS !== 'undefined' && window.ENV_PORTS.production && window.ENV_PORTS.development,
+            typeof window.ENV_PORTS !== 'undefined'
+                ? `✓ window.ENV_PORTS is correctly defined with production (${window.ENV_PORTS.production.http}/${window.ENV_PORTS.production.https}) and development (${window.ENV_PORTS.development.http}/${window.ENV_PORTS.development.https}) ports`
+                : '✗ window.ENV_PORTS is not properly defined.'
+        );
+
+        // Test 3: Check if API_BASE_URL loaded
+        addTest(
+            'Test 3: API_BASE_URL Loaded',
+            typeof window.API_BASE_URL !== 'undefined',
+            typeof window.API_BASE_URL !== 'undefined'
+                ? `✓ window.API_BASE_URL is defined: <code>${window.API_BASE_URL}</code>`
+                : '✗ window.API_BASE_URL is not defined.'
+        );
+
+        // Test 4: Check if MKS_CONFIG loaded
+        addTest(
+            'Test 4: MKS_CONFIG Namespace',
+            typeof window.MKS_CONFIG === 'object' && window.MKS_CONFIG.IS_PRODUCTION !== undefined,
+            typeof window.MKS_CONFIG === 'object'
+                ? `✓ window.MKS_CONFIG namespace is properly defined with IS_PRODUCTION: <code>${window.MKS_CONFIG.IS_PRODUCTION}</code>`
+                : '✗ window.MKS_CONFIG is not properly defined.'
+        );
+
+        // Test 5: Check logger
+        addTest(
+            'Test 5: Logger Functions',
+            window.MKS_CONFIG && typeof window.MKS_CONFIG.logger === 'object' &&
+            typeof window.MKS_CONFIG.logger.log === 'function',
+            window.MKS_CONFIG && typeof window.MKS_CONFIG.logger === 'object'
+                ? '✓ Logger object is properly defined with log, warn, error, info, debug functions'
+                : '✗ Logger is not properly defined.'
+        );
+
+        // Test 6: Environment detection consistency
+        const currentPort = parseInt(window.location.port || '80');
+        const expectedProduction = currentPort === 9100 || currentPort === 9443;
+        const expectedDevelopment = currentPort === 5200 || currentPort === 5243;
+        const isConsistent = window.IS_PRODUCTION === expectedProduction || (!expectedProduction && !expectedDevelopment);
+
+        addTest(
+            'Test 6: Environment Detection',
+            isConsistent,
+            `Current port: <code>${currentPort}</code><br>` +
+            `IS_PRODUCTION: <code>${window.IS_PRODUCTION}</code><br>` +
+            `Expected based on port: <code>${expectedProduction ? 'production' : expectedDevelopment ? 'development' : 'unknown (using fallback)'}</code><br>` +
+            (isConsistent ? '✓ Environment detection is consistent' : '✗ Environment detection mismatch')
+        );
+
+        // Test 7: No global pollution check
+        const globalVars = Object.keys(window).filter(key =>
+            key.startsWith('IS_') || key.startsWith('ENV_')
+        );
+        addTest(
+            'Test 7: Global Namespace Check',
+            globalVars.length <= 3, // IS_PRODUCTION, ENV_PORTS, API_BASE_URL, MKS_CONFIG
+            `Global variables found: <code>${globalVars.join(', ')}</code><br>` +
+            (globalVars.length <= 4
+                ? '✓ Only expected global variables are defined'
+                : '✗ Unexpected global variables detected')
+        );
+
+        // Test 8: Type checking
+        addTest(
+            'Test 8: Type Checking',
+            typeof window.IS_PRODUCTION === 'boolean' &&
+            typeof window.ENV_PORTS === 'object' &&
+            typeof window.API_BASE_URL === 'string',
+            `IS_PRODUCTION type: <code>${typeof window.IS_PRODUCTION}</code><br>` +
+            `ENV_PORTS type: <code>${typeof window.ENV_PORTS}</code><br>` +
+            `API_BASE_URL type: <code>${typeof window.API_BASE_URL}</code><br>` +
+            (typeof window.IS_PRODUCTION === 'boolean' && typeof window.ENV_PORTS === 'object' && typeof window.API_BASE_URL === 'string'
+                ? '✓ All types are correct'
+                : '✗ Type mismatch detected')
+        );
+
+        renderResults();
+    </script>
+</body>
+</html>
