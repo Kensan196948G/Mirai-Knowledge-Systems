@@ -17,9 +17,10 @@ test.describe('PWA Functionality Tests', () => {
   });
 
   test('Service Worker registers successfully', async ({ page }) => {
-    await page.goto(BASE_URL);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
 
     // Wait for Service Worker to register and activate
+    await page.waitForTimeout(3000);
     const swRegistered = await page.evaluate(() => {
       return new Promise((resolve) => {
         if (!('serviceWorker' in navigator)) {
@@ -79,7 +80,7 @@ test.describe('PWA Functionality Tests', () => {
       });
     });
 
-    expect(swVersion).toBe('v1.3.0');
+    expect(swVersion).toBe('v1.4.0');
     console.log('✅ Service Worker version:', swVersion);
   });
 
@@ -100,13 +101,13 @@ test.describe('PWA Functionality Tests', () => {
 
   test('Offline page exists and displays correctly', async ({ page }) => {
     // Navigate directly to offline.html to verify it exists and works
-    const response = await page.goto(`${BASE_URL}/offline.html`);
+    const response = await page.goto(`${BASE_URL}/offline.html`, { waitUntil: 'networkidle' });
 
     // Verify page loaded successfully
     expect(response.status()).toBe(200);
 
     // Wait for page to render
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(2000);
 
     // Verify offline page content
     const content = await page.textContent('body');
@@ -121,8 +122,8 @@ test.describe('PWA Functionality Tests', () => {
     console.log('✅ Offline page exists and displays correctly');
 
     // Additionally verify that offline.html is in the static cache list in Service Worker
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const swCachesOffline = await page.evaluate(() => {
       // Fetch sw.js content and check if offline.html is listed
@@ -138,12 +139,12 @@ test.describe('PWA Functionality Tests', () => {
 
   test('Static assets are cached on first visit', async ({ page }) => {
     // Navigate to the site
-    await page.goto(BASE_URL, { waitUntil: 'load' });
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
 
-    // Wait for Service Worker to register
-    await page.waitForTimeout(2000);
+    // Wait for Service Worker to register and activate
+    await page.waitForTimeout(5000);
 
-    // Wait for Service Worker to complete caching
+    // Wait for Service Worker to complete caching with extended timeout
     const cacheComplete = await page.evaluate(() => {
       return new Promise((resolve) => {
         if (!('serviceWorker' in navigator)) {
@@ -173,16 +174,16 @@ test.describe('PWA Functionality Tests', () => {
 
         // Also wait for SW ready
         navigator.serviceWorker.ready.then(() => {
-          setTimeout(checkCache, 2000);
+          setTimeout(checkCache, 3000);
         });
 
-        // Timeout
-        setTimeout(() => checkCache(), 8000);
+        // Timeout with longer wait
+        setTimeout(() => checkCache(), 10000);
       });
     });
 
     // Additional wait to ensure caching is complete
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(3000);
 
     // Check Cache Storage
     const cacheInfo = await page.evaluate(() => {

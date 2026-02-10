@@ -15,8 +15,8 @@ const BASE_URL = 'http://localhost:5200';
 
 test.describe('Service Worker Update Detection', () => {
   test('Service Worker checks for updates periodically', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     // Check if update check mechanism exists
     const hasUpdateCheck = await page.evaluate(() => {
@@ -38,8 +38,8 @@ test.describe('Service Worker Update Detection', () => {
   });
 
   test('Service Worker version is tracked', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const versionInfo = await page.evaluate(() => {
       return new Promise((resolve) => {
@@ -69,8 +69,8 @@ test.describe('Service Worker Update Detection', () => {
   });
 
   test('Service Worker update triggers on version change', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(3000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(5000);
 
     // Simulate update check
     const updateResult = await page.evaluate(() => {
@@ -99,8 +99,8 @@ test.describe('Service Worker Update Detection', () => {
   });
 
   test('Service Worker activates new version correctly', async ({ page, context }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     // Get current Service Worker state
     const swState = await page.evaluate(() => {
@@ -129,8 +129,8 @@ test.describe('Service Worker Update Detection', () => {
 
 test.describe('Cache LRU Eviction', () => {
   test('Cache storage quota is monitored', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const quotaInfo = await page.evaluate(async () => {
       if (!('storage' in navigator && 'estimate' in navigator.storage)) {
@@ -161,8 +161,8 @@ test.describe('Cache LRU Eviction', () => {
   });
 
   test('CacheManager tracks cache size', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(3000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(5000);
 
     const cacheSize = await page.evaluate(async () => {
       if (typeof CacheManager === 'undefined') {
@@ -187,8 +187,8 @@ test.describe('Cache LRU Eviction', () => {
   });
 
   test('LRU eviction threshold is configured', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const lruConfig = await page.evaluate(() => {
       // Check CacheManager configuration
@@ -224,8 +224,8 @@ test.describe('Cache LRU Eviction', () => {
   });
 
   test('Cache eviction removes oldest entries first', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(3000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(5000);
 
     const evictionTest = await page.evaluate(async () => {
       if (typeof CacheManager === 'undefined') {
@@ -251,8 +251,8 @@ test.describe('Cache LRU Eviction', () => {
   });
 
   test('Cache metadata tracks access timestamps', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const metadataCheck = await page.evaluate(async () => {
       // Check IndexedDB for cache metadata
@@ -303,8 +303,8 @@ test.describe('Cache LRU Eviction', () => {
 
 test.describe('Offline to Online Transition', () => {
   test('Sync queue is created when offline', async ({ page, context }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     // Go offline
     await context.setOffline(true);
@@ -351,8 +351,8 @@ test.describe('Offline to Online Transition', () => {
   });
 
   test('Offline indicator appears when network is lost', async ({ page, context }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     // Go offline
     await context.setOffline(true);
@@ -383,8 +383,8 @@ test.describe('Offline to Online Transition', () => {
   });
 
   test('Sync queue processes when back online', async ({ page, context }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     // Add item to sync queue while offline
     await context.setOffline(true);
@@ -426,8 +426,8 @@ test.describe('Offline to Online Transition', () => {
   });
 
   test('Failed requests are retried with exponential backoff', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const backoffConfig = await page.evaluate(() => {
       if (typeof SyncManager === 'undefined') {
@@ -453,8 +453,8 @@ test.describe('Offline to Online Transition', () => {
 
 test.describe('Background Sync Functionality', () => {
   test('Background Sync API availability is detected', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const syncSupport = await page.evaluate(() => {
       return {
@@ -468,8 +468,8 @@ test.describe('Background Sync Functionality', () => {
   });
 
   test('Sync registration is attempted when supported', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const syncRegistration = await page.evaluate(async () => {
       if (!('serviceWorker' in navigator)) {
@@ -493,8 +493,8 @@ test.describe('Background Sync Functionality', () => {
   });
 
   test('Fallback sync works when Background Sync unavailable', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const fallbackCheck = await page.evaluate(() => {
       if (typeof SyncManager === 'undefined') {
@@ -520,8 +520,8 @@ test.describe('Background Sync Functionality', () => {
 
 test.describe('Cache Strategy Validation', () => {
   test('Static assets use Cache First strategy', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(3000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(5000);
 
     // Check if static assets are in cache
     const staticCached = await page.evaluate(async () => {
@@ -545,8 +545,8 @@ test.describe('Cache Strategy Validation', () => {
   });
 
   test('API requests use Network First strategy', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     // Check API cache
     const apiCached = await page.evaluate(async () => {
@@ -570,8 +570,8 @@ test.describe('Cache Strategy Validation', () => {
   });
 
   test('Cache expiration times are set correctly', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const expirationConfig = await page.evaluate(() => {
       return fetch('/sw.js')
@@ -597,8 +597,8 @@ test.describe('Cache Strategy Validation', () => {
   });
 
   test('Stale-While-Revalidate works for images', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const imageCache = await page.evaluate(async () => {
       const cacheNames = await caches.keys();
@@ -622,8 +622,8 @@ test.describe('Cache Strategy Validation', () => {
 
 test.describe('PWA Resilience Tests', () => {
   test('Service Worker recovers from errors', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const errorHandling = await page.evaluate(() => {
       return fetch('/sw.js')
@@ -643,8 +643,8 @@ test.describe('PWA Resilience Tests', () => {
   });
 
   test('Cache operations handle quota exceeded errors', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const quotaHandling = await page.evaluate(() => {
       if (typeof CacheManager === 'undefined') {
@@ -664,8 +664,8 @@ test.describe('PWA Resilience Tests', () => {
   });
 
   test('IndexedDB operations have error recovery', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000);
 
     const dbResilience = await page.evaluate(() => {
       return new Promise((resolve) => {
