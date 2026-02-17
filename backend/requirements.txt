@@ -18,7 +18,7 @@ Flask-Limiter==3.5.0
 bcrypt==4.1.2
 pyotp==2.9.0
 qrcode==7.4.2
-pillow==10.3.0  # Updated: CVE-2024-28219
+pillow==12.1.1  # Updated: CVE-2024-28219
 cryptography==46.0.5  # Updated: CVE-2024-57758, CVE-2024-0727, CVE-2024-9143
 
 # Validation & Serialization
