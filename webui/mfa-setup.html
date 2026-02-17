@@ -388,9 +388,13 @@
                 const response = await setupMFA();
                 setupData = response.data;
 
-                // Display QR code
+                // Display QR code (DOM API: XSS防止)
                 const qrContainer = document.getElementById('qrCodeDisplay');
-                qrContainer.innerHTML = `<img src="data:image/png;base64,${setupData.qr_code_base64}" alt="QR Code">`;
+                qrContainer.textContent = '';
+                const qrImg = document.createElement('img');
+                qrImg.src = 'data:image/png;base64,' + setupData.qr_code_base64;
+                qrImg.alt = 'QR Code';
+                qrContainer.appendChild(qrImg);
 
                 // Display secret key
                 document.getElementById('secretKey').textContent = setupData.secret;
@@ -433,9 +437,13 @@
 
         function displayBackupCodes(codes) {
             const container = document.getElementById('backupCodesDisplay');
-            container.innerHTML = codes.map(code =>
-                `<div class="backup-code-item">${code}</div>`
-            ).join('');
+            container.textContent = '';
+            codes.forEach(code => {
+                const div = document.createElement('div');
+                div.className = 'backup-code-item';
+                div.textContent = code;
+                container.appendChild(div);
+            });
         }
 
         function downloadBackupCodes() {

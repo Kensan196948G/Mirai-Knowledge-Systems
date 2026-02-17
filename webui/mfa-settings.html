@@ -467,7 +467,12 @@
 
                 // Display new codes
                 const codesList = document.getElementById('backupCodesList');
-                codesList.innerHTML = newBackupCodesData.map(code => `<div>${code}</div>`).join('');
+                codesList.textContent = '';
+                newBackupCodesData.forEach(code => {
+                    const div = document.createElement('div');
+                    div.textContent = code;
+                    codesList.appendChild(div);
+                });
                 document.getElementById('newBackupCodes').style.display = 'block';
                 document.getElementById('regenerateButton').style.display = 'none';
 

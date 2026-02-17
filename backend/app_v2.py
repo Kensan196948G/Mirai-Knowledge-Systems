@@ -72,18 +72,12 @@ except ImportError:
 # 環境変数をロード
 load_dotenv()
 
-# DEBUG: 環境変数の確認（一時的）
-import sys
-
-print("=" * 80, file=sys.stderr)
-print("DEBUG: Environment Variables Check", file=sys.stderr)
-print(f"MKS_USE_JSON: {os.getenv('MKS_USE_JSON', 'NOT_SET')}", file=sys.stderr)
-print(
-    f"MKS_USE_POSTGRESQL: {os.getenv('MKS_USE_POSTGRESQL', 'NOT_SET')}", file=sys.stderr
+logger.info(
+    "Environment: MKS_USE_JSON=%s, MKS_USE_POSTGRESQL=%s, MKS_ENV=%s",
+    os.getenv("MKS_USE_JSON", "NOT_SET"),
+    os.getenv("MKS_USE_POSTGRESQL", "NOT_SET"),
+    os.getenv("MKS_ENV", "NOT_SET"),
 )
-print(f"DATABASE_URL: {os.getenv('DATABASE_URL', 'NOT_SET')}", file=sys.stderr)
-print(f"MKS_ENV: {os.getenv('MKS_ENV', 'NOT_SET')}", file=sys.stderr)
-print("=" * 80, file=sys.stderr)
 
 # Redisキャッシュ設定
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -319,7 +313,7 @@ def get_local_ip_addresses():
                 pass  # 既に追加済み
 
     except Exception as e:
-        print(f"[WARN] Failed to detect local IPs: {e}", file=sys.stderr)
+        logger.warning("Failed to detect local IPs: %s", e)
 
     return list(ips)
 
@@ -359,7 +353,7 @@ def build_cors_origins():
 
 # CORS設定（動的IP対応）
 allowed_origins = build_cors_origins()
-print(f"[INIT] CORS configured for origins: {allowed_origins}", file=sys.stderr)
+logger.info("[INIT] CORS configured for %d origins", len(allowed_origins))
 
 # SocketIO設定（リアルタイム更新用）
 socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode="threading")
@@ -376,7 +370,7 @@ CORS(
         }
     },
 )
-print(f"[INIT] CORS configured for origins: {allowed_origins}")
+logger.debug("[INIT] CORS origins: %s", allowed_origins)
 
 # 設定
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -406,7 +400,7 @@ app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
-print(f"[INIT] JWT Secret Key configured: {app.config['JWT_SECRET_KEY'][:20]}...")
+logger.info("[INIT] JWT Secret Key configured (length=%d)", len(app.config["JWT_SECRET_KEY"]))
 jwt = JWTManager(app)
 
 # 本番環境判定（レート制限/セキュリティヘッダーで使用）
@@ -458,9 +452,9 @@ def exempt_static():
 
 
 if _limiter_enabled:
-    print("[INIT] Rate limiting ENABLED (production mode)")
+    logger.info("[INIT] Rate limiting ENABLED (production mode)")
 else:
-    print("[INIT] Rate limiting DISABLED (development mode)")
+    logger.info("[INIT] Rate limiting DISABLED (development mode)")
 
 
 # ============================================================
@@ -775,13 +769,11 @@ def verify_password(password, password_hash):
                 password.encode("utf-8"), password_hash.encode("utf-8")
             )
         except Exception as e:
-            print(f"[ERROR] bcrypt verification failed: {e}")
+            logger.error("bcrypt verification failed: %s", e)
             return False
     else:
         # レガシーSHA256サポート（後方互換性）
-        print(
-            "[WARNING] Using legacy SHA256 verification for password. Please update user password."
-        )
+        logger.warning("Using legacy SHA256 verification for password. Please update user password.")
         legacy_hash = hashlib.sha256(password.encode()).hexdigest()
         return legacy_hash == password_hash
 
@@ -876,26 +868,24 @@ def check_permission(required_permission):
                     if isinstance(current_user_id, str)
                     else current_user_id
                 )
-                print(
-                    f"[DEBUG] check_permission: user_id={user_id_int}, required={required_permission}"
-                )
+                logger.debug("check_permission: user_id=%s, required=%s", user_id_int, required_permission)
 
                 users = load_users()
                 user = next((u for u in users if u["id"] == user_id_int), None)
 
                 if not user:
-                    print(f"[DEBUG] User not found: {current_user_id}")
+                    logger.debug("User not found: %s", current_user_id)
                     return jsonify({"success": False, "error": "User not found"}), 404
 
                 permissions = get_user_permissions(user)
-                print(f"[DEBUG] User permissions: {permissions}")
+                logger.debug("User permissions: %s", permissions)
 
                 # 管理者または必要な権限を持っている
                 if "*" in permissions or required_permission in permissions:
-                    print("[DEBUG] Permission granted")
+                    logger.debug("Permission granted")
                     return fn(*args, **kwargs)
 
-                print("[DEBUG] Permission denied")
+                logger.debug("Permission denied")
                 return (
                     jsonify(
                         {
@@ -909,10 +899,9 @@ def check_permission(required_permission):
                     403,
                 )
             except Exception as e:
-                print(f"[DEBUG] Exception in check_permission: {e}")
                 import traceback
-
-                traceback.print_exc()
+                logger.debug("Exception in check_permission: %s", e)
+                logger.error("Unexpected error traceback:\n%s", traceback.format_exc())
                 return (
                     jsonify(
                         {
@@ -1010,10 +999,7 @@ def _flush_access_logs():
                 logs.append(entry)
             save_data("access_logs.json", logs)
     except Exception as e:
-        print(
-            f"[WARN] _flush_access_logs failed: {type(e).__name__}: {e}",
-            file=sys.stderr,
-        )
+        logger.warning("_flush_access_logs failed: %s: %s", type(e).__name__, e)
 
 
 def log_access(
@@ -1093,7 +1079,7 @@ def log_access(
             save_data("access_logs.json", logs)
     except Exception as e:
         # ログ記録の失敗はAPIの動作に影響させない
-        print(f"[WARN] log_access failed: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.warning("log_access failed: %s: %s", type(e).__name__, e)
 
 
 # ============================================================
@@ -1130,8 +1116,8 @@ def load_data(filename):
                 return dal.get_access_logs()
             # 未対応のファイル（users.json等）はJSONフォールバック
         except Exception as e:
-            print(f"[ERROR] PostgreSQL query error for {filename}: {e}")
-            print(f"[INFO] Falling back to JSON mode for {filename}")
+            logger.error("PostgreSQL query error for %s: %s", filename, e)
+            logger.info("Falling back to JSON mode for %s", filename)
 
     # JSONモードまたはPostgreSQL未対応ファイル（スレッドセーフ）
     filepath = os.path.join(get_data_dir(), filename)
@@ -1139,7 +1125,7 @@ def load_data(filename):
     try:
         with _file_lock:
             if not os.path.exists(filepath):
-                print(f"[INFO] File not found: {filename} (returning empty list)")
+                logger.info("File not found: %s (returning empty list)", filename)
                 return []
 
             with open(filepath, "r", encoding="utf-8") as f:
@@ -1147,33 +1133,27 @@ def load_data(filename):
 
             # データ型検証
             if not isinstance(data, list):
-                print(
-                    f"[WARN] {filename}: Expected list, got {type(data).__name__}. Returning empty list."
-                )
+                logger.warning("%s: Expected list, got %s. Returning empty list.", filename, type(data).__name__)
                 return []
 
             # dict型のアイテムのみをフィルタリング
             valid_items = [item for item in data if isinstance(item, dict)]
             if len(valid_items) != len(data):
-                print(
-                    f"[WARN] {filename}: Filtered out {len(data) - len(valid_items)} non-dict items"
-                )
+                logger.warning("%s: Filtered out %d non-dict items", filename, len(data) - len(valid_items))
 
             return valid_items
 
     except json.JSONDecodeError as e:
-        print(
-            f"[ERROR] JSON decode error in {filename}: {e} (line {e.lineno}, col {e.colno})"
-        )
+        logger.error("JSON decode error in %s: %s (line %d, col %d)", filename, e, e.lineno, e.colno)
         return []
     except PermissionError as e:
-        print(f"[ERROR] Permission denied reading {filename}: {e}")
+        logger.error("Permission denied reading %s: %s", filename, e)
         return []
     except UnicodeDecodeError as e:
-        print(f"[ERROR] Encoding error reading {filename}: {e}")
+        logger.error("Encoding error reading %s: %s", filename, e)
         return []
     except Exception as e:
-        print(f"[ERROR] Unexpected error reading {filename}: {type(e).__name__}: {e}")
+        logger.error("Unexpected error reading %s: %s: %s", filename, type(e).__name__, e)
         return []
 
 
@@ -1196,7 +1176,7 @@ def save_data(filename, data):
         try:
             os.makedirs(dirpath, exist_ok=True)
         except Exception as e:
-            print(f"[ERROR] Failed to create directory {dirpath}: {e}")
+            logger.error("Failed to create directory %s: %s", dirpath, e)
             raise
 
         tmp_path = None
@@ -1215,15 +1195,13 @@ def save_data(filename, data):
             tmp_path = None  # 成功したのでクリーンアップ不要
 
         except PermissionError as e:
-            print(f"[ERROR] Permission denied writing {filename}: {e}")
+            logger.error("Permission denied writing %s: %s", filename, e)
             raise
         except OSError as e:
-            print(f"[ERROR] OS error writing {filename}: {e}")
+            logger.error("OS error writing %s: %s", filename, e)
             raise
         except Exception as e:
-            print(
-                f"[ERROR] Unexpected error writing {filename}: {type(e).__name__}: {e}"
-            )
+            logger.error("Unexpected error writing %s: %s: %s", filename, type(e).__name__, e)
             raise
         finally:
             # 一時ファイルのクリーンアップ
@@ -1231,7 +1209,7 @@ def save_data(filename, data):
                 try:
                     os.remove(tmp_path)
                 except Exception as e:
-                    print(f"[WARN] Failed to remove temp file {tmp_path}: {e}")
+                    logger.warning("Failed to remove temp file %s: %s", tmp_path, e)
 
 
 # ============================================================
@@ -2402,7 +2380,7 @@ def get_ms_graph_client():
 
             _ms_graph_client = MicrosoftGraphClient()
         except Exception as e:
-            print(f"[WARN] Microsoft Graph client initialization failed: {e}")
+            logger.warning("Microsoft Graph client initialization failed: %s", e)
             return None
     return _ms_graph_client
 
@@ -2832,7 +2810,7 @@ def ms365_sync_configs_create():
             try:
                 scheduler_service.schedule_sync(result)
             except Exception as e:
-                print(f"[WARN] Failed to schedule sync: {e}")
+                logger.warning("Failed to schedule sync: %s", e)
 
         log_access(
             current_user_id,
@@ -2947,7 +2925,7 @@ def ms365_sync_configs_update(config_id):
                 updated_config = dal.get_ms365_sync_config(config_id)
                 scheduler_service.reschedule_sync(updated_config)
             except Exception as e:
-                print(f"[WARN] Failed to reschedule sync: {e}")
+                logger.warning("Failed to reschedule sync: %s", e)
 
         log_access(
             current_user_id, "ms365_sync_configs.update", "ms365_sync_config", config_id
@@ -2999,7 +2977,7 @@ def ms365_sync_configs_delete(config_id):
             try:
                 scheduler_service.unschedule_sync(config_id)
             except Exception as e:
-                print(f"[WARN] Failed to unschedule sync: {e}")
+                logger.warning("Failed to unschedule sync: %s", e)
 
         dal.delete_ms365_sync_config(config_id)
 
@@ -3777,7 +3755,7 @@ def get_knowledge():
         # キャッシュチェック
         cached_result = cache_get(cache_key)
         if cached_result:
-            logger.info(f"Cache hit: knowledge_list - {cache_key}")
+            logger.info("Cache hit: knowledge_list - %s", cache_key)
             return jsonify(cached_result)
 
         knowledge_list = load_data("knowledge.json") or []
@@ -3846,11 +3824,11 @@ def get_knowledge():
             },
         }
         cache_set(cache_key, response_data, ttl=3600)  # 1時間
-        logger.info(f"Cache set: knowledge_list - {cache_key}")
+        logger.info("Cache set: knowledge_list - %s", cache_key)
 
         return jsonify(response_data)
     except Exception as e:
-        print(f"[ERROR] get_knowledge: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_knowledge: %s: %s", type(e).__name__, e)
         return jsonify(
             {
                 "success": True,
@@ -3920,7 +3898,7 @@ def get_projects():
 
         return jsonify({"success": True, "data": projects})
     except Exception as e:
-        print(f"[ERROR] get_projects: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_projects: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": []})
 
 
@@ -3961,7 +3939,7 @@ def get_project_progress(project_id):
 
         return jsonify({"success": True, "data": progress})
     except Exception as e:
-        print(f"[ERROR] get_project_progress: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_project_progress: %s: %s", type(e).__name__, e)
         return jsonify(
             {
                 "success": True,
@@ -3997,7 +3975,7 @@ def get_experts():
 
         return jsonify({"success": True, "data": experts})
     except Exception as e:
-        print(f"[ERROR] get_experts: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_experts: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": []})
 
 
@@ -4017,10 +3995,7 @@ def get_expert_detail(expert_id):
 
         return jsonify({"success": True, "data": expert})
     except Exception as e:
-        print(
-            f"[ERROR] get_expert_detail({expert_id}): {type(e).__name__}: {e}",
-            file=sys.stderr,
-        )
+        logger.error("get_expert_detail(%s): %s: %s", expert_id, type(e).__name__, e)
         return jsonify({"success": False, "error": "Expert not found"}), 404
 
 
@@ -4071,7 +4046,7 @@ def get_experts_stats():
 
         return jsonify({"success": True, "data": stats})
     except Exception as e:
-        print(f"[ERROR] get_experts_stats: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_experts_stats: %s: %s", type(e).__name__, e)
         return jsonify(
             {
                 "success": True,
@@ -4141,7 +4116,7 @@ def create_knowledge():
                 redis_client.delete(key)
             logger.info("Cache invalidated: knowledge_list, knowledge_popular")
         except Exception as e:
-            logger.warning(f"Cache invalidation failed: {e}")
+            logger.warning("Cache invalidation failed: %s", e)
 
     log_access(current_user_id, "knowledge.create", "knowledge", new_id)
 
@@ -4228,9 +4203,9 @@ def update_knowledge(knowledge_id):
                 redis_client.delete(key)
             for key in redis_client.scan_iter("knowledge_popular:*"):
                 redis_client.delete(key)
-            logger.info(f"Cache invalidated: knowledge {knowledge_id}")
+            logger.info("Cache invalidated: knowledge %s", knowledge_id)
         except Exception as e:
-            logger.warning(f"Cache invalidation failed: {e}")
+            logger.warning("Cache invalidation failed: %s", e)
 
     log_access(current_user_id, "knowledge.update", "knowledge", knowledge_id)
 
@@ -4394,7 +4369,7 @@ def get_popular_knowledge():
         # キャッシュチェック
         cached_result = cache_get(cache_key)
         if cached_result:
-            logger.info(f"Cache hit: knowledge_popular - {cache_key}")
+            logger.info("Cache hit: knowledge_popular - %s", cache_key)
             return jsonify(cached_result)
 
         knowledge_list = load_data("knowledge.json") or []
@@ -4407,13 +4382,11 @@ def get_popular_knowledge():
         # 結果をキャッシュ
         response_data = {"success": True, "data": sorted_knowledge}
         cache_set(cache_key, response_data, ttl=3600)  # 1時間
-        logger.info(f"Cache set: knowledge_popular - {cache_key}")
+        logger.info("Cache set: knowledge_popular - %s", cache_key)
 
         return jsonify(response_data)
     except Exception as e:
-        print(
-            f"[ERROR] get_popular_knowledge: {type(e).__name__}: {e}", file=sys.stderr
-        )
+        logger.error("get_popular_knowledge: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": []})
 
 
@@ -4463,7 +4436,7 @@ def get_recent_knowledge():
 
         return jsonify({"success": True, "data": sorted_knowledge})
     except Exception as e:
-        print(f"[ERROR] get_recent_knowledge: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_recent_knowledge: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": []})
 
 
@@ -4511,7 +4484,7 @@ def get_knowledge_tags():
 
         return jsonify({"success": True, "data": tag_list})
     except Exception as e:
-        print(f"[ERROR] get_knowledge_tags: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_knowledge_tags: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": []})
 
 
@@ -4590,7 +4563,7 @@ def unified_search():
     # キャッシュチェック
     cached_result = cache_get(cache_key)
     if cached_result:
-        logger.info(f"Cache hit: unified_search - {cache_key}")
+        logger.info("Cache hit: unified_search - %s", cache_key)
         return jsonify(cached_result)
 
     # 検索ロジックにもnormalized_queryを使用（キャッシュキーとの整合性）
@@ -4691,7 +4664,7 @@ def unified_search():
         "query": query,
     }
     cache_set(cache_key, response_data, ttl=3600)  # 1時間
-    logger.info(f"Cache set: unified_search - {cache_key}")
+    logger.info("Cache set: unified_search - %s", cache_key)
 
     return jsonify(response_data)
 
@@ -4789,7 +4762,7 @@ def _retry_operation(operation, label, max_attempts=5, backoff_seconds=0.5):
             return {"status": "sent", "attempts": attempt}
         except Exception as exc:
             last_error = str(exc)
-            print(f"[NOTIFY] {label} attempt {attempt} failed: {exc}")
+            logger.info("%s attempt %d failed: %s", label, attempt, exc)
             if attempt < max_attempts:
                 time.sleep(backoff_seconds * attempt)
     return {"status": "failed", "attempts": max_attempts, "last_error": last_error}
@@ -5059,7 +5032,7 @@ def get_sop():
             }
         )
     except Exception as e:
-        print(f"[ERROR] get_sop: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_sop: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": [], "pagination": {"total_items": 0}})
 
 
@@ -5169,7 +5142,7 @@ def get_incidents():
             }
         )
     except Exception as e:
-        print(f"[ERROR] get_incidents: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_incidents: %s: %s", type(e).__name__, e)
         return jsonify(
             {
                 "success": True,
@@ -5262,7 +5235,7 @@ def get_approvals():
             }
         )
     except Exception as e:
-        print(f"[ERROR] get_approvals: {type(e).__name__}: {e}", file=sys.stderr)
+        logger.error("get_approvals: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": [], "pagination": {"total_items": 0}})
 
 
@@ -5750,7 +5723,7 @@ def error_response(message, code="ERROR", status_code=400, details=None):
     if details:
         response["error"]["details"] = details
 
-    print(f"[ERROR] {code}: {message} (status={status_code})")
+    logger.error("%s: %s (status=%d)", code, message, status_code)
 
     return jsonify(response), status_code
 
@@ -5765,8 +5738,8 @@ def handle_unexpected_error(e):
     """全ての未処理例外をキャッチ"""
     import traceback
 
-    print(f"[ERROR] Unexpected error: {type(e).__name__}: {e}")
-    print(traceback.format_exc())
+    logger.error("Unexpected error: %s: %s", type(e).__name__, e)
+    logger.error("Unexpected error traceback:\n%s", traceback.format_exc())
     return error_response("Internal server error", "INTERNAL_ERROR", 500)
 
 
@@ -5870,7 +5843,7 @@ def update_system_metrics():
         ACTIVE_USERS.set(active_count)
 
     except Exception as e:
-        print(f"[ERROR] Failed to update system metrics: {e}")
+        logger.error("Failed to update system metrics: %s", e)
 
 
 @app.route("/metrics", methods=["GET"])
@@ -5888,7 +5861,7 @@ def metrics():
         # Prometheus形式でメトリクスを出力
         return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
     except Exception as e:
-        print(f"[ERROR] Metrics endpoint error: {e}")
+        logger.error("Metrics endpoint error: %s", e)
         return jsonify({"error": "Failed to generate metrics"}), 500
 
 
@@ -5948,7 +5921,7 @@ def metrics_summary():
         return jsonify(summary), 200
 
     except Exception as e:
-        print(f"[ERROR] Metrics summary error: {e}")
+        logger.error("Metrics summary error: %s", e)
         return jsonify({"error": "Failed to generate metrics summary"}), 500
 
 
@@ -6090,7 +6063,7 @@ def get_access_logs():
         )
 
     except Exception as e:
-        print(f"[ERROR] Access logs error: {e}")
+        logger.error("Access logs error: %s", e)
         return jsonify({"error": "Failed to retrieve access logs"}), 500
 
 
@@ -6166,7 +6139,7 @@ def get_access_logs_stats():
         )
 
     except Exception as e:
-        print(f"[ERROR] Access logs stats error: {e}")
+        logger.error("Access logs stats error: %s", e)
         return jsonify({"error": "Failed to retrieve access logs stats"}), 500
 
 
@@ -6348,10 +6321,7 @@ def init_demo_users():
             },
         ]
         save_users(demo_users)
-        print("[OK] デモユーザーを作成しました")
-        print("   - admin / admin123 (管理者)")
-        print("   - yamada / yamada123 (施工管理)")
-        print("   - partner / partner123 (協力会社)")
+        logger.info("デモユーザーを作成しました: admin, yamada, partner")
 
 
 # ============================================================
@@ -6667,23 +6637,23 @@ def post_consultation_answer(consultation_id):
 # 環境変数 MKS_FORCE_HTTPS=true で有効化
 if os.environ.get("MKS_FORCE_HTTPS", "false").lower() in ("true", "1", "yes"):
     app.wsgi_app = HTTPSRedirectMiddleware(app.wsgi_app)
-    print("[INIT] HTTPS強制リダイレクトを有効化しました")
+    logger.info("[INIT] HTTPS強制リダイレクトを有効化しました")
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("建設土木ナレッジシステム - サーバー起動中")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("建設土木ナレッジシステム - サーバー起動中")
+    logger.info("=" * 60)
 
     # 環境情報表示
     env_mode = os.environ.get("MKS_ENV", "development")
-    print(f"環境モード: {env_mode}")
+    logger.info("環境モード: %s", env_mode)
 
     if IS_PRODUCTION:
-        print("[PRODUCTION] 本番環境設定が有効です")
+        logger.info("[PRODUCTION] 本番環境設定が有効です")
         if HSTS_ENABLED:
-            print(f"[SECURITY] HSTS有効 (max-age={HSTS_MAX_AGE})")
+            logger.info("[SECURITY] HSTS有効 (max-age=%s)", HSTS_MAX_AGE)
     else:
-        print("[DEVELOPMENT] 開発環境設定が有効です")
+        logger.info("[DEVELOPMENT] 開発環境設定が有効です")
 
     # デモユーザー初期化（開発環境のみ or 環境変数で明示的に有効化）
     create_demo_users = os.environ.get(
@@ -6692,7 +6662,7 @@ if __name__ == "__main__":
     if create_demo_users:
         init_demo_users()
     else:
-        print("[PRODUCTION] デモユーザー作成をスキップ（MKS_CREATE_DEMO_USERS=false）")
+        logger.info("[PRODUCTION] デモユーザー作成をスキップ（MKS_CREATE_DEMO_USERS=false）")
 
     # ポート番号を環境変数から取得（固定値: 開発5100、本番8100）
     http_port = int(os.environ.get("MKS_HTTP_PORT", "5100"))
@@ -6702,10 +6672,10 @@ if __name__ == "__main__":
         if os.environ.get("MKS_FORCE_HTTPS", "false").lower() in ("true", "1", "yes")
         else "http"
     )
-    print(f"アクセスURL: {protocol}://localhost:{http_port}")
-    print(f"環境: {os.environ.get('MKS_ENV', 'development')}")
-    print(f"ポート: HTTP={http_port}")
-    print("=" * 60)
+    logger.info("アクセスURL: %s://localhost:%s", protocol, http_port)
+    logger.info("環境: %s", os.environ.get('MKS_ENV', 'development'))
+    logger.info("ポート: HTTP=%s", http_port)
+    logger.info("=" * 60)
 
     debug = os.environ.get("MKS_DEBUG", "false").lower() in ("1", "true", "yes")
     bind_host = os.environ.get(
@@ -6713,9 +6683,7 @@ if __name__ == "__main__":
     )  # Default: all interfaces (production: set to 127.0.0.1)
 
     # 全環境でsocketio.runを使用（WebSocket対応）
-    print(
-        f"[SERVER] Using SocketIO server with WebSocket support (binding to {bind_host}:{http_port})"
-    )
+    logger.info("[SERVER] Using SocketIO server with WebSocket support (binding to %s:%s)", bind_host, http_port)
     socketio.run(
         app, host=bind_host, port=http_port, debug=debug, allow_unsafe_werkzeug=True
     )
@@ -6729,14 +6697,14 @@ if __name__ == "__main__":
 @socketio.on("connect")
 def handle_connect():
     """クライアント接続時の処理"""
-    print("[SOCKET] Client connected")
+    logger.debug("[SOCKET] Client connected")
     emit("connected", {"status": "success"})
 
 
 @socketio.on("disconnect")
 def handle_disconnect():
     """クライアント切断時の処理"""
-    print("[SOCKET] Client disconnected")
+    logger.debug("[SOCKET] Client disconnected")
 
 
 @socketio.on("join_project")
@@ -6745,7 +6713,7 @@ def handle_join_project(data):
     project_id = data.get("project_id")
     if project_id:
         join_room(f"project_{project_id}")
-        print(f"[SOCKET] User joined project room: {project_id}")
+        logger.debug("[SOCKET] User joined project room: %s", project_id)
         emit("joined_project", {"project_id": project_id})
 
 
@@ -6755,14 +6723,14 @@ def handle_leave_project(data):
     project_id = data.get("project_id")
     if project_id:
         leave_room(f"project_{project_id}")
-        print(f"[SOCKET] User left project room: {project_id}")
+        logger.debug("[SOCKET] User left project room: %s", project_id)
 
 
 @socketio.on("join_dashboard")
 def handle_join_dashboard():
     """ダッシュボードルーム参加"""
     join_room("dashboard")
-    print("[SOCKET] User joined dashboard room")
+    logger.debug("[SOCKET] User joined dashboard room")
     emit("joined_dashboard", {"status": "success"})
 
 
@@ -6770,7 +6738,7 @@ def handle_join_dashboard():
 def handle_leave_dashboard():
     """ダッシュボードルーム退出"""
     leave_room("dashboard")
-    print("[SOCKET] User left dashboard room")
+    logger.debug("[SOCKET] User left dashboard room")
 
 
 # リアルタイム更新用の関数
