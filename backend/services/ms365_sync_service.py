@@ -606,9 +606,14 @@ class MS365SyncService:
             config_id: 同期設定ID
             schedule: cronスケジュール
         """
-        # TODO: cronスケジュールをパースして次回実行時刻を計算
-        # 暫定: 24時間後
-        next_sync = datetime.utcnow() + timedelta(hours=24)
+        try:
+            from apscheduler.triggers.cron import CronTrigger
+
+            trigger = CronTrigger.from_crontab(schedule)
+            next_fire = trigger.get_next_fire_time(None, datetime.utcnow())
+            next_sync = next_fire if next_fire else datetime.utcnow() + timedelta(hours=24)
+        except Exception:
+            next_sync = datetime.utcnow() + timedelta(hours=24)
 
         self.dal.update_ms365_sync_config(
             config_id,
