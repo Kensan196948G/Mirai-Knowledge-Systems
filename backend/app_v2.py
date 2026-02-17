@@ -3257,11 +3257,9 @@ def ms365_sync_stats():
         all_configs = dal.get_all_ms365_sync_configs()
         enabled_configs = [c for c in all_configs if c.get("is_enabled")]
 
-        # 最近の同期履歴（全設定分）
-        recent_syncs = []
-        for config in all_configs:
-            history = dal.get_ms365_sync_history_by_config(config["id"])
-            recent_syncs.extend(history[:5])  # 各設定から最新5件
+        # 最近の同期履歴（一括取得でN+1回避）
+        config_ids = [c["id"] for c in all_configs]
+        recent_syncs = dal.get_recent_ms365_sync_histories(config_ids, limit_per_config=5)
 
         # ステータス別カウント
         status_counts = Counter([h.get("status") for h in recent_syncs])
@@ -4581,11 +4579,12 @@ def unified_search():
             400,
         )
 
-    # キャッシュキー生成
+    # キャッシュキー生成（クエリ正規化でヒット率向上）
+    normalized_query = " ".join(query.strip().lower().split())
     search_types = ",".join(sorted(types))
     highlight_key = "true" if highlight else "false"
     cache_key = get_cache_key(
-        "search", query, search_types, highlight_key, page, page_size, sort_by, order
+        "search", normalized_query, search_types, highlight_key, page, page_size, sort_by, order
     )
 
     # キャッシュチェック
@@ -4593,6 +4592,9 @@ def unified_search():
     if cached_result:
         logger.info(f"Cache hit: unified_search - {cache_key}")
         return jsonify(cached_result)
+
+    # 検索ロジックにもnormalized_queryを使用（キャッシュキーとの整合性）
+    search_query = normalized_query
 
     results = {}
     total_count = 0
@@ -4604,7 +4606,7 @@ def unified_search():
 
         for item in knowledge_list:
             matched_fields, score = search_in_fields(
-                item, query, ["title", "summary", "content"]
+                item, search_query, ["title", "summary", "content"]
             )
             if matched_fields:
                 item_copy = item.copy()
@@ -4612,7 +4614,7 @@ def unified_search():
                 if highlight:
                     for field in ["title", "summary"]:
                         if field in item_copy and item_copy[field]:
-                            item_copy[field] = highlight_text(item_copy[field], query)
+                            item_copy[field] = highlight_text(item_copy[field], search_query)
                 matched.append(item_copy)
 
         # ソート
@@ -4652,7 +4654,7 @@ def unified_search():
         matched = []
 
         for item in sop_list:
-            matched_fields, score = search_in_fields(item, query, ["title", "content"])
+            matched_fields, score = search_in_fields(item, search_query, ["title", "content"])
             if matched_fields:
                 item_copy = item.copy()
                 item_copy["relevance_score"] = score
@@ -4668,7 +4670,7 @@ def unified_search():
 
         for item in incidents_list:
             matched_fields, score = search_in_fields(
-                item, query, ["title", "description"]
+                item, search_query, ["title", "description"]
             )
             if matched_fields:
                 item_copy = item.copy()
@@ -5200,12 +5202,16 @@ def get_dashboard_stats():
     current_user_id = get_jwt_identity()
     log_access(current_user_id, "dashboard.view", "dashboard")
 
+    cache_key = get_cache_key("dashboard_stats")
+    cached_result = cache_get(cache_key)
+    if cached_result:
+        return jsonify(cached_result)
+
     knowledge_list = load_data("knowledge.json")
     sop_list = load_data("sop.json")
     incidents = load_data("incidents.json")
     approvals = load_data("approvals.json")
 
-    # 🔧 修正: ヘッダー表示用フィールドを追加
     from datetime import datetime
 
     pending_approvals_count = len(
@@ -5227,14 +5233,16 @@ def get_dashboard_stats():
             ),
             "pending_approvals": pending_approvals_count,
         },
-        # 🔧 ヘッダー表示用フィールド（トップレベルに追加）
         "last_sync_time": datetime.now().isoformat(),
-        "active_workers": 0,  # TODO: Socket.IO接続数を取得（現在は固定値）
-        "total_workers": 100,  # 想定最大ユーザー数
-        "pending_approvals": pending_approvals_count,  # フラット構造でも提供
+        "active_workers": 0,
+        "total_workers": 100,
+        "pending_approvals": pending_approvals_count,
     }
 
-    return jsonify({"success": True, "data": stats})
+    response_data = {"success": True, "data": stats}
+    cache_set(cache_key, response_data, ttl=300)  # 5分
+
+    return jsonify(response_data)
 
 
 @app.route("/api/v1/approvals", methods=["GET"])
