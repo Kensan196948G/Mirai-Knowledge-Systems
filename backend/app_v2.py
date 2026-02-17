@@ -9,6 +9,7 @@ import logging
 import os
 import threading
 import time
+import uuid  # Phase G-15: Correlation ID生成用
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from functools import wraps
@@ -16,7 +17,7 @@ from functools import wraps
 import bcrypt
 import psutil
 from dotenv import load_dotenv
-from flask import Flask, Response, jsonify, request, send_from_directory
+from flask import Flask, Response, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import (JWTManager, create_access_token,
                                 create_refresh_token, get_jwt,
@@ -46,6 +47,7 @@ from email.message import EmailMessage
 
 from auth.totp_manager import TOTPManager
 from data_access import DataAccessLayer
+from json_logger import setup_json_logging  # Phase G-15: Structured Logging
 from prometheus_client import CONTENT_TYPE_LATEST
 from prometheus_client import Counter as PrometheusCounter
 from prometheus_client import Gauge, Histogram, generate_latest
@@ -532,6 +534,9 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 logger.info("[INIT] JWT Secret Key configured (length=%d)", len(app.config["JWT_SECRET_KEY"]))
 jwt = JWTManager(app)
 
+# Phase G-15: Structured Logging統合
+setup_json_logging(app)
+
 # 本番環境判定（レート制限/セキュリティヘッダーで使用）
 IS_PRODUCTION = os.environ.get("MKS_ENV", "development").lower() == "production"
 HSTS_ENABLED = os.environ.get("MKS_HSTS_ENABLED", "false").lower() in (
@@ -808,21 +813,43 @@ metrics_storage = {
 
 @app.before_request
 def before_request_metrics():
-    """リクエスト前のメトリクス記録"""
+    """リクエスト前のメトリクス記録 + 相関ID生成（Phase G-15）"""
     request.start_time = time.time()
+
+    # Phase G-15: Correlation ID生成（分散トレーシング対応）
+    correlation_id = request.headers.get("X-Correlation-ID")
+    if not correlation_id:
+        correlation_id = str(uuid.uuid4())
+    g.correlation_id = correlation_id
 
 
 @app.after_request
 def after_request_metrics(response):
-    """リクエスト後のメトリクス記録（Prometheus対応）"""
+    """リクエスト後のメトリクス記録（Prometheus対応） + 相関ID返却（Phase G-15）"""
+    # Phase G-15: Correlation IDをレスポンスヘッダーに追加
+    if hasattr(g, "correlation_id"):
+        response.headers["X-Correlation-ID"] = g.correlation_id
+
     # リクエスト処理時間計算
     if hasattr(request, "start_time"):
         duration = time.time() - request.start_time
+        duration_ms = duration * 1000
 
         # エンドポイント特定
         endpoint = request.endpoint or "unknown"
         method = request.method
         status = str(response.status_code)
+
+        # Phase G-15: 構造化ログでリクエスト完了記録
+        logger.info(
+            "Request completed",
+            extra={
+                "status_code": response.status_code,
+                "duration_ms": round(duration_ms, 2),
+                "endpoint": endpoint,
+                "method": method,
+            },
+        )
 
         # Prometheusメトリクス記録
         if REQUEST_COUNT:
