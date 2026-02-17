@@ -33,8 +33,7 @@ from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 # ロガー設定
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 # スレッドセーフなファイルアクセス用ロック
@@ -3259,7 +3258,9 @@ def ms365_sync_stats():
 
         # 最近の同期履歴（一括取得でN+1回避）
         config_ids = [c["id"] for c in all_configs]
-        recent_syncs = dal.get_recent_ms365_sync_histories(config_ids, limit_per_config=5)
+        recent_syncs = dal.get_recent_ms365_sync_histories(
+            config_ids, limit_per_config=5
+        )
 
         # ステータス別カウント
         status_counts = Counter([h.get("status") for h in recent_syncs])
@@ -4584,7 +4585,14 @@ def unified_search():
     search_types = ",".join(sorted(types))
     highlight_key = "true" if highlight else "false"
     cache_key = get_cache_key(
-        "search", normalized_query, search_types, highlight_key, page, page_size, sort_by, order
+        "search",
+        normalized_query,
+        search_types,
+        highlight_key,
+        page,
+        page_size,
+        sort_by,
+        order,
     )
 
     # キャッシュチェック
@@ -4614,7 +4622,9 @@ def unified_search():
                 if highlight:
                     for field in ["title", "summary"]:
                         if field in item_copy and item_copy[field]:
-                            item_copy[field] = highlight_text(item_copy[field], search_query)
+                            item_copy[field] = highlight_text(
+                                item_copy[field], search_query
+                            )
                 matched.append(item_copy)
 
         # ソート
@@ -4654,7 +4664,9 @@ def unified_search():
         matched = []
 
         for item in sop_list:
-            matched_fields, score = search_in_fields(item, search_query, ["title", "content"])
+            matched_fields, score = search_in_fields(
+                item, search_query, ["title", "content"]
+            )
             if matched_fields:
                 item_copy = item.copy()
                 item_copy["relevance_score"] = score

@@ -1158,8 +1158,8 @@ class DataAccessLayer:
                     }
                 else:
                     # 全専門家の統計（N+1最適化）
-                    from sqlalchemy.orm import selectinload
                     from sqlalchemy import func
+                    from sqlalchemy.orm import selectinload
 
                     # サブクエリで集計（N+1回避）
                     ratings_subquery = (
@@ -1201,9 +1201,12 @@ class DataAccessLayer:
                     )
 
                     stats = []
-                    for expert, avg_rating, rating_count, consultation_count in (
-                        experts_query.all()
-                    ):
+                    for (
+                        expert,
+                        avg_rating,
+                        rating_count,
+                        consultation_count,
+                    ) in experts_query.all():
                         stats.append(
                             {
                                 "expert_id": expert.id,
@@ -2183,9 +2186,7 @@ class DataAccessLayer:
                     grouped.setdefault(cid, []).append(h)
             result = []
             for cid, histories in grouped.items():
-                histories.sort(
-                    key=lambda x: x.get("sync_started_at", ""), reverse=True
-                )
+                histories.sort(key=lambda x: x.get("sync_started_at", ""), reverse=True)
                 result.extend(histories[:limit_per_config])
             return result
 

@@ -26,24 +26,28 @@ class AutoFixDaemon:
     """エラー自動検知・自動修復デーモン"""
 
     # セキュリティ: ホワイトリスト定義
-    ALLOWED_SERVICES = frozenset({
-        "mirai-knowledge-app",
-        "mirai-knowledge-app-dev",
-        "mirai-ms365-sync",
-        "postgresql",
-        "nginx",
-        "redis",
-        "flask_app",
-    })
+    ALLOWED_SERVICES = frozenset(
+        {
+            "mirai-knowledge-app",
+            "mirai-knowledge-app-dev",
+            "mirai-ms365-sync",
+            "postgresql",
+            "nginx",
+            "redis",
+            "flask_app",
+        }
+    )
 
-    ALLOWED_OWNERS = frozenset({
-        "www-data",
-        "postgres",
-        "root",
-        "mirai",
-        "mirai:mirai",
-        "www-data:www-data",
-    })
+    ALLOWED_OWNERS = frozenset(
+        {
+            "www-data",
+            "postgres",
+            "root",
+            "mirai",
+            "mirai:mirai",
+            "www-data:www-data",
+        }
+    )
 
     MIN_CLEANUP_DAYS = 7
 
@@ -379,7 +383,9 @@ class AutoFixDaemon:
 
             for directory in directories:
                 if not self._validate_path(base_dir, directory):
-                    self.logger.error(f"不正なディレクトリパス（パストラバーサル検出）: {directory}")
+                    self.logger.error(
+                        f"不正なディレクトリパス（パストラバーサル検出）: {directory}"
+                    )
                     continue
 
                 dir_path = os.path.join(base_dir, directory)
@@ -545,13 +551,17 @@ class AutoFixDaemon:
 
                 # ディレクトリ自体がシンボリックリンクでないか検証
                 if Path(dir_path).is_symlink():
-                    self.logger.error(f"ディレクトリがシンボリックリンク（スキップ）: {dir_path}")
+                    self.logger.error(
+                        f"ディレクトリがシンボリックリンク（スキップ）: {dir_path}"
+                    )
                     continue
 
                 for file_path in Path(dir_path).rglob("*"):
                     # シンボリックリンクをスキップ（シンボリックリンク経由の攻撃を防止）
                     if file_path.is_symlink():
-                        self.logger.warning(f"シンボリックリンクをスキップ: {file_path}")
+                        self.logger.warning(
+                            f"シンボリックリンクをスキップ: {file_path}"
+                        )
                         continue
                     if file_path.is_file():
                         file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
