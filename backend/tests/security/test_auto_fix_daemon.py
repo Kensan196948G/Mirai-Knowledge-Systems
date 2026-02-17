@@ -12,11 +12,11 @@ Phase F-2で追加されたセキュリティ機構の検証:
 """
 
 import os
-import sys
 import pathlib
+import sys
 import tempfile
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -358,9 +358,7 @@ class TestCreateMissingDirectories:
 
     def test_reject_traversal_in_directories(self, daemon):
         """.. を含むディレクトリパスを拒否（スキップして続行）"""
-        result = daemon._create_missing_directories(
-            ["../../../etc/malicious", "logs"]
-        )
+        result = daemon._create_missing_directories(["../../../etc/malicious", "logs"])
         # 不正パスはスキップされるが全体としてはTrueを返す
         assert result is True
 

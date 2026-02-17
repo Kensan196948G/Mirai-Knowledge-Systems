@@ -526,13 +526,9 @@ class TestQueryNormalization:
         headers = {"Authorization": f"Bearer {token}"}
 
         # 正規形
-        resp1 = client.get(
-            "/api/v1/search/unified?q=施工計画", headers=headers
-        )
+        resp1 = client.get("/api/v1/search/unified?q=施工計画", headers=headers)
         # スペースあり
-        resp2 = client.get(
-            "/api/v1/search/unified?q=  施工計画  ", headers=headers
-        )
+        resp2 = client.get("/api/v1/search/unified?q=  施工計画  ", headers=headers)
 
         data1 = resp1.get_json()
         data2 = resp2.get_json()
@@ -547,12 +543,8 @@ class TestQueryNormalization:
         token = _login(client)
         headers = {"Authorization": f"Bearer {token}"}
 
-        resp1 = client.get(
-            "/api/v1/search/unified?q=品質管理", headers=headers
-        )
-        resp2 = client.get(
-            "/api/v1/search/unified?q=品質管理", headers=headers
-        )
+        resp1 = client.get("/api/v1/search/unified?q=品質管理", headers=headers)
+        resp2 = client.get("/api/v1/search/unified?q=品質管理", headers=headers)
 
         data1 = resp1.get_json()
         data2 = resp2.get_json()
@@ -576,7 +568,14 @@ class TestQueryNormalization:
         for q in queries:
             normalized = " ".join(q.strip().lower().split())
             key = app_v2.get_cache_key(
-                "search", normalized, "knowledge", "true", 1, 10, "relevance_score", "desc"
+                "search",
+                normalized,
+                "knowledge",
+                "true",
+                1,
+                10,
+                "relevance_score",
+                "desc",
             )
             keys.add(key)
 
