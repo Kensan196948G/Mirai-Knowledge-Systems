@@ -210,12 +210,34 @@ class AutoFixDaemon:
             return False
 
     def _validate_path(self, base_dir: str, user_path: str) -> bool:
-        """パスがbase_dir内に収まっているか検証（パストラバーサル防止）"""
+        """パスがbase_dir内に収まっているか検証（パストラバーサル防止）
+
+        絶対パス、".." を含むパスを事前に拒否し、
+        正規化後にbase_dir配下であることを最終確認する。
+        """
+        if os.path.isabs(user_path):
+            return False
+        if ".." in user_path:
+            return False
         full_path = os.path.abspath(os.path.join(base_dir, user_path))
-        return full_path.startswith(os.path.abspath(base_dir))
+        base_abs = os.path.abspath(base_dir)
+        return full_path.startswith(base_abs + os.sep) or full_path == base_abs
 
     def _validate_pid(self, pid: str) -> bool:
-        """PID文字列が安全な整数値か検証"""
+        """PID文字列が安全な整数値か検証
+
+        Args:
+            pid: PID文字列（空白除去後に数値であること）
+
+        Returns:
+            True: PID > 1 かつ数値
+            False: 不正なPID（0, 1, 負数, 非数値）
+
+        Note:
+            PID=0（カーネルスケジューラ）およびPID=1（systemd/init）は
+            予防的に拒否する。通常pgrep/lsofはユーザープロセスのみを返すが、
+            万が一のシステムプロセス終了を防止するための安全策。
+        """
         if not pid or not pid.strip().isdigit():
             return False
         pid_int = int(pid.strip())
@@ -519,6 +541,11 @@ class AutoFixDaemon:
             for directory in ["logs", "cache", "uploads"]:
                 dir_path = os.path.join(base_dir, directory)
                 if not os.path.exists(dir_path):
+                    continue
+
+                # ディレクトリ自体がシンボリックリンクでないか検証
+                if Path(dir_path).is_symlink():
+                    self.logger.error(f"ディレクトリがシンボリックリンク（スキップ）: {dir_path}")
                     continue
 
                 for file_path in Path(dir_path).rglob("*"):
