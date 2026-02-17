@@ -67,6 +67,12 @@ jobs:
             pip install -r backend/requirements.txt 2>/dev/null || true
           fi
 
+      - name: Install Playwright browsers for E2E tests
+        working-directory: backend
+        run: |
+          npm ci --prefer-offline 2>/dev/null || true
+          npx playwright install chromium 2>/dev/null || true
+
       - name: Run pytest with coverage
         id: pytest
         working-directory: backend
