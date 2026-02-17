@@ -169,7 +169,7 @@ jobs:
 
       - name: 📊 アーティファクト保存
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: auto-fix-logs-${{ steps.workflow_info.outputs.branch }}-${{ github.run_number }}
           path: |
