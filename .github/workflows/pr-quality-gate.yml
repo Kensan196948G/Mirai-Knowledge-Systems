@@ -1,4 +1,4 @@
-name: PR Quality Gate (Round-trip)
+name: PR Quality Gate
 
 on:
   pull_request:
@@ -18,81 +18,168 @@ env:
   MKS_CORS_ORIGINS: http://localhost:5100
 
 jobs:
-  quality-gate:
-    name: Quality Gate
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     permissions:
       contents: read
-      pull-requests: write
-      checks: write
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
           cache-dependency-path: '**/requirements.txt'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Install linters
+        run: pip install ruff
+
+      - name: Ruff lint
+        run: ruff check . --output-format=github
+
+      - name: Ruff format check
+        run: ruff format --check .
+        continue-on-error: true
+
+  backend-tests:
+    name: Backend Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-cov pytest-flask pytest-xdist
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt 2>/dev/null || true
+          fi
+
+      - name: Run pytest with coverage
+        id: pytest
+        working-directory: backend
+        run: |
+          set -o pipefail
+          pytest tests/ -v --tb=short -x --maxfail=5 \
+            --cov=app_v2 --cov=schemas --cov=data_access --cov=models \
+            --cov=password_policy --cov=csrf_protection --cov=recommendation_engine \
+            --cov=auth --cov=services --cov=integrations --cov=scripts \
+            --cov-report=term-missing \
+            --cov-fail-under=60 2>&1 | tail -100
+
+  frontend-tests:
+    name: Frontend Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
 
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install ruff pytest pytest-cov pytest-flask pytest-xdist
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt --break-system-packages 2>/dev/null || true
-          fi
-          if [ -f backend/requirements.txt ]; then
-            pip install -r backend/requirements.txt --break-system-packages 2>/dev/null || true
-          fi
-
-      - name: Install Node dependencies
+      - name: Install dependencies
         working-directory: backend
         run: npm ci --prefer-offline 2>/dev/null || true
 
-      - name: Ruff Lint Check
-        id: lint
-        run: ruff check . --output-format=github
-
-      - name: Python Unit Tests with Coverage
-        id: pytest
-        env:
-          MKS_ENV: test
-          MKS_SECRET_KEY: test-secret-key-for-ci
-          MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
-          MKS_CORS_ORIGINS: http://localhost:5100
-        run: |
-          pytest tests/ -v --tb=short -x --maxfail=5 \
-            --cov=. --cov-report=term-missing \
-            --cov-fail-under=32 2>&1 | tail -80
-
-      - name: Jest Unit Tests with Coverage
+      - name: Jest unit tests
         id: jest
         working-directory: backend
         run: npm run test:unit:coverage 2>&1 | tail -40
+
+  security-scan:
+    name: Security Scan
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          pip install bandit safety
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt 2>/dev/null || true
+          fi
+
+      - name: Bandit security scan
+        run: |
+          bandit -r backend/ -c backend/security/bandit.yaml \
+            -ll --severity-level high -f json -o bandit-report.json || true
+          bandit -r backend/ -c backend/security/bandit.yaml \
+            -ll --severity-level high
         continue-on-error: true
 
+      - name: Safety dependency check
+        run: safety check -r backend/requirements.txt --output text 2>/dev/null || true
+        continue-on-error: true
+
+      - name: npm audit
+        working-directory: backend
+        run: |
+          npm ci --prefer-offline 2>/dev/null || true
+          npm audit --audit-level=high 2>/dev/null || true
+        continue-on-error: true
+
+  quality-summary:
+    name: Quality Summary
+    needs: [lint, backend-tests, frontend-tests, security-scan]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
       - name: Quality Gate Summary
-        if: always()
         run: |
           echo "## PR Quality Gate Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Ruff Lint | ${{ steps.lint.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Python Tests (80%+ coverage) | ${{ steps.pytest.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Jest Tests (70%+ coverage) | ${{ steps.jest.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ruff Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Tests (60%+ coverage) | ${{ needs.backend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Tests | ${{ needs.frontend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "_PR Quality Gate (Round-trip Development Loop)_" >> $GITHUB_STEP_SUMMARY
+
+          # Fail if critical checks failed
+          if [[ "${{ needs.lint.result }}" == "failure" ]] || \
+             [[ "${{ needs.backend-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.frontend-tests.result }}" == "failure" ]]; then
+            echo "::error::Quality gate FAILED - critical checks did not pass"
+            exit 1
+          fi
+
+          echo "Quality gate PASSED" >> $GITHUB_STEP_SUMMARY
