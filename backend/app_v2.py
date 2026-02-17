@@ -204,6 +204,57 @@ class CacheInvalidator:
         except Exception as e:
             logger.warning("Cache invalidation failed: %s", e)
 
+    @staticmethod
+    def invalidate_knowledge(knowledge_id=None):
+        """ナレッジ関連キャッシュ無効化（Phase G-6 Phase 2）
+
+        NOTE: knowledge作成/更新/削除時に呼び出される。
+        計算データキャッシュ（related, tags, recent）を無効化する。
+        """
+        if not redis_client:
+            return
+        try:
+            patterns = [
+                "knowledge_list:*",      # Phase G-4（既存）
+                "knowledge_popular:*",   # Phase G-4（既存）
+                "knowledge_tags",        # Phase G-6 Phase 2（新規）
+                "knowledge_recent:*",    # Phase G-6 Phase 2（新規）
+            ]
+
+            if knowledge_id:
+                # 特定ナレッジの関連アイテムキャッシュを無効化
+                patterns.append(f"knowledge_related:{knowledge_id}:*")
+
+            for pattern in patterns:
+                for key in redis_client.scan_iter(pattern):
+                    redis_client.delete(key)
+
+            logger.info("Cache invalidated: knowledge (id=%s)", knowledge_id or "all")
+        except Exception as e:
+            logger.warning("Cache invalidation failed: %s", e)
+
+    @staticmethod
+    def invalidate_sop(sop_id=None):
+        """SOP関連キャッシュ無効化（Phase G-6 Phase 2）
+
+        NOTE: SOP作成/更新/削除時に呼び出される（将来実装時）。
+        """
+        if not redis_client:
+            return
+        try:
+            patterns = ["sop_list"]  # Phase G-4（既存）
+
+            if sop_id:
+                patterns.append(f"sop_related:{sop_id}:*")
+
+            for pattern in patterns:
+                for key in redis_client.scan_iter(pattern):
+                    redis_client.delete(key)
+
+            logger.info("Cache invalidated: sop (id=%s)", sop_id or "all")
+        except Exception as e:
+            logger.warning("Cache invalidation failed: %s", e)
+
 
 # 推薦エンジンインスタンス
 recommendation_engine = RecommendationEngine(cache_ttl=300)  # 5分間キャッシュ
@@ -4231,16 +4282,30 @@ def get_experts_stats():
 @app.route("/api/v1/experts/<int:expert_id>/rating", methods=["GET"])
 @check_permission("knowledge.read")
 def calculate_expert_rating(expert_id):
-    """専門家評価アルゴリズムAPI"""
+    """専門家評価アルゴリズムAPI（キャッシュ対応 - Phase G-6 Phase 2）
+
+    NOTE: DAL計算式ベース（中程度コスト）のため、キャッシュ優先度中。
+    """
     current_user_id = get_jwt_identity()
     log_access(current_user_id, "expert.rating", "expert", expert_id)
+
+    # Cache check
+    cache_key = get_cache_key("experts_rating", expert_id)
+    cached_result = cache_get(cache_key)
+    if cached_result:
+        logger.info("Cache hit: experts_rating - %s", cache_key)
+        return jsonify(cached_result)
 
     dal = get_dal()
     rating = dal.calculate_expert_rating(expert_id)
 
-    return jsonify(
-        {"success": True, "data": {"expert_id": expert_id, "calculated_rating": rating}}
-    )
+    response_data = {"success": True, "data": {"expert_id": expert_id, "calculated_rating": rating}}
+
+    # Cache set (TTL: 30m, formula-based computation)
+    cache_set(cache_key, response_data, ttl=1800)
+    logger.info("Cache set: experts_rating - %s", cache_key)
+
+    return jsonify(response_data)
 
 
 @app.route("/api/v1/knowledge", methods=["POST"])
@@ -4274,17 +4339,8 @@ def create_knowledge():
     knowledge_list.append(new_knowledge)
     save_data("knowledge.json", knowledge_list)
 
-    # キャッシュ無効化
-    if redis_client:
-        try:
-            # knowledge_list、popularキャッシュを削除
-            for key in redis_client.scan_iter("knowledge_list:*"):
-                redis_client.delete(key)
-            for key in redis_client.scan_iter("knowledge_popular:*"):
-                redis_client.delete(key)
-            logger.info("Cache invalidated: knowledge_list, knowledge_popular")
-        except Exception as e:
-            logger.warning("Cache invalidation failed: %s", e)
+    # キャッシュ無効化（Phase G-6 Phase 2: CacheInvalidator使用）
+    CacheInvalidator.invalidate_knowledge()
 
     log_access(current_user_id, "knowledge.create", "knowledge", new_id)
 
@@ -4361,19 +4417,8 @@ def update_knowledge(knowledge_id):
 
     save_data("knowledge.json", knowledge_list)
 
-    # キャッシュ無効化
-    if redis_client:
-        try:
-            # 該当IDと一覧キャッシュを削除
-            for key in redis_client.scan_iter(f"knowledge:{knowledge_id}:*"):
-                redis_client.delete(key)
-            for key in redis_client.scan_iter("knowledge_list:*"):
-                redis_client.delete(key)
-            for key in redis_client.scan_iter("knowledge_popular:*"):
-                redis_client.delete(key)
-            logger.info("Cache invalidated: knowledge %s", knowledge_id)
-        except Exception as e:
-            logger.warning("Cache invalidation failed: %s", e)
+    # キャッシュ無効化（Phase G-6 Phase 2: CacheInvalidator使用）
+    CacheInvalidator.invalidate_knowledge(knowledge_id)
 
     log_access(current_user_id, "knowledge.update", "knowledge", knowledge_id)
 
@@ -4430,6 +4475,10 @@ def delete_knowledge(knowledge_id):
 
     deleted_knowledge = knowledge_list.pop(knowledge_index)
     save_data("knowledge.json", knowledge_list)
+
+    # キャッシュ無効化（Phase G-6 Phase 2: CacheInvalidator使用）
+    CacheInvalidator.invalidate_knowledge(knowledge_id)
+
     log_access(current_user_id, "knowledge.delete", "knowledge", knowledge_id)
 
     return jsonify(
@@ -4445,12 +4494,14 @@ def delete_knowledge(knowledge_id):
 @check_permission("knowledge.read")
 def get_related_knowledge(knowledge_id):
     """
-    関連ナレッジを取得
+    関連ナレッジを取得（キャッシュ対応 - Phase G-6 Phase 2）
 
     クエリパラメータ:
         limit: 取得件数（デフォルト: 5）
         algorithm: アルゴリズム（tag/category/keyword/hybrid、デフォルト: hybrid）
         min_score: 最小スコア閾値（デフォルト: 0.1）
+
+    NOTE: MLアルゴリズム（O(n²)計算量）のため、キャッシュ優先度最高。
     """
     current_user_id = get_jwt_identity()
     log_access(current_user_id, "knowledge.related", "knowledge", knowledge_id)
@@ -4489,6 +4540,14 @@ def get_related_knowledge(knowledge_id):
             400,
         )
 
+    # Cache check (min_scoreは小数点2桁で正規化してキー生成)
+    min_score_key = f"{min_score:.2f}"
+    cache_key = get_cache_key("knowledge_related", knowledge_id, limit, algorithm, min_score_key)
+    cached_result = cache_get(cache_key)
+    if cached_result:
+        logger.info("Cache hit: knowledge_related - %s", cache_key)
+        return jsonify(cached_result)
+
     # ナレッジ取得
     knowledge_list = load_data("knowledge.json")
     target_knowledge = next(
@@ -4498,7 +4557,7 @@ def get_related_knowledge(knowledge_id):
     if not target_knowledge:
         return jsonify({"success": False, "error": "Knowledge not found"}), 404
 
-    # 関連アイテム取得
+    # 関連アイテム取得（高負荷ML処理）
     related = recommendation_engine.get_related_items(
         target_knowledge,
         knowledge_list,
@@ -4507,17 +4566,21 @@ def get_related_knowledge(knowledge_id):
         min_score=min_score,
     )
 
-    return jsonify(
-        {
-            "success": True,
-            "data": {
-                "target_id": knowledge_id,
-                "related_items": related,
-                "algorithm": algorithm,
-                "count": len(related),
-            },
-        }
-    )
+    response_data = {
+        "success": True,
+        "data": {
+            "target_id": knowledge_id,
+            "related_items": related,
+            "algorithm": algorithm,
+            "count": len(related),
+        },
+    }
+
+    # Cache set (TTL: 1h, expensive ML computation)
+    cache_set(cache_key, response_data, ttl=3600)
+    logger.info("Cache set: knowledge_related - %s", cache_key)
+
+    return jsonify(response_data)
 
 
 @app.route("/api/v1/knowledge/popular", methods=["GET"])
@@ -4561,15 +4624,26 @@ def get_popular_knowledge():
 @app.route("/api/v1/knowledge/recent", methods=["GET"])
 @check_permission("knowledge.read")
 def get_recent_knowledge():
-    """最近追加されたナレッジを取得（作成日時順）"""
+    """最近追加されたナレッジを取得（作成日時順、キャッシュ対応 - Phase G-6 Phase 2）
+
+    NOTE: 日付ソート処理のため、キャッシュ優先度中。
+    """
     try:
         current_user_id = get_jwt_identity()
         log_access(current_user_id, "knowledge.recent", "knowledge")
 
-        knowledge_list = load_data("knowledge.json") or []
         limit = request.args.get("limit", 10, type=int)
         days = request.args.get("days", 7, type=int)  # デフォルト7日以内
         limit = min(limit, 50)
+
+        # Cache check
+        cache_key = get_cache_key("knowledge_recent", limit, days)
+        cached_result = cache_get(cache_key)
+        if cached_result:
+            logger.info("Cache hit: knowledge_recent - %s", cache_key)
+            return jsonify(cached_result)
+
+        knowledge_list = load_data("knowledge.json") or []
 
         from datetime import datetime, timedelta
 
@@ -4602,7 +4676,13 @@ def get_recent_knowledge():
             reverse=True,
         )[:limit]
 
-        return jsonify({"success": True, "data": sorted_knowledge})
+        response_data = {"success": True, "data": sorted_knowledge}
+
+        # Cache set (TTL: 15m, time-sensitive data)
+        cache_set(cache_key, response_data, ttl=900)
+        logger.info("Cache set: knowledge_recent - %s", cache_key)
+
+        return jsonify(response_data)
     except Exception as e:
         logger.error("get_recent_knowledge: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": []})
@@ -4635,10 +4715,20 @@ def get_favorite_knowledge():
 @app.route("/api/v1/knowledge/tags", methods=["GET"])
 @check_permission("knowledge.read")
 def get_knowledge_tags():
-    """ナレッジのタグ集計を取得（タグクラウド用）"""
+    """ナレッジのタグ集計を取得（タグクラウド用、キャッシュ対応 - Phase G-6 Phase 2）
+
+    NOTE: 全スキャン+集計処理（O(n)）のため、キャッシュ優先度高。
+    """
     try:
         current_user_id = get_jwt_identity()
         log_access(current_user_id, "knowledge.tags", "knowledge")
+
+        # Cache check
+        cache_key = get_cache_key("knowledge_tags")
+        cached_result = cache_get(cache_key)
+        if cached_result:
+            logger.info("Cache hit: knowledge_tags - %s", cache_key)
+            return jsonify(cached_result)
 
         knowledge_list = load_data("knowledge.json") or []
 
@@ -4661,7 +4751,13 @@ def get_knowledge_tags():
             for tag, count in sorted_tags
         ]
 
-        return jsonify({"success": True, "data": tag_list})
+        response_data = {"success": True, "data": tag_list}
+
+        # Cache set (TTL: 30m, aggregation processing)
+        cache_set(cache_key, response_data, ttl=1800)
+        logger.info("Cache set: knowledge_tags - %s", cache_key)
+
+        return jsonify(response_data)
     except Exception as e:
         logger.error("get_knowledge_tags: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": []})
@@ -5244,12 +5340,14 @@ def get_sop_detail(sop_id):
 @check_permission("sop.read")
 def get_related_sop(sop_id):
     """
-    関連SOPを取得
+    関連SOPを取得（キャッシュ対応 - Phase G-6 Phase 2）
 
     クエリパラメータ:
         limit: 取得件数（デフォルト: 5）
         algorithm: アルゴリズム（tag/category/keyword/hybrid、デフォルト: hybrid）
         min_score: 最小スコア閾値（デフォルト: 0.1）
+
+    NOTE: MLアルゴリズム（O(n²)計算量）のため、キャッシュ優先度最高。
     """
     current_user_id = get_jwt_identity()
     log_access(current_user_id, "sop.related", "sop", sop_id)
@@ -5258,6 +5356,14 @@ def get_related_sop(sop_id):
     limit = int(request.args.get("limit", 5))
     algorithm = request.args.get("algorithm", "hybrid")
     min_score = float(request.args.get("min_score", 0.1))
+
+    # Cache check (min_scoreは小数点2桁で正規化)
+    min_score_key = f"{min_score:.2f}"
+    cache_key = get_cache_key("sop_related", sop_id, limit, algorithm, min_score_key)
+    cached_result = cache_get(cache_key)
+    if cached_result:
+        logger.info("Cache hit: sop_related - %s", cache_key)
+        return jsonify(cached_result)
 
     # バリデーション
     if limit < 1 or limit > 20:
@@ -5295,22 +5401,26 @@ def get_related_sop(sop_id):
     if not target_sop:
         return jsonify({"success": False, "error": "SOP not found"}), 404
 
-    # 関連アイテム取得
+    # 関連アイテム取得（高負荷ML処理）
     related = recommendation_engine.get_related_items(
         target_sop, sop_list, limit=limit, algorithm=algorithm, min_score=min_score
     )
 
-    return jsonify(
-        {
-            "success": True,
-            "data": {
-                "target_id": sop_id,
-                "related_items": related,
-                "algorithm": algorithm,
-                "count": len(related),
-            },
-        }
-    )
+    response_data = {
+        "success": True,
+        "data": {
+            "target_id": sop_id,
+            "related_items": related,
+            "algorithm": algorithm,
+            "count": len(related),
+        },
+    }
+
+    # Cache set (TTL: 1h, expensive ML computation)
+    cache_set(cache_key, response_data, ttl=3600)
+    logger.info("Cache set: sop_related - %s", cache_key)
+
+    return jsonify(response_data)
 
 
 @app.route("/api/v1/incidents", methods=["GET"])
