@@ -25,6 +25,28 @@ from health_monitor import HealthMonitor
 class AutoFixDaemon:
     """エラー自動検知・自動修復デーモン"""
 
+    # セキュリティ: ホワイトリスト定義
+    ALLOWED_SERVICES = frozenset({
+        "mirai-knowledge-app",
+        "mirai-knowledge-app-dev",
+        "mirai-ms365-sync",
+        "postgresql",
+        "nginx",
+        "redis",
+        "flask_app",
+    })
+
+    ALLOWED_OWNERS = frozenset({
+        "www-data",
+        "postgres",
+        "root",
+        "mirai",
+        "mirai:mirai",
+        "www-data:www-data",
+    })
+
+    MIN_CLEANUP_DAYS = 7
+
     def __init__(self, config_path: str = None, log_file: str = None):
         self.config_path = config_path or os.path.join(
             os.path.dirname(__file__), "error_patterns.json"
@@ -187,9 +209,47 @@ class AutoFixDaemon:
             self.logger.error(f"アクション実行エラー ({action_type}): {e}")
             return False
 
+    def _validate_path(self, base_dir: str, user_path: str) -> bool:
+        """パスがbase_dir内に収まっているか検証（パストラバーサル防止）
+
+        絶対パス、".." を含むパスを事前に拒否し、
+        正規化後にbase_dir配下であることを最終確認する。
+        """
+        if os.path.isabs(user_path):
+            return False
+        if ".." in user_path:
+            return False
+        full_path = os.path.abspath(os.path.join(base_dir, user_path))
+        base_abs = os.path.abspath(base_dir)
+        return full_path.startswith(base_abs + os.sep) or full_path == base_abs
+
+    def _validate_pid(self, pid: str) -> bool:
+        """PID文字列が安全な整数値か検証
+
+        Args:
+            pid: PID文字列（空白除去後に数値であること）
+
+        Returns:
+            True: PID > 1 かつ数値
+            False: 不正なPID（0, 1, 負数, 非数値）
+
+        Note:
+            PID=0（カーネルスケジューラ）およびPID=1（systemd/init）は
+            予防的に拒否する。通常pgrep/lsofはユーザープロセスのみを返すが、
+            万が一のシステムプロセス終了を防止するための安全策。
+        """
+        if not pid or not pid.strip().isdigit():
+            return False
+        pid_int = int(pid.strip())
+        return pid_int > 1
+
     def _restart_service(self, service_name: str) -> bool:
         """サービスを再起動"""
         if not service_name:
+            return False
+
+        if service_name not in self.ALLOWED_SERVICES:
+            self.logger.error(f"許可されていないサービス名: {service_name}")
             return False
 
         try:
@@ -202,7 +262,10 @@ class AutoFixDaemon:
                 if result.returncode == 0:
                     pids = result.stdout.strip().split("\n")
                     for pid in pids:
-                        subprocess.run(["kill", "-HUP", pid])
+                        if not self._validate_pid(pid):
+                            self.logger.warning(f"不正なPID形式をスキップ: {pid}")
+                            continue
+                        subprocess.run(["kill", "-HUP", pid.strip()])
                     self.logger.info(f"Flask app reloaded (PIDs: {', '.join(pids)})")
                 return True
 
@@ -315,6 +378,10 @@ class AutoFixDaemon:
             base_dir = os.path.dirname(os.path.dirname(__file__))
 
             for directory in directories:
+                if not self._validate_path(base_dir, directory):
+                    self.logger.error(f"不正なディレクトリパス（パストラバーサル検出）: {directory}")
+                    continue
+
                 dir_path = os.path.join(base_dir, directory)
                 os.makedirs(dir_path, exist_ok=True)
                 self.logger.info(f"ディレクトリ作成: {dir_path}")
@@ -332,7 +399,21 @@ class AutoFixDaemon:
         try:
             base_dir = os.path.dirname(os.path.dirname(__file__))
 
+            # 所有者名のフォーマット検証
+            if owner and owner not in self.ALLOWED_OWNERS:
+                self.logger.error(f"許可されていない所有者名: {owner}")
+                return False
+
+            # 権限モードのフォーマット検証（8進数 0-7 のみ）
+            if mode and not re.match(r"^[0-7]{3,4}$", mode):
+                self.logger.error(f"不正な権限モード: {mode}")
+                return False
+
             for path in paths:
+                if not self._validate_path(base_dir, path):
+                    self.logger.error(f"不正なパス（パストラバーサル検出）: {path}")
+                    continue
+
                 full_path = os.path.join(base_dir, path)
 
                 if mode:
@@ -360,6 +441,11 @@ class AutoFixDaemon:
     def _kill_process_on_port(self, port: int) -> bool:
         """ポートを使用しているプロセスを終了"""
         try:
+            # ポート番号の範囲検証
+            if not isinstance(port, int) or not (1 <= port <= 65535):
+                self.logger.error(f"不正なポート番号: {port}")
+                return False
+
             # lsof + xargs の組み合わせを2段階に分割
             result = subprocess.run(
                 ["lsof", "-ti", f":{port}"],
@@ -371,8 +457,11 @@ class AutoFixDaemon:
             if result.stdout.strip():
                 pids = result.stdout.strip().split("\n")
                 for pid in pids:
-                    subprocess.run(["kill", "-9", pid], check=False)
-                    self.logger.info(f"プロセス終了: PID {pid} (Port {port})")
+                    if not self._validate_pid(pid):
+                        self.logger.warning(f"不正なPID形式をスキップ: {pid}")
+                        continue
+                    subprocess.run(["kill", "-9", pid.strip()], check=False)
+                    self.logger.info(f"プロセス終了: PID {pid.strip()} (Port {port})")
 
                 return True
 
@@ -439,6 +528,13 @@ class AutoFixDaemon:
     def _cleanup_old_files(self, days: int) -> bool:
         """古いファイルを削除"""
         try:
+            # 最小日数の制限（誤設定による全ファイル削除を防止）
+            if not isinstance(days, int) or days < self.MIN_CLEANUP_DAYS:
+                self.logger.error(
+                    f"days パラメータが不正です（最小値: {self.MIN_CLEANUP_DAYS}）: {days}"
+                )
+                return False
+
             base_dir = os.path.dirname(os.path.dirname(__file__))
             cutoff_date = datetime.now() - timedelta(days=days)
 
@@ -447,7 +543,16 @@ class AutoFixDaemon:
                 if not os.path.exists(dir_path):
                     continue
 
+                # ディレクトリ自体がシンボリックリンクでないか検証
+                if Path(dir_path).is_symlink():
+                    self.logger.error(f"ディレクトリがシンボリックリンク（スキップ）: {dir_path}")
+                    continue
+
                 for file_path in Path(dir_path).rglob("*"):
+                    # シンボリックリンクをスキップ（シンボリックリンク経由の攻撃を防止）
+                    if file_path.is_symlink():
+                        self.logger.warning(f"シンボリックリンクをスキップ: {file_path}")
+                        continue
                     if file_path.is_file():
                         file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
                         if file_mtime < cutoff_date:
