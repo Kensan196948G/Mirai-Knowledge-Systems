@@ -1,0 +1,279 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
+  MKS_ENV: test
+  MKS_SECRET_KEY: test-secret-key-for-ci
+  MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+  MKS_CORS_ORIGINS: http://localhost:5100
+
+jobs:
+  # ========================================
+  # Job 1: Lint (fast gate)
+  # ========================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: Install linters
+        run: pip install ruff
+
+      - name: Ruff check
+        run: ruff check . --output-format=github
+
+  # ========================================
+  # Job 2: Backend Tests (parallel after lint)
+  # ========================================
+  backend-tests:
+    name: Backend Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-cov pytest-flask pytest-xdist
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt 2>/dev/null || true
+          fi
+
+      - name: Run pytest
+        working-directory: backend
+        run: |
+          pytest tests/ -v --tb=short -x --maxfail=10 \
+            --cov=app_v2 --cov=schemas --cov=data_access --cov=models \
+            --cov=password_policy --cov=csrf_protection --cov=recommendation_engine \
+            --cov=auth --cov=services --cov=integrations --cov=scripts \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=60
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          retention-days: 7
+
+  # ========================================
+  # Job 3: Frontend Tests (parallel after lint)
+  # ========================================
+  frontend-tests:
+    name: Frontend Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci --prefer-offline 2>/dev/null || true
+
+      - name: Jest unit tests
+        working-directory: backend
+        run: npm run test:unit:coverage
+
+  # ========================================
+  # Job 4: Security Scan (parallel after lint)
+  # ========================================
+  security-scan:
+    name: Security Scan
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          pip install bandit safety
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt 2>/dev/null || true
+          fi
+
+      - name: Bandit security scan (high/critical)
+        run: |
+          bandit -r backend/ -c backend/security/bandit.yaml \
+            -ll --severity-level high -f json -o bandit-report.json 2>/dev/null || true
+          bandit -r backend/ -c backend/security/bandit.yaml \
+            -ll --severity-level high || true
+
+      - name: Safety dependency check
+        run: safety check -r backend/requirements.txt --output text 2>/dev/null || true
+        continue-on-error: true
+
+      - name: npm audit
+        working-directory: backend
+        run: |
+          npm ci --prefer-offline 2>/dev/null || true
+          npm audit --audit-level=high 2>/dev/null || true
+        continue-on-error: true
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: bandit-report.json
+          retention-days: 7
+
+  # ========================================
+  # Job 5: E2E Tests (after unit tests pass)
+  # ========================================
+  e2e-tests:
+    name: E2E Tests
+    needs: [backend-tests, frontend-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install backend dependencies
+        run: |
+          pip install --upgrade pip
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt 2>/dev/null || true
+          fi
+
+      - name: Install frontend dependencies
+        working-directory: backend
+        run: npm ci --prefer-offline 2>/dev/null || true
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: backend
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium 2>/dev/null || true
+
+      - name: Run E2E tests
+        working-directory: backend
+        run: |
+          set -o pipefail
+          npx playwright test --reporter=list 2>&1 | tail -60
+        continue-on-error: true
+
+      - name: Upload E2E results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            backend/test-results/
+            backend/playwright-report/
+          retention-days: 7
+
+  # ========================================
+  # Job 6: CI Summary
+  # ========================================
+  ci-summary:
+    name: CI Summary
+    needs: [lint, backend-tests, frontend-tests, security-scan, e2e-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Tests | ${{ needs.backend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Tests | ${{ needs.frontend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          # Fail if critical checks failed
+          if [[ "${{ needs.lint.result }}" == "failure" ]] || \
+             [[ "${{ needs.backend-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.frontend-tests.result }}" == "failure" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**CI FAILED** - critical checks did not pass" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

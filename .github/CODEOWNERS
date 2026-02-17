@@ -1,0 +1,22 @@
+# Mirai Knowledge Systems - CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner
+* @Kensan196948G
+
+# Security-critical paths (require explicit review)
+/backend/auth/                    @Kensan196948G
+/backend/csrf_protection.py       @Kensan196948G
+/backend/password_policy.py       @Kensan196948G
+/backend/scripts/auto_fix_daemon.py @Kensan196948G
+
+# CI/CD changes
+/.github/workflows/               @Kensan196948G
+/.github/dependabot.yml           @Kensan196948G
+
+# Infrastructure & deployment
+/config/                          @Kensan196948G
+/monitoring/                      @Kensan196948G
+
+# Database migrations
+/backend/migrations/              @Kensan196948G
