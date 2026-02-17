@@ -539,17 +539,19 @@ async function loadDashboardStats() {
 
 async function loadMonitoringData() {
   try {
-    // プロジェクト一覧を取得
     const projectsResult = await fetchAPI('/projects');
     if (projectsResult.success && projectsResult.data.length > 0) {
-      // 最初の3つのプロジェクトの進捗を取得
       const monitoringSection = document.querySelector('.progress-list');
       if (monitoringSection) {
         monitoringSection.textContent = '';
 
-        for (let i = 0; i < Math.min(3, projectsResult.data.length); i++) {
-          const project = projectsResult.data[i];
-          const progressResult = await fetchAPI(`/projects/${project.id}/progress`);
+        const targetProjects = projectsResult.data.slice(0, 3);
+        const progressResults = await Promise.all(
+          targetProjects.map(project => fetchAPI(`/projects/${project.id}/progress`))
+        );
+
+        targetProjects.forEach((project, index) => {
+          const progressResult = progressResults[index];
           if (progressResult.success) {
             const progressData = progressResult.data;
             const progressItem = createElement('div', {
@@ -557,7 +559,6 @@ async function loadMonitoringData() {
               'data-progress': progressData.progress_percentage
             }, []);
 
-            // 🔧 修正: project.codeフィールドは存在しない（nameに既に含まれている）
             const title = createElement('div', { className: 'progress-title' }, [
               `${project.name}`
             ]);
@@ -578,12 +579,11 @@ async function loadMonitoringData() {
             progressItem.appendChild(meta);
             monitoringSection.appendChild(progressItem);
           }
-        }
+        });
       }
     }
   } catch (error) {
     logger.log('[MONITORING] Using static data (API unavailable)');
-    // APIエラー時はダミーデータのまま
   }
 }
 
@@ -2302,11 +2302,19 @@ function setupEventListeners() {
 // ============================================================
 
 function startPeriodicUpdates() {
-  // 5分ごとにダッシュボード統計を更新
-  setInterval(() => {
-    loadDashboardStats();
-    loadNotifications();
+  let intervalId = setInterval(() => {
+    if (!document.hidden) {
+      loadDashboardStats();
+      loadNotifications();
+    }
   }, 5 * 60 * 1000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      loadDashboardStats();
+      loadNotifications();
+    }
+  });
 }
 
 // ============================================================

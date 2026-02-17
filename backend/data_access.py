@@ -2137,6 +2137,58 @@ class DataAccessLayer:
             filtered.sort(key=lambda x: x.get("sync_started_at", ""), reverse=True)
             return filtered[:limit]
 
+    def get_recent_ms365_sync_histories(
+        self, config_ids: List[int], limit_per_config: int = 5
+    ) -> List[Dict]:
+        """複数設定の同期履歴を一括取得（N+1回避）"""
+        if not config_ids:
+            return []
+        if self._use_postgresql():
+            factory = get_session_factory()
+            if not factory:
+                return []
+            db = factory()
+            try:
+                from sqlalchemy import func
+
+                subq = (
+                    db.query(
+                        MS365SyncHistory,
+                        func.row_number()
+                        .over(
+                            partition_by=MS365SyncHistory.config_id,
+                            order_by=MS365SyncHistory.sync_started_at.desc(),
+                        )
+                        .label("rn"),
+                    )
+                    .filter(MS365SyncHistory.config_id.in_(config_ids))
+                    .subquery()
+                )
+                histories = (
+                    db.query(MS365SyncHistory)
+                    .join(subq, MS365SyncHistory.id == subq.c.id)
+                    .filter(subq.c.rn <= limit_per_config)
+                    .all()
+                )
+                return [self._ms365_sync_history_to_dict(h) for h in histories]
+            finally:
+                db.close()
+        else:
+            all_histories = self._load_json("ms365_sync_histories.json")
+            config_id_set = set(config_ids)
+            grouped = {}
+            for h in all_histories:
+                cid = h.get("config_id")
+                if cid in config_id_set:
+                    grouped.setdefault(cid, []).append(h)
+            result = []
+            for cid, histories in grouped.items():
+                histories.sort(
+                    key=lambda x: x.get("sync_started_at", ""), reverse=True
+                )
+                result.extend(histories[:limit_per_config])
+            return result
+
     # ============================================================
     # Microsoft 365ファイルマッピング（MS365FileMapping）
     # ============================================================
