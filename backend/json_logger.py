@@ -7,7 +7,7 @@ Mirai Knowledge System
 
 機能:
 - JSON形式のログフォーマット
-- リクエストID追跡
+- Correlation ID追跡（Phase G-15）
 - ユーザーID記録
 - タイムスタンプ（ISO 8601形式）
 - ログレベル管理
@@ -15,11 +15,16 @@ Mirai Knowledge System
 
 import json
 import logging
+import os
 import traceback
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from typing import Any, Dict, Optional
 
 from flask import g, has_request_context, request
+
+# Phase G-15: 環境変数をモジュールレベルでキャッシュ（パフォーマンス最適化）
+MKS_ENV = os.getenv("MKS_ENV", "development")
 
 
 class JSONFormatter(logging.Formatter):
@@ -63,6 +68,8 @@ class JSONFormatter(logging.Formatter):
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
+            "environment": MKS_ENV,  # Phase G-15追加（モジュールレベルキャッシュ）
+            "service": "mirai-knowledge-backend",  # Phase G-15追加
         }
 
         # リクエストコンテキスト情報
@@ -113,13 +120,18 @@ class JSONFormatter(logging.Formatter):
         context = {}
 
         try:
-            # リクエストID（g.request_id があれば使用）
-            if hasattr(g, "request_id"):
-                context["request_id"] = g.request_id
+            # Correlation ID（g.correlation_id があれば使用）- Phase G-15
+            if hasattr(g, "correlation_id"):
+                context["correlation_id"] = g.correlation_id
+            # 後方互換性: request_id もサポート
+            elif hasattr(g, "request_id"):
+                context["correlation_id"] = g.request_id
 
             # ユーザーID（g.current_user があれば使用）
             if hasattr(g, "current_user") and g.current_user:
                 context["user_id"] = g.current_user.get("id")
+                # Phase G-15: ユーザー名追加
+                context["username"] = g.current_user.get("username", "unknown")
 
             # IPアドレス
             if request.remote_addr:
@@ -177,7 +189,7 @@ class ContextualLogger:
 
     使用例:
         logger = ContextualLogger('my_module')
-        logger.info('User logged in')  # user_id, request_id が自動付加
+        logger.info('User logged in')  # user_id, correlation_id が自動付加（Phase G-15）
     """
 
     def __init__(self, name: str):
@@ -202,8 +214,11 @@ class ContextualLogger:
         context = extra or {}
 
         if has_request_context():
-            if hasattr(g, "request_id"):
-                context["request_id"] = g.request_id
+            # Phase G-15: correlation_id優先、request_id後方互換
+            if hasattr(g, "correlation_id"):
+                context["correlation_id"] = g.correlation_id
+            elif hasattr(g, "request_id"):
+                context["correlation_id"] = g.request_id
 
             if hasattr(g, "current_user") and g.current_user:
                 context["user_id"] = g.current_user.get("id")
@@ -243,19 +258,45 @@ class ContextualLogger:
 
 def setup_json_logging(
     app,
-    log_file: str = "/var/log/mirai-knowledge/app.log",
-    log_level: str = "INFO",
-    enable_console: bool = False,
+    log_file: Optional[str] = None,
+    log_level: Optional[str] = None,
+    enable_console: Optional[bool] = None,
 ):
     """
-    FlaskアプリケーションにJSON形式のログを設定
+    FlaskアプリケーションにJSON形式のログを設定（Phase G-15拡張）
 
     Args:
         app: Flaskアプリケーション
-        log_file: ログファイルパス
-        log_level: ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
-        enable_console: コンソール出力を有効化
+        log_file: ログファイルパス（None時は環境変数MKS_LOG_FILEから取得）
+        log_level: ログレベル（None時は環境変数MKS_LOG_LEVELから取得）
+        enable_console: コンソール出力を有効化（None時は環境変数判定）
+
+    環境変数:
+        MKS_ENABLE_JSON_LOGGING: JSON logging有効化（default: production時true）
+        MKS_LOG_FILE: ログファイルパス（default: /var/log/mirai-knowledge/app.log）
+        MKS_LOG_LEVEL: ログレベル（default: INFO）
+        MKS_ENV: 環境（development/production）
     """
+    import os
+
+    # 環境変数から設定取得
+    is_production = os.getenv("MKS_ENV", "development") == "production"
+    json_logging_enabled = os.getenv("MKS_ENABLE_JSON_LOGGING", str(is_production)).lower() in ("true", "1", "yes")
+
+    # JSON logging無効時は標準ロギングのまま
+    if not json_logging_enabled:
+        app.logger.info("JSON logging disabled (MKS_ENABLE_JSON_LOGGING=false)")
+        return
+
+    # パラメータデフォルト値（環境変数優先）
+    if log_file is None:
+        log_file = os.getenv("MKS_LOG_FILE", "/var/log/mirai-knowledge/app.log")
+    if log_level is None:
+        log_level = os.getenv("MKS_LOG_LEVEL", "INFO")
+    if enable_console is None:
+        # 開発環境はコンソール有効、本番環境は無効
+        enable_console = not is_production
+
     # ログレベル設定
     level = getattr(logging, log_level.upper(), logging.INFO)
     app.logger.setLevel(level)
@@ -263,13 +304,26 @@ def setup_json_logging(
     # 既存のハンドラをクリア
     app.logger.handlers.clear()
 
-    # ファイルハンドラ（JSON形式）
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(level)
-    file_handler.setFormatter(JSONFormatter())
-    app.logger.addHandler(file_handler)
+    # ファイルハンドラ（JSON形式、ログローテーション対応）
+    try:
+        # ログディレクトリ作成（存在しない場合）
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
 
-    # コンソールハンドラ（開発環境用）
+        # RotatingFileHandler: 100MB × 10ファイル = 最大1GB
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=100 * 1024 * 1024, backupCount=10
+        )
+        file_handler.setLevel(level)
+        file_handler.setFormatter(JSONFormatter())
+        app.logger.addHandler(file_handler)
+    except Exception as e:
+        # ファイル書き込み失敗時はコンソールにフォールバック
+        print(f"Warning: Failed to setup file handler for {log_file}: {e}")
+        enable_console = True
+
+    # コンソールハンドラ（開発環境用またはファイル失敗時）
     if enable_console:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(level)
@@ -280,7 +334,13 @@ def setup_json_logging(
     app.logger.propagate = False
 
     app.logger.info(
-        "JSON logging configured", extra={"log_file": log_file, "log_level": log_level}
+        "JSON logging configured",
+        extra={
+            "log_file": log_file,
+            "log_level": log_level,
+            "enable_console": enable_console,
+            "environment": os.getenv("MKS_ENV", "development"),
+        },
     )
 
 
