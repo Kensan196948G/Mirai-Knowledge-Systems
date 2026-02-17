@@ -305,6 +305,36 @@ npm run preview
 - API入力値のさらなるバリデーション強化
 - セキュリティ監査ログの詳細化
 
+## 📊 構造化ログ（Phase G-15）
+
+### 概要
+JSON形式の構造化ログにより、ログ分析・監視システムとの統合を実現。
+
+### 主要機能
+- **JSON形式出力**: 機械可読、jq/Grafana Lokiで高速クエリ
+- **Correlation ID追跡**: UUID v4ベース、分散トレーシング対応
+- **18フィールドスキーマ**: timestamp, level, user_id, duration_ms等
+- **自動ローテーション**: 100MB × 10世代（最大1GB）
+
+### ログクエリ例
+
+**ERROR抽出**:
+```bash
+jq 'select(.level == "ERROR")' < /var/log/mirai-knowledge/app.log
+```
+
+**Correlation ID追跡**:
+```bash
+jq 'select(.correlation_id == "a7f3c9e1-...")' < /var/log/mirai-knowledge/app.log
+```
+
+**遅いリクエスト検出**:
+```bash
+jq 'select(.duration_ms > 1000)' < /var/log/mirai-knowledge/app.log
+```
+
+詳細: `docs/STRUCTURED_LOGGING_GUIDE.md`
+
 ## 📝 ライセンス
 
 公開利用条件は別途定義します（外部公開向けに内容整理済み）。
