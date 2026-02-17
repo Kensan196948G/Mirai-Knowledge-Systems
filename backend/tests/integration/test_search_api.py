@@ -515,3 +515,111 @@ class TestKnowledgeSearchIntegration:
         data = response.get_json()
         # 品質管理マニュアルがヒット（contentに「養生」を含む）
         assert len(data["data"]) >= 1
+
+
+class TestQueryNormalization:
+    """検索クエリ正規化のテスト（Phase F-2追加）"""
+
+    def test_whitespace_normalization(self, client):
+        """先頭/末尾/連続スペースの正規化"""
+        token = _login(client)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 正規形
+        resp1 = client.get(
+            "/api/v1/search/unified?q=施工計画", headers=headers
+        )
+        # スペースあり
+        resp2 = client.get(
+            "/api/v1/search/unified?q=  施工計画  ", headers=headers
+        )
+
+        data1 = resp1.get_json()
+        data2 = resp2.get_json()
+
+        assert data1["success"] is True
+        assert data2["success"] is True
+        # 同じ検索結果を返す
+        assert data1["total_results"] == data2["total_results"]
+
+    def test_case_normalization(self, client):
+        """大文字小文字の正規化: 同一結果を返す"""
+        token = _login(client)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        resp1 = client.get(
+            "/api/v1/search/unified?q=品質管理", headers=headers
+        )
+        resp2 = client.get(
+            "/api/v1/search/unified?q=品質管理", headers=headers
+        )
+
+        data1 = resp1.get_json()
+        data2 = resp2.get_json()
+
+        assert data1["success"] is True
+        assert data2["success"] is True
+        assert data1["total_results"] == data2["total_results"]
+
+    def test_cache_key_consistency(self):
+        """正規化されたクエリが同一キャッシュキーを生成"""
+        import app_v2
+
+        queries = [
+            "施工計画",
+            "  施工計画  ",
+            "施工計画  ",
+            "  施工計画",
+        ]
+
+        keys = set()
+        for q in queries:
+            normalized = " ".join(q.strip().lower().split())
+            key = app_v2.get_cache_key(
+                "search", normalized, "knowledge", "true", 1, 10, "relevance_score", "desc"
+            )
+            keys.add(key)
+
+        assert len(keys) == 1, f"Expected 1 unique key, got {len(keys)}: {keys}"
+
+    def test_multiple_spaces_normalization(self):
+        """連続スペースの正規化"""
+        query = "施工   計画   の   基礎"
+        normalized = " ".join(query.strip().lower().split())
+        assert normalized == "施工 計画 の 基礎"
+
+    def test_japanese_query_preserved(self, client):
+        """日本語クエリが正常に検索される"""
+        token = _login(client)
+
+        resp = client.get(
+            "/api/v1/search/unified?q=品質管理",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        data = resp.get_json()
+        assert data["success"] is True
+        assert data["total_results"] >= 1
+
+    def test_empty_query_rejected(self, client):
+        """空クエリは400エラー"""
+        token = _login(client)
+
+        resp = client.get(
+            "/api/v1/search/unified?q=",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert resp.status_code == 400
+
+    def test_whitespace_only_query_rejected(self, client):
+        """空白のみのクエリは400エラー"""
+        token = _login(client)
+
+        resp = client.get(
+            "/api/v1/search/unified?q=   ",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        # 空白のみ → strip() → 空文字列 → 400
+        assert resp.status_code == 400
