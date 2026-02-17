@@ -22,7 +22,7 @@ pillow==10.3.0  # Updated: CVE-2024-28219
 cryptography==46.0.5  # Updated: CVE-2024-57758, CVE-2024-0727, CVE-2024-9143
 
 # Validation & Serialization
-marshmallow==3.26.2  # Updated: CVE-2025-68480
+marshmallow==4.2.2  # Updated: CVE-2025-68480
 email-validator==2.3.0
 
 # Environment & Configuration
