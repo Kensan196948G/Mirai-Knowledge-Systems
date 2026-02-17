@@ -4938,6 +4938,24 @@ def create_notification(
     return new_notification
 
 
+def _get_user_notifications(current_user_id, user_roles):
+    """ユーザーに該当する通知をフィルタリング（共通ヘルパー）"""
+    notifications = load_data("notifications.json")
+    user_roles_set = set(user_roles)
+    user_notifications = []
+
+    for n in notifications:
+        if current_user_id in n.get("target_users", []) or (
+            user_roles_set & set(n.get("target_roles", []))
+        ):
+            n_copy = n.copy()
+            n_copy["is_read"] = current_user_id in n.get("read_by", [])
+            user_notifications.append(n_copy)
+
+    user_notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return user_notifications
+
+
 @app.route("/api/v1/notifications", methods=["GET"])
 @jwt_required()
 def get_notifications():
@@ -4949,24 +4967,9 @@ def get_notifications():
     if not user:
         return jsonify({"success": False, "error": "User not found"}), 404
 
-    notifications = load_data("notifications.json")
-    user_notifications = []
-
-    for n in notifications:
-        # ターゲットユーザーまたはターゲットロールに該当するか
-        if current_user_id in n.get("target_users", []) or any(
-            role in n.get("target_roles", []) for role in user.get("roles", [])
-        ):
-            n_copy = n.copy()
-            n_copy["is_read"] = current_user_id in n.get("read_by", [])
-            user_notifications.append(n_copy)
-
-    # 新しい順にソート
-    user_notifications = sorted(
-        user_notifications, key=lambda x: x["created_at"], reverse=True
+    user_notifications = _get_user_notifications(
+        current_user_id, user.get("roles", [])
     )
-
-    # 未読数カウント
     unread_count = sum(1 for n in user_notifications if not n["is_read"])
 
     return jsonify(
@@ -5011,15 +5014,10 @@ def get_unread_count():
     if not user:
         return jsonify({"success": False, "error": "User not found"}), 404
 
-    notifications = load_data("notifications.json")
-    unread_count = 0
-
-    for n in notifications:
-        if (
-            current_user_id in n.get("target_users", [])
-            or any(role in n.get("target_roles", []) for role in user.get("roles", []))
-        ) and current_user_id not in n.get("read_by", []):
-            unread_count += 1
+    user_notifications = _get_user_notifications(
+        current_user_id, user.get("roles", [])
+    )
+    unread_count = sum(1 for n in user_notifications if not n["is_read"])
 
     return jsonify({"success": True, "data": {"unread_count": unread_count}})
 
@@ -5036,14 +5034,22 @@ def get_sop():
         current_user_id = get_jwt_identity()
         log_access(current_user_id, "sop.list", "sop")
 
+        cache_key = get_cache_key("sop_list")
+        cached_result = cache_get(cache_key)
+        if cached_result:
+            logger.info("Cache hit: sop_list - %s", cache_key)
+            return jsonify(cached_result)
+
         sop_list = load_data("sop.json") or []
-        return jsonify(
-            {
-                "success": True,
-                "data": sop_list,
-                "pagination": {"total_items": len(sop_list)},
-            }
-        )
+        response_data = {
+            "success": True,
+            "data": sop_list,
+            "pagination": {"total_items": len(sop_list)},
+        }
+        cache_set(cache_key, response_data, ttl=3600)
+        logger.info("Cache set: sop_list - %s", cache_key)
+
+        return jsonify(response_data)
     except Exception as e:
         logger.error("get_sop: %s: %s", type(e).__name__, e)
         return jsonify({"success": True, "data": [], "pagination": {"total_items": 0}})
@@ -5146,14 +5152,22 @@ def get_incidents():
         current_user_id = get_jwt_identity()
         log_access(current_user_id, "incidents.list", "incidents")
 
+        cache_key = get_cache_key("incidents_list")
+        cached_result = cache_get(cache_key)
+        if cached_result:
+            logger.info("Cache hit: incidents_list - %s", cache_key)
+            return jsonify(cached_result)
+
         incidents_list = load_data("incidents.json") or []
-        return jsonify(
-            {
-                "success": True,
-                "data": incidents_list,
-                "pagination": {"total_items": len(incidents_list)},
-            }
-        )
+        response_data = {
+            "success": True,
+            "data": incidents_list,
+            "pagination": {"total_items": len(incidents_list)},
+        }
+        cache_set(cache_key, response_data, ttl=3600)
+        logger.info("Cache set: incidents_list - %s", cache_key)
+
+        return jsonify(response_data)
     except Exception as e:
         logger.error("get_incidents: %s: %s", type(e).__name__, e)
         return jsonify(
