@@ -1435,7 +1435,7 @@ def login_mfa():
                 "mfa_secret": user_obj.mfa_secret,
                 "mfa_enabled": user_obj.mfa_enabled,
                 "mfa_backup_codes": user_obj.mfa_backup_codes,
-                "roles": [],  # TODO: Get roles
+                "roles": [ur.role.name for ur in user_obj.roles] if user_obj.roles else [],
             }
             is_postgres = True
         else:
@@ -1956,7 +1956,7 @@ def verify_mfa_login():
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "roles": [],  # TODO: Get actual roles from database
+        "roles": [ur.role.name for ur in user.roles] if user.roles else [],
     }
 
     access_token = create_access_token(
@@ -2344,8 +2344,7 @@ def mfa_recovery():
         expires_delta=timedelta(hours=1),
     )
 
-    # TODO: メール送信実装
-    # メール送信機能が実装されている場合、ここでリカバリーリンクを送信
+    # NOTE: メール送信は Phase D拡張 (D-5.2) で実装予定
     # send_recovery_email(email, recovery_token)
 
     # アクセスログ記録
@@ -4444,13 +4443,24 @@ def get_recent_knowledge():
 @jwt_required()
 def get_favorite_knowledge():
     """お気に入りナレッジを取得"""
-    current_user_id = get_jwt_identity()
-    log_access(current_user_id, "knowledge.favorites", "knowledge")
+    try:
+        current_user_id = get_jwt_identity()
+        log_access(current_user_id, "knowledge.favorites", "knowledge")
 
-    # TODO: 実装時はユーザー毎のお気に入りをusers_favoritesから取得
-    # 現在はダミー実装で空配列を返す
+        favorites = load_data("users_favorites.json") or []
+        user_favs = [f for f in favorites if str(f.get("user_id")) == str(current_user_id)]
+        fav_ids = {str(f.get("knowledge_id")) for f in user_favs}
 
-    return jsonify({"success": True, "data": []})
+        if not fav_ids:
+            return jsonify({"success": True, "data": []})
+
+        knowledge_list = load_data("knowledge.json") or []
+        result = [k for k in knowledge_list if str(k.get("id")) in fav_ids]
+
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        logger.error("get_favorite_knowledge: %s: %s", type(e).__name__, e)
+        return jsonify({"success": True, "data": []})
 
 
 @app.route("/api/v1/knowledge/tags", methods=["GET"])
@@ -4495,9 +4505,12 @@ def remove_favorite(knowledge_id):
     current_user_id = get_jwt_identity()
     log_access(current_user_id, "favorites.remove", "favorites", knowledge_id)
 
-    # 注: お気に入りはユーザーごとに管理すべきだが、
-    # 現状はダミーデータのため、成功レスポンスのみ返す
-    # 本番実装時はusers_favoritesテーブルから削除
+    favorites = load_data("users_favorites.json") or []
+    updated = [
+        f for f in favorites
+        if not (str(f.get("user_id")) == str(current_user_id) and str(f.get("knowledge_id")) == str(knowledge_id))
+    ]
+    save_data("users_favorites.json", updated)
 
     return jsonify(
         {
