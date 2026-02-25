@@ -11,13 +11,11 @@ import os
 from unittest.mock import patch
 
 import pytest
+from data_access import DataAccessLayer
+from database import get_session_factory
+from models import Consultation, Expert, ExpertRating, ProjectTask, User
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-
-from database import get_session_factory
-from data_access import DataAccessLayer
-from models import Consultation, Expert, ExpertRating, ProjectTask, User
-
 
 # SQLAlchemyクエリログ設定
 logging.basicConfig()
