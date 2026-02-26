@@ -10,6 +10,14 @@ const path = require('path');
 global.fetchAPI = jest.fn();
 global.formatDate = jest.fn(date => date);
 
+// loggerモック（notifications.jsが使用）
+global.logger = {
+  error: (...args) => console.error(...args),
+  warn: (...args) => console.warn(...args),
+  info: jest.fn(),
+  log: jest.fn()
+};
+
 // テスト対象のファイルを読み込み
 const notificationsCode = fs.readFileSync(
   path.join(__dirname, '../../../webui/notifications.js'),
