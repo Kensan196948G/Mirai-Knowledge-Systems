@@ -6,17 +6,36 @@
 const fs = require('fs');
 const path = require('path');
 
-// detail-pages.jsの最初の200行（ユーティリティ部分）を読み込み
+// 動作するlocalStorageモック（jest.fn()ベースは実データを保持しない）
+let localStorageStore = {};
+global.localStorage = {
+  getItem: (key) => localStorageStore[key] !== undefined ? localStorageStore[key] : null,
+  setItem: (key, value) => { localStorageStore[key] = String(value); },
+  removeItem: (key) => { delete localStorageStore[key]; },
+  clear: () => { localStorageStore = {}; },
+  key: (index) => Object.keys(localStorageStore)[index],
+  get length() { return Object.keys(localStorageStore).length; }
+};
+
+// loggerモック（detail-pages.jsのIIFEとapiCallが使用）
+global.logger = {
+  error: (...args) => console.error(...args),
+  warn: (...args) => console.warn(...args),
+  info: jest.fn(),
+  log: jest.fn()
+};
+
+// API_BASEをモック
+global.API_BASE = 'http://localhost:8000/api';
+
+// detail-pages.jsの最初の173行（ユーティリティ部分+apiCall関数）を読み込み
 const detailPagesCode = fs.readFileSync(
   path.join(__dirname, '../../../webui/detail-pages.js'),
   'utf8'
 );
 
-// 必要な部分のみを抽出
-const utilsCode = detailPagesCode.split('\n').slice(0, 200).join('\n');
-
-// API_BASEをモック
-global.API_BASE = 'http://localhost:8000/api';
+// 必要な部分のみを抽出（173行まで = apiCall関数の終端）
+const utilsCode = detailPagesCode.split('\n').slice(0, 173).join('\n');
 
 eval(utilsCode);
 
@@ -137,7 +156,8 @@ describe('Detail Pages - Date Formatting', () => {
     });
 
     test('should handle different date formats', () => {
-      const isoDate = '2024-03-20T15:45:30.000Z';
+      // UTC 03:45 = JST 12:45（同日、タイムゾーン境界を跨がない）
+      const isoDate = '2024-03-20T03:45:30.000Z';
       const result = formatDate(isoDate);
       expect(result).toMatch(/2024\/03\/20/);
     });

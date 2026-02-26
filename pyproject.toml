@@ -50,3 +50,22 @@ quote-style = "double"
 
 # Indent with 4 spaces
 indent-style = "space"
+
+[tool.pytest.ini_options]
+# JavaScript Playwrightテスト（.py拡張子だがPythonではない）とネストedWorktreeを除外
+norecursedirs = [
+    "tests/e2e",
+    "backend/tests/e2e",
+    "mirai-test-fixes",
+    ".git",
+    "node_modules",
+    "node_modules.windows",
+    "node_modules.linux",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".ruff_cache",
+    ".pytest_cache",
+    "webui-sample",
+    "webui-sample2",
+]

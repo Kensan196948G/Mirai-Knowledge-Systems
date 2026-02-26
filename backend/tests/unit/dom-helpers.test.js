@@ -189,7 +189,7 @@ describe('DOM Helpers - Utility Functions', () => {
       const longText = 'This is a very long text that should be truncated';
       const result = truncateText(longText, 20);
       expect(result).toBe('This is a very long...');
-      expect(result.length).toBe(23); // 20 + '...'
+      expect(result.length).toBe(22); // 19（末尾スペースtrimEnd後）+ '...'(3)
     });
 
     test('should not truncate short text', () => {
