@@ -1045,8 +1045,42 @@ window.MKSApp.DOM = {
 };
 
 // ============================================================
+// ユーティリティ関数
+// ============================================================
+
+/**
+ * 日付文字列をフォーマット
+ * @param {string} dateString - 日付文字列
+ * @returns {string} フォーマット済み日付 or 'Invalid Date'
+ */
+function formatDate(dateString) {
+  if (!dateString) return 'Invalid Date';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return 'Invalid Date';
+  return date.toLocaleDateString('ja-JP', {
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  });
+}
+
+/**
+ * テキストを指定文字数で切り詰める
+ * @param {string} text - テキスト
+ * @param {number} maxLength - 最大文字数
+ * @returns {string} 切り詰めたテキスト
+ */
+function truncateText(text, maxLength) {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength).trimEnd() + '...';
+}
+
+// ============================================================
 // 互換性レイヤー - 既存コードのためのwindow.*エイリアス
 // ============================================================
+
+// Utilities
+window.formatDate = formatDate;
+window.truncateText = truncateText;
 
 // Core
 window.escapeHtml = escapeHtml;
