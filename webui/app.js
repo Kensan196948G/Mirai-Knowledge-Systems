@@ -1,4 +1,37 @@
 // ============================================================
+// ES6 Modules Import (Phase E-1: Frontend Modularization v1.5.0)
+// ============================================================
+
+/**
+ * フロントエンドモジュール化 (Phase E-1)
+ * Week 2: コアモジュール
+ * - core/state-manager.js: グローバル状態管理 (Observer Pattern)
+ * - core/auth.js: 認証・RBAC
+ * - api/client.js: API通信ラッパー
+ *
+ * Week 3: UIモジュール (リファクタリング完了: components.js → 3分割)
+ * - ui/dom-utils.js: セキュアDOM操作ヘルパー (100行)
+ * - ui/components-basic.js: Button, Card, Alert (200行)
+ * - ui/components-advanced.js: List, Table (150行)
+ * - ui/modal.js: モーダルダイアログ管理
+ * - ui/notification.js: トースト通知管理
+ *
+ * Week 4: テーブル・バリデーションモジュール (最終週)
+ * - ui/table.js: テーブル描画・ページネーション・ソート (300行)
+ * - utils/validators.js: バリデーション関数 (150行)
+ */
+import stateManager from './core/state-manager.js';
+import authManager from './core/auth.js';
+import apiClient from './api/client.js';
+import DOMHelper from './ui/dom-utils.js';
+import { Button, Card, Alert } from './ui/components-basic.js';
+import { List, Table } from './ui/components-advanced.js';
+import modalManager from './ui/modal.js';
+import notificationManager from './ui/notification.js';
+import TableManager from './ui/table.js';
+import Validators from './utils/validators.js';
+
+// ============================================================
 // 環境設定
 // ============================================================
 
@@ -95,176 +128,44 @@ logger.log(`[ENV] ポート: ${window.location.port || 'default'}`);
 logger.log(`[ENV] タイトル: ${document.title}`);
 
 // ============================================================
-// 認証管理
+// 認証管理 (DEPRECATED - 新規実装はcore/auth.jsを使用)
 // ============================================================
 
-// 認証チェック
-function checkAuth() {
-  const token = localStorage.getItem('access_token');
-  logger.log('[AUTH] Checking authentication. Token exists:', token ? 'YES' : 'NO');
-  if (!token) {
-    logger.log('[AUTH] No token found. Redirecting to login...');
-    window.location.href = '/login.html';
-    return false;
-  }
-  logger.log('[AUTH] Token found. Length:', token.length);
-  return true;
-}
+// DEPRECATED: authManager.checkAuth() を使用
+// 後方互換性のためwindow.checkAuthはauth.jsでエイリアス設定済み
+// function checkAuth() { ... }
 
-// ログアウト
-function logout() {
-  logger.log('[AUTH] Logging out...');
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-  localStorage.removeItem('user');
-  window.location.href = '/login.html';
-}
+// DEPRECATED: authManager.logout() を使用
+// 後方互換性のためwindow.logoutはauth.jsでエイリアス設定済み
+// function logout() { ... }
 
-// ユーザー情報取得
-function getCurrentUser() {
-  const userStr = localStorage.getItem('user');
-  if (userStr) {
-    try {
-      return JSON.parse(userStr);
-    } catch (e) {
-      logger.error('[AUTH] Failed to parse user data:', e);
-      return null;
-    }
-  }
-  return null;
-}
+// DEPRECATED: stateManager.getCurrentUser() を使用
+// 後方互換性のためwindow.getCurrentUserはstate-manager.jsでエイリアス設定済み
+// function getCurrentUser() { ... }
 
 // ============================================================
-// RBAC（ロールベースアクセス制御）
+// RBAC（ロールベースアクセス制御） (DEPRECATED - 新規実装はcore/auth.jsを使用)
 // ============================================================
 
-/**
- * ロール階層定義
- * 数値が大きいほど高い権限を持つ
- */
-const ROLE_HIERARCHY = {
-  'partner': 1,           // 閲覧のみ
-  'quality_assurance': 2, // 承認可
-  'construction_manager': 3, // ナレッジ作成・承認可
-  'admin': 4              // 全機能アクセス可
-};
+// DEPRECATED: authManager.roleHierarchyを使用
+// 後方互換性のためwindow.ROLE_HIERARCHYはauth.jsでエイリアス設定済み
+// const ROLE_HIERARCHY = { ... }
 
-/**
- * ロールベースの権限チェック関数
- * ユーザーが指定されたロール以上の権限を持っているか確認
- * @param {string} requiredRole - 必要なロール
- * @returns {boolean} - 権限があるかどうか
- */
-function checkPermission(requiredRole) {
-  const user = getCurrentUser();
-  if (!user) return false;
+// DEPRECATED: authManager.checkPermission() を使用
+// 後方互換性のためwindow.checkPermissionはauth.jsでエイリアス設定済み
+// function checkPermission(requiredRole) { ... }
 
-  const userRoles = user.roles || [];
-  const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0;
+// DEPRECATED: authManager.hasPermission() を使用
+// 後方互換性のためwindow.hasPermissionはauth.jsでエイリアス設定済み
+// function hasPermission(permission) { ... }
 
-  // ユーザーの最高権限レベルを取得
-  let userMaxLevel = 0;
-  userRoles.forEach(role => {
-    const level = ROLE_HIERARCHY[role] || 0;
-    if (level > userMaxLevel) {
-      userMaxLevel = level;
-    }
-  });
+// DEPRECATED: authManager.canEdit() を使用
+// 後方互換性のためwindow.canEditはauth.jsでエイリアス設定済み
+// function canEdit(creatorId) { ... }
 
-  logger.log(`[RBAC] checkPermission: required=${requiredRole}(${requiredLevel}), userMax=${userMaxLevel}`);
-  return userMaxLevel >= requiredLevel;
-}
-
-/**
- * 権限チェック関数
- * ユーザーが指定された権限を持っているか確認
- */
-function hasPermission(permission) {
-  const user = getCurrentUser();
-  if (!user) return false;
-
-  const permissions = user.permissions || [];
-
-  // 管理者は全権限
-  if (permissions.includes('*')) return true;
-
-  // 指定された権限を持っているか
-  return permissions.includes(permission);
-}
-
-/**
- * 作成者または管理者かどうかチェック
- * @param {string} creatorId - 作成者のID
- * @returns {boolean} - 編集権限があるかどうか
- */
-function canEdit(creatorId) {
-  const user = getCurrentUser();
-  if (!user) return false;
-
-  // 管理者は常に編集可
-  if (checkPermission('admin')) return true;
-
-  // 作成者本人も編集可
-  return user.id === creatorId || user.username === creatorId;
-}
-
-/**
- * RBAC UI制御を適用
- * data-permission属性、data-role属性、data-required-role属性を持つ要素の表示/非表示を制御
- */
-function applyRBACUI() {
-  const user = getCurrentUser();
-  if (!user) return;
-
-  logger.log('[RBAC] Applying UI controls for user:', user.username);
-  logger.log('[RBAC] User roles:', user.roles);
-
-  // data-permission属性を持つ要素を制御
-  document.querySelectorAll('[data-permission]').forEach(element => {
-    const requiredPermission = element.dataset.permission;
-    const hasAccess = hasPermission(requiredPermission);
-
-    if (!hasAccess) {
-      // 権限がない場合は非表示
-      element.classList.add('permission-hidden');
-      logger.log('[RBAC] Permission denied to element:', requiredPermission);
-    }
-  });
-
-  // data-role属性を持つ要素を制御（完全一致）
-  document.querySelectorAll('[data-role]').forEach(element => {
-    const allowedRoles = element.dataset.role.split(',');
-    const userRoles = user.roles || [];
-    const hasRole = allowedRoles.some(role => userRoles.includes(role.trim()));
-
-    if (!hasRole) {
-      element.classList.add('permission-hidden');
-      logger.log('[RBAC] Role access denied:', allowedRoles);
-    }
-  });
-
-  // data-required-role属性を持つ要素を制御（階層ベース）
-  document.querySelectorAll('[data-required-role]').forEach(element => {
-    const requiredRole = element.dataset.requiredRole;
-    const hasAccess = checkPermission(requiredRole);
-
-    if (!hasAccess) {
-      element.classList.add('permission-hidden');
-      logger.log('[RBAC] Required role denied:', requiredRole);
-    }
-  });
-
-  // data-creator属性を持つ要素を制御（作成者または管理者のみ編集可）
-  document.querySelectorAll('[data-creator]').forEach(element => {
-    const creatorId = element.dataset.creator;
-    const canEditItem = canEdit(creatorId);
-
-    if (!canEditItem) {
-      element.classList.add('permission-hidden');
-      logger.log('[RBAC] Edit permission denied for creator:', creatorId);
-    }
-  });
-}
+// DEPRECATED: authManager.applyRBACUI() を使用
+// 後方互換性のためwindow.applyRBACUIはauth.jsでエイリアス設定済み
+// function applyRBACUI() { ... }
 
 // ============================================================
 // XSS対策ヘルパー関数
@@ -297,188 +198,24 @@ function createElement(tag, attrs = {}, children = []) {
   return element;
 }
 
-// ユーザー情報表示
-function displayUserInfo() {
-  const user = getCurrentUser();
-  logger.log('[AUTH] Displaying user info:', user);
-  if (!user) return;
-
-  // ヘッダーにユーザー情報を表示（XSS対策: DOM APIを使用）
-  const userInfoElement = document.querySelector('.user-info');
-  if (userInfoElement) {
-    // 既存の内容をクリア
-    userInfoElement.textContent = '';
-
-    // 安全にDOM要素を作成
-    const userName = createElement('span', {className: 'user-name'}, [
-      user.full_name || user.username
-    ]);
-    const userDept = createElement('span', {className: 'user-dept'}, [
-      user.department || ''
-    ]);
-    const logoutBtn = createElement('button', {className: 'logout-btn', onclick: logout}, [
-      'ログアウト'
-    ]);
-
-    userInfoElement.appendChild(userName);
-    userInfoElement.appendChild(userDept);
-    userInfoElement.appendChild(logoutBtn);
-  }
-}
+// DEPRECATED: authManager.displayUserInfo() を使用
+// 後方互換性のためwindow.displayUserInfoはauth.jsでエイリアス設定済み
+// function displayUserInfo() { ... }
 
 // ============================================================
-// API クライアント
+// API クライアント (DEPRECATED - 新規実装はapi/client.jsを使用)
 // ============================================================
 
-// 動的にAPIベースURLを設定（localhost、IPアドレス、ホスト名に対応）
-const API_BASE = `${window.location.origin}/api/v1`;
+// DEPRECATED: apiClient.apiBaseUrl を使用
+// const API_BASE = `${window.location.origin}/api/v1`;
 
-/**
- * トークンリフレッシュ関数
- * リフレッシュトークンを使用して新しいアクセストークンを取得
- */
-async function refreshAccessToken() {
-  const refreshToken = localStorage.getItem('refresh_token');
+// DEPRECATED: authManager.refreshAccessToken() を使用
+// 後方互換性のためwindow.refreshAccessTokenはauth.jsでエイリアス設定済み
+// async function refreshAccessToken() { ... }
 
-  if (!refreshToken) {
-    logger.log('[AUTH] No refresh token available');
-    return false;
-  }
-
-  try {
-    logger.log('[AUTH] Refreshing access token...');
-    const response = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${refreshToken}`
-      }
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        // 新しいアクセストークンを保存
-        localStorage.setItem('access_token', result.data.access_token);
-        logger.log('[AUTH] Access token refreshed successfully');
-        return true;
-      }
-    }
-
-    logger.log('[AUTH] Token refresh failed');
-    return false;
-  } catch (error) {
-    logger.error('[AUTH] Token refresh error:', error);
-    return false;
-  }
-}
-
-// グローバルに公開（file-preview.js等で使用）
-window.refreshAccessToken = refreshAccessToken;
-
-async function fetchAPI(endpoint, options = {}) {
-  const token = localStorage.getItem('access_token');
-
-  logger.log('[API] Calling:', endpoint);
-  logger.log('[API] Token exists:', token ? 'YES' : 'NO');
-
-  if (!token && !endpoint.includes('/auth/')) {
-    logger.log('[API] No token for non-auth endpoint. Redirecting...');
-    window.location.href = '/login.html';
-    throw new Error('No authentication token');
-  }
-
-  try {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-      logger.log('[API] Authorization header added');
-    }
-
-    let response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers
-    });
-
-    logger.log('[API] Response status:', response.status);
-
-    // 認証エラー（401）の場合、トークンリフレッシュを試行
-    if (response.status === 401 && !endpoint.includes('/auth/')) {
-      logger.log('[API] 401 Unauthorized. Attempting token refresh...');
-
-      const refreshed = await refreshAccessToken();
-
-      if (refreshed) {
-        // リフレッシュ成功 → リクエストをリトライ
-        logger.log('[API] Retrying request with new token...');
-        const newToken = localStorage.getItem('access_token');
-        headers['Authorization'] = `Bearer ${newToken}`;
-
-        response = await fetch(`${API_BASE}${endpoint}`, {
-          ...options,
-          headers
-        });
-
-        logger.log('[API] Retry response status:', response.status);
-      } else {
-        // リフレッシュ失敗 → ログアウト
-        logger.log('[API] Token refresh failed. Logging out...');
-        showNotification('セッションの有効期限が切れました。再度ログインしてください。', 'error');
-        logout();
-        throw new Error('Authentication failed');
-      }
-    }
-
-    // エラーレスポンスの処理
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}`;
-      let errorCode = 'UNKNOWN_ERROR';
-
-      try {
-        const errorData = await response.json();
-        if (errorData.error) {
-          errorMessage = errorData.error.message || errorMessage;
-          errorCode = errorData.error.code || errorCode;
-        }
-      } catch (e) {
-        logger.error('[API] Failed to parse error response:', e);
-      }
-
-      // ステータスコード別の処理
-      if (response.status === 403) {
-        showNotification('この操作を実行する権限がありません。', 'error');
-      } else if (response.status === 404) {
-        showNotification('リソースが見つかりません。', 'error');
-      } else if (response.status === 429) {
-        showNotification('リクエストが多すぎます。しばらく待ってから再試行してください。', 'warning');
-      } else if (response.status === 500) {
-        showNotification('サーバーエラーが発生しました。管理者に連絡してください。', 'error');
-      } else {
-        showNotification(`エラー: ${errorMessage}`, 'error');
-      }
-
-      const error = new Error(errorMessage);
-      error.code = errorCode;
-      error.status = response.status;
-      throw error;
-    }
-
-    return await response.json();
-  } catch (error) {
-    logger.error('[API] Error:', error);
-
-    // ネットワークエラーの場合
-    if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
-      showNotification('ネットワークエラー: サーバーに接続できません。', 'error');
-    }
-
-    throw error;
-  }
-}
+// DEPRECATED: apiClient.fetchAPI() を使用
+// 後方互換性のためwindow.fetchAPIはclient.jsでエイリアス設定済み
+// async function fetchAPI(endpoint, options = {}) { ... }
 
 // ============================================================
 // 通知システム
@@ -487,39 +224,7 @@ async function fetchAPI(endpoint, options = {}) {
 /**
  * トースト通知を表示
  */
-function showNotification(message, type = 'info') {
-  const container = document.getElementById('toastContainer') || createToastContainer();
-
-  const toast = createElement('div', {className: `toast toast-${type}`}, []);
-  const icon = {
-    'success': '✓',
-    'error': '✕',
-    'warning': '⚠',
-    'info': 'ℹ'
-  }[type] || 'ℹ';
-
-  const iconSpan = createElement('span', {className: 'toast-icon'}, [icon]);
-  const messageSpan = createElement('span', {className: 'toast-message'}, [message]);
-
-  toast.appendChild(iconSpan);
-  toast.appendChild(messageSpan);
-  container.appendChild(toast);
-
-  // アニメーション
-  setTimeout(() => toast.classList.add('show'), 10);
-
-  // 自動削除
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
-}
-
-function createToastContainer() {
-  const container = createElement('div', {id: 'toastContainer', className: 'toast-container'}, []);
-  document.body.appendChild(container);
-  return container;
-}
+// showNotification, createToastContainer は ui/notification.js に移行
 
 // ============================================================
 // データ取得関数
@@ -543,7 +248,7 @@ async function loadMonitoringData() {
     if (projectsResult.success && projectsResult.data.length > 0) {
       const monitoringSection = document.querySelector('.progress-list');
       if (monitoringSection) {
-        monitoringSection.textContent = '';
+        DOMHelper.clearChildren(monitoringSection);
 
         const targetProjects = projectsResult.data.slice(0, 3);
         const progressResults = await Promise.all(
@@ -1104,6 +809,7 @@ function openNewConsultModal() {
 
 /**
  * 新規相談モーダルを作成（フォールバック）
+ * XSS対策: DOM API使用（insertAdjacentHTML完全排除）
  */
 function createNewConsultModalFallback() {
   const existingModal = document.getElementById('newConsultModal');
@@ -1113,70 +819,150 @@ function createNewConsultModalFallback() {
     return;
   }
 
-  const modalHTML = `
-    <div id="newConsultModal" class="modal" style="display: flex;">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>専門家に相談</h2>
-          <button class="modal-close" onclick="closeNewConsultModalFallback()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form id="newConsultForm">
-            <div class="field">
-              <label>相談タイトル <span class="required">*</span></label>
-              <input type="text" id="newConsultTitle" required placeholder="相談の概要を簡潔に入力してください">
-            </div>
-            <div class="field">
-              <label>カテゴリ <span class="required">*</span></label>
-              <select id="newConsultCategory" required>
-                <option value="">選択してください</option>
-                <option value="技術相談">技術相談</option>
-                <option value="安全対策">安全対策</option>
-                <option value="品質管理">品質管理</option>
-                <option value="工程計画">工程計画</option>
-                <option value="法令規格">法令規格</option>
-                <option value="資材調達">資材調達</option>
-                <option value="その他">その他</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>優先度 <span class="required">*</span></label>
-              <select id="newConsultPriority" required>
-                <option value="通常" selected>通常</option>
-                <option value="高">高</option>
-                <option value="緊急">緊急</option>
-                <option value="低">低</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>相談内容 <span class="required">*</span></label>
-              <textarea id="newConsultContent" rows="6" required placeholder="具体的な相談内容を入力してください（最小10文字）"></textarea>
-            </div>
-            <div class="field">
-              <label>タグ（カンマ区切り）</label>
-              <input type="text" id="newConsultTags" placeholder="例: コンクリート, 品質管理, 養生">
-            </div>
-            <div class="modal-actions">
-              <button type="button" class="cta ghost" onclick="closeNewConsultModalFallback()">キャンセル</button>
-              <button type="submit" class="cta">相談を投稿</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  `;
+  // モーダルコンテナ
+  const modal = DOMHelper.createElement('div', {
+    id: 'newConsultModal',
+    class: 'modal',
+    style: { display: 'flex' }
+  });
 
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  // モーダルコンテンツ
+  const content = DOMHelper.createElement('div', { class: 'modal-content' });
+
+  // ヘッダー
+  const header = DOMHelper.createElement('div', { class: 'modal-header' });
+  const title = DOMHelper.createElement('h2', {}, '専門家に相談');
+  const closeBtn = DOMHelper.createElement('button', {
+    class: 'modal-close',
+    onclick: 'closeNewConsultModalFallback()'
+  }, '×');
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  // ボディ
+  const body = DOMHelper.createElement('div', { class: 'modal-body' });
+  const form = DOMHelper.createElement('form', { id: 'newConsultForm' });
+
+  // タイトルフィールド
+  const titleField = DOMHelper.createElement('div', { class: 'field' });
+  const titleLabel = DOMHelper.createElement('label', {});
+  titleLabel.appendChild(document.createTextNode('相談タイトル '));
+  const titleRequired = DOMHelper.createElement('span', { class: 'required' }, '*');
+  titleLabel.appendChild(titleRequired);
+  const titleInput = DOMHelper.createElement('input', {
+    type: 'text',
+    id: 'newConsultTitle',
+    required: true,
+    placeholder: '相談の概要を簡潔に入力してください'
+  });
+  titleField.appendChild(titleLabel);
+  titleField.appendChild(titleInput);
+
+  // カテゴリフィールド
+  const categoryField = DOMHelper.createElement('div', { class: 'field' });
+  const categoryLabel = DOMHelper.createElement('label', {});
+  categoryLabel.appendChild(document.createTextNode('カテゴリ '));
+  const categoryRequired = DOMHelper.createElement('span', { class: 'required' }, '*');
+  categoryLabel.appendChild(categoryRequired);
+  const categorySelect = DOMHelper.createElement('select', { id: 'newConsultCategory', required: true });
+  const categories = ['', '技術相談', '安全対策', '品質管理', '工程計画', '法令規格', '資材調達', 'その他'];
+  categories.forEach((cat, idx) => {
+    const option = DOMHelper.createElement('option', { value: cat }, cat || '選択してください');
+    categorySelect.appendChild(option);
+  });
+  categoryField.appendChild(categoryLabel);
+  categoryField.appendChild(categorySelect);
+
+  // 優先度フィールド
+  const priorityField = DOMHelper.createElement('div', { class: 'field' });
+  const priorityLabel = DOMHelper.createElement('label', {});
+  priorityLabel.appendChild(document.createTextNode('優先度 '));
+  const priorityRequired = DOMHelper.createElement('span', { class: 'required' }, '*');
+  priorityLabel.appendChild(priorityRequired);
+  const prioritySelect = DOMHelper.createElement('select', { id: 'newConsultPriority', required: true });
+  const priorities = [
+    { value: '通常', selected: true },
+    { value: '高', selected: false },
+    { value: '緊急', selected: false },
+    { value: '低', selected: false }
+  ];
+  priorities.forEach(p => {
+    const option = DOMHelper.createElement('option', {
+      value: p.value,
+      selected: p.selected
+    }, p.value);
+    prioritySelect.appendChild(option);
+  });
+  priorityField.appendChild(priorityLabel);
+  priorityField.appendChild(prioritySelect);
+
+  // 相談内容フィールド
+  const contentField = DOMHelper.createElement('div', { class: 'field' });
+  const contentLabel = DOMHelper.createElement('label', {});
+  contentLabel.appendChild(document.createTextNode('相談内容 '));
+  const contentRequired = DOMHelper.createElement('span', { class: 'required' }, '*');
+  contentLabel.appendChild(contentRequired);
+  const contentTextarea = DOMHelper.createElement('textarea', {
+    id: 'newConsultContent',
+    rows: 6,
+    required: true,
+    placeholder: '具体的な相談内容を入力してください（最小10文字）'
+  });
+  contentField.appendChild(contentLabel);
+  contentField.appendChild(contentTextarea);
+
+  // タグフィールド
+  const tagsField = DOMHelper.createElement('div', { class: 'field' });
+  const tagsLabel = DOMHelper.createElement('label', {}, 'タグ（カンマ区切り）');
+  const tagsInput = DOMHelper.createElement('input', {
+    type: 'text',
+    id: 'newConsultTags',
+    placeholder: '例: コンクリート, 品質管理, 養生'
+  });
+  tagsField.appendChild(tagsLabel);
+  tagsField.appendChild(tagsInput);
+
+  // アクションボタン
+  const actions = DOMHelper.createElement('div', { class: 'modal-actions' });
+  const cancelBtn = DOMHelper.createElement('button', {
+    type: 'button',
+    class: 'cta ghost',
+    onclick: 'closeNewConsultModalFallback()'
+  }, 'キャンセル');
+  const submitBtn = DOMHelper.createElement('button', {
+    type: 'submit',
+    class: 'cta'
+  }, '相談を投稿');
+  actions.appendChild(cancelBtn);
+  actions.appendChild(submitBtn);
+
+  // フォーム組み立て
+  form.appendChild(titleField);
+  form.appendChild(categoryField);
+  form.appendChild(priorityField);
+  form.appendChild(contentField);
+  form.appendChild(tagsField);
+  form.appendChild(actions);
+
+  // ボディ組み立て
+  body.appendChild(form);
+
+  // コンテンツ組み立て
+  content.appendChild(header);
+  content.appendChild(body);
+
+  // モーダル組み立て
+  modal.appendChild(content);
+
+  // DOM追加（セキュア）
+  document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
 
   // フォーム送信イベント
-  const form = document.getElementById('newConsultForm');
-  if (form) {
-    form.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      await submitNewConsultationAPI();
-    });
-  }
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await submitNewConsultationAPI();
+  });
 }
 
 /**
@@ -3098,19 +2884,53 @@ function setupExpertClickHandlers() {
 document.addEventListener('DOMContentLoaded', async () => {
   logger.log('建設土木ナレッジシステム - 初期化中...');
 
+  // ============================================================
+  // Phase E-1: モジュール初期化
+  // ============================================================
+
+  // 状態管理初期化
+  stateManager.restoreState();
+  logger.log('[E-1] State Manager initialized');
+
+  // 環境設定を状態管理に保存
+  stateManager.setConfig('isProduction', IS_PRODUCTION);
+  stateManager.setConfig('envName', ENV_NAME);
+
   // 認証チェック
-  if (!checkAuth()) {
+  if (!authManager.checkAuth()) {
     return; // 認証失敗時は処理を中断
   }
+
+  // ユーザー情報をlocalStorageから復元
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      stateManager.setCurrentUser(user);
+      logger.log('[E-1] User state restored from localStorage');
+    } catch (e) {
+      logger.error('[E-1] Failed to parse user data:', e);
+    }
+  }
+
+  // トークンリフレッシュ開始（認証済みの場合）
+  if (authManager.isAuthenticated()) {
+    authManager.startTokenRefresh();
+    logger.log('[E-1] Token refresh started');
+  }
+
+  // ============================================================
+  // 既存の初期化処理
+  // ============================================================
 
   // ダミーデータをlocalStorageに保存
   await loadDummyDataToStorage();
 
   // ユーザー情報表示
-  displayUserInfo();
+  authManager.displayUserInfo();
 
   // RBAC UI制御を適用
-  applyRBACUI();
+  authManager.applyRBACUI();
 
   // 検索機能のセットアップ
   setupSearch();
@@ -3261,16 +3081,13 @@ function updateProjectProgress(projectId, progressData) {
       if (progressFill && progressMeta) {
         const progressPercent = progressData.progress_percentage || 0;
         progressFill.style.width = `${progressPercent}%`;
-        progressMeta.textContent = '';
 
-        const actualSpan = document.createElement('span');
-        actualSpan.textContent = `工程 ${progressPercent}%`;
-
-        const plannedSpan = document.createElement('span');
-        plannedSpan.textContent = `予定 ${Math.max(0, progressPercent - 3)}%`;
-
-        progressMeta.appendChild(actualSpan);
-        progressMeta.appendChild(plannedSpan);
+        // DOM APIで安全に更新
+        DOMHelper.clearChildren(progressMeta);
+        const span1 = DOMHelper.createElement('span', {}, `工程 ${progressPercent}%`);
+        const span2 = DOMHelper.createElement('span', {}, `予定 ${Math.max(0, progressPercent - 3)}%`);
+        progressMeta.appendChild(span1);
+        progressMeta.appendChild(span2);
       }
     }
   });
@@ -3353,7 +3170,7 @@ function updateDutyExperts(expertStats) {
     experts.forEach((expert, index) => {
       if (expertDocuments[index]) {
         const doc = expertDocuments[index];
-        doc.textContent = '';
+        DOMHelper.clearChildren(doc);
 
         const title = createElement('strong', {}, [`${expert.specialization}: ${expert.name || 'Unknown'}`]);
         const small = createElement('small', {}, [
@@ -3480,42 +3297,37 @@ function registerServiceWorker() {
  * Display notification when new version is available
  */
 function showUpdatePrompt(newWorker) {
-  const banner = document.createElement('div');
-  banner.className = 'update-banner';
+  const banner = DOMHelper.createElement('div', { class: 'update-banner' });
 
-  const content = document.createElement('div');
-  content.className = 'update-content';
+  const content = DOMHelper.createElement('div', { class: 'update-content' });
 
-  const message = document.createElement('strong');
-  message.textContent = '新しいバージョンが利用可能です';
+  const strong = DOMHelper.createElement('strong', {}, '新しいバージョンが利用可能です');
+  content.appendChild(strong);
 
-  const updateButton = document.createElement('button');
-  updateButton.textContent = '今すぐ更新';
-  updateButton.onclick = () => {
-    newWorker.postMessage({ action: 'SKIP_WAITING' });
-    banner.remove();
+  const updateBtn = Button.create({
+    text: '今すぐ更新',
+    onClick: () => {
+      newWorker.postMessage({ action: 'SKIP_WAITING' });
+      banner.remove();
 
-    // Reload page after activation
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload();
-    });
-  };
+      // Reload page after activation
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+    }
+  });
+  content.appendChild(updateBtn);
 
-  const dismissButton = document.createElement('button');
-  dismissButton.textContent = '後で';
-  dismissButton.onclick = () => {
-    banner.remove();
-  };
+  const dismissBtn = Button.create({
+    text: '後で',
+    onClick: () => {
+      banner.remove();
+    }
+  });
+  content.appendChild(dismissBtn);
 
-  content.appendChild(message);
-  content.appendChild(updateButton);
-  content.appendChild(dismissButton);
   banner.appendChild(content);
   document.body.appendChild(banner);
-
-  // Store functions in window for backward compatibility
-  window.applyUpdate = updateButton.onclick;
-  window.dismissUpdate = dismissButton.onclick;
 }
 
 /**
@@ -3538,10 +3350,10 @@ window.addEventListener('offline', () => {
 function showOfflineIndicator() {
   let indicator = document.getElementById('offline-indicator');
   if (!indicator) {
-    indicator = document.createElement('div');
-    indicator.id = 'offline-indicator';
-    indicator.className = 'offline-indicator visible';
-    indicator.textContent = '📡 オフラインモード - キャッシュされたコンテンツのみ利用可能';
+    indicator = DOMHelper.createElement('div', {
+      id: 'offline-indicator',
+      class: 'offline-indicator visible'
+    }, '📡 オフラインモード - キャッシュされたコンテンツのみ利用可能');
     document.body.insertBefore(indicator, document.body.firstChild);
   }
   indicator.classList.add('visible');

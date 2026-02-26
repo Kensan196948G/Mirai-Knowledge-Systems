@@ -1,21 +1,79 @@
 /**
- * Unit Tests for app.js - Authentication & RBAC
+ * Unit Tests for core/auth.js - Authentication & RBAC
  * 認証とロールベースアクセス制御のテスト
+ * Phase E-1: core/auth.jsモジュール対応版
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// app.jsの最初の300行（認証とRBAC部分）を読み込み
-const appCode = fs.readFileSync(
-  path.join(__dirname, '../../../webui/app.js'),
+// 動作するlocalStorageモック（JSDOMのgetter-onlyプロパティをObject.definePropertyで置き換え）
+let localStorageStore = {};
+const localStorageImpl = {
+  getItem: (key) => localStorageStore[key] !== undefined ? localStorageStore[key] : null,
+  setItem: (key, value) => { localStorageStore[key] = String(value); },
+  removeItem: (key) => { delete localStorageStore[key]; },
+  clear: () => { localStorageStore = {}; },
+  key: (index) => Object.keys(localStorageStore)[index],
+  get length() { return Object.keys(localStorageStore).length; }
+};
+// JSDOMのwindow.localStorageはgetter-onlyアクセサプロパティのため、
+// 直接代入は無視される。Object.definePropertyで強制的に置き換える。
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageImpl,
+  writable: true,
+  configurable: true
+});
+
+// stateManagerモック（localStorageStoreと同じストアを読み書き）
+const stateManagerMock = {
+  getCurrentUser: () => {
+    const userStr = localStorageStore['user'];
+    if (!userStr) return null;
+    try { return JSON.parse(userStr); } catch (e) {
+      console.error('[stateManager] Invalid user JSON:', e);
+      return null;
+    }
+  },
+  setCurrentUser: (user) => {
+    localStorageStore['user'] = JSON.stringify(user);
+  },
+  clearState: () => {
+    delete localStorageStore['user'];
+    delete localStorageStore['access_token'];
+    delete localStorageStore['refresh_token'];
+  },
+  hasPermission: (permission) => {
+    const userStr = localStorageStore['user'];
+    if (!userStr) return false;
+    let user;
+    try { user = JSON.parse(userStr); } catch (e) { return false; }
+    const permissions = user.permissions || [];
+    if (permissions.includes('*')) return true;
+    return permissions.includes(permission);
+  }
+};
+global.stateManager = stateManagerMock;
+
+// window.locationにhostname等を追加（_getApiBaseUrl()が必要とする）
+window.location.hostname = 'localhost';
+window.location.host = 'localhost:5200';
+window.location.protocol = 'http:';
+
+// core/auth.jsを読み込み（ES6 import/exportを除去してevalで実行）
+const authCode = fs.readFileSync(
+  path.join(__dirname, '../../../webui/core/auth.js'),
   'utf8'
-);
+)
+  .replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '')
+  .replace(/^export\s+\{[^}]*\};?\s*$/gm, '')
+  .replace(/^export\s+default\s+\S+;?\s*$/gm, '')
+  .replace(/^export\s+/gm, '');
 
-// 必要な部分のみを抽出（認証とRBAC関連）
-const authRbacCode = appCode.split('\n').slice(0, 300).join('\n');
+eval(authCode);
 
-eval(authRbacCode);
+// windowに追加エイリアス（core/auth.jsに未含有のもの）
+window.getCurrentUser = () => stateManagerMock.getCurrentUser();
 
 describe('Authentication - checkAuth', () => {
   beforeEach(() => {
@@ -49,7 +107,7 @@ describe('Authentication - checkAuth', () => {
     checkAuth();
 
     expect(console.log).toHaveBeenCalledWith(
-      '[AUTH] Checking authentication. Token exists:',
+      '[Auth] Checking authentication. Token exists:',
       'YES'
     );
   });
@@ -58,35 +116,40 @@ describe('Authentication - checkAuth', () => {
 describe('Authentication - logout', () => {
   beforeEach(() => {
     localStorage.clear();
-    jest.spyOn(console, 'log').mockImplementation();
+    fetch.resetMocks();
   });
 
-  afterEach(() => {
-    console.log.mockRestore();
-  });
-
-  test('should clear all auth tokens', () => {
+  test('should clear all auth tokens', async () => {
     localStorage.setItem('access_token', 'token1');
     localStorage.setItem('refresh_token', 'token2');
     localStorage.setItem('user', '{"id": 1}');
+    fetch.mockResponseOnce(JSON.stringify({ success: true }));
 
-    logout();
+    await logout();
 
     expect(localStorage.getItem('access_token')).toBeNull();
     expect(localStorage.getItem('refresh_token')).toBeNull();
     expect(localStorage.getItem('user')).toBeNull();
   });
 
-  test('should redirect to login page', () => {
-    logout();
+  test('should redirect to login page', async () => {
+    fetch.mockResponseOnce(JSON.stringify({ success: true }));
+
+    await logout();
 
     expect(window.location.href).toBe('/login.html');
   });
 
-  test('should log logout action', () => {
-    logout();
+  test('should call logout API when token exists', async () => {
+    localStorage.setItem('access_token', 'mytoken');
+    fetch.mockResponseOnce(JSON.stringify({ success: true }));
 
-    expect(console.log).toHaveBeenCalledWith('[AUTH] Logging out...');
+    await logout();
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/logout'),
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 });
 
