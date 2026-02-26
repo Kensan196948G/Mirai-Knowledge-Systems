@@ -9,10 +9,24 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from database import get_session_factory
-from models import (SOP, AccessLog, Approval, Consultation, Expert,
-                    ExpertRating, Incident, Knowledge, MS365FileMapping,
-                    MS365SyncConfig, MS365SyncHistory, Notification, Project,
-                    ProjectTask)
+from models import (
+    SOP,
+    AccessLog,
+    Approval,
+    Consultation,
+    Expert,
+    ExpertRating,
+    Incident,
+    Knowledge,
+    MS365FileMapping,
+    MS365SyncConfig,
+    MS365SyncHistory,
+    Notification,
+    Project,
+    ProjectTask,
+)
+from sqlalchemy import case, func
+from sqlalchemy.orm import joinedload
 
 from config import Config
 
@@ -936,7 +950,7 @@ class DataAccessLayer:
 
     def get_project_progress(self, project_id: int) -> Dict:
         """
-        プロジェクトの進捗率を計算
+        プロジェクトの進捗率を計算（N+1クエリ最適化版）
 
         Args:
             project_id: プロジェクトID
@@ -954,37 +968,40 @@ class DataAccessLayer:
                 }
             db = factory()
             try:
-                # プロジェクトの全タスクを取得
-                tasks = (
-                    db.query(ProjectTask)
+                # PostgreSQL側で集計を完結（クエリ1回）
+                task_stats = (
+                    db.query(
+                        func.count(ProjectTask.id).label("total_tasks"),
+                        func.count(
+                            case((ProjectTask.status == "completed", 1))
+                        ).label("completed_tasks"),
+                        func.count(
+                            case((ProjectTask.status == "in_progress", 1))
+                        ).label("in_progress_tasks"),
+                        func.count(case((ProjectTask.status == "pending", 1))).label(
+                            "pending_tasks"
+                        ),
+                        func.avg(ProjectTask.progress_percentage).label("avg_progress"),
+                    )
                     .filter(ProjectTask.project_id == project_id)
-                    .all()
+                    .first()
                 )
 
-                if not tasks:
+                if not task_stats or task_stats.total_tasks == 0:
                     return {
                         "progress_percentage": 0,
                         "completed_tasks": 0,
                         "total_tasks": 0,
+                        "in_progress_tasks": 0,
+                        "pending_tasks": 0,
                     }
 
-                total_tasks = len(tasks)
-                completed_tasks = len([t for t in tasks if t.status == "completed"])
-
-                # タスクの進捗率を加重平均で計算
-                total_weighted_progress = sum(t.progress_percentage for t in tasks)
-                progress_percentage = (
-                    total_weighted_progress // total_tasks if total_tasks > 0 else 0
-                )
-
                 return {
-                    "progress_percentage": progress_percentage,
-                    "completed_tasks": completed_tasks,
-                    "total_tasks": total_tasks,
-                    "in_progress_tasks": len(
-                        [t for t in tasks if t.status == "in_progress"]
-                    ),
-                    "pending_tasks": len([t for t in tasks if t.status == "pending"]),
+                    "progress_percentage": int(task_stats.avg_progress or 0),
+                    "completed_tasks": task_stats.completed_tasks,
+                    "total_tasks": task_stats.total_tasks,
+                    "in_progress_tasks": task_stats.in_progress_tasks,
+                    "pending_tasks": task_stats.pending_tasks,
                 }
             finally:
                 db.close()
@@ -1157,12 +1174,9 @@ class DataAccessLayer:
                         "is_available": expert.is_available,
                     }
                 else:
-                    # 全専門家の統計（N+1最適化）
-                    from sqlalchemy.orm import selectinload
-                    from sqlalchemy import func
-
-                    # サブクエリで集計（N+1回避）
-                    ratings_subquery = (
+                    # 全専門家の統計（N+1クエリ最適化版）
+                    # サブクエリで評価データを集計
+                    expert_ratings_subq = (
                         db.query(
                             ExpertRating.expert_id,
                             func.avg(ExpertRating.rating).label("avg_rating"),
@@ -1172,37 +1186,40 @@ class DataAccessLayer:
                         .subquery()
                     )
 
-                    consultations_subquery = (
+                    # サブクエリで相談件数を集計
+                    consultation_counts_subq = (
                         db.query(
-                            Consultation.expert_id,
+                            Consultation.expert_id.label("expert_user_id"),
                             func.count(Consultation.id).label("consultation_count"),
                         )
                         .group_by(Consultation.expert_id)
                         .subquery()
                     )
 
-                    # LEFT JOINで一括取得
-                    experts_query = (
-                        db.query(
-                            Expert,
-                            ratings_subquery.c.avg_rating,
-                            ratings_subquery.c.rating_count,
-                            consultations_subquery.c.consultation_count,
+                    # Eager Loadingで一発取得（クエリ3回に削減）
+                    experts_with_stats = (
+                        db.query(Expert)
+                        .options(joinedload(Expert.user))  # Userを先読み（1対1）
+                        .outerjoin(
+                            expert_ratings_subq,
+                            Expert.id == expert_ratings_subq.c.expert_id,
                         )
                         .outerjoin(
-                            ratings_subquery,
-                            Expert.id == ratings_subquery.c.expert_id,
+                            consultation_counts_subq,
+                            Expert.user_id == consultation_counts_subq.c.expert_user_id,
                         )
-                        .outerjoin(
-                            consultations_subquery,
-                            Expert.user_id == consultations_subquery.c.expert_id,
+                        .add_columns(
+                            expert_ratings_subq.c.avg_rating,
+                            expert_ratings_subq.c.rating_count,
+                            consultation_counts_subq.c.consultation_count,
                         )
-                        .options(selectinload(Expert.user))
+                        .all()
                     )
 
+                    # ループ内でクエリ不要（既に全データ取得済み）
                     stats = []
                     for expert, avg_rating, rating_count, consultation_count in (
-                        experts_query.all()
+                        experts_with_stats
                     ):
                         stats.append(
                             {
@@ -1774,7 +1791,7 @@ class DataAccessLayer:
 
     def get_project_progress(self, project_id: int) -> Dict:
         """
-        プロジェクトの進捗%を計算
+        プロジェクトの進捗%を計算（N+1クエリ最適化版）
 
         Args:
             project_id: プロジェクトID
@@ -1793,14 +1810,19 @@ class DataAccessLayer:
                 }
             db = factory()
             try:
-                # プロジェクトのタスクを取得
-                tasks = (
-                    db.query(ProjectTask)
+                # PostgreSQL側で集計を完結（クエリ1回）
+                task_stats = (
+                    db.query(
+                        func.count(ProjectTask.id).label("total_tasks"),
+                        func.count(
+                            case((ProjectTask.status == "completed", 1))
+                        ).label("completed_tasks"),
+                    )
                     .filter(ProjectTask.project_id == project_id)
-                    .all()
+                    .first()
                 )
 
-                if not tasks:
+                if not task_stats or task_stats.total_tasks == 0:
                     return {
                         "project_id": project_id,
                         "progress_percentage": 0,
@@ -1808,18 +1830,17 @@ class DataAccessLayer:
                         "total_tasks": 0,
                     }
 
-                total_tasks = len(tasks)
-                completed_tasks = len([t for t in tasks if t.status == "completed"])
-
                 progress_percentage = (
-                    int((completed_tasks / total_tasks) * 100) if total_tasks > 0 else 0
+                    int((task_stats.completed_tasks / task_stats.total_tasks) * 100)
+                    if task_stats.total_tasks > 0
+                    else 0
                 )
 
                 return {
                     "project_id": project_id,
                     "progress_percentage": progress_percentage,
-                    "tasks_completed": completed_tasks,
-                    "total_tasks": total_tasks,
+                    "tasks_completed": task_stats.completed_tasks,
+                    "total_tasks": task_stats.total_tasks,
                 }
             finally:
                 db.close()

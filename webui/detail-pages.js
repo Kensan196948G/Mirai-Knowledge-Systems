@@ -155,7 +155,7 @@ async function apiCall(endpoint, options = {}) {
       const error = new Error(errorMessage);
       error.code = errorCode;
       error.status = response.status;
-      throw error;
+      return null;
     }
 
     return await response.json();
@@ -167,7 +167,7 @@ async function apiCall(endpoint, options = {}) {
       showError('ネットワークエラー: サーバーに接続できません。');
     }
 
-    throw error;
+    return null;
   }
 }
 
