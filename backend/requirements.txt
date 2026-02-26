@@ -5,7 +5,7 @@ Flask-SocketIO==5.6.0
 Werkzeug==3.1.6  # Updated: CVE-2024-34069 + CVE-2025-66221 + CVE-2026-21860 (all fixed)
 
 # WSGI Server (Production)
-gunicorn==23.0.0
+gunicorn==25.1.0
 
 # Database
 psycopg2-binary==2.9.9
