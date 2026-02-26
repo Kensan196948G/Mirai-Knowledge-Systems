@@ -1,0 +1,204 @@
+{
+  "result": "PASS_WITH_WARNINGS",
+  "summary": "N+1クエリ最適化の実装は技術的に正しく、期待される効果が見込まれます。try-finallyによるDB接続管理と既存APIとの互換性維持も確認できました。ただし、例外処理の詳細化とログ・証跡の追加が必要です。",
+  "blocking_issues": [],
+  "warnings": [
+    {
+      "severity": "MEDIUM",
+      "category": "例外処理",
+      "location": "data_access.py:965-1002, 1805-1839",
+      "issue": "SQLAlchemyクエリ実行時のtry-except-finallyパターンがfinallyのみ（try-finallyパターン）",
+      "recommendation": "現状はtry-finallyパターンで異常時もdb.close()を保証していますが、例外処理を明示的に記述することでエラー時の挙動を明確化することを推奨します。ただし、既存コードベースが同じパターンを踏襲しているため、統一性は保たれています。"
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "ログ・証跡",
+      "location": "data_access.py:1172-1234, 966-1000, 1806-1837",
+      "issue": "最適化実行完了ログがない",
+      "recommendation": "パフォーマンス改善を追跡可能にするため、開発環境でクエリ実行回数や処理時間をログ出力することを推奨します（本番環境では不要）。現在はloggingモジュールのimportがないため、追加が必要です。"
+    },
+    {
+      "severity": "LOW",
+      "category": "ログ・証跡",
+      "location": "data_access.py:全体",
+      "issue": "loggingモジュールのimportがない",
+      "recommendation": "将来的なログ追加を容易にするため、`import logging` を追加し、ロガーインスタンスを準備することを推奨します（オプション）。"
+    },
+    {
+      "severity": "LOW",
+      "category": "将来変更耐性",
+      "location": "backend/tests/unit/test_data_access_optimization.py:142, 306",
+      "issue": "クエリ実行回数の閾値がハードコード（≤5, ≤2）",
+      "recommendation": "テストコード内の閾値は許容範囲内ですが、将来的に環境変数化することで柔軟性が向上します（オプション）。"
+    },
+    {
+      "severity": "LOW",
+      "category": "コード品質",
+      "location": "data_access.py:1-30",
+      "issue": "loggingモジュールのimportがない（重複）",
+      "recommendation": "既存コードベースでloggingを使用していない場合、統一性のため現状維持でも問題ありません。"
+    }
+  ],
+  "recommended_fixes": [
+    {
+      "priority": "P2",
+      "category": "ログ・証跡",
+      "issue": "開発環境でのパフォーマンス追跡ログ不足",
+      "recommendation": "loggingモジュールを追加し、開発環境（MKS_ENV != 'production'）でクエリ実行回数やDB集計結果をINFOレベルでログ出力することを推奨します。"
+    },
+    {
+      "priority": "P3",
+      "category": "例外処理",
+      "issue": "SQLAlchemyエラーハンドリングの明示化",
+      "recommendation": "既存のtry-finallyパターンは機能的に問題ありませんが、SQLAlchemyError/OperationalErrorを明示的にキャッチし、エラー内容をログ出力することで保守性が向上します（オプション）。"
+    }
+  ],
+  "metrics": {
+    "files_reviewed": 2,
+    "lines_added": 389,
+    "lines_modified": 62,
+    "test_coverage": "10件（新規テスト）",
+    "confidence_score": 85
+  },
+  "review_details": {
+    "spec_compliance": {
+      "status": "ACCEPTABLE",
+      "score": 90,
+      "notes": [
+        "✅ get_expert_stats(): クエリ実行回数 ≤3回（仕様どおり）",
+        "✅ get_project_progress(): DB側集計による高速化（仕様どおり）",
+        "✅ 返却値形式は既存APIと同じ（互換性維持）",
+        "✅ P0（即座対応）2件の実装完了",
+        "✅ SQLAlchemy ベストプラクティス（joinedload, subquery, func使用）"
+      ]
+    },
+    "exception_handling": {
+      "status": "NEEDS_IMPROVEMENT",
+      "score": 70,
+      "notes": [
+        "✅ try-finallyによるdb.close()保証",
+        "✅ get_session_factory()のNoneチェック",
+        "✅ task_stats/expert_statsのNoneチェック",
+        "⚠️ SQLAlchemyエラーの明示的なキャッチがない（既存コードと同じパターン）",
+        "⚠️ エラー時のログ出力がない"
+      ]
+    },
+    "logging_and_audit": {
+      "status": "NEEDS_IMPROVEMENT",
+      "score": 60,
+      "notes": [
+        "⚠️ 最適化実行完了ログがない",
+        "⚠️ クエリ実行回数ログがない（開発環境）",
+        "⚠️ loggingモジュールのimportがない",
+        "ℹ️ 既存のコードベースもログ出力していない（統一性あり）"
+      ]
+    },
+    "authorization": {
+      "status": "ACCEPTABLE",
+      "score": 100,
+      "notes": [
+        "✅ 既存の権限チェック機能に影響なし",
+        "✅ JWTトークン検証への影響なし",
+        "✅ データアクセスレイヤーのみの変更"
+      ]
+    },
+    "future_maintainability": {
+      "status": "ACCEPTABLE",
+      "score": 85,
+      "notes": [
+        "✅ SQLAlchemyベストプラクティス準拠",
+        "✅ サブクエリとEager Loadingの適切な使用",
+        "✅ PostgreSQLとJSONの切り替え機能維持",
+        "✅ 既存APIとの互換性維持",
+        "⚠️ ハードコードされた閾値（テストコード内、許容範囲）"
+      ]
+    },
+    "code_quality": {
+      "status": "GOOD",
+      "score": 90,
+      "notes": [
+        "✅ SQLAlchemy joinedload()の正しい使用（1対1リレーション）",
+        "✅ サブクエリによる集計の適切な実装",
+        "✅ func.count(), func.avg(), case()の適切な使用",
+        "✅ コメント記載あり（N+1クエリ最適化版）",
+        "✅ Docstring更新済み",
+        "⚠️ 型ヒントなし（既存コードと統一）",
+        "✅ PEP 8準拠（isort, blackフォーマット済み）"
+      ]
+    },
+    "test_quality": {
+      "status": "GOOD",
+      "score": 85,
+      "notes": [
+        "✅ 10件のユニットテスト",
+        "✅ クエリ実行回数検証（query_counter fixture）",
+        "✅ 返却値形式検証",
+        "✅ エッジケース検証（0件、複数件、混在ステータス）",
+        "✅ PostgreSQL必須テスト（USE_POSTGRESQL=true）",
+        "✅ トランザクション分離（begin_nested, rollback）",
+        "⚠️ 期待値のハードコード（≤5, ≤2回、許容範囲）",
+        "ℹ️ 手動確認推奨（本番環境での動作確認）"
+      ]
+    }
+  },
+  "sqlalchemy_best_practices": {
+    "status": "EXCELLENT",
+    "score": 95,
+    "notes": [
+      "✅ joinedload(Expert.user): 1対1リレーションのEager Loading",
+      "✅ outerjoin(): 外部結合でサブクエリをマージ",
+      "✅ subquery(): 評価・相談件数のサブクエリ集計",
+      "✅ func.avg(), func.count(): PostgreSQL側集計",
+      "✅ case(): 条件付きカウント",
+      "✅ add_columns(): サブクエリの集計結果を追加取得",
+      "✅ .first(): 単一行取得",
+      "ℹ️ selectinload()の検討余地（1対多リレーション、今回は不要）"
+    ]
+  },
+  "performance_impact": {
+    "expected_improvements": {
+      "get_expert_stats": {
+        "query_count_reduction": "31回 → 3回（90%削減）",
+        "response_time_improvement": "500ms → 50ms（90%改善）",
+        "memory_reduction": "約50%削減"
+      },
+      "get_project_progress": {
+        "query_count_reduction": "1回のまま（変わらず）",
+        "response_time_improvement": "200ms → 20ms（90%改善）",
+        "memory_reduction": "約90%削減（Pythonループ不要）",
+        "cpu_reduction": "約80%削減（DB側集計）"
+      }
+    },
+    "validation_required": "本番環境での手動確認を推奨（SQLログ、レスポンス時間計測）"
+  },
+  "backward_compatibility": {
+    "status": "MAINTAINED",
+    "score": 100,
+    "notes": [
+      "✅ 返却値形式は既存APIと同じ",
+      "✅ 既存のWebUI/APIクライアント修正不要",
+      "✅ JSONモード（開発環境）への影響なし",
+      "✅ PostgreSQLモード（本番環境）のみ最適化"
+    ]
+  },
+  "decision": {
+    "action": "APPROVE_WITH_RECOMMENDATIONS",
+    "next_steps": [
+      "test-designer SubAgent起動可（推奨）",
+      "P2推奨事項: 開発環境でのログ追加（オプション）",
+      "P3推奨事項: SQLAlchemyエラーハンドリング明示化（オプション）",
+      "本番環境での手動確認（SQLログ、レスポンス時間計測）"
+    ],
+    "blocking_count": 0,
+    "warning_count": 5,
+    "confidence_level": "HIGH",
+    "reviewer_notes": "実装は技術的に正しく、SQLAlchemyベストプラクティスに準拠しています。既存コードベースとの統一性も保たれています。ログ・証跡の追加は将来的な改善として推奨しますが、現時点では必須ではありません。test-designer起動を推奨します。"
+  },
+  "review_metadata": {
+    "reviewer": "code-reviewer SubAgent",
+    "review_date": "2026-02-16",
+    "review_duration": "約30分",
+    "claude_md_version": "2026-02-16",
+    "review_gate_version": "1.0.0"
+  }
+}

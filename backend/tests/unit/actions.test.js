@@ -6,6 +6,15 @@
 const fs = require('fs');
 const path = require('path');
 
+// loggerモック（actions.jsが使用）
+// logger.logはconsole.logに転送することでjest.spyOn(console, 'log')で検証可能にする
+global.logger = {
+  error: (...args) => console.error(...args),
+  warn: (...args) => console.warn(...args),
+  info: (...args) => console.info(...args),
+  log: (...args) => console.log(...args)
+};
+
 // テスト対象のファイルを読み込み
 const actionsCode = fs.readFileSync(
   path.join(__dirname, '../../../webui/actions.js'),
@@ -122,10 +131,13 @@ describe('Actions - Toast Notifications', () => {
 describe('Actions - Distribution', () => {
   beforeEach(() => {
     jest.spyOn(console, 'log').mockImplementation();
+    // submitDistribution はconfirmダイアログを使うためモック（trueを返す）
+    global.confirm = jest.fn(() => true);
   });
 
   afterEach(() => {
     console.log.mockRestore();
+    delete global.confirm;
   });
 
   describe('submitDistribution', () => {
