@@ -1,0 +1,413 @@
+{
+  "result": "PASS_WITH_WARNINGS",
+  "summary": "test-designer SubAgentによるテスト設計は、ユニット・統合・E2Eの3層テストを網羅し、code-reviewerの指摘に対する適切な対応テストケースが含まれています。パフォーマンス検証・異常系・エッジケースの観点も十分に考慮されており、実装可能性も高いと評価できます。ただし、いくつかの環境依存性とエッジケースの見落としがあり、改善推奨事項を提示します。",
+  "test_coverage_score": 90,
+  "edge_case_score": 85,
+  "performance_test_score": 92,
+  "test_data_score": 88,
+  "blocking_issues": [],
+  "warnings": [
+    {
+      "severity": "MEDIUM",
+      "category": "エッジケース",
+      "location": "E2_N+1_TEST_DESIGN.md - Test Case #13",
+      "issue": "Test Case #3 (test_get_expert_stats_zero_experts) との重複可能性",
+      "recommendation": "Test Case #13 (test_get_expert_stats_empty_database) は、全テーブルが空である点を明示的に検証するため有用ですが、Test Case #3と機能的に重複する可能性があります。両者の差分を明確化するか、統合を検討してください。"
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "エッジケース",
+      "location": "E2_N+1_TEST_DESIGN.md - 同時アクセス・競合テスト",
+      "issue": "同時アクセス時の競合テスト（Race Condition）が不足",
+      "recommendation": "複数ユーザーが同時に専門家統計を取得した際の競合状態（Race Condition）をテストするケースの追加を推奨します。PostgreSQLのトランザクション分離レベル（READ COMMITTED）を前提とした競合テストを実施してください。"
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "パフォーマンステスト",
+      "location": "E2_N+1_TEST_DESIGN.md - Test Case #16",
+      "issue": "環境別閾値が未設定（開発・CI・本番環境）",
+      "recommendation": "レスポンス時間閾値（現在: 開発環境100ms）は環境依存です。CI環境（200ms）、本番環境（50ms）の閾値を環境変数 `RESPONSE_TIME_THRESHOLD_MS` で設定可能にすることを推奨します。"
+    },
+    {
+      "severity": "LOW",
+      "category": "テストデータ",
+      "location": "E2_N+1_TEST_DESIGN.md - データセット2",
+      "issue": "大量データ定義が本番環境と乖離している可能性",
+      "recommendation": "データセット2（専門家50人×評価20件×相談10件 = 1,550件）は、本番環境の実データ規模と乖離している可能性があります。本番環境の実データ規模（例: 専門家100人×評価50件×相談30件）でのベンチマークテストも検討してください。"
+    },
+    {
+      "severity": "LOW",
+      "category": "E2Eテスト",
+      "location": "E2_N+1_TEST_DESIGN.md - Test Case #23",
+      "issue": "WebSocket/SSE依存性が明確でない",
+      "recommendation": "Test Case #23（プロジェクト進捗のリアルタイム更新）はWebSocket/SSE機能の実装状態に依存します。未実装の場合は `pytest.skip()` でスキップする明示的な記載がありますが、実装状態の事前確認が必要です。"
+    },
+    {
+      "severity": "LOW",
+      "category": "統合テスト",
+      "location": "E2_N+1_TEST_DESIGN.md - Test Case #20",
+      "issue": "Feature Flag（ENABLE_QUERY_OPTIMIZATION）の未実装",
+      "recommendation": "Test Case #20（フォールバック検証）に必要なFeature Flag `ENABLE_QUERY_OPTIMIZATION` が未実装の可能性があります。実装状態を確認し、未実装の場合は実装スキップまたは環境変数での代替を検討してください。"
+    }
+  ],
+  "recommended_improvements": [
+    {
+      "priority": "P1",
+      "category": "エッジケース",
+      "issue": "同時アクセス時の競合テストが不足",
+      "recommendation": "Test Case #17（統合テスト）に、複数スレッドから同時に `GET /api/v1/experts/stats` を呼び出すテストを追加してください。pytest-xdist の並列実行機能を活用し、競合状態を検証してください。"
+    },
+    {
+      "priority": "P2",
+      "category": "パフォーマンステスト",
+      "issue": "環境別閾値設定が未実装",
+      "recommendation": "環境変数 `RESPONSE_TIME_THRESHOLD_MS` を導入し、環境別にレスポンス時間閾値を設定可能にしてください。CI環境では200ms、本番環境では50msに設定することを推奨します。"
+    },
+    {
+      "priority": "P2",
+      "category": "テストデータ",
+      "issue": "本番環境規模のベンチマークテスト不足",
+      "recommendation": "データセット3として、本番環境規模のデータセット（専門家100人×評価50件×相談30件 = 5,100件）を追加し、大規模データでのパフォーマンステストを実施してください。"
+    },
+    {
+      "priority": "P3",
+      "category": "テストケース重複",
+      "issue": "Test Case #3 と #13 の機能的重複",
+      "recommendation": "Test Case #13 の差分（全テーブルが空）を明示的に記載するか、Test Case #3 に統合してください。現状では、両者の差分が不明確です。"
+    },
+    {
+      "priority": "P3",
+      "category": "E2Eテスト",
+      "issue": "Lighthouse スコア取得方法が未記載",
+      "recommendation": "Test Case #22（E2Eテスト）で Lighthouse Performance スコア 90+ を検証する場合、Playwright Lighthouse Plugin の使用方法を具体的に記載してください。"
+    }
+  ],
+  "overall_score": 88,
+  "review_details": {
+    "test_coverage": {
+      "status": "EXCELLENT",
+      "score": 90,
+      "notes": [
+        "✅ ユニットテスト: 15件（既存10 + 追加5）、カバレッジ目標95%",
+        "✅ 統合テスト: 5件（新規）、API・認証・フォールバック・後方互換性網羅",
+        "✅ E2Eテスト: 3件（新規）、ページ読み込み・リアルタイム更新・大量データ",
+        "✅ 正常系カバレッジ: 80%以上（優秀）",
+        "✅ 異常系カバレッジ: 50%以上（良好）",
+        "✅ 境界値カバレッジ: 30%以上（良好）",
+        "⚠️ 競合テスト（Race Condition）が不足"
+      ]
+    },
+    "edge_case_coverage": {
+      "status": "GOOD",
+      "score": 85,
+      "notes": [
+        "✅ 0件データテスト: Test Case #3, #11, #13",
+        "✅ NULL値テスト: Test Case #15（progress_percentage=NULL）",
+        "✅ 存在しないID: Test Case #14（project_id=9999）",
+        "✅ DB接続エラー: Test Case #12",
+        "✅ 空データベース: Test Case #13",
+        "⚠️ 同時アクセス時の競合（Race Condition）が不足",
+        "⚠️ タイムアウト時の挙動テストが不足（オプション）",
+        "ℹ️ 大量データエッジケース: データセット2（50人×20件×10件 = 1,550件）"
+      ]
+    },
+    "performance_test_design": {
+      "status": "EXCELLENT",
+      "score": 92,
+      "notes": [
+        "✅ クエリ実行回数検証: Test Case #1, #7, #16（≤3回, ≤2回）",
+        "✅ レスポンス時間計測: Test Case #16（< 100ms）",
+        "✅ パフォーマンスベンチマーク: 専門家10人・50人・100人での比較",
+        "✅ メモリ使用量削減: 約50%削減（期待値）",
+        "✅ Lighthouse Performance スコア: Test Case #22（90+）",
+        "⚠️ 環境別閾値設定が未実装（開発・CI・本番）",
+        "⚠️ ハードウェア依存性の考慮が不足（CPU・メモリ性能）",
+        "ℹ️ リグレッション検出: query_counter fixtureによる自動検出"
+      ]
+    },
+    "test_data_design": {
+      "status": "GOOD",
+      "score": 88,
+      "notes": [
+        "✅ データセット1: 専門家10人×評価5件×相談3件 = 90件（標準）",
+        "✅ データセット2: 専門家50人×評価20件×相談10件 = 1,550件（大量データ）",
+        "✅ データセット3: プロジェクト1件、タスク10件（進捗率30%）",
+        "✅ データ生成スクリプト: generate_test_data.py（オプション）",
+        "✅ セットアップ/ティアダウン手順: トランザクション分離（rollback）",
+        "⚠️ 本番環境との差異: データセット2が本番環境規模（100人×50件×30件）より小さい",
+        "ℹ️ データ分布の現実性: 専門分野5種、経験年数5-14年"
+      ]
+    },
+    "test_execution_plan": {
+      "status": "GOOD",
+      "score": 85,
+      "notes": [
+        "✅ Phase 1: ユニットテスト実装（2日間、Week 1）",
+        "✅ Phase 2: 統合テスト実装（3日間、Week 1-2）",
+        "✅ Phase 3: E2Eテスト実装（2日間、Week 2）",
+        "✅ 実装順序の妥当性: ユニット → 統合 → E2E",
+        "✅ 並列実行可能性: pytest-xdist 対応",
+        "✅ CI/CD統合容易性: GitHub Actions 統合予定",
+        "⚠️ 実装期間が楽観的（合計7日間、実際は10日程度必要の可能性）",
+        "ℹ️ 成功基準: 23件すべてPASS、カバレッジ93%以上"
+      ]
+    },
+    "code_reviewer_response": {
+      "status": "EXCELLENT",
+      "score": 95,
+      "notes": [
+        "✅ Warning #1（例外処理）への対応: Test Case #12（DB接続エラー時の例外処理検証）",
+        "✅ Warning #2（ログ・証跡）への対応: Test Case #16（パフォーマンス統計ログ出力検証）",
+        "✅ Warning #3（loggingモジュール）への対応: 既存コードベース統一性優先（現状維持）",
+        "✅ Warning #4（閾値ハードコード）への対応: 環境変数化オプション提示",
+        "✅ すべてのWarningに対応テストケース設計済み",
+        "ℹ️ code-reviewerのrecommended_fixesに沿った設計"
+      ]
+    },
+    "implementation_feasibility": {
+      "status": "EXCELLENT",
+      "score": 90,
+      "notes": [
+        "✅ 既存テストフレームワーク活用: pytest 9.0.0 + pytest-cov",
+        "✅ 既存fixture活用: query_counter, db_session, mock_session_factory",
+        "✅ Playwright 1.57.0 対応: E2Eテスト実装可能",
+        "✅ 実装例コード記載: 23件すべてのテストケースに実装例あり",
+        "✅ トランザクション分離: begin_nested, rollback による独立性保証",
+        "⚠️ Playwright Lighthouse Plugin: 追加インストール必要の可能性",
+        "⚠️ Feature Flag（ENABLE_QUERY_OPTIMIZATION）: 未実装の可能性",
+        "⚠️ WebSocket/SSE: 未実装の場合はTest Case #23スキップ"
+      ]
+    },
+    "documentation_quality": {
+      "status": "EXCELLENT",
+      "score": 95,
+      "notes": [
+        "✅ テスト設計書: 約100ページ（E2_N+1_TEST_DESIGN.md）",
+        "✅ テストケース仕様書: 約50ページ（E2_TEST_CASES_SPEC.md）",
+        "✅ サマリーレポート: 約16KB（E2_TEST_DESIGN_SUMMARY.md）",
+        "✅ 実装例コード: 23件すべてに記載",
+        "✅ パフォーマンスベンチマーク: 詳細な数値目標",
+        "✅ リスクと対策: 3つのリスク（環境準備遅延、E2E不安定性、基準曖昧）",
+        "✅ 参考資料: 技術ドキュメント、プロジェクト内部資料、過去の参照実装",
+        "✅ 完了基準（DoD）: 明確な定義",
+        "ℹ️ 総ページ数: 約150ページ"
+      ]
+    }
+  },
+  "specific_test_case_feedback": {
+    "test_case_12": {
+      "status": "GOOD",
+      "notes": [
+        "✅ DB接続エラー時の例外処理検証（code-reviewer Warning #1対応）",
+        "✅ RuntimeError/ConnectionError の両方を期待（適切）",
+        "✅ db.close() 実行確認（finallyブロック検証）",
+        "⚠️ get_session_factory() モック方法が未記載（実装時に要確認）",
+        "ℹ️ 優先度P1（高）は妥当"
+      ]
+    },
+    "test_case_13": {
+      "status": "ACCEPTABLE",
+      "notes": [
+        "✅ 空データベース時の挙動検証",
+        "⚠️ Test Case #3 (test_get_expert_stats_zero_experts) との差分が不明確",
+        "⚠️ 「全テーブルが空」を明示的に検証する方法が未記載",
+        "ℹ️ 優先度P2（中）は妥当（重複の可能性あり）"
+      ]
+    },
+    "test_case_14": {
+      "status": "EXCELLENT",
+      "notes": [
+        "✅ 存在しないプロジェクトID指定時の挙動検証",
+        "✅ 0除算エラー（ZeroDivisionError）防止確認",
+        "✅ デフォルト値返却（total_tasks=0, progress_percentage=0）",
+        "✅ NULL処理の適切性検証",
+        "ℹ️ 優先度P1（高）は妥当"
+      ]
+    },
+    "test_case_15": {
+      "status": "EXCELLENT",
+      "notes": [
+        "✅ progress_percentage が NULL の場合の集計検証",
+        "✅ COALESCE(progress_percentage, 0) による NULL 処理確認",
+        "✅ 平均計算の正確性検証（(0 + 50) / 2 = 25）",
+        "✅ SQLエラー発生しないことの確認",
+        "ℹ️ 優先度P2（中）は妥当"
+      ]
+    },
+    "test_case_16": {
+      "status": "EXCELLENT",
+      "notes": [
+        "✅ 専門家10人時のパフォーマンス検証（code-reviewer Warning #2対応）",
+        "✅ クエリ実行回数 ≤3回 検証",
+        "✅ レスポンス時間 < 100ms 検証",
+        "✅ パフォーマンス統計ログ出力検証（print文）",
+        "✅ メモリリークなし確認",
+        "⚠️ 環境別閾値設定が未実装（開発・CI・本番）",
+        "ℹ️ 優先度P0（最高）は妥当"
+      ]
+    },
+    "test_case_17": {
+      "status": "EXCELLENT",
+      "notes": [
+        "✅ GET /api/v1/experts/stats エンドポイントの正常動作検証",
+        "✅ JWT認証トークン取得フロー",
+        "✅ HTTP 200 OK 検証",
+        "✅ JSON形式レスポンス検証",
+        "✅ 統計データ正確性検証",
+        "✅ レスポンス時間 < 200ms 検証",
+        "ℹ️ 優先度P0（最高）は妥当"
+      ]
+    },
+    "test_case_18": {
+      "status": "EXCELLENT",
+      "notes": [
+        "✅ GET /api/v1/projects/{id}/progress エンドポイントの正常動作検証",
+        "✅ 進捗率計算正確性検証（30%）",
+        "✅ ステータス別カウント正確性検証",
+        "✅ レスポンス時間 < 100ms 検証",
+        "ℹ️ 優先度P0（最高）は妥当"
+      ]
+    },
+    "test_case_19": {
+      "status": "EXCELLENT",
+      "notes": [
+        "✅ JWT認証なしアクセス時の401エラー検証",
+        "✅ HTTP 401 Unauthorized 検証",
+        "✅ エラーメッセージ明確性検証",
+        "ℹ️ 優先度P1（高）は妥当"
+      ]
+    },
+    "test_case_20": {
+      "status": "NEEDS_CLARIFICATION",
+      "notes": [
+        "✅ 最適化失敗時の既存実装フォールバック検証",
+        "✅ エラーログ出力確認",
+        "✅ ユーザー影響なし確認",
+        "⚠️ Feature Flag（ENABLE_QUERY_OPTIMIZATION）が未実装の可能性",
+        "⚠️ フォールバック実装（get_expert_stats_fallback）が存在するか不明",
+        "⚠️ 実装状態の事前確認が必要",
+        "ℹ️ 優先度P2（中）は妥当（Feature Flag依存）"
+      ]
+    },
+    "test_case_21": {
+      "status": "GOOD",
+      "notes": [
+        "✅ JSONモード（開発環境）での後方互換性検証",
+        "✅ use_postgresql=False 検証",
+        "✅ 既存実装で正常動作確認",
+        "✅ PostgreSQLモードと独立確認",
+        "ℹ️ 優先度P2（中）は妥当"
+      ]
+    },
+    "test_case_22": {
+      "status": "GOOD",
+      "notes": [
+        "✅ 専門家統計ページの読み込み速度検証",
+        "✅ ページ読み込み時間 < 1秒 検証",
+        "✅ Lighthouse Performance スコア 90+ 検証",
+        "✅ UI要素表示確認（table.expert-stats-table）",
+        "⚠️ Playwright Lighthouse Plugin の使用方法が未記載",
+        "ℹ️ 優先度P1（高）は妥当"
+      ]
+    },
+    "test_case_23": {
+      "status": "NEEDS_CLARIFICATION",
+      "notes": [
+        "✅ プロジェクト進捗のリアルタイム更新検証",
+        "✅ リロードなしで更新確認（30% → 40%）",
+        "✅ 更新時間 < 2秒 検証",
+        "✅ WebSocket/SSE通知受信確認",
+        "⚠️ WebSocket/SSE機能の実装状態が不明",
+        "⚠️ 未実装の場合はpytest.skip()でスキップ（記載あり）",
+        "⚠️ 実装状態の事前確認が必要",
+        "ℹ️ 優先度P2（中）は妥当（WebSocket/SSE依存）"
+      ]
+    },
+    "test_case_24": {
+      "status": "EXCELLENT",
+      "notes": [
+        "✅ 大量データ時のパフォーマンス検証",
+        "✅ 専門家50人×評価20件×相談10件 = 1,550件",
+        "✅ ページ読み込み時間 < 2秒 検証",
+        "✅ 50人全員表示確認",
+        "✅ UIフリーズなし確認",
+        "⚠️ 本番環境規模（100人×50件×30件 = 5,100件）でのテストも推奨",
+        "ℹ️ 優先度P1（高）は妥当"
+      ]
+    }
+  },
+  "missing_test_cases": {
+    "critical": [],
+    "recommended": [
+      {
+        "test_id": "TC-INT-006",
+        "name": "test_concurrent_access_race_condition",
+        "purpose": "複数スレッドからの同時アクセス時の競合検証",
+        "priority": "P1",
+        "reason": "PostgreSQLトランザクション分離レベル（READ COMMITTED）での競合状態を検証することで、本番環境での安定性を保証できます。"
+      },
+      {
+        "test_id": "TC-UNIT-017",
+        "name": "test_get_expert_stats_timeout",
+        "purpose": "クエリタイムアウト時の挙動検証",
+        "priority": "P2",
+        "reason": "DB負荷が高い状態でのタイムアウト処理を検証することで、エラーハンドリングの堅牢性を保証できます。"
+      },
+      {
+        "test_id": "TC-E2E-004",
+        "name": "test_e2e_production_scale_performance",
+        "purpose": "本番環境規模（100人×50件×30件 = 5,100件）でのパフォーマンス検証",
+        "priority": "P2",
+        "reason": "本番環境の実データ規模でのパフォーマンステストにより、本番デプロイ後のリグレッションを防止できます。"
+      }
+    ]
+  },
+  "decision": {
+    "action": "APPROVE_WITH_RECOMMENDATIONS",
+    "next_steps": [
+      "テスト実装開始可（PASS_WITH_WARNINGS）",
+      "P1推奨事項: 同時アクセス時の競合テスト追加",
+      "P2推奨事項: 環境別閾値設定（RESPONSE_TIME_THRESHOLD_MS）",
+      "P2推奨事項: 本番環境規模のベンチマークテスト追加",
+      "P3推奨事項: Test Case #3 と #13 の差分明確化または統合",
+      "Feature Flag（ENABLE_QUERY_OPTIMIZATION）実装状態確認",
+      "WebSocket/SSE機能の実装状態確認"
+    ],
+    "blocking_count": 0,
+    "warning_count": 6,
+    "confidence_level": "HIGH",
+    "reviewer_notes": "test-designer SubAgentによるテスト設計は非常に優秀です。ユニット・統合・E2Eの3層テストを網羅し、code-reviewerの指摘に対する適切な対応テストケースが含まれています。パフォーマンス検証・異常系・エッジケースの観点も十分に考慮されており、実装可能性も高いと評価できます。ただし、同時アクセス時の競合テスト不足、環境別閾値設定の未実装、本番環境規模のベンチマークテスト不足など、いくつかの改善推奨事項があります。これらは非ブロッキング事項のため、テスト実装開始を承認します（PASS_WITH_WARNINGS）。"
+  },
+  "comparison_with_past_phases": {
+    "phase_d3_mfa": {
+      "test_count": "19件（ユニットテスト）",
+      "coverage": "90%以上",
+      "notes": "Phase E-2は23件（ユニット15 + 統合5 + E2E3）でより包括的"
+    },
+    "phase_d4_ms365": {
+      "test_count": "34件（ユニット16 + 統合18）",
+      "coverage": "90%以上",
+      "notes": "Phase E-2はE2Eテスト3件を追加し、より実践的"
+    },
+    "phase_d5_pwa": {
+      "test_count": "11件（E2Eテスト）",
+      "coverage": "73%（8/11件成功）",
+      "notes": "Phase E-2はユニット・統合テストを重視し、安定性が高い"
+    },
+    "overall_assessment": "Phase E-2のテスト設計は、過去のPhase D-3〜D-5と同等以上の品質を維持しています。3層テスト（ユニット・統合・E2E）のバランスが良く、実装可能性も高いと評価できます。"
+  },
+  "review_metadata": {
+    "reviewer": "test-reviewer SubAgent",
+    "review_date": "2026-02-16",
+    "review_duration": "約60分",
+    "claude_md_version": "2026-02-16",
+    "review_gate_version": "1.0.0",
+    "test_design_version": "1.0.0",
+    "documents_reviewed": [
+      "E2_N+1_TEST_DESIGN.md (約100ページ)",
+      "E2_TEST_CASES_SPEC.md (約50ページ)",
+      "E2_TEST_DESIGN_SUMMARY.md (約16KB)",
+      "E2_code_review.json (code-reviewerレビューレポート)"
+    ]
+  }
+}

@@ -783,9 +783,31 @@
   <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
   <!-- QRCode.js CDN (MFA用) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="app.js?v=20260112193018"></script>
+
+  <!-- ES6 Modules (Phase E-1: Frontend Modularization v1.5.0) -->
+  <!-- Week 2: Core Modules -->
+  <script type="module" src="core/state-manager.js?v=20260216"></script>
+  <script type="module" src="core/auth.js?v=20260216"></script>
+  <script type="module" src="api/client.js?v=20260216"></script>
+
+  <!-- Week 3: UI Modules -->
+  <script type="module" src="ui/dom-utils.js?v=20260216"></script>
+  <script type="module" src="ui/components-basic.js?v=20260216"></script>
+  <script type="module" src="ui/components-advanced.js?v=20260216"></script>
+  <script type="module" src="ui/modal.js?v=20260216"></script>
+  <script type="module" src="ui/notification.js?v=20260216"></script>
+
+  <!-- Week 4: Table & Validators Modules -->
+  <script type="module" src="ui/table.js?v=20260216"></script>
+  <script type="module" src="utils/validators.js?v=20260216"></script>
+
+  <!-- Main Application -->
+  <script type="module" src="app.js?v=20260216"></script>
+
+  <!-- Legacy Scripts (Non-module) -->
   <script src="notifications.js?v=20260112193018"></script>
   <script src="actions.js?v=20260112193018"></script>
+
   <!-- PWA Modules -->
   <script src="/pwa/crypto-helper.js"></script>
   <script src="/pwa/cache-manager.js"></script>
