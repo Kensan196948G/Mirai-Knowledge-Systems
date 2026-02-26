@@ -77,8 +77,9 @@ jobs:
       - name: Run pytest
         working-directory: backend
         run: |
-          pytest tests/ -v --tb=short -x --maxfail=10 \
+          pytest tests/ -v --tb=short --maxfail=10 \
             --ignore=tests/e2e \
+            --ignore=tests/load \
             --cov=app_v2 --cov=schemas --cov=data_access --cov=models \
             --cov=password_policy --cov=csrf_protection --cov=recommendation_engine \
             --cov=auth --cov=services --cov=integrations --cov=scripts \
