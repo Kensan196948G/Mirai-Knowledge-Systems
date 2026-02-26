@@ -256,8 +256,8 @@ class AuthManager {
     // 管理者は常に編集可
     if (this.checkPermission('admin')) return true;
 
-    // 作成者本人も編集可
-    return user.id === creatorId || user.username === creatorId;
+    // 作成者本人も編集可（data-creator属性はstring、user.idはnumberの場合を考慮）
+    return String(user.id) === String(creatorId) || user.username === creatorId;
   }
 
   /**
