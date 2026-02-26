@@ -75,35 +75,89 @@ function shareConsult() {
 
 /**
  * 共有モーダルを作成
+ * XSS対策: DOM API使用（insertAdjacentHTML完全排除）
  */
 function createShareConsultModal() {
-  const modalHTML = `
-    <div id="shareConsultModal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>相談を共有</h2>
-          <button class="modal-close" onclick="closeShareConsultModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="field">
-            <label>URL</label>
-            <input type="text" id="shareConsultUrl" readonly style="background: #f5f5f5;">
-            <button class="cta ghost" onclick="copyShareConsultUrl()" style="margin-top: 8px;">📋 URLをコピー</button>
-          </div>
-          <div class="field" style="margin-top: 20px;">
-            <label>共有方法を選択</label>
-            <div style="display: grid; gap: 10px; margin-top: 10px;">
-              <button class="cta ghost" onclick="shareConsultViaEmail()">📧 メールで共有</button>
-              <button class="cta ghost" onclick="shareConsultViaSlack()">💬 Slackで共有</button>
-              <button class="cta ghost" onclick="shareConsultViaTeams()">👥 Teamsで共有</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  // DOMHelperを使用（window.DOMHelperとしてグローバルに利用可能）
+  const modal = window.DOMHelper.createElement('div', {
+    id: 'shareConsultModal',
+    class: 'modal',
+    style: { display: 'none' }
+  });
 
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  const content = window.DOMHelper.createElement('div', { class: 'modal-content' });
+
+  // ヘッダー
+  const header = window.DOMHelper.createElement('div', { class: 'modal-header' });
+  const title = window.DOMHelper.createElement('h2', {}, '相談を共有');
+  const closeBtn = window.DOMHelper.createElement('button', {
+    class: 'modal-close',
+    onclick: 'closeShareConsultModal()'
+  }, '×');
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  // ボディ
+  const body = window.DOMHelper.createElement('div', { class: 'modal-body' });
+
+  // URLフィールド
+  const urlField = window.DOMHelper.createElement('div', { class: 'field' });
+  const urlLabel = window.DOMHelper.createElement('label', {}, 'URL');
+  const urlInput = window.DOMHelper.createElement('input', {
+    type: 'text',
+    id: 'shareConsultUrl',
+    readonly: true,
+    style: { background: '#f5f5f5' }
+  });
+  const copyBtn = window.DOMHelper.createElement('button', {
+    class: 'cta ghost',
+    onclick: 'copyShareConsultUrl()',
+    style: { marginTop: '8px' }
+  }, '📋 URLをコピー');
+  urlField.appendChild(urlLabel);
+  urlField.appendChild(urlInput);
+  urlField.appendChild(copyBtn);
+
+  // 共有方法フィールド
+  const shareField = window.DOMHelper.createElement('div', {
+    class: 'field',
+    style: { marginTop: '20px' }
+  });
+  const shareLabel = window.DOMHelper.createElement('label', {}, '共有方法を選択');
+  const shareButtons = window.DOMHelper.createElement('div', {
+    style: { display: 'grid', gap: '10px', marginTop: '10px' }
+  });
+  const emailBtn = window.DOMHelper.createElement('button', {
+    class: 'cta ghost',
+    onclick: 'shareConsultViaEmail()'
+  }, '📧 メールで共有');
+  const slackBtn = window.DOMHelper.createElement('button', {
+    class: 'cta ghost',
+    onclick: 'shareConsultViaSlack()'
+  }, '💬 Slackで共有');
+  const teamsBtn = window.DOMHelper.createElement('button', {
+    class: 'cta ghost',
+    onclick: 'shareConsultViaTeams()'
+  }, '👥 Teamsで共有');
+  shareButtons.appendChild(emailBtn);
+  shareButtons.appendChild(slackBtn);
+  shareButtons.appendChild(teamsBtn);
+  shareField.appendChild(shareLabel);
+  shareField.appendChild(shareButtons);
+
+  // ボディ組み立て
+  body.appendChild(urlField);
+  body.appendChild(shareField);
+
+  // コンテンツ組み立て
+  content.appendChild(header);
+  content.appendChild(body);
+
+  // モーダル組み立て
+  modal.appendChild(content);
+
+  // DOM追加（セキュア）
+  document.body.appendChild(modal);
 }
 
 /**
@@ -181,61 +235,141 @@ function editConsult() {
 
 /**
  * 編集モーダルを作成
+ * XSS対策: DOM API使用（insertAdjacentHTML完全排除）
  */
 function createEditConsultModal(consult) {
   const existingModal = document.getElementById('editConsultModal');
   if (existingModal) existingModal.remove();
 
-  const modalHTML = `
-    <div id="editConsultModal" class="modal" style="display: flex;">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>相談を編集</h2>
-          <button class="modal-close" onclick="closeEditConsultModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form id="editConsultForm">
-            <div class="field">
-              <label>タイトル <span class="required">*</span></label>
-              <input type="text" id="editConsultTitle" value="${escapeHtml(consult.title)}" required>
-            </div>
-            <div class="field">
-              <label>カテゴリ <span class="required">*</span></label>
-              <select id="editConsultCategory" required>
-                <option value="技術相談" ${consult.category === '技術相談' ? 'selected' : ''}>技術相談</option>
-                <option value="安全対策" ${consult.category === '安全対策' ? 'selected' : ''}>安全対策</option>
-                <option value="品質管理" ${consult.category === '品質管理' ? 'selected' : ''}>品質管理</option>
-                <option value="工程計画" ${consult.category === '工程計画' ? 'selected' : ''}>工程計画</option>
-                <option value="その他" ${consult.category === 'その他' ? 'selected' : ''}>その他</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>優先度 <span class="required">*</span></label>
-              <select id="editConsultPriority" required>
-                <option value="緊急" ${consult.priority === '緊急' ? 'selected' : ''}>緊急</option>
-                <option value="高" ${consult.priority === '高' ? 'selected' : ''}>高</option>
-                <option value="通常" ${consult.priority === '通常' ? 'selected' : ''}>通常</option>
-                <option value="低" ${consult.priority === '低' ? 'selected' : ''}>低</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>相談内容 <span class="required">*</span></label>
-              <textarea id="editConsultContent" rows="6" required>${escapeHtml(consult.content)}</textarea>
-            </div>
-            <div class="modal-actions">
-              <button type="button" class="cta ghost" onclick="closeEditConsultModal()">キャンセル</button>
-              <button type="submit" class="cta">保存</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  `;
+  // DOMHelperを使用
+  const modal = window.DOMHelper.createElement('div', {
+    id: 'editConsultModal',
+    class: 'modal',
+    style: { display: 'flex' }
+  });
 
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  const content = window.DOMHelper.createElement('div', { class: 'modal-content' });
+
+  // ヘッダー
+  const header = window.DOMHelper.createElement('div', { class: 'modal-header' });
+  const title = window.DOMHelper.createElement('h2', {}, '相談を編集');
+  const closeBtn = window.DOMHelper.createElement('button', {
+    class: 'modal-close',
+    onclick: 'closeEditConsultModal()'
+  }, '×');
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  // ボディ
+  const body = window.DOMHelper.createElement('div', { class: 'modal-body' });
+  const form = window.DOMHelper.createElement('form', { id: 'editConsultForm' });
+
+  // タイトルフィールド
+  const titleField = window.DOMHelper.createElement('div', { class: 'field' });
+  const titleLabel = window.DOMHelper.createElement('label', {});
+  titleLabel.appendChild(document.createTextNode('タイトル '));
+  const titleRequired = window.DOMHelper.createElement('span', { class: 'required' }, '*');
+  titleLabel.appendChild(titleRequired);
+  const titleInput = window.DOMHelper.createElement('input', {
+    type: 'text',
+    id: 'editConsultTitle',
+    value: consult.title, // textContentで設定されるため自動エスケープ
+    required: true
+  });
+  titleField.appendChild(titleLabel);
+  titleField.appendChild(titleInput);
+
+  // カテゴリフィールド
+  const categoryField = window.DOMHelper.createElement('div', { class: 'field' });
+  const categoryLabel = window.DOMHelper.createElement('label', {});
+  categoryLabel.appendChild(document.createTextNode('カテゴリ '));
+  const categoryRequired = window.DOMHelper.createElement('span', { class: 'required' }, '*');
+  categoryLabel.appendChild(categoryRequired);
+  const categorySelect = window.DOMHelper.createElement('select', {
+    id: 'editConsultCategory',
+    required: true
+  });
+  ['技術相談', '安全対策', '品質管理', '工程計画', 'その他'].forEach(cat => {
+    const option = window.DOMHelper.createElement('option', {
+      value: cat,
+      selected: consult.category === cat
+    }, cat);
+    categorySelect.appendChild(option);
+  });
+  categoryField.appendChild(categoryLabel);
+  categoryField.appendChild(categorySelect);
+
+  // 優先度フィールド
+  const priorityField = window.DOMHelper.createElement('div', { class: 'field' });
+  const priorityLabel = window.DOMHelper.createElement('label', {});
+  priorityLabel.appendChild(document.createTextNode('優先度 '));
+  const priorityRequired = window.DOMHelper.createElement('span', { class: 'required' }, '*');
+  priorityLabel.appendChild(priorityRequired);
+  const prioritySelect = window.DOMHelper.createElement('select', {
+    id: 'editConsultPriority',
+    required: true
+  });
+  ['緊急', '高', '通常', '低'].forEach(pri => {
+    const option = window.DOMHelper.createElement('option', {
+      value: pri,
+      selected: consult.priority === pri
+    }, pri);
+    prioritySelect.appendChild(option);
+  });
+  priorityField.appendChild(priorityLabel);
+  priorityField.appendChild(prioritySelect);
+
+  // 相談内容フィールド
+  const contentField = window.DOMHelper.createElement('div', { class: 'field' });
+  const contentLabel = window.DOMHelper.createElement('label', {});
+  contentLabel.appendChild(document.createTextNode('相談内容 '));
+  const contentRequired = window.DOMHelper.createElement('span', { class: 'required' }, '*');
+  contentLabel.appendChild(contentRequired);
+  const contentTextarea = window.DOMHelper.createElement('textarea', {
+    id: 'editConsultContent',
+    rows: 6,
+    required: true
+  });
+  contentTextarea.value = consult.content; // textContentで自動エスケープ
+  contentField.appendChild(contentLabel);
+  contentField.appendChild(contentTextarea);
+
+  // アクションボタン
+  const actions = window.DOMHelper.createElement('div', { class: 'modal-actions' });
+  const cancelBtn = window.DOMHelper.createElement('button', {
+    type: 'button',
+    class: 'cta ghost',
+    onclick: 'closeEditConsultModal()'
+  }, 'キャンセル');
+  const submitBtn = window.DOMHelper.createElement('button', {
+    type: 'submit',
+    class: 'cta'
+  }, '保存');
+  actions.appendChild(cancelBtn);
+  actions.appendChild(submitBtn);
+
+  // フォーム組み立て
+  form.appendChild(titleField);
+  form.appendChild(categoryField);
+  form.appendChild(priorityField);
+  form.appendChild(contentField);
+  form.appendChild(actions);
+
+  // ボディ組み立て
+  body.appendChild(form);
+
+  // コンテンツ組み立て
+  content.appendChild(header);
+  content.appendChild(body);
+
+  // モーダル組み立て
+  modal.appendChild(content);
+
+  // DOM追加（セキュア）
+  document.body.appendChild(modal);
 
   // フォーム送信イベント
-  document.getElementById('editConsultForm').addEventListener('submit', function(e) {
+  form.addEventListener('submit', function(e) {
     e.preventDefault();
     saveEditConsult(consult.id);
   });
@@ -351,66 +485,157 @@ function submitNewConsultation() {
 
 /**
  * 新規相談モーダルを作成
+ * XSS対策: DOM API使用（insertAdjacentHTML完全排除）
  */
 function createNewConsultModal() {
   const existingModal = document.getElementById('newConsultModal');
   if (existingModal) existingModal.remove();
 
-  const modalHTML = `
-    <div id="newConsultModal" class="modal" style="display: flex;">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>新規相談を作成</h2>
-          <button class="modal-close" onclick="closeNewConsultModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form id="newConsultForm">
-            <div class="field">
-              <label>タイトル <span class="required">*</span></label>
-              <input type="text" id="newConsultTitle" required placeholder="相談のタイトルを入力してください">
-            </div>
-            <div class="field">
-              <label>カテゴリ <span class="required">*</span></label>
-              <select id="newConsultCategory" required>
-                <option value="">選択してください</option>
-                <option value="技術相談">技術相談</option>
-                <option value="安全対策">安全対策</option>
-                <option value="品質管理">品質管理</option>
-                <option value="工程計画">工程計画</option>
-                <option value="その他">その他</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>優先度 <span class="required">*</span></label>
-              <select id="newConsultPriority" required>
-                <option value="通常" selected>通常</option>
-                <option value="高">高</option>
-                <option value="緊急">緊急</option>
-                <option value="低">低</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>相談内容 <span class="required">*</span></label>
-              <textarea id="newConsultContent" rows="6" required placeholder="詳細な相談内容を入力してください"></textarea>
-            </div>
-            <div class="field">
-              <label>タグ（カンマ区切り）</label>
-              <input type="text" id="newConsultTags" placeholder="例: コンクリート, 品質, 養生">
-            </div>
-            <div class="modal-actions">
-              <button type="button" class="cta ghost" onclick="closeNewConsultModal()">キャンセル</button>
-              <button type="submit" class="cta">作成</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  `;
+  // DOMHelperを使用
+  const modal = window.DOMHelper.createElement('div', {
+    id: 'newConsultModal',
+    class: 'modal',
+    style: { display: 'flex' }
+  });
 
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  const content = window.DOMHelper.createElement('div', { class: 'modal-content' });
+
+  // ヘッダー
+  const header = window.DOMHelper.createElement('div', { class: 'modal-header' });
+  const title = window.DOMHelper.createElement('h2', {}, '新規相談を作成');
+  const closeBtn = window.DOMHelper.createElement('button', {
+    class: 'modal-close',
+    onclick: 'closeNewConsultModal()'
+  }, '×');
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  // ボディ
+  const body = window.DOMHelper.createElement('div', { class: 'modal-body' });
+  const form = window.DOMHelper.createElement('form', { id: 'newConsultForm' });
+
+  // タイトルフィールド
+  const titleField = window.DOMHelper.createElement('div', { class: 'field' });
+  const titleLabel = window.DOMHelper.createElement('label', {});
+  titleLabel.appendChild(document.createTextNode('タイトル '));
+  const titleRequired = window.DOMHelper.createElement('span', { class: 'required' }, '*');
+  titleLabel.appendChild(titleRequired);
+  const titleInput = window.DOMHelper.createElement('input', {
+    type: 'text',
+    id: 'newConsultTitle',
+    required: true,
+    placeholder: '相談のタイトルを入力してください'
+  });
+  titleField.appendChild(titleLabel);
+  titleField.appendChild(titleInput);
+
+  // カテゴリフィールド
+  const categoryField = window.DOMHelper.createElement('div', { class: 'field' });
+  const categoryLabel = window.DOMHelper.createElement('label', {});
+  categoryLabel.appendChild(document.createTextNode('カテゴリ '));
+  const categoryRequired = window.DOMHelper.createElement('span', { class: 'required' }, '*');
+  categoryLabel.appendChild(categoryRequired);
+  const categorySelect = window.DOMHelper.createElement('select', {
+    id: 'newConsultCategory',
+    required: true
+  });
+  ['', '技術相談', '安全対策', '品質管理', '工程計画', 'その他'].forEach((cat, idx) => {
+    const option = window.DOMHelper.createElement('option', {
+      value: cat
+    }, cat || '選択してください');
+    categorySelect.appendChild(option);
+  });
+  categoryField.appendChild(categoryLabel);
+  categoryField.appendChild(categorySelect);
+
+  // 優先度フィールド
+  const priorityField = window.DOMHelper.createElement('div', { class: 'field' });
+  const priorityLabel = window.DOMHelper.createElement('label', {});
+  priorityLabel.appendChild(document.createTextNode('優先度 '));
+  const priorityRequired = window.DOMHelper.createElement('span', { class: 'required' }, '*');
+  priorityLabel.appendChild(priorityRequired);
+  const prioritySelect = window.DOMHelper.createElement('select', {
+    id: 'newConsultPriority',
+    required: true
+  });
+  [
+    { value: '通常', selected: true },
+    { value: '高', selected: false },
+    { value: '緊急', selected: false },
+    { value: '低', selected: false }
+  ].forEach(pri => {
+    const option = window.DOMHelper.createElement('option', {
+      value: pri.value,
+      selected: pri.selected
+    }, pri.value);
+    prioritySelect.appendChild(option);
+  });
+  priorityField.appendChild(priorityLabel);
+  priorityField.appendChild(prioritySelect);
+
+  // 相談内容フィールド
+  const contentField = window.DOMHelper.createElement('div', { class: 'field' });
+  const contentLabel = window.DOMHelper.createElement('label', {});
+  contentLabel.appendChild(document.createTextNode('相談内容 '));
+  const contentRequired = window.DOMHelper.createElement('span', { class: 'required' }, '*');
+  contentLabel.appendChild(contentRequired);
+  const contentTextarea = window.DOMHelper.createElement('textarea', {
+    id: 'newConsultContent',
+    rows: 6,
+    required: true,
+    placeholder: '詳細な相談内容を入力してください'
+  });
+  contentField.appendChild(contentLabel);
+  contentField.appendChild(contentTextarea);
+
+  // タグフィールド
+  const tagsField = window.DOMHelper.createElement('div', { class: 'field' });
+  const tagsLabel = window.DOMHelper.createElement('label', {}, 'タグ（カンマ区切り）');
+  const tagsInput = window.DOMHelper.createElement('input', {
+    type: 'text',
+    id: 'newConsultTags',
+    placeholder: '例: コンクリート, 品質, 養生'
+  });
+  tagsField.appendChild(tagsLabel);
+  tagsField.appendChild(tagsInput);
+
+  // アクションボタン
+  const actions = window.DOMHelper.createElement('div', { class: 'modal-actions' });
+  const cancelBtn = window.DOMHelper.createElement('button', {
+    type: 'button',
+    class: 'cta ghost',
+    onclick: 'closeNewConsultModal()'
+  }, 'キャンセル');
+  const submitBtn = window.DOMHelper.createElement('button', {
+    type: 'submit',
+    class: 'cta'
+  }, '作成');
+  actions.appendChild(cancelBtn);
+  actions.appendChild(submitBtn);
+
+  // フォーム組み立て
+  form.appendChild(titleField);
+  form.appendChild(categoryField);
+  form.appendChild(priorityField);
+  form.appendChild(contentField);
+  form.appendChild(tagsField);
+  form.appendChild(actions);
+
+  // ボディ組み立て
+  body.appendChild(form);
+
+  // コンテンツ組み立て
+  content.appendChild(header);
+  content.appendChild(body);
+
+  // モーダル組み立て
+  modal.appendChild(content);
+
+  // DOM追加（セキュア）
+  document.body.appendChild(modal);
 
   // フォーム送信イベント
-  document.getElementById('newConsultForm').addEventListener('submit', function(e) {
+  form.addEventListener('submit', function(e) {
     e.preventDefault();
     saveNewConsult();
   });
