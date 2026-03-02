@@ -1,0 +1,136 @@
+{
+  "result": "PASS_WITH_WARNINGS",
+  "summary": "Phase F-4（app.js/detail-pages.js分割）の実装は全体的に高品質で、ESMエクスポート、後方互換性グローバル公開、XSS対策DOM APIの一貫した使用という主要仕様要件をほぼ満たしています。ただし、HTML文字列をDOMヘルパーに渡す機能的バグと、ロガーへのハードコードIPアドレス、および複数のページファイルでの `window.logger || console` フォールバックパターン（ESMロガーの不使用）という一貫性の問題が検出されました。これらはブロッキングではありませんが、本番環境での運用前に対処することを推奨します。",
+  "blocking_issues": [],
+  "warnings": [
+    {
+      "id": "W-001",
+      "severity": "HIGH",
+      "category": "機能バグ（HTML文字列の不正処理）",
+      "file": "webui/src/pages/knowledge-detail.js, webui/src/pages/incident-detail.js, webui/src/pages/sop-detail.js",
+      "description": "createTableRowWithHTML() 関数に対して、呼び出し側がHTMLタグ文字列（例: '<button class=\"cta ghost\" onclick=\"alert(...)\">', '<span class=\"status-dot ...\">'）を渡しているが、dom-helpers.js の createTableRowWithHTML 実装は文字列に対して cell.textContent を使用しており、HTMLは解釈されずそのままプレーンテキストとして表示される。ボタンや装飾スパンが意図通りにレンダリングされない機能不全。",
+      "detail": {
+        "knowledge-detail.js_line_443": "'<button class=\"cta ghost\" onclick=\"alert(\\'バージョン表示機能は準備中です\\')\">表示</button>'",
+        "knowledge-detail.js_line_471": "'<button class=\"cta ghost\" onclick=\"viewVersion(${item.id})\">表示</button>'",
+        "incident-detail.js_line_210": "'<span class=\"status-dot ${statusClass}\"></span> ${statusText}'",
+        "incident-detail.js_line_215": "'<button class=\"cta ghost\" onclick=\"alert(...)\">'",
+        "dom-helpers.js_line_210-211": "if (typeof cellContent === 'string') { cell.textContent = cellContent; } // HTMLは解釈しない"
+      },
+      "recommended_fix": "HTMLが必要なセルは文字列ではなく HTMLElement を渡すよう変更する。例: ボタンはdocument.createElement('button')で作成し、appendChildで追加する。もしくは dom-helpers.js に innerHTML を使用しない HTMLElement生成ユーティリティを追加する。インライン onclick は使用しないこと（addEventListener を使用）。"
+    },
+    {
+      "id": "W-002",
+      "severity": "MEDIUM",
+      "category": "ロガー一貫性（ESMロガー非使用）",
+      "file": "webui/src/pages/knowledge-detail.js, webui/src/pages/incident-detail.js, webui/src/pages/page-renderer.js, webui/src/pages/sop-detail.js 等",
+      "description": "pages/ ディレクトリの複数ファイルで `const log = window.logger || console` パターンを使用しており、ESMモジュールの logger をインポートしていない。features/search.js は正しく `import { logger } from '../core/logger.js'` を使用しているが、pagesファイルはグローバル依存のフォールバックを採用している。これにより本番環境でのログ抑制が不完全になる可能性がある。",
+      "recommended_fix": "pages/ 内の全ファイルに `import { logger } from '../core/logger.js'` を追加し、`window.logger || console` フォールバックパターンを廃止する。"
+    },
+    {
+      "id": "W-003",
+      "severity": "MEDIUM",
+      "category": "ハードコードIPアドレス（設定値外出し不足）",
+      "file": "webui/src/core/logger.js (line 23-24)",
+      "description": "logger.js の isDevelopment 判定に内部IPアドレス '192.168.0.187' と '192.168.0.145' がハードコードされている。環境変更時（本番サーバー移行等）に logger の動作が変わり、意図せず本番環境でデバッグログが出力されるリスクがある。",
+      "recommended_fix": "IP判定ロジックを window.MKS_ENV への依存に一本化し、ハードコードIPを削除する。本番環境では MKS_ENV=production を確実にセットする運用を徹底する。"
+    },
+    {
+      "id": "W-004",
+      "severity": "MEDIUM",
+      "category": "インラインイベントハンドラー（コードスタイル）",
+      "file": "webui/src/pages/knowledge-detail.js (lines 443, 471), webui/src/pages/incident-detail.js (lines 215, 257), webui/src/pages/sop-detail.js (line 194)",
+      "description": "HTML文字列内でインライン `onclick` 属性を使用している（例: `onclick=\"alert(...)\"`, `onclick=\"viewVersion(${item.id})\"`）。これは現在 textContent で無効化されているためXSS問題にはなっていないが、将来 innerHTML を使用するよう変更された場合に XSS 脆弱性になるリスクがある。また実行時にグローバルスコープの関数依存となる。",
+      "recommended_fix": "全インラインイベントハンドラーを addEventListener パターンに置き換え、HTMLElementを直接生成して使用する。"
+    },
+    {
+      "id": "W-005",
+      "severity": "LOW",
+      "category": "コメント投稿のlocalStorageファーストポリシー",
+      "file": "webui/src/pages/knowledge-detail.js (lines 390-413, submitComment関数)",
+      "description": "コメント投稿処理でlocalStorageへの書き込みを先行させ（行399-402）、その後APIコールを試みる設計になっている。APIコール失敗時にlocalStorageのみ更新された状態になり、サーバーとの整合性が失われる可能性がある。",
+      "recommended_fix": "APIコールを先行させ、成功時のみlocalStorageへキャッシュする設計に変更することを推奨する。"
+    },
+    {
+      "id": "W-006",
+      "severity": "LOW",
+      "category": "後方互換性window公開の条件分岐の不一致",
+      "file": "webui/src/pages/knowledge-detail.js (lines 834-841)",
+      "description": "一部の関数は `window.toggleLike = window.toggleLike || toggleLike` （既存値を優先）、他は `window.loadKnowledgeDetail = loadKnowledgeDetail` （無条件上書き）と、window公開のパターンが混在している。意図的な差異かどうか不明瞭。",
+      "recommended_fix": "window公開の方針を統一する。既存値を保護したい関数（共有関数）と、ページ固有で上書きすべき関数を明示的に区別するコメントを追加する。"
+    }
+  ],
+  "recommended_fixes": [
+    {
+      "priority": 1,
+      "issue_ref": "W-001",
+      "action": "createTableRowWithHTML に HTMLElement のみを受け付けるよう呼び出し側を修正する（ボタン・スパンはcreateSecureElementで生成）。インライン onclick を addEventListener に置き換える。",
+      "files_affected": [
+        "webui/src/pages/knowledge-detail.js",
+        "webui/src/pages/incident-detail.js",
+        "webui/src/pages/sop-detail.js"
+      ]
+    },
+    {
+      "priority": 2,
+      "issue_ref": "W-002",
+      "action": "pages/ の全ファイルに logger import を追加し、window.logger || console パターンを削除する。",
+      "files_affected": [
+        "webui/src/pages/knowledge-detail.js",
+        "webui/src/pages/incident-detail.js",
+        "webui/src/pages/sop-detail.js",
+        "webui/src/pages/page-renderer.js",
+        "webui/src/pages/consultation-detail.js",
+        "webui/src/pages/expert-detail.js",
+        "webui/src/pages/law-detail.js",
+        "webui/src/pages/approval-detail.js"
+      ]
+    },
+    {
+      "priority": 3,
+      "issue_ref": "W-003",
+      "action": "logger.js の isDevelopment からハードコードIP（192.168.0.187, 192.168.0.145）を削除し、MKS_ENV環境変数のみで制御する。",
+      "files_affected": [
+        "webui/src/core/logger.js"
+      ]
+    }
+  ],
+  "review_details": {
+    "sampled_files": [
+      "webui/src/app/index.js",
+      "webui/src/pages/knowledge-detail.js",
+      "webui/src/pages/incident-detail.js",
+      "webui/src/features/search.js"
+    ],
+    "checklist_results": {
+      "仕様準拠": {
+        "ESMエクスポート": "PASS - 全サンプルファイルで export {} または export async function が実装されている。knowledge-detail.js (line 844)、incident-detail.js (line 908)、page-renderer.js (line 571)、search.js (line 32+) に確認。",
+        "後方互換性window公開": "PASS - knowledge-detail.js (lines 824-842) でwindow.* グローバル公開が実装されている。legacy-compat.js も window.App 名前空間を提供。",
+        "分割元機能カバー": "PASS - knowledge-detail.jsのJSDocコメント（lines 1-24）に全担当機能が列挙されており、実装で確認できた。"
+      },
+      "例外処理": {
+        "try-catch使用": "PASS - loadKnowledgeDetail, loadRelatedKnowledge, loadKnowledgeComments, submitComment 等すべての非同期関数で try-catch-finally が使用されている。",
+        "UIフィードバック": "PASS - catch ブロックで showError() または showToast() によるUIフィードバックが実装されている。finally での hideLoading() も確認。"
+      },
+      "セキュリティ": {
+        "innerHTML直接使用": "PASS - 全サンプルファイルでinnerHTMLの直接使用は検出されなかった。",
+        "DOM API使用": "PASS - textContent, createElement, appendChild, setSecureChildren等のDOM APIが一貫して使用されている。",
+        "eval等危険な関数": "PASS - eval, new Function, document.write は検出されなかった。",
+        "HTML文字列渡しの問題": "WARNING (W-001) - createTableRowWithHTMLへのHTML文字列渡しは実質的にはtextContentで無害化されているが機能不全を起こしている。"
+      },
+      "ログ・証跡": {
+        "ロガー使用": "PARTIAL_PASS - features/search.js は正しくimport { logger }を使用。pages/ ファイルはwindow.logger||consoleフォールバック使用 (W-002)。",
+        "エラーログ": "PASS - すべてのcatchブロックで log.error() が呼ばれている。",
+        "成功ログ": "PASS - 主要な処理完了時にlog.log()で成功ログが記録されている。"
+      },
+      "将来変更耐性": {
+        "ハードコードURL": "PASS - APIエンドポイントはAPI_BASE変数を使用。ただしlogger.jsにハードコードIP残存 (W-003)。",
+        "設定値外出し": "PASS - API_BASEはcore/api-client.jsで一元管理。core/config.jsがAPI_BASE_URLを提供。page-renderer.jsもwindow.API_BASE||フォールバックを使用。"
+      }
+    }
+  },
+  "confidence_score": 82,
+  "reviewer": "code-reviewer SubAgent",
+  "review_date": "2026-03-03",
+  "phase": "F-4",
+  "version": "1.0.0"
+}

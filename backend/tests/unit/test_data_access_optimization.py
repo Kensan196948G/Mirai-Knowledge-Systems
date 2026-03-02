@@ -21,6 +21,12 @@ from sqlalchemy.engine import Engine
 logging.basicConfig()
 logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
+# クエリ実行回数の閾値定数（将来の変更に対応しやすくするため定数化）
+MAX_EXPERT_STATS_QUERIES_BASIC = 5  # get_expert_stats()基本テスト: ≤5回
+MAX_EXPERT_STATS_QUERIES_OPTIMIZED = 3  # get_expert_stats()最適化テスト: ≤3回
+MAX_PROJECT_PROGRESS_QUERIES = 2  # get_project_progress(): ≤2回
+MAX_RESPONSE_TIME_MS = 100  # レスポンス時間上限: 100ms
+
 
 @pytest.fixture
 def use_real_db():
@@ -137,8 +143,8 @@ class TestGetExpertStatsOptimization:
         # クエリ実行回数検証（5回以下: 最適化により大幅削減）
         query_count = len(query_counter)
         assert (
-            query_count <= 5
-        ), f"Expected ≤5 queries (optimized), got {query_count} queries"
+            query_count <= MAX_EXPERT_STATS_QUERIES_BASIC
+        ), f"Expected ≤{MAX_EXPERT_STATS_QUERIES_BASIC} queries (optimized), got {query_count} queries"
 
     def test_get_expert_stats_result_format(self, db_session, mock_session_factory):
         """返却値形式を検証（既存APIとの互換性）"""
@@ -334,10 +340,10 @@ class TestGetExpertStatsOptimization:
 
         # クエリ実行回数検証（≤3回）
         query_count = len(query_counter)
-        assert query_count <= 3, f"Expected ≤3 queries, got {query_count}"
+        assert query_count <= MAX_EXPERT_STATS_QUERIES_OPTIMIZED, f"Expected ≤{MAX_EXPERT_STATS_QUERIES_OPTIMIZED} queries, got {query_count}"
 
         # レスポンス時間検証（< 100ms）
-        assert elapsed_ms < 100, f"Expected < 100ms, got {elapsed_ms:.2f}ms"
+        assert elapsed_ms < MAX_RESPONSE_TIME_MS, f"Expected < {MAX_RESPONSE_TIME_MS}ms, got {elapsed_ms:.2f}ms"
 
         # 結果検証
         assert "experts" in stats
@@ -390,8 +396,8 @@ class TestGetProjectProgressOptimization:
         # クエリ実行回数検証（2回以下: DB側集計）
         query_count = len(query_counter)
         assert (
-            query_count <= 2
-        ), f"Expected ≤2 queries (DB aggregation), got {query_count} queries"
+            query_count <= MAX_PROJECT_PROGRESS_QUERIES
+        ), f"Expected ≤{MAX_PROJECT_PROGRESS_QUERIES} queries (DB aggregation), got {query_count} queries"
 
     def test_get_project_progress_result_format(self, db_session, mock_session_factory):
         """返却値形式を検証"""
