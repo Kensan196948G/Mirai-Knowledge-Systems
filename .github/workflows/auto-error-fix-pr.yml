@@ -100,7 +100,7 @@ jobs:
 
       - name: 💬 PRにコメント投稿（修復成功）
         if: steps.auto_fix.outputs.fixed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -134,7 +134,7 @@ jobs:
 
       - name: 💬 PRにコメント投稿（修復不要）
         if: steps.auto_fix.outputs.fixed == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
