@@ -43,6 +43,18 @@ export default defineConfig({
           if (id.includes('/src/features/')) {
             return 'features';
           }
+          // Utils → utils chunk
+          if (id.includes('/src/utils/')) {
+            return 'utils';
+          }
+          // App modules → app chunk
+          if (id.includes('/src/app/')) {
+            return 'app';
+          }
+          // Pages → pages chunk
+          if (id.includes('/src/pages/')) {
+            return 'pages';
+          }
         },
       },
     },
@@ -108,6 +120,8 @@ export default defineConfig({
       '@core': resolve(__dirname, 'webui/src/core'),
       '@features': resolve(__dirname, 'webui/src/features'),
       '@utils': resolve(__dirname, 'webui/src/utils'),
+      '@app': resolve(__dirname, 'webui/src/app'),
+      '@pages': resolve(__dirname, 'webui/src/pages'),
     },
   },
 

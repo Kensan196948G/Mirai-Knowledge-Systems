@@ -4,6 +4,7 @@ JSON/PostgreSQLの切り替えを透過的に行う
 """
 
 import json
+import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -29,6 +30,8 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import joinedload
 
 from config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class DataAccessLayer:
@@ -996,13 +999,26 @@ class DataAccessLayer:
                         "pending_tasks": 0,
                     }
 
-                return {
+                result = {
                     "progress_percentage": int(task_stats.avg_progress or 0),
                     "completed_tasks": task_stats.completed_tasks,
                     "total_tasks": task_stats.total_tasks,
                     "in_progress_tasks": task_stats.in_progress_tasks,
                     "pending_tasks": task_stats.pending_tasks,
                 }
+                logger.info(
+                    "get_project_progress(): N+1最適化クエリ完了 - project_id=%d, total_tasks=%d",
+                    project_id,
+                    task_stats.total_tasks,
+                )
+                return result
+            except Exception as e:
+                logger.error(
+                    "get_project_progress(): クエリ実行エラー - project_id=%d: %s",
+                    project_id,
+                    str(e),
+                )
+                raise
             finally:
                 db.close()
         else:
@@ -1164,7 +1180,7 @@ class DataAccessLayer:
                         .all()
                     )
 
-                    return {
+                    result = {
                         "expert_id": expert_id,
                         "consultation_count": len(consultations),
                         "average_rating": round(avg_rating, 1),
@@ -1173,6 +1189,10 @@ class DataAccessLayer:
                         "experience_years": expert.experience_years,
                         "is_available": expert.is_available,
                     }
+                    logger.info(
+                        "get_expert_stats(): クエリ完了 - expert_id=%d", expert_id
+                    )
+                    return result
                 else:
                     # 全専門家の統計（N+1クエリ最適化版）
                     # サブクエリで評価データを集計
@@ -1238,7 +1258,13 @@ class DataAccessLayer:
                             }
                         )
 
+                    logger.info(
+                        "get_expert_stats(): N+1最適化クエリ完了 - %d件取得", len(stats)
+                    )
                     return {"experts": stats}
+            except Exception as e:
+                logger.error("get_expert_stats(): クエリ実行エラー: %s", str(e))
+                raise
             finally:
                 db.close()
         else:
@@ -1836,12 +1862,25 @@ class DataAccessLayer:
                     else 0
                 )
 
-                return {
+                result = {
                     "project_id": project_id,
                     "progress_percentage": progress_percentage,
                     "tasks_completed": task_stats.completed_tasks,
                     "total_tasks": task_stats.total_tasks,
                 }
+                logger.info(
+                    "get_project_progress(): N+1最適化クエリ完了 - project_id=%d, progress=%d%%",
+                    project_id,
+                    progress_percentage,
+                )
+                return result
+            except Exception as e:
+                logger.error(
+                    "get_project_progress(): クエリ実行エラー - project_id=%d: %s",
+                    project_id,
+                    str(e),
+                )
+                raise
             finally:
                 db.close()
         else:

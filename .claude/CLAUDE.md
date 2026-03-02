@@ -113,8 +113,8 @@
 
 ```
 Mirai-Knowledge-Systems/
-├── backend/                 # Flask API（5,811行のapp_v2.py）
-│   ├── app_v2.py           # メインアプリケーション（46エンドポイント、+10 MS365 API）
+├── backend/                 # Flask API（7,106行のapp_v2.py）★2026-03-03更新
+│   ├── app_v2.py           # メインアプリケーション（46エンドポイント、+10 MS365 API + SocketIO）
 │   ├── auth/               # 認証モジュール（v1.2.0）
 │   │   ├── __init__.py
 │   │   └── totp_manager.py # TOTP Manager（270行）
@@ -144,8 +144,9 @@ Mirai-Knowledge-Systems/
 │   │       ├── mfa-flow.spec.js
 │   │       └── scenario_ms365_integration.spec.js
 │   └── data/               # JSONデータ（開発環境）
-├── webui/                  # フロントエンド（19ファイル）
-│   ├── app.js              # メインロジック（2,500行+）
+├── webui/                  # フロントエンド（41ファイル）★2026-03-03更新
+│   ├── app.js              # メインロジック（3,715行）★更新
+│   ├── detail-pages.js     # 詳細ページ（3,291行）
 │   ├── mfa.js              # MFAライブラリ（380行、v1.2.0）
 │   ├── mfa-setup.html      # MFAセットアップウィザード
 │   ├── mfa-settings.html   # MFA設定管理画面
