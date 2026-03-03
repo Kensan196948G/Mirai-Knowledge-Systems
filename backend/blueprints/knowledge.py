@@ -47,14 +47,28 @@ logger = logging.getLogger(__name__)
 knowledge_bp = Blueprint("knowledge", __name__, url_prefix="/api/v1")
 
 
+_KNOWLEDGE_LIST_REDIS_KEY = "knowledge_list:all"
+_KNOWLEDGE_LIST_REDIS_TTL = 300  # 5分
+
+
 def _get_knowledge_list() -> list:
     """
-    ナレッジリストをリクエストスコープでキャッシュして取得（N+1回避）
+    ナレッジリストを2段キャッシュで取得（N+1回避）
 
-    同一リクエスト内で複数回呼ばれても load_data は1回のみ実行される。
+    L1: Flask g オブジェクト（リクエストスコープ）
+    L2: Redis キャッシュ（TTL=5分、knowledge_list:* パターンで自動無効化）
+
+    同一リクエスト内で複数回呼ばれても I/O は最大1回のみ実行される。
     """
     if not hasattr(g, "_knowledge_list_cache"):
-        g._knowledge_list_cache = load_data("knowledge.json") or []
+        # L2: Redis キャッシュを確認
+        cached = cache_get(_KNOWLEDGE_LIST_REDIS_KEY)
+        if cached is not None:
+            g._knowledge_list_cache = cached
+        else:
+            data = load_data("knowledge.json") or []
+            cache_set(_KNOWLEDGE_LIST_REDIS_KEY, data, ttl=_KNOWLEDGE_LIST_REDIS_TTL)
+            g._knowledge_list_cache = data
     return g._knowledge_list_cache
 
 
