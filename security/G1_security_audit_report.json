@@ -1,0 +1,198 @@
+{
+  "audit_date": "2026-03-03",
+  "auditor": "sec-auditor SubAgent",
+  "phase": "G-1",
+  "findings": [
+    {
+      "id": "S-001",
+      "severity": "HIGH",
+      "category": "npm依存パッケージ脆弱性",
+      "description": "rollup 4.57.1 (node_modules/rollup): Arbitrary File Write via Path Traversal (GHSA-mw96-cpmx-2vgc)。開発ビルドツールのみに影響し、本番ランタイムには含まれない。`npm audit fix` で修正可能。",
+      "status": "TODO",
+      "affected_package": "rollup",
+      "affected_version": "4.57.1",
+      "advisory": "https://github.com/advisories/GHSA-mw96-cpmx-2vgc",
+      "remediation": "npm audit fix を実行して rollup を修正版にアップデート"
+    },
+    {
+      "id": "S-002",
+      "severity": "MEDIUM",
+      "category": "npm依存パッケージ脆弱性",
+      "description": "esbuild <=0.24.2 (vite経由): esbuildの開発サーバーが任意のWebサイトからのリクエストを受け付けてレスポンスを返す問題 (GHSA-67mh-4wv8-2f99)。開発環境の開発サーバー起動時のみに影響。",
+      "status": "TODO",
+      "affected_package": "esbuild / vite / @vitejs/plugin-legacy",
+      "affected_version": "esbuild 0.21.5, vite 5.4.21, @vitejs/plugin-legacy 5.4.3",
+      "advisory": "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
+      "remediation": "npm audit fix --force で vite@7.x へアップグレード（破壊的変更あり。互換性確認が必要）"
+    },
+    {
+      "id": "S-003",
+      "severity": "LOW",
+      "category": "CSP: worker-src 未設定",
+      "description": "Phase D-5 PWA実装でService Worker (sw.js) が導入されたが、CSPに worker-src 'self' ディレクティブが存在しなかった。一部ブラウザでService Workerの登録がCSP違反としてブロックされる可能性があった。",
+      "status": "FIXED",
+      "fixed_in_file": "backend/app_v2.py",
+      "fix_description": "本番・開発両CSPブロックに worker-src 'self' を追加"
+    },
+    {
+      "id": "S-004",
+      "severity": "LOW",
+      "category": "CSP: manifest-src 未設定",
+      "description": "Phase D-5 PWA実装でmanifest.jsonが導入されたが、CSPに manifest-src 'self' ディレクティブが存在しなかった。PWA Manifestの読み込みがCSP違反としてブロックされる可能性があった。",
+      "status": "FIXED",
+      "fixed_in_file": "backend/app_v2.py",
+      "fix_description": "本番・開発両CSPブロックに manifest-src 'self' を追加"
+    },
+    {
+      "id": "S-005",
+      "severity": "LOW",
+      "category": "CSP: object-src 未設定",
+      "description": "CSPに object-src ディレクティブが未設定だったため、default-src 'self' にフォールバックされていた。明示的に object-src 'none' を指定することでFlashや古いプラグイン経由の攻撃ベクターを明確に遮断することが望ましい。",
+      "status": "FIXED",
+      "fixed_in_file": "backend/app_v2.py",
+      "fix_description": "本番・開発両CSPブロックに object-src 'none' を追加"
+    },
+    {
+      "id": "S-006",
+      "severity": "INFO",
+      "category": "セキュリティヘッダー: X-Content-Type-Options",
+      "description": "X-Content-Type-Options: nosniff が全レスポンスに設定されている。MIMEタイプスニッフィング攻撃を防止。",
+      "status": "EXISTING"
+    },
+    {
+      "id": "S-007",
+      "severity": "INFO",
+      "category": "セキュリティヘッダー: X-Frame-Options",
+      "description": "X-Frame-Options: DENY が全レスポンスに設定されている。Clickjacking攻撃を防止。CSPのframe-ancestors 'none'と二重で保護。",
+      "status": "EXISTING"
+    },
+    {
+      "id": "S-008",
+      "severity": "INFO",
+      "category": "セキュリティヘッダー: X-XSS-Protection",
+      "description": "X-XSS-Protection: 1; mode=block が設定されている。レガシーブラウザ向けのXSSフィルター。現代ブラウザではCSPが主要な保護となる。",
+      "status": "EXISTING"
+    },
+    {
+      "id": "S-009",
+      "severity": "INFO",
+      "category": "セキュリティヘッダー: Referrer-Policy",
+      "description": "本番環境では strict-origin-when-cross-origin、開発環境では no-referrer が設定されている。",
+      "status": "EXISTING"
+    },
+    {
+      "id": "S-010",
+      "severity": "INFO",
+      "category": "セキュリティヘッダー: Permissions-Policy",
+      "description": "Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=() が全レスポンスに設定されている。不要なブラウザ機能へのアクセスを制限。",
+      "status": "EXISTING"
+    },
+    {
+      "id": "S-011",
+      "severity": "INFO",
+      "category": "XSS対策: フロントエンドDOM API使用",
+      "description": "webui/src/ 配下のESMモジュール群（dom-helpers.js, search.js, knowledge.js, ms365-sync.js等）はinnerHTMLを使用せずDOM APIのみを使用。XSS攻撃ベクターが排除されている。レガシーファイル（admin.html, offline.html）のinnerHTML使用は空文字列クリアのみで安全。",
+      "status": "EXISTING"
+    },
+    {
+      "id": "S-012",
+      "severity": "INFO",
+      "category": "レート制限",
+      "description": "flask-limiterによるレート制限が主要APIエンドポイントに設定されている（ログイン: 5回/15分, MFA検証: 5回/15分, 一般API: 10回/分等）。開発環境では無効化される設計。",
+      "status": "EXISTING"
+    },
+    {
+      "id": "S-013",
+      "severity": "INFO",
+      "category": "HSTS (HTTP Strict Transport Security)",
+      "description": "本番環境かつHSTS_ENABLED設定時にStrict-Transport-Securityヘッダーが設定される。HSTS_INCLUDE_SUBDOMAINSオプション対応。",
+      "status": "EXISTING"
+    },
+    {
+      "id": "S-014",
+      "severity": "INFO",
+      "category": "CSP: unsafe-inline残存（script-src）",
+      "description": "本番・開発両環境のscript-srcに 'unsafe-inline' が残存している。Phase Fでindex.htmlにtype=moduleのESMスクリプトが導入されたが、login.htmlおよびレガシースクリプトとの互換性のため 'unsafe-inline' を完全除去するには追加対応が必要。現状はコメントに明記済みで意図的な設定。",
+      "status": "EXISTING",
+      "note": "将来的にはNonceベースCSPへの移行を検討推奨"
+    }
+  ],
+  "headers_audit": {
+    "X-Content-Type-Options": "PRESENT",
+    "X-Frame-Options": "PRESENT",
+    "X-XSS-Protection": "PRESENT",
+    "Referrer-Policy": "PRESENT",
+    "Permissions-Policy": "PRESENT",
+    "Strict-Transport-Security": "PRESENT (本番環境・HSTS_ENABLED=true時のみ)",
+    "CSP": "UPDATED",
+    "CSP_worker-src": "ADDED (Phase D-5 PWA対応)",
+    "CSP_manifest-src": "ADDED (Phase D-5 PWA対応)",
+    "CSP_object-src": "ADDED (プラグイン無効化強化)"
+  },
+  "npm_audit": {
+    "scan_date": "2026-03-03",
+    "total_vulnerabilities": 4,
+    "high": 1,
+    "moderate": 3,
+    "low": 0,
+    "critical": 0,
+    "affected_packages": [
+      {
+        "package": "rollup",
+        "version": "4.57.1",
+        "severity": "high",
+        "advisory": "GHSA-mw96-cpmx-2vgc",
+        "runtime_impact": "none (devDependency/build tool only)"
+      },
+      {
+        "package": "esbuild",
+        "version": "0.21.5",
+        "severity": "moderate",
+        "advisory": "GHSA-67mh-4wv8-2f99",
+        "runtime_impact": "none (devDependency/dev server only)"
+      },
+      {
+        "package": "vite",
+        "version": "5.4.21",
+        "severity": "moderate",
+        "advisory": "GHSA-67mh-4wv8-2f99 (via esbuild)",
+        "runtime_impact": "none (devDependency/build tool only)"
+      },
+      {
+        "package": "@vitejs/plugin-legacy",
+        "version": "5.4.3",
+        "severity": "moderate",
+        "advisory": "GHSA-67mh-4wv8-2f99 (via vite/esbuild)",
+        "runtime_impact": "none (devDependency/build tool only)"
+      }
+    ],
+    "remediation_steps": [
+      "npm audit fix  # rollup の修正（破壊的変更なし）",
+      "npm audit fix --force  # vite@7.x へのアップグレード（破壊的変更あり。Phase Fとの互換性確認必要）"
+    ]
+  },
+  "overall_rating": "A",
+  "rating_rationale": "主要セキュリティヘッダーは全項目設定済み。CSPにPhase D-5 PWA対応の3ディレクティブを追加し強化完了。npm脆弱性はすべてdevDependency（ビルドツール）のみで本番ランタイムには影響なし。フロントエンドのXSS対策（DOM API使用）は適切に実装済み。レート制限・HSTS・監査ログも実装済み。",
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "npm audit fix を実行してrollupの高リスク脆弱性（GHSA-mw96-cpmx-2vgc）を修正する",
+      "command": "cd D:\\Mirai-Knowledge-Systems && npm audit fix"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "vite@7.x へのアップグレードを検討し、esbuild/vite脆弱性（GHSA-67mh-4wv8-2f99）を修正する。破壊的変更があるため互換性テスト後に適用すること",
+      "command": "cd D:\\Mirai-Knowledge-Systems && npm audit fix --force"
+    },
+    {
+      "priority": "LOW",
+      "action": "script-srcの 'unsafe-inline' を将来的にNonceベースCSPへ移行することを検討する。login.htmlおよびレガシーインラインスクリプトのリファクタリングが前提条件",
+      "effort": "高"
+    },
+    {
+      "priority": "INFO",
+      "action": "admin.htmlおよびoffline.htmlのインラインJavaScriptを外部スクリプトファイルに分離することで 'unsafe-inline' 除去の前提条件を整える",
+      "effort": "中"
+    }
+  ]
+}

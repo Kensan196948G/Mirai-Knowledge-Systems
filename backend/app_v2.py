@@ -757,6 +757,9 @@ def add_security_headers(response):
                 "img-src 'self' data: https:",
                 "font-src 'self' data: https://fonts.gstatic.com",  # Google Fonts許可
                 "connect-src 'self' ws: wss:",  # WebSocket接続許可
+                "worker-src 'self'",  # Phase D-5: Service Worker (PWA)
+                "manifest-src 'self'",  # Phase D-5: PWA Manifest
+                "object-src 'none'",  # プラグイン無効化
                 "frame-ancestors 'none'",
                 "base-uri 'self'",
                 "form-action 'self'",
@@ -783,6 +786,9 @@ def add_security_headers(response):
                 "img-src 'self' data: https:",
                 "font-src 'self' data: https://fonts.gstatic.com",  # Google Fonts許可
                 "connect-src 'self' ws: wss:",  # WebSocket接続許可
+                "worker-src 'self'",  # Phase D-5: Service Worker (PWA)
+                "manifest-src 'self'",  # Phase D-5: PWA Manifest
+                "object-src 'none'",  # プラグイン無効化
                 "frame-ancestors 'none'",
                 "base-uri 'self'",
                 "form-action 'self'",
@@ -1732,7 +1738,16 @@ def login_mfa():
 def refresh():
     """トークンリフレッシュ"""
     current_user_id = get_jwt_identity()
-    access_token = create_access_token(identity=current_user_id)
+
+    # roles クレームをリフレッシュトークン発行時にも引き継ぐ (Phase G-3-1修正)
+    users = load_users()
+    user = next((u for u in users if str(u["id"]) == str(current_user_id)), None)
+    roles = user.get("roles", []) if user else []
+
+    access_token = create_access_token(
+        identity=current_user_id,
+        additional_claims={"roles": roles},
+    )
 
     return jsonify(
         {"success": True, "data": {"access_token": access_token, "expires_in": 3600}}
