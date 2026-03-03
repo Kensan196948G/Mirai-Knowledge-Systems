@@ -19,7 +19,7 @@ class TestLoadData:
         """ファイルが存在しない場合は空リストを返す"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         result = app_v2.load_data("nonexistent.json")
         assert result == []
@@ -28,7 +28,7 @@ class TestLoadData:
         """既存ファイルを正しく読み込む"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         # テストデータファイル作成
         test_data = [{"id": 1, "name": "Test"}]
@@ -44,7 +44,7 @@ class TestLoadData:
         """UTF-8エンコードされた日本語を正しく読み込む"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         test_data = [{"id": 1, "title": "施工計画書", "category": "安全衛生"}]
         data_file = tmp_path / "japanese.json"
@@ -60,7 +60,7 @@ class TestLoadData:
         """複雑なネスト構造を正しく読み込む"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         test_data = [
             {
@@ -85,7 +85,7 @@ class TestLoadData:
         """不正なJSONは空リストとして扱う"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         data_file = tmp_path / "broken.json"
         data_file.write_text('{"invalid":', encoding="utf-8")
@@ -97,7 +97,7 @@ class TestLoadData:
         """配列以外のJSONは空リストとして扱う"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         data_file = tmp_path / "object.json"
         data_file.write_text(json.dumps({"id": 1}), encoding="utf-8")
@@ -113,7 +113,7 @@ class TestSaveData:
         """ファイルが作成される"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         test_data = [{"id": 1, "name": "Test"}]
         app_v2.save_data("new_file.json", test_data)
@@ -125,7 +125,7 @@ class TestSaveData:
         """データが正しく保存される"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         test_data = [{"id": 1, "name": "Test"}, {"id": 2, "name": "Test2"}]
         app_v2.save_data("preserved.json", test_data)
@@ -140,7 +140,7 @@ class TestSaveData:
         """UTF-8日本語が正しく保存される"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         test_data = [{"id": 1, "title": "品質管理マニュアル", "summary": "テスト概要"}]
         app_v2.save_data("japanese_save.json", test_data)
@@ -156,7 +156,7 @@ class TestSaveData:
         """既存ファイルを上書きする"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         # 初期データ保存
         initial_data = [{"id": 1, "name": "Initial"}]
@@ -177,7 +177,7 @@ class TestSaveData:
         """インデント付きで保存される（可読性のため）"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         test_data = [{"id": 1}]
         app_v2.save_data("indented.json", test_data)
@@ -197,7 +197,7 @@ class TestLoadAndSaveIntegration:
         """保存したデータが読み込みで復元される"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         original_data = [
             {"id": 1, "title": "Test1", "tags": ["a", "b"]},
@@ -213,7 +213,7 @@ class TestLoadAndSaveIntegration:
         """複数回の保存・読み込みサイクル"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         data = []
 
@@ -232,7 +232,7 @@ class TestLoadUsers:
         """ファイルがない場合は空リストを返す"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         result = app_v2.load_users()
         assert result == []
@@ -241,7 +241,7 @@ class TestLoadUsers:
         """users.jsonを正しく読み込む"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         users = [
             {"id": 1, "username": "admin", "roles": ["admin"]},
@@ -262,7 +262,7 @@ class TestSaveUsers:
         """users.jsonを作成する"""
         import app_v2
 
-        monkeypatch.setattr(app_v2.app, "config", {"DATA_DIR": str(tmp_path)})
+        monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
         users = [{"id": 1, "username": "newuser", "roles": ["user"]}]
         app_v2.save_users(users)
