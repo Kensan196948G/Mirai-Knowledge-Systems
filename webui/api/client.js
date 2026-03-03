@@ -20,7 +20,7 @@ class APIClient {
     this.retryConfig = {
       maxRetries: 3,
       retryDelay: 1000, // 初期遅延（ミリ秒）
-      retryStatusCodes: [408, 429, 500, 502, 503, 504]
+      retryStatusCodes: [408, 429, 502, 503, 504]
     };
   }
 
@@ -212,6 +212,8 @@ class APIClient {
       const error = new Error(errorMessage);
       error.code = errorCode;
       error.status = response.status;
+      // 通知が既に表示済みの場合、呼び出し元でのダブル表示を防ぐ
+      error.notificationShown = [400, 401, 403, 404, 429, 500, 502, 503, 504].includes(response.status);
       throw error;
     }
 
@@ -236,7 +238,12 @@ class APIClient {
         this._showNotification('リクエストが多すぎます。しばらく待ってから再試行してください。', 'warning');
         break;
       case 500:
-        this._showNotification('サーバーエラーが発生しました。管理者に連絡してください。', 'error');
+        this._showNotification(`サーバーエラーが発生しました。${errorMessage !== `HTTP 500` ? errorMessage : '管理者に連絡してください。'}`, 'error');
+        break;
+      case 502:
+      case 503:
+      case 504:
+        this._showNotification('サービスが一時的に利用できません。しばらく後に再試行してください。', 'warning');
         break;
       default:
         this._showNotification(`エラー: ${errorMessage}`, 'error');
