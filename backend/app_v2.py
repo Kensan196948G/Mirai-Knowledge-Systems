@@ -592,6 +592,27 @@ else:
 
 
 # ============================================================
+# Phase G-3-3: Blueprint登録
+# ============================================================
+# blueprints/__init__.py から auth_bp, knowledge_bp をインポート
+# app = Flask(__name__) および limiter 初期化の後に登録することで
+# 循環参照を回避する
+from blueprints import auth_bp, knowledge_bp
+from blueprints.utils.rate_limit import init_limiter
+
+# limiter インスタンスを Blueprint ユーティリティへ登録
+init_limiter(limiter)
+
+# Blueprint を Flask app に登録
+# auth_bp    : url_prefix='/api/v1/auth'  （エンドポイントは Phase G-3-2 以降で移行）
+# knowledge_bp: url_prefix='/api/v1'      （/ping デモエンドポイントを含む）
+app.register_blueprint(auth_bp)
+app.register_blueprint(knowledge_bp)
+
+logger.info("[INIT] Blueprints registered: auth_bp (prefix=/api/v1/auth), knowledge_bp (prefix=/api/v1)")
+
+
+# ============================================================
 # Prometheusメトリクス定義
 # ============================================================
 
@@ -1016,7 +1037,12 @@ def get_user_permissions(user):
 
 
 def check_permission(required_permission):
-    """権限チェックデコレータ"""
+    """権限チェックデコレータ（JWT claims最適化版 v1.4.1）
+
+    JWTトークンのclaimsから直接rolesを取得することで、
+    毎リクエストのload_users()呼び出し（N+1問題）を解消する。
+    claimsにrolesが存在しない場合はDBフォールバックで後方互換性を維持。
+    """
 
     def decorator(fn):
         @wraps(fn)
@@ -1032,15 +1058,23 @@ def check_permission(required_permission):
                 )
                 logger.debug("check_permission: user_id=%s, required=%s", user_id_int, required_permission)
 
-                users = load_users()
-                user = next((u for u in users if u["id"] == user_id_int), None)
+                # JWT claimsから直接rolesを取得（DB呼び出し不要）
+                claims = get_jwt()
+                roles = claims.get("roles", None)
 
-                if not user:
-                    logger.debug("User not found: %s", current_user_id)
-                    return jsonify({"success": False, "error": "User not found"}), 404
+                if roles is None:
+                    # フォールバック: DBから取得（古いトークンとの後方互換性）
+                    logger.debug("JWT claims に roles が存在しないためDBフォールバック: user_id=%s", current_user_id)
+                    users = load_users()
+                    user = next((u for u in users if u["id"] == user_id_int), None)
+                    if not user:
+                        logger.debug("User not found: %s", current_user_id)
+                        return jsonify({"success": False, "error": "User not found"}), 404
+                    roles = user.get("roles", [])
 
-                permissions = get_user_permissions(user)
-                logger.debug("User permissions: %s", permissions)
+                # rolesリストから権限を判定（get_user_permissions相当のロジック）
+                permissions = get_user_permissions({"roles": roles})
+                logger.debug("User permissions (from JWT claims): %s", permissions)
 
                 # 管理者または必要な権限を持っている
                 if "*" in permissions or required_permission in permissions:

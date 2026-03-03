@@ -1,0 +1,83 @@
+{
+  "build_date": "2026-03-03",
+  "ci_specialist": "ci-specialist SubAgent",
+  "npm_audit": {
+    "high_vulnerabilities_before": 1,
+    "high_vulnerabilities_after": 0,
+    "moderate_vulnerabilities_before": 3,
+    "moderate_vulnerabilities_after": 3,
+    "fixed": ["rollup@4.59.0 (GHSA-mw96-cpmx-2vgc: Path Traversal, was <=4.58.0)"],
+    "not_fixed": [
+      "esbuild <=0.24.2 (GHSA-67mh-4wv8-2f99: moderate, requires --force/breaking change to vite@7.3.1)"
+    ],
+    "notes": "npm audit fix (without --force) applied. The HIGH vulnerability in rollup (Path Traversal GHSA-mw96-cpmx-2vgc) is resolved. Remaining 3 moderate esbuild vulnerabilities require a breaking Vite v6→v7 upgrade and are deferred."
+  },
+  "vite_build": {
+    "success": true,
+    "vite_version": "5.4.21",
+    "rollup_version": "4.59.0",
+    "build_time_seconds": 20.82,
+    "output_files": 81,
+    "total_size_kb": 1791,
+    "total_size_excl_sourcemaps_kb": 750,
+    "pages_generated": 13,
+    "chunks": [
+      "main (103.95 kB, core app bundle)",
+      "main-legacy (141.82 kB, legacy browser bundle)",
+      "core (1.98 kB, ESM core modules)",
+      "core-legacy (2.01 kB)",
+      "module-test (1.71 kB)",
+      "module-test-legacy (1.67 kB)",
+      "search-detail (0.17 kB)",
+      "search-detail-legacy (39.93 kB, CSS inline)",
+      "styles-legacy (39.93 kB)",
+      "polyfills-legacy (35.33 kB)",
+      "modulepreload-polyfill (0.76 kB)",
+      "modulepreload-polyfill-legacy (0.15 kB)",
+      "login / login-legacy",
+      "admin / admin-legacy",
+      "offline / offline-legacy",
+      "mfa-setup / mfa-setup-legacy",
+      "mfa-settings / mfa-settings-legacy",
+      "sop-detail / sop-detail-legacy",
+      "law-detail / law-detail-legacy",
+      "expert-consult / expert-consult-legacy",
+      "incident-detail / incident-detail-legacy",
+      "ms365-sync-settings / ms365-sync-settings-legacy"
+    ],
+    "css_output": "assets/main-Dr8ZDe5a.css (39.70 kB)",
+    "html_pages": [
+      "index.html (33.53 kB)",
+      "login.html (25.71 kB)",
+      "admin.html (39.93 kB)",
+      "search-detail.html (14.66 kB)",
+      "sop-detail.html (14.57 kB)",
+      "law-detail.html (11.06 kB)",
+      "incident-detail.html (19.20 kB)",
+      "expert-consult.html (12.47 kB)",
+      "mfa-setup.html (15.83 kB)",
+      "mfa-settings.html (17.47 kB)",
+      "ms365-sync-settings.html (19.82 kB)",
+      "offline.html (12.24 kB)",
+      "module-test.html (3.23 kB)"
+    ],
+    "warnings": [
+      "outDir (dist/) is outside project root (webui/) - non-blocking, by design in vite.config.js",
+      "Multiple legacy script tags without type=module could not be bundled (expected for non-ESM HTML pages)"
+    ],
+    "dist_directory_created": true
+  },
+  "src_modules_verified": {
+    "total_src_files": 33,
+    "modules_transformed": 50,
+    "directories": [
+      "webui/src/app (9 files: actions-handler, data-loader, event-handlers, index, init, legacy-compat, notifications-handler, router, ui-controller)",
+      "webui/src/core (4 files: api-client, auth, config, logger)",
+      "webui/src/features (6 files: index, knowledge, mfa, ms365-sync, pwa, search)",
+      "webui/src/pages (8 files: approval-detail, consultation-detail, expert-detail, incident-detail, index, knowledge-detail, law-detail, page-renderer, sop-detail)",
+      "webui/src/utils (5 files: date-formatter, dom-helpers, file-utils, index, validation)"
+    ]
+  },
+  "result": "PASS",
+  "summary": "HIGH脆弱性（rollup GHSA-mw96-cpmx-2vgc）をnpm audit fixで修正完了。Viteビルドは20.82秒で成功し、dist/に81ファイル（1791 KB、ソースマップ除く750 KB）を生成。13ページのHTMLと ESM/Legacy 両対応チャンク群が正常に出力された。Phase FのESMモジュール（webui/src/ 33ファイル）は50モジュールとして正常にトランスパイル・バンドルされた。"
+}
