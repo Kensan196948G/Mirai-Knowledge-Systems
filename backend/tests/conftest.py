@@ -14,12 +14,27 @@ def _write_json(path, data):
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+@pytest.fixture(autouse=True)
+def disable_redis_cache(monkeypatch):
+    """全テストで Redis キャッシュを無効化する。
+
+    テスト間のキャッシュ汚染（Redis に残留した前テストのデータ）を防ぐ。
+    cache-layer テストは app_v2.CACHE_ENABLED / app_v2.redis_client を
+    個別にパッチするため、このフィクスチャの影響を受けない。
+    """
+    import app_helpers
+    monkeypatch.setattr(app_helpers, "CACHE_ENABLED", False)
+    monkeypatch.setattr(app_v2, "CACHE_ENABLED", False)
+
+
 @pytest.fixture()
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
     app = app_v2.app
     app.config["TESTING"] = True
     app.config["DATA_DIR"] = str(tmp_path)
     app.config["JWT_SECRET_KEY"] = "test-secret-key-longer-than-20"
+    # Phase H-1: app_helpers は MKS_DATA_DIR env var でデータディレクトリを取得する
+    monkeypatch.setenv("MKS_DATA_DIR", str(tmp_path))
 
     # テスト時はレート制限を無効化
     app_v2.limiter.enabled = False

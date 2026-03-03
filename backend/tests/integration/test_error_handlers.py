@@ -229,10 +229,16 @@ class TestServerErrors:
         def mock_load_data(*args, **kwargs):
             raise Exception("Internal server error")
 
-        # app_v2モジュールのload_data関数をパッチ
+        # Phase H-1: /api/v1/knowledge は blueprints/knowledge.py に移行済み
+        # blueprints は from app_helpers import load_data でバインドするため
+        # 各モジュールのバインドをパッチする必要がある
         import app_v2
+        import app_helpers
+        from blueprints import knowledge as knowledge_blueprint
 
         monkeypatch.setattr(app_v2, "load_data", mock_load_data)
+        monkeypatch.setattr(app_helpers, "load_data", mock_load_data)
+        monkeypatch.setattr(knowledge_blueprint, "load_data", mock_load_data)
 
         response = client.get("/api/v1/knowledge", headers=auth_headers)
 
