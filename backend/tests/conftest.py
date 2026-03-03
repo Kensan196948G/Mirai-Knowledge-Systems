@@ -19,12 +19,11 @@ def disable_redis_cache(monkeypatch):
     """全テストで Redis キャッシュを無効化する。
 
     テスト間のキャッシュ汚染（Redis に残留した前テストのデータ）を防ぐ。
-    cache-layer テストは app_v2.CACHE_ENABLED / app_v2.redis_client を
-    個別にパッチするため、このフィクスチャの影響を受けない。
+    Phase H-2: cache_get/cache_set は app_helpers に統合済み。
+    app_helpers.CACHE_ENABLED のパッチのみで全 Blueprint に効果が及ぶ。
     """
     import app_helpers
     monkeypatch.setattr(app_helpers, "CACHE_ENABLED", False)
-    monkeypatch.setattr(app_v2, "CACHE_ENABLED", False)
 
 
 @pytest.fixture()

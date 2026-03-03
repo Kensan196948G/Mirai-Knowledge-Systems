@@ -204,7 +204,7 @@ def get_popular_knowledge():
         return jsonify(response_data)
     except Exception as e:
         logger.error("get_popular_knowledge: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": []})
+        raise
 
 
 @knowledge_bp.route("/knowledge/recent", methods=["GET"])
@@ -263,7 +263,7 @@ def get_recent_knowledge():
         return jsonify(response_data)
     except Exception as e:
         logger.error("get_recent_knowledge: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": []})
+        raise
 
 
 @knowledge_bp.route("/knowledge/favorites", methods=["GET"])
@@ -290,7 +290,7 @@ def get_favorite_knowledge():
         return jsonify({"success": True, "data": result})
     except Exception as e:
         logger.error("get_favorite_knowledge: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": []})
+        raise
 
 
 @knowledge_bp.route("/knowledge/tags", methods=["GET"])
@@ -334,7 +334,7 @@ def get_knowledge_tags():
         return jsonify(response_data)
     except Exception as e:
         logger.error("get_knowledge_tags: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": []})
+        raise
 
 
 @knowledge_bp.route("/knowledge/<int:knowledge_id>", methods=["GET"])
@@ -646,14 +646,16 @@ def unified_search():
     page_size = int(request.args.get("page_size", 10))
     page = int(request.args.get("page", 1))
 
-    if not query:
+    if not query or not query.strip():
         return jsonify({
             "success": False,
             "error": {
                 "code": "MISSING_QUERY",
-                "message": 'Query parameter "q" is required',
+                "message": 'Query parameter "q" is required and must not be blank',
             },
         }), 400
+
+    log_access(current_user_id, "search.unified", "search", query.strip())
 
     # キャッシュキー生成（クエリ正規化でヒット率向上）
     normalized_query = " ".join(query.strip().lower().split())

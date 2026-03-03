@@ -102,28 +102,7 @@ else:
         CACHE_ENABLED = False
 
 
-# get_cache_key: app_helpers で管理（Phase H-1）
-
-
-def cache_get(key):
-    """キャッシュ取得（app_v2.redis_client / CACHE_ENABLED 参照 - テスト互換性のため）"""
-    if not CACHE_ENABLED or not redis_client:
-        return None
-    try:
-        data = redis_client.get(key)
-        return json.loads(data) if data else None
-    except Exception:
-        return None
-
-
-def cache_set(key, value, ttl=CACHE_TTL):
-    """キャッシュ設定（app_v2.redis_client / CACHE_ENABLED 参照 - テスト互換性のため）"""
-    if not CACHE_ENABLED or not redis_client:
-        return
-    try:
-        redis_client.setex(key, ttl, json.dumps(value))
-    except Exception as e:
-        logger.debug("Redis cache write failed for key: %s - %s", key, str(e))
+# get_cache_key / cache_get / cache_set: app_helpers で管理（Phase H-2）
 
 
 # CacheInvalidator: app_helpers で管理（Phase H-1）
@@ -459,12 +438,14 @@ init_limiter(limiter)
 # init_limiter() 後に Blueprint をインポート（@get_limiter().limit() が正常に動作）
 from blueprints.auth import auth_bp          # Phase H-1: 12エンドポイント移行済み
 from blueprints.knowledge import knowledge_bp  # Phase H-1: 12エンドポイント移行済み
+from blueprints.dashboard import dashboard_bp  # Phase H-2: SOP/Dashboard移行
 
 # Blueprint を Flask app に登録
 app.register_blueprint(auth_bp)
 app.register_blueprint(knowledge_bp)
+app.register_blueprint(dashboard_bp)
 
-logger.info("[INIT] Blueprints registered: auth_bp (prefix=/api/v1/auth), knowledge_bp (prefix=/api/v1)")
+logger.info("[INIT] Blueprints registered: auth_bp, knowledge_bp, dashboard_bp")
 
 # ============================================================
 # Phase H-1: 共有ヘルパーを app_helpers からインポート
@@ -476,7 +457,8 @@ from app_helpers import (
     get_data_dir,
     get_dal,
     get_cache_key,
-    # cache_get / cache_set は app_v2.py でローカル定義（テスト互換性のため）
+    cache_get,   # Phase H-2: app_helpers に統合
+    cache_set,   # Phase H-2: app_helpers に統合
     CacheInvalidator,
     recommendation_engine,
     load_users,
@@ -2361,141 +2343,6 @@ def get_unread_count():
     return jsonify({"success": True, "data": {"unread_count": unread_count}})
 
 
-# 他のエンドポイントも同様に権限チェックを追加...
-# （簡潔にするため、主要なものの定義）
-
-
-@app.route("/api/v1/sop", methods=["GET"])
-@check_permission("sop.read")
-def get_sop():
-    """SOP一覧取得"""
-    try:
-        current_user_id = get_jwt_identity()
-        log_access(current_user_id, "sop.list", "sop")
-
-        cache_key = get_cache_key("sop_list")
-        cached_result = cache_get(cache_key)
-        if cached_result:
-            logger.info("Cache hit: sop_list - %s", cache_key)
-            return jsonify(cached_result)
-
-        sop_list = load_data("sop.json") or []
-        response_data = {
-            "success": True,
-            "data": sop_list,
-            "pagination": {"total_items": len(sop_list)},
-        }
-        cache_set(cache_key, response_data, ttl=3600)
-        logger.info("Cache set: sop_list - %s", cache_key)
-
-        return jsonify(response_data)
-    except Exception as e:
-        logger.error("get_sop: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": [], "pagination": {"total_items": 0}})
-
-
-@app.route("/api/v1/sop/<int:sop_id>", methods=["GET"])
-@check_permission("sop.read")
-def get_sop_detail(sop_id):
-    """SOP詳細取得"""
-    current_user_id = get_jwt_identity()
-    log_access(current_user_id, "sop.view", "sop", sop_id)
-
-    sop_list = load_data("sop.json")
-    sop = next((s for s in sop_list if s["id"] == sop_id), None)
-
-    if not sop:
-        return jsonify({"success": False, "error": "SOP not found"}), 404
-
-    return jsonify({"success": True, "data": sop})
-
-
-@app.route("/api/v1/sop/<int:sop_id>/related", methods=["GET"])
-@check_permission("sop.read")
-def get_related_sop(sop_id):
-    """
-    関連SOPを取得（キャッシュ対応 - Phase G-6 Phase 2）
-
-    クエリパラメータ:
-        limit: 取得件数（デフォルト: 5）
-        algorithm: アルゴリズム（tag/category/keyword/hybrid、デフォルト: hybrid）
-        min_score: 最小スコア閾値（デフォルト: 0.1）
-
-    NOTE: MLアルゴリズム（O(n²)計算量）のため、キャッシュ優先度最高。
-    """
-    current_user_id = get_jwt_identity()
-    log_access(current_user_id, "sop.related", "sop", sop_id)
-
-    # パラメータ取得
-    limit = int(request.args.get("limit", 5))
-    algorithm = request.args.get("algorithm", "hybrid")
-    min_score = float(request.args.get("min_score", 0.1))
-
-    # Cache check (min_scoreは小数点2桁で正規化)
-    min_score_key = f"{min_score:.2f}"
-    cache_key = get_cache_key("sop_related", sop_id, limit, algorithm, min_score_key)
-    cached_result = cache_get(cache_key)
-    if cached_result:
-        logger.info("Cache hit: sop_related - %s", cache_key)
-        return jsonify(cached_result)
-
-    # バリデーション
-    if limit < 1 or limit > 20:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "error": {
-                        "code": "INVALID_LIMIT",
-                        "message": "limit must be between 1 and 20",
-                    },
-                }
-            ),
-            400,
-        )
-
-    if algorithm not in ["tag", "category", "keyword", "hybrid"]:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "error": {
-                        "code": "INVALID_ALGORITHM",
-                        "message": "algorithm must be tag, category, keyword, or hybrid",
-                    },
-                }
-            ),
-            400,
-        )
-
-    # SOP取得
-    sop_list = load_data("sop.json")
-    target_sop = next((s for s in sop_list if s["id"] == sop_id), None)
-
-    if not target_sop:
-        return jsonify({"success": False, "error": "SOP not found"}), 404
-
-    # 関連アイテム取得（高負荷ML処理）
-    related = recommendation_engine.get_related_items(
-        target_sop, sop_list, limit=limit, algorithm=algorithm, min_score=min_score
-    )
-
-    response_data = {
-        "success": True,
-        "data": {
-            "target_id": sop_id,
-            "related_items": related,
-            "algorithm": algorithm,
-            "count": len(related),
-        },
-    }
-
-    # Cache set (TTL: 1h, expensive ML computation)
-    cache_set(cache_key, response_data, ttl=3600)
-    logger.info("Cache set: sop_related - %s", cache_key)
-
-    return jsonify(response_data)
-
 
 @app.route("/api/v1/incidents", methods=["GET"])
 @check_permission("incident.read")
@@ -2547,55 +2394,6 @@ def get_incident_detail(incident_id):
 
     return jsonify({"success": True, "data": incident})
 
-
-@app.route("/api/v1/dashboard/stats", methods=["GET"])
-@jwt_required()
-def get_dashboard_stats():
-    """ダッシュボード統計情報取得"""
-    current_user_id = get_jwt_identity()
-    log_access(current_user_id, "dashboard.view", "dashboard")
-
-    cache_key = get_cache_key("dashboard_stats")
-    cached_result = cache_get(cache_key)
-    if cached_result:
-        return jsonify(cached_result)
-
-    knowledge_list = load_data("knowledge.json")
-    sop_list = load_data("sop.json")
-    incidents = load_data("incidents.json")
-    approvals = load_data("approvals.json")
-
-    from datetime import datetime
-
-    pending_approvals_count = len(
-        [a for a in approvals if a.get("status") == "pending"]
-    )
-
-    stats = {
-        "kpis": {
-            "knowledge_reuse_rate": 71,
-            "accident_free_days": 184,
-            "active_audits": 6,
-            "delayed_corrections": 3,
-        },
-        "counts": {
-            "total_knowledge": len(knowledge_list),
-            "total_sop": len(sop_list),
-            "recent_incidents": len(
-                [i for i in incidents if i.get("status") == "reported"]
-            ),
-            "pending_approvals": pending_approvals_count,
-        },
-        "last_sync_time": datetime.now().isoformat(),
-        "active_workers": 0,
-        "total_workers": 100,
-        "pending_approvals": pending_approvals_count,
-    }
-
-    response_data = {"success": True, "data": stats}
-    cache_set(cache_key, response_data, ttl=300)  # 5分
-
-    return jsonify(response_data)
 
 
 @app.route("/api/v1/approvals", methods=["GET"])
