@@ -1,0 +1,64 @@
+{
+  "review_date": "2026-03-03",
+  "reviewer": "arch-reviewer SubAgent",
+  "result": "PASS_WITH_WARNINGS",
+  "summary": "Phase G-3仕様書はFlask Blueprintへの段階的移行として構造的に妥当な設計である。7,112行のモノリシックなapp_v2.pyを11 Blueprintに分割する計画は保守性向上に明確な価値がある。URLパス変更なしの後方互換性維持、既存テストによる動作検証方針はリスク管理として適切。ただし、4点の警告事項（JWT refreshでのroles claim欠落・循環参照リスク・Limiterのapp-level直接バインディング・全11 Blueprint一斉移行リスク）について実装前に対処策を確定させる必要がある。",
+  "approved_plan": {
+    "phase_g3_1": "Priority High BlueprintのみでPhase G-3-1を開始。対象: auth, knowledge, project, sop, incident, search の6 Blueprint（計35エンドポイント）。共通ユーティリティ（utils/cache.py, utils/auth_helpers.py, utils/access_log.py）の抽出を先行実施してから各Blueprintを作成する。app_v2.pyはBlueprint登録・初期化・グローバル状態管理のみに削減する。Application Factoryパターンへの完全移行はPhase G-4以降とし、今回は非対象とする（仕様書B.3の方針を承認）。",
+    "phase_g3_2": "Phase G-3-1完了・既存591テスト全PASS確認後にPhase G-3-2を開始。JWT roles claim対応は refresh エンドポイント（行1741）の追加改修と合わせて実施すること（警告W-001参照）。check_permissionのDB参照排除はPostgreSQL環境への移行と連動してリスクが高いため、変更前後でのリグレッションテストを必須とする。Medium/Low Priority Blueprint（consultation, notification, dashboard, ms365, system）はPhase G-3-2と並行または後続フェーズで実施する。"
+  },
+  "blocking_issues": [],
+  "warnings": [
+    {
+      "id": "W-001",
+      "severity": "MEDIUM",
+      "title": "JWT refresh エンドポイントで roles claim が引き継がれない",
+      "detail": "app_v2.py 行1741: create_access_token(identity=current_user_id) に additional_claims={'roles': ...} が渡されていない。ログイン時（行1454, 1699）は roles claim が設定されているが、refresh 後のトークンには roles が含まれず空になる。Phase G-3-2 でcheck_permissionがJWT claims依存に移行した場合、refresh後にすべての権限チェックが失敗する致命的な問題となる。Phase G-3-2 開始前に必ず対処すること。",
+      "affected_code": "backend/app_v2.py:1741 (refresh関数)",
+      "recommended_fix": "refresh関数内で get_jwt() から既存 claims を取得し、roles を引き継いで create_access_token を呼び出す: claims = get_jwt(); access_token = create_access_token(identity=current_user_id, additional_claims={'roles': claims.get('roles', [])})"
+    },
+    {
+      "id": "W-002",
+      "severity": "MEDIUM",
+      "title": "limiter インスタンスが app に直接バインドされており Blueprint 内での参照方法が未確定",
+      "detail": "app_v2.py 行563: limiter = Limiter(app=app, ...) でapp-levelに直接バインドされている。仕様書では 'current_app.extensions[\"flask-limiter\"]' での参照を提案しているが、Flask-Limiterのバージョン依存でキー名が異なる場合がある（v3.xでは 'flask_limiter.extension.Limiter' 等）。Blueprint移行時に @limiter.limit() デコレータが各Blueprintファイルから参照できるよう、utils/auth_helpers.py または blueprints/__init__.py で limiter インスタンスを明示的にエクスポートする設計が推奨される。",
+      "affected_code": "backend/app_v2.py:563",
+      "recommended_fix": "utils/rate_limit.py を新設し limiter インスタンスをモジュールレベルで管理する（循環参照を避けるため app インスタンスとは分離）。各 Blueprint は from utils.rate_limit import limiter でインポートする。"
+    },
+    {
+      "id": "W-003",
+      "severity": "MEDIUM",
+      "title": "全11 Blueprint を一斉に移行するとリグレッションリスクが高い",
+      "detail": "仕様書 Section 5 では Phase G-3-1 の対象を 'auth, knowledge, project, sop, incident, search（優先度High）' と絞り込んでいるが、付録Aには consultation, notification, dashboard, ms365, system も含む84エンドポイントが列挙されており、一括移行と段階移行の境界が実装者に伝わりにくい。特に ms365 Blueprint（21エンドポイント）は付録B.1 にある通りWindowsバックスラッシュパスのバグ修正も伴うため、他Blueprintと同一スプリントで実施するのはリスクが高い。",
+      "affected_code": "specs/phase_g3_requirements.md: Section 2.2 (Blueprint一覧), Section 5 (実装計画)",
+      "recommended_fix": "Phase G-3-1（今回）: High 優先度 6 Blueprint のみ。Phase G-3-1b: Medium 優先度 4 Blueprint（consultation, notification, dashboard, system）。Phase G-3-1c: Low 優先度 1 Blueprint（ms365）のみ、バックスラッシュバグ修正込みで実施。各フェーズで既存テスト全PASS確認を必須とする。"
+    },
+    {
+      "id": "W-004",
+      "severity": "LOW",
+      "title": "models.py の import 循環参照リスクが仕様書に記載されているが対策が不完全",
+      "detail": "仕様書 Section 9 に 'models.py の import 循環参照リスクはないか' という確認事項があるが、対策は 'utils/ モジュールは他 Blueprint をimportしない' のみで、Blueprint → app_v2.py → models.py という経路については明示的な対策がない。現在のapp_v2.pyはモジュールレベルでmodels.pyをimportしている可能性があり（DataAccessLayer経由）、Blueprint内で同じimportを行うと init 順序によって循環参照が発生しうる。",
+      "affected_code": "backend/data_access.py (DataAccessLayer), backend/models.py",
+      "recommended_fix": "blueprints/__init__.py では models.py を直接importしない。モデルへのアクセスはすべて DataAccessLayer（DAL）経由とし、DALは current_app.extensions または get_dal() ファクトリ関数経由で取得する設計を徹底する。"
+    }
+  ],
+  "recommended_start": "Phase G-3-1 の最初のステップとして utils/ モジュール群（utils/cache.py, utils/auth_helpers.py, utils/access_log.py）の抽出を先行実施する。これらは Blueprint 間で共有される基盤コードであり、先に安定させることで各 Blueprint 実装が並行化できる。抽出後は既存テスト591件を実行してリグレッションがないことを確認してから auth Blueprint の移行に着手することを推奨する。auth Blueprint を最初に選ぶ理由は（1）JWT/MFAの認証基盤が他すべてのBlueprintに依存されているため設計が確定してからの方が影響範囲が読みやすい、（2）既存のtest_totp_manager.py（19件）とtest_mfa_flow.py（17件）が高カバレッジで動作確認できる、の2点による。",
+  "risk_assessment": "MEDIUM",
+  "risk_rationale": "URLパス変更なしのためエンドユーザー影響はなし（LOW）。ただし JWT refresh での roles claim 欠落（W-001）が Phase G-3-2 と連動して顕在化するリスク、および limiter インスタンスの Blueprint 内参照方法の未確定（W-002）が実装時のブロッカーになりうるため MEDIUM とする。仕様書の分割計画自体は Flask のベストプラクティスに沿っており、段階的移行・既存テスト検証の方針は適切に設計されている。",
+  "flask_blueprint_compliance": {
+    "registration_pattern": "ACCEPTABLE",
+    "detail": "仕様書は app.register_blueprint() による直接登録パターンを採用しており、Application Factory（create_app()）パターンは Phase G-4 以降に延期している（仕様書 B.3）。現在の app = Flask(__name__) パターン（行390）との整合性があり、既存テストへの影響を最小化する観点から今回は適切な判断である。Blueprint の url_prefix を /api/v1 に維持することで後方互換性は確保される。",
+    "socketio_separation": "APPROVED",
+    "detail_socketio": "SocketIO ハンドラーを sockets/handlers.py に分離する方針は適切。Flask-SocketIO は Blueprint 内での @socketio.on() デコレータをサポートしているが、socketio インスタンス（行490）が app と密結合しているため、Blueprint 外の sockets/ に分離してモジュールレベルで socketio を参照させる設計が循環参照を避けるうえで正しい。"
+  },
+  "n1_query_assessment": {
+    "check_permission_issue": "CONFIRMED_CRITICAL_FOR_POSTGRESQL",
+    "detail": "check_permission デコレータ（行1018-1082）は load_users()（行886）を毎リクエスト呼び出し、users.json 全件をスキャンして権限判定を行っている。現在のJSON開発環境では影響は限定的だが、PostgreSQL環境（MKS_USE_POSTGRESQL=true）では 約60エンドポイント × リクエスト毎に users テーブルへのクエリが発行される。Phase G-3-2 での JWT claims 化は必須対応。",
+    "existing_roles_in_jwt": "PARTIALLY_IMPLEMENTED",
+    "detail_roles": "ログイン時（行1454, 1698, 行2124）の create_access_token に additional_claims={'roles': ...} が設定されている。ただし refresh（行1741）では roles が引き継がれていない（W-001参照）。Phase G-3-2 での check_permission 改修前に refresh の修正を先行実施すること。"
+  },
+  "test_plan_assessment": {
+    "result": "ADEQUATE",
+    "detail": "既存テスト591件の全PASS を成功基準とする方針は妥当。新規テスト追加（test_blueprints_register.py, test_knowledge_blueprint.py 等）の計画も適切。カバレッジ91%以上維持の目標は現実的。Blueprint移行後は conftest.py の import パス変更が必要な箇所について、実装者が事前にリストアップしておくことを推奨する。"
+  }
+}
