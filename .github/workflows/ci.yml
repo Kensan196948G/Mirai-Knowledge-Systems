@@ -69,10 +69,11 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          # requirements.txt を先にインストール（Flask等コアを固定）
+          # requirements.txt を先にインストール（依存関係を正しく解決するため）
+          # --no-deps は使わない（Flask-SocketIO の pyee 等トランジティブ依存が欠落するため）
           if [ -f backend/requirements.txt ]; then
-            pip install -r backend/requirements.txt 2>/dev/null || \
-              pip install -r backend/requirements.txt --no-deps 2>/dev/null || true
+            pip install -r backend/requirements.txt || \
+              pip install -r backend/requirements.txt --upgrade 2>/dev/null || true
           fi
           # テストパッケージ（requirements.txtのFlask互換バージョンを利用）
           pip install pytest pytest-cov pytest-flask pytest-xdist
