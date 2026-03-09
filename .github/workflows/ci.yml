@@ -82,7 +82,6 @@ jobs:
             --ignore=tests/load \
             --cov=app_v2 --cov=app_helpers \
             --cov=schemas --cov=models \
-            --cov=password_policy --cov=csrf_protection \
             --cov=recommendation_engine \
             --cov=auth --cov=blueprints --cov=dal \
             --cov-report=term-missing \
