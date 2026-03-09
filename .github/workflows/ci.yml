@@ -69,10 +69,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-cov pytest-flask pytest-xdist
+          # requirements.txt を先にインストール（Flask等コアを固定）
           if [ -f backend/requirements.txt ]; then
-            pip install -r backend/requirements.txt 2>/dev/null || true
+            pip install -r backend/requirements.txt 2>/dev/null || \
+              pip install -r backend/requirements.txt --no-deps 2>/dev/null || true
           fi
+          # テストパッケージ（requirements.txtのFlask互換バージョンを利用）
+          pip install pytest pytest-cov pytest-flask pytest-xdist
 
       - name: Run pytest
         working-directory: backend
