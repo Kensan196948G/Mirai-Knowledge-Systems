@@ -27,7 +27,7 @@ jobs:
           echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
 
       - name: 📥 PRブランチをチェックアウト
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
