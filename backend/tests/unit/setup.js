@@ -29,14 +29,25 @@ const sessionStorageMock = {
 global.sessionStorage = sessionStorageMock;
 
 // Window.locationのモック
-delete window.location;
-window.location = {
+// jsdomでは window.location への直接代入が禁止されているため
+// Object.defineProperty で href を書き込み可能プロパティとして定義する
+const locationMock = {
   href: '',
-  pathname: '',
+  pathname: '/',
   search: '',
   hash: '',
-  reload: jest.fn()
+  hostname: 'localhost',
+  host: 'localhost',
+  protocol: 'http:',
+  reload: jest.fn(),
+  assign: jest.fn((url) => { locationMock.href = url; }),
+  replace: jest.fn((url) => { locationMock.href = url; }),
 };
+Object.defineProperty(window, 'location', {
+  value: locationMock,
+  writable: true,
+  configurable: true,
+});
 
 // Console警告を抑制（必要に応じて）
 global.console = {
