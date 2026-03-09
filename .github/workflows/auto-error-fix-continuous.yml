@@ -379,7 +379,7 @@ jobs:
 
       - name: Artifactに結果をアップロード
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: error-fix-results-${{ github.run_number }}
           path: |
