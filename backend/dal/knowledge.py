@@ -7,7 +7,6 @@ import json as _json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from app_helpers import CACHE_TTL_LONG, cache_get, cache_set
 from database import get_session_factory
 from models import Knowledge
 
@@ -63,6 +62,8 @@ class KnowledgeMixin:
                 _json.dumps(filters or {}, sort_keys=True).encode()
             ).hexdigest()[:8]
             cache_key = f"knowledge:list:{filter_hash}"
+            # 循環インポート回避のため遅延インポート
+            from app_helpers import CACHE_TTL_LONG, cache_get, cache_set  # noqa: PLC0415
             cached = cache_get(cache_key)
             if cached is not None:
                 return cached
