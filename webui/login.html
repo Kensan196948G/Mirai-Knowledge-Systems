@@ -349,6 +349,13 @@
     </div>
 
     <script>
+        // logger フォールバック（app.js を読み込まないログインページ用）
+        const logger = window.logger || {
+            log: (...args) => {},
+            error: (...args) => console.error(...args),
+            warn: (...args) => console.warn(...args),
+        };
+
         // PWA Feature Detection (login page)
         window.PWA_FEATURES = {
             serviceWorker: 'serviceWorker' in navigator,
