@@ -79,7 +79,8 @@ class TestLogsPostgresql:
         """PostgreSQL パスで空の結果を返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.logs.get_session_factory", return_value=mock_factory):
@@ -101,7 +102,8 @@ class TestLogsPostgresql:
         mock_log.user_agent = "Mozilla"
         mock_log.created_at = None
         mock_session = make_mock_session(results=[mock_log])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.logs.get_session_factory", return_value=mock_factory):
@@ -122,7 +124,8 @@ class TestLogsPostgresql:
         """フィルタ付き PostgreSQL クエリが実行される"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         filters = {"user_id": 1, "action": "login", "resource": "auth", "limit": 10}
         with patch.object(dal, "_use_postgresql", return_value=True), \
@@ -150,7 +153,8 @@ class TestLogsPostgresql:
             pass
         mock_session.refresh.side_effect = mock_refresh
 
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         log_data = {"action": "create", "resource": "knowledge", "user_id": 1}
         with patch.object(dal, "_use_postgresql", return_value=True), \
@@ -193,7 +197,8 @@ class TestNotificationsPostgresql:
         """PostgreSQL パスで空の通知リストを返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.notifications.get_session_factory", return_value=mock_factory):
@@ -213,7 +218,8 @@ class TestNotificationsPostgresql:
         """user_id フィルタ付き PostgreSQL クエリ"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.notifications.get_session_factory", return_value=mock_factory):
@@ -237,7 +243,8 @@ class TestNotificationsPostgresql:
         mock_notif.sent_at = None
         mock_notif.status = "sent"
         mock_session = make_mock_session(results=[mock_notif])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.notifications.get_session_factory", return_value=mock_factory):
@@ -249,7 +256,8 @@ class TestNotificationsPostgresql:
         """PostgreSQL パスで通知作成が試みられる（priority列なし→TypeError→finally close）"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session()
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         notification_data = {
             "title": "テスト",
@@ -298,7 +306,8 @@ class TestProjectsPostgresql:
         """PostgreSQL パスで空のプロジェクトリストを返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.projects.get_session_factory", return_value=mock_factory):
@@ -317,7 +326,8 @@ class TestProjectsPostgresql:
         """フィルタ付き PostgreSQL クエリ"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.projects.get_session_factory", return_value=mock_factory):
@@ -328,7 +338,8 @@ class TestProjectsPostgresql:
         """PostgreSQL パスでプロジェクトが見つからない"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.projects.get_session_factory", return_value=mock_factory):
@@ -355,7 +366,8 @@ class TestProjectsPostgresql:
         mock_project.created_at = None
         mock_project.updated_at = None
         mock_session = make_mock_session(first_result=mock_project)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.projects.get_session_factory", return_value=mock_factory):
@@ -378,7 +390,8 @@ class TestProjectsPostgresql:
         mock_task_stats = MagicMock()
         mock_task_stats.total_tasks = 0
         mock_session = make_mock_session(first_result=mock_task_stats)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.projects.get_session_factory", return_value=mock_factory):
@@ -392,7 +405,8 @@ class TestProjectsPostgresql:
         mock_task_stats.total_tasks = 4
         mock_task_stats.completed_tasks = 2
         mock_session = make_mock_session(first_result=mock_task_stats)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.projects.get_session_factory", return_value=mock_factory):
@@ -433,7 +447,8 @@ class TestKnowledgePostgresql:
         """PostgreSQL パスで空のリストを返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -452,7 +467,8 @@ class TestKnowledgePostgresql:
         """フィルタ付き PostgreSQL クエリ"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -463,7 +479,8 @@ class TestKnowledgePostgresql:
         """PostgreSQL パスでナレッジが見つからない"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -493,7 +510,8 @@ class TestKnowledgePostgresql:
         mock_knowledge.created_by = None
         mock_knowledge.updated_by = None
         mock_session = make_mock_session(first_result=mock_knowledge)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -509,7 +527,8 @@ class TestKnowledgePostgresql:
         """
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -525,7 +544,8 @@ class TestKnowledgePostgresql:
         """タグなしで関連ナレッジ取得 PostgreSQL パス（else ブランチをカバー）"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -537,7 +557,8 @@ class TestKnowledgePostgresql:
         """exclude_id 付き関連ナレッジ取得（tags ありルート）"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -552,7 +573,8 @@ class TestKnowledgePostgresql:
         """PostgreSQL パスでナレッジを作成する"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session()
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         knowledge_data = {
             "title": "新ナレッジ",
@@ -572,7 +594,8 @@ class TestKnowledgePostgresql:
         """PostgreSQL パスで更新対象が見つからない"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -589,7 +612,8 @@ class TestKnowledgePostgresql:
         mock_knowledge.created_at = None
         mock_knowledge.updated_at = None
         mock_session = make_mock_session(first_result=mock_knowledge)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -600,7 +624,8 @@ class TestKnowledgePostgresql:
         """PostgreSQL パスで削除対象が見つからない"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -612,7 +637,8 @@ class TestKnowledgePostgresql:
         dal = make_dal(tmp_path)
         mock_knowledge = MagicMock()
         mock_session = make_mock_session(first_result=mock_knowledge)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -639,7 +665,8 @@ class TestOperationsPostgresql:
         """PostgreSQL パスで空の SOP リストを返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -658,7 +685,8 @@ class TestOperationsPostgresql:
         """フィルタ付き SOP リスト取得"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -669,7 +697,8 @@ class TestOperationsPostgresql:
         """PostgreSQL パスで SOP が見つからない"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -696,7 +725,8 @@ class TestOperationsPostgresql:
         mock_sop.created_by_id = 1
         mock_sop.updated_by_id = None
         mock_session = make_mock_session(first_result=mock_sop)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -708,7 +738,8 @@ class TestOperationsPostgresql:
         """PostgreSQL パスで空のインシデントリストを返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -719,7 +750,8 @@ class TestOperationsPostgresql:
         """フィルタ付きインシデント一覧取得"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         filters = {"project": "PROJ-001", "severity": "high", "status": "open", "search": "転倒"}
         with patch.object(dal, "_use_postgresql", return_value=True), \
@@ -731,7 +763,8 @@ class TestOperationsPostgresql:
         """PostgreSQL パスでインシデントが見つからない"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -742,7 +775,8 @@ class TestOperationsPostgresql:
         """PostgreSQL パスで空の承認リストを返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -753,7 +787,8 @@ class TestOperationsPostgresql:
         """フィルタ付き承認一覧取得"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         filters = {"status": "pending", "type": "knowledge", "requester_id": 1, "priority": "high"}
         with patch.object(dal, "_use_postgresql", return_value=True), \
@@ -765,7 +800,8 @@ class TestOperationsPostgresql:
         """PostgreSQL パスで法令が見つからない"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -812,7 +848,8 @@ class TestOperationsPostgresql:
         mock_reg.created_at = None
         mock_reg.updated_at = None
         mock_session = make_mock_session(first_result=mock_reg)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.operations.get_session_factory", return_value=mock_factory):
@@ -832,7 +869,8 @@ class TestExpertsPostgresql:
         """PostgreSQL パスで空の専門家リストを返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.experts.get_session_factory", return_value=mock_factory):
@@ -851,7 +889,8 @@ class TestExpertsPostgresql:
         """フィルタ付き専門家一覧取得"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(results=[])
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.experts.get_session_factory", return_value=mock_factory):
@@ -862,7 +901,8 @@ class TestExpertsPostgresql:
         """PostgreSQL パスで専門家が見つからない"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.experts.get_session_factory", return_value=mock_factory):
@@ -886,7 +926,8 @@ class TestExpertsPostgresql:
         mock_expert.created_at = None
         mock_expert.updated_at = None
         mock_session = make_mock_session(first_result=mock_expert)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.experts.get_session_factory", return_value=mock_factory):
@@ -898,7 +939,8 @@ class TestExpertsPostgresql:
         dal = make_dal(tmp_path)
         # 最初の db.query(Expert).filter(...).first() が None を返す
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.experts.get_session_factory", return_value=mock_factory):
@@ -924,7 +966,8 @@ class TestExpertsPostgresql:
         mock_expert.is_available = True
 
         mock_session = make_mock_session(results=[], first_result=mock_expert)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.experts.get_session_factory", return_value=mock_factory):
@@ -952,7 +995,8 @@ class TestExpertsPostgresql:
         """専門家が見つからないとき 0.0 を返す"""
         dal = make_dal(tmp_path)
         mock_session = make_mock_session(first_result=None)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.experts.get_session_factory", return_value=mock_factory):
@@ -968,7 +1012,8 @@ class TestExpertsPostgresql:
         mock_expert.response_time_avg = 30  # 30分
         mock_expert.experience_years = 5
         mock_session = make_mock_session(results=[], first_result=mock_expert)
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.experts.get_session_factory", return_value=mock_factory):
@@ -1003,7 +1048,8 @@ class TestLogsAdditional:
         dal = make_dal(tmp_path)
         mock_session = make_mock_session()
         mock_session.add.side_effect = Exception("DB error")
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.logs.get_session_factory", return_value=mock_factory):
@@ -1072,7 +1118,8 @@ class TestKnowledgeAdditional:
         dal = make_dal(tmp_path)
         mock_session = make_mock_session()
         mock_session.add.side_effect = Exception("DB error")
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -1088,7 +1135,8 @@ class TestKnowledgeAdditional:
         mock_knowledge = MagicMock()
         mock_session = make_mock_session(first_result=mock_knowledge)
         mock_session.commit.side_effect = Exception("DB error")
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -1104,7 +1152,8 @@ class TestKnowledgeAdditional:
         mock_knowledge = MagicMock()
         mock_session = make_mock_session(first_result=mock_knowledge)
         mock_session.commit.side_effect = Exception("DB error")
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.knowledge.get_session_factory", return_value=mock_factory):
@@ -1213,7 +1262,8 @@ class TestProjectsAdditional:
         dal = make_dal(tmp_path)
         mock_session = make_mock_session()
         mock_session.query.side_effect = Exception("Query failed")
-        mock_factory = lambda: mock_session
+        def mock_factory():
+            return mock_session
 
         with patch.object(dal, "_use_postgresql", return_value=True), \
              patch("dal.projects.get_session_factory", return_value=mock_factory):
