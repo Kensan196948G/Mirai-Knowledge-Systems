@@ -70,6 +70,12 @@ DEFAULT_DATA_DIR = os.path.join(_base_dir, "data")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 CACHE_TTL = int(os.getenv("CACHE_TTL", 300))
 
+# Per-category cache TTL constants (seconds) for Phase I-2 optimization
+CACHE_TTL_SHORT = 60        # ユーザーセッション等、頻繁に変わるデータ
+CACHE_TTL_DEFAULT = 300     # デフォルト（既存 CACHE_TTL と同値）
+CACHE_TTL_LONG = 3600       # 静的データ（SOP/法令等）
+CACHE_TTL_VERY_LONG = 86400  # 変更頻度が低いマスターデータ
+
 if _redis_lib is None:
     redis_client = None
     CACHE_ENABLED = False
