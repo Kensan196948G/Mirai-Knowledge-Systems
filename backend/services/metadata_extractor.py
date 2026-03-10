@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 
 # オプション依存関係の遅延インポート
 try:
-    from PyPDF2 import PdfReader
+    from pypdf import PdfReader
 
     PYPDF2_AVAILABLE = True
 except ImportError:
     PYPDF2_AVAILABLE = False
-    logger.debug("PyPDF2未インストール。pip install PyPDF2 でインストールしてください")
+    logger.debug("pypdf未インストール。pip install pypdf でインストールしてください")
 
 try:
     from docx import Document
@@ -117,7 +117,7 @@ class MetadataExtractor:
             抽出されたテキスト
         """
         if not PYPDF2_AVAILABLE:
-            return "[PDF: PyPDF2未インストールのためテキスト抽出不可]"
+            return "[PDF: pypdf未インストールのためテキスト抽出不可]"
 
         try:
             pdf_file = io.BytesIO(file_content)
