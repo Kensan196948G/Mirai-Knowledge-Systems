@@ -841,3 +841,243 @@ class TestMfaRecoveryFoundUser:
         assert resp_found.status_code == 200
         assert resp_notfound.status_code == 200
         assert resp_found.get_json()["message"] == resp_notfound.get_json()["message"]
+
+
+# ============================================================
+# mfa_token フィクスチャ（MFAユーザーのmfa_tokenを取得）
+# ============================================================
+
+
+@pytest.fixture()
+def mfa_token(mfa_user_client):
+    """MFA有効ユーザーのログインで取得した mfa_token"""
+    resp = mfa_user_client.post(
+        "/api/v1/auth/login",
+        json={"username": "mfauser", "password": "mfa123"},
+    )
+    return resp.get_json()["data"]["mfa_token"]
+
+
+# ============================================================
+# /login/mfa - PostgreSQL パス (lines 221-295, 310-329)
+# ============================================================
+
+
+class TestLoginMfaPostgresqlPath:
+    """POST /api/v1/auth/login/mfa - MockDAL で PostgreSQL パスをカバー"""
+
+    def test_postgresql_path_invalid_totp(self, mfa_user_client, mfa_token, monkeypatch):
+        """DAL モック使用: ユーザー発見後に無効 TOTP → 401（lines 221-236, 272-308）"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(mfa_enabled=True, mfa_secret="SECRET")
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=user))
+        monkeypatch.setattr(auth_mod, "TOTPManager", MockTOTPManagerFalse)
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": mfa_token, "code": "000000"},
+        )
+        assert resp.status_code == 401
+        assert resp.get_json()["error"]["code"] == "INVALID_MFA_CODE"
+
+    def test_postgresql_path_success_with_totp(self, mfa_user_client, mfa_token, monkeypatch):
+        """DAL モック使用: 正しい TOTP で MFA ログイン成功（lines 310-329）"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(mfa_enabled=True, mfa_secret="SECRET")
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=user))
+        monkeypatch.setattr(auth_mod, "TOTPManager", MockTOTPManagerTrue)
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": mfa_token, "code": "123456"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert "access_token" in data["data"]
+        assert data["data"]["used_backup_code"] is False
+
+    def test_postgresql_path_user_not_found(self, mfa_user_client, mfa_token, monkeypatch):
+        """DAL モック使用: ユーザーが存在しない → 404（lines 242-249）"""
+        import blueprints.auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=None))
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": mfa_token, "code": "123456"},
+        )
+        assert resp.status_code == 404
+        assert resp.get_json()["error"]["code"] == "USER_NOT_FOUND"
+
+    def test_postgresql_path_mfa_not_configured(self, mfa_user_client, mfa_token, monkeypatch):
+        """DAL モック使用: mfa_secret なし → 400 MFA_NOT_CONFIGURED（lines 251-262）"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(mfa_enabled=False, mfa_secret=None)
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=user))
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": mfa_token, "code": "123456"},
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()["error"]["code"] == "MFA_NOT_CONFIGURED"
+
+
+# ============================================================
+# /mfa/verify - MockDAL 使用 (lines 608-702)
+# ============================================================
+
+
+class TestVerifyMfaLoginWithMockedDal:
+    """POST /api/v1/auth/mfa/verify - DAL モックで詳細パスをカバー"""
+
+    def test_user_not_found_returns_404(self, mfa_user_client, mfa_token, monkeypatch):
+        """DAL モック: ユーザー発見できない → 404（lines 625-632）"""
+        import blueprints.auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=None))
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/mfa/verify",
+            json={"mfa_token": mfa_token, "code": "123456"},
+        )
+        assert resp.status_code == 404
+        assert resp.get_json()["error"]["code"] == "USER_NOT_FOUND"
+
+    def test_mfa_not_configured_returns_400(self, mfa_user_client, mfa_token, monkeypatch):
+        """DAL モック: mfa_secret なし → 400 MFA_NOT_CONFIGURED（lines 634-644）"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(mfa_enabled=False, mfa_secret=None)
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=user))
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/mfa/verify",
+            json={"mfa_token": mfa_token, "code": "123456"},
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()["error"]["code"] == "MFA_NOT_CONFIGURED"
+
+    def test_invalid_totp_returns_401(self, mfa_user_client, mfa_token, monkeypatch):
+        """DAL モック: TOTP 検証失敗 → 401 INVALID_MFA_CODE（lines 646-680）"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(mfa_enabled=True, mfa_secret="SECRET")
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=user))
+        monkeypatch.setattr(auth_mod, "TOTPManager", MockTOTPManagerFalse)
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/mfa/verify",
+            json={"mfa_token": mfa_token, "code": "000000"},
+        )
+        assert resp.status_code == 401
+        assert resp.get_json()["error"]["code"] == "INVALID_MFA_CODE"
+
+    def test_valid_totp_returns_tokens(self, mfa_user_client, mfa_token, monkeypatch):
+        """DAL モック: TOTP 検証成功 → 200 + access_token（lines 682-719）"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(mfa_enabled=True, mfa_secret="SECRET")
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=user))
+        monkeypatch.setattr(auth_mod, "TOTPManager", MockTOTPManagerTrue)
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/mfa/verify",
+            json={"mfa_token": mfa_token, "code": "123456"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert "access_token" in data["data"]
+        assert "refresh_token" in data["data"]
+        assert data["data"]["used_backup_code"] is False
+
+    def test_valid_totp_response_has_user_info(self, mfa_user_client, mfa_token, monkeypatch):
+        """成功レスポンスにユーザー情報が含まれる"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(mfa_enabled=True, mfa_secret="SECRET")
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=user))
+        monkeypatch.setattr(auth_mod, "TOTPManager", MockTOTPManagerTrue)
+
+        resp = mfa_user_client.post(
+            "/api/v1/auth/mfa/verify",
+            json={"mfa_token": mfa_token, "code": "123456"},
+        )
+        data = resp.get_json()
+        assert "user" in data["data"]
+        user_info = data["data"]["user"]
+        assert "id" in user_info
+        assert "username" in user_info
+
+
+# ============================================================
+# /mfa/disable - バックアップコードパス (lines 811-817)
+# ============================================================
+
+
+class TestDisableMfaBackupCodePath:
+    """POST /api/v1/auth/mfa/disable - バックアップコードで MFA 無効化"""
+
+    def test_backup_code_path_success(self, client, auth_headers, monkeypatch):
+        """TOTP 失敗・バックアップコード成功 → 200（lines 810-836）"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(
+            mfa_enabled=True,
+            mfa_secret="SECRET",
+            mfa_backup_codes=[
+                {"code_hash": "hash1", "used": False},
+                {"code_hash": "hash2", "used": True},
+            ],
+        )
+        dal = MockDAL(user=user)
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: dal)
+
+        class MockTOTPWithBackup:
+            """TOTP 失敗・バックアップコード成功"""
+            def verify_totp(self, secret, code):
+                return False  # TOTP は失敗
+
+            def verify_backup_code(self, code_hash, backup_code):
+                return code_hash == "hash1"  # hash1 のみ成功
+
+        monkeypatch.setattr(auth_mod, "TOTPManager", MockTOTPWithBackup)
+
+        resp = client.post(
+            "/api/v1/auth/mfa/disable",
+            headers=auth_headers,
+            json={"password": "admin123", "backup_code": "BACKUP001"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert user.mfa_enabled is False
+        assert user.mfa_secret is None
+
+    def test_all_backup_codes_used_returns_401(self, client, auth_headers, monkeypatch):
+        """全バックアップコードが使用済み + TOTP 失敗 → 401（line 812-817 used スキップ）"""
+        import blueprints.auth as auth_mod
+
+        user = MockUser(
+            mfa_enabled=True,
+            mfa_secret="SECRET",
+            mfa_backup_codes=[
+                {"code_hash": "hash1", "used": True},   # 使用済み
+                {"code_hash": "hash2", "used": True},   # 使用済み
+            ],
+        )
+        monkeypatch.setattr(auth_mod, "get_dal", lambda: MockDAL(user=user))
+        monkeypatch.setattr(auth_mod, "TOTPManager", MockTOTPManagerFalse)
+
+        resp = client.post(
+            "/api/v1/auth/mfa/disable",
+            headers=auth_headers,
+            json={"password": "admin123", "backup_code": "BACKUP001", "code": "000000"},
+        )
+        assert resp.status_code == 401
+        assert resp.get_json()["error"]["code"] == "INVALID_CODE"
