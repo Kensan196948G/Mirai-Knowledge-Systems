@@ -4,8 +4,8 @@
  */
 
 module.exports = {
-  // テスト環境：JSDOM（ブラウザ環境のシミュレート）
-  testEnvironment: 'jsdom',
+  // カスタムJSDOM環境: window.location.href設定を正しく動作させるためのパッチ適用
+  testEnvironment: '<rootDir>/tests/unit/jest-location-env.js',
 
   // テストファイルのパターン
   testMatch: [
