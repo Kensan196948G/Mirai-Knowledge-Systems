@@ -47,7 +47,7 @@ jobs:
     name: Backend Tests
     needs: lint
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -82,6 +82,7 @@ jobs:
           pytest tests/ -v --tb=short --maxfail=10 \
             --ignore=tests/e2e \
             --ignore=tests/load \
+            -n auto \
             --cov=app_v2 --cov=schemas --cov=data_access --cov=models \
             --cov=password_policy --cov=csrf_protection --cov=recommendation_engine \
             --cov=auth --cov=services --cov=integrations \
