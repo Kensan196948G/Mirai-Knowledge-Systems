@@ -1,372 +1,690 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# ============================================================
+# run-claude.sh - Claude Code 起動スクリプト
+# 生成元: Claude-EdgeChromeDevTools v1.3.0
+# プロジェクト: Mirai-Knowledge-Systems
+# DevToolsポート: 9222
+# ============================================================
 set -euo pipefail
 
-PORT=9222
-RESTART_DELAY=3
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEVTOOLS_PORT=9222
+SESSION_NAME="claude-Mirai-Knowledge-Systems-9222"
 
-# 初期プロンプト（ヒアドキュメントで定義：バッククォートや二重引用符を安全に含む）
+# --- ログ設定 ---
+LOG_DIR="$PROJECT_ROOT/logs"
+MCP_LOG_DIR="$LOG_DIR/mcp"
+LOG_TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+SESSION_LOG="$LOG_DIR/claude-session-$LOG_TIMESTAMP.log"
+
+mkdir -p "$LOG_DIR" "$MCP_LOG_DIR"
+
+# stdout + stderr をファイルとターミナル両方に出力
+exec > >(tee -a "$SESSION_LOG") 2>&1
+
+# --- ログローテーション (30日超を削除) ---
+find "$LOG_DIR" -maxdepth 1 -name "claude-session-*.log" -mtime +30 -delete 2>/dev/null || true
+find "$MCP_LOG_DIR" -name "mcp-health-*.log" -mtime +30 -delete 2>/dev/null || true
+
+# --- 月次アーカイブ ---
+ARCHIVE_DIR="$LOG_DIR/archive"
+PREV_MONTH=$(date -d "last month" +%Y-%m 2>/dev/null || date -v-1m +%Y-%m 2>/dev/null)
+if [ -n "$PREV_MONTH" ]; then
+    ARCHIVE_FILES=$(find "$LOG_DIR" -maxdepth 1 -name "claude-session-${PREV_MONTH}*.log" 2>/dev/null)
+    if [ -n "$ARCHIVE_FILES" ]; then
+        mkdir -p "$ARCHIVE_DIR"
+        zip -j "${ARCHIVE_DIR}/${PREV_MONTH}.zip" $ARCHIVE_FILES 2>/dev/null && rm -f $ARCHIVE_FILES
+    fi
+fi
+
+# --- 環境変数設定 ---
+export CLAUDE_CHROME_DEBUG_PORT="$DEVTOOLS_PORT"
+export MCP_CHROME_DEBUG_PORT="$DEVTOOLS_PORT"
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+
+cd "$PROJECT_ROOT" || { echo "❌ プロジェクトディレクトリに移動できません: $PROJECT_ROOT"; exit 1; }
+
+echo "📁 プロジェクト: $PROJECT_ROOT"
+echo "🔌 DevToolsポート: $DEVTOOLS_PORT"
+
+# --- DevTools接続確認 ---
+echo "🌐 DevTools接続確認中..."
+DEVTOOLS_READY=false
+for i in $(seq 1 10); do
+    if curl -sf "http://127.0.0.1:$DEVTOOLS_PORT/json/version" > /dev/null 2>&1; then
+        DEVTOOLS_READY=true
+        echo "✅ DevTools接続OK (試行: $i)"
+        # バージョン情報表示
+        curl -s "http://127.0.0.1:$DEVTOOLS_PORT/json/version" | grep -o '"Browser":"[^"]*"' || true
+        break
+    fi
+    echo "  ... DevTools待機中 ($i/10)"
+    sleep 2
+done
+
+if [ "$DEVTOOLS_READY" = "false" ]; then
+    echo "⚠️  DevToolsへの接続を確認できませんでした (ポート: $DEVTOOLS_PORT)"
+    echo "   ブラウザが起動しているか確認してください"
+fi
+
+# --- 初期プロンプト設定 ---
 INIT_PROMPT=$(cat << 'INITPROMPTEOF'
 以降、日本語で対応してください。
 
-あなたはこのリポジトリのメイン開発エージェントです。
-GitHub（リモート origin）および GitHub Actions 上の自動実行と整合が取れる形で、
+あなたはこのリポジトリの **メイン開発エージェント**です。
+
+GitHub（origin）および GitHub Actions と整合を取りながら
 ローカル開発作業を支援してください。
 
-## 【目的】
+---
 
-- ローカル開発での変更が、そのまま GitHub の Pull Request / GitHub Actions ワークフローと
-  矛盾なく連携できる形で行われること。
-- SubAgent / Hooks / Git WorkTree / MCP / Agent Teams / 標準機能をフル活用しつつも、
-  Git・GitHub 操作には明確なルールを守ること。
+# 【目的】
 
-## 【前提・環境】
-
-- このリポジトリは GitHub 上の `<org>/<repo>` と同期している。
-- GitHub Actions では CLAUDE.md とワークフローファイル（.github/workflows 配下）に
-  CI 上のルールや制約が定義されている前提とする。
-- Worktree は「1 機能 = 1 WorkTree/ブランチ」を基本とし、
-  PR 単位の開発を前提にする。
-- Agent Teams が有効化されている（環境変数 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 設定済み）。
-
-## 【利用してよい Claude Code 機能】
-
-- **全 SubAgent 機能**：並列での解析・実装・テスト分担に自由に利用してよい。
-- **全 Hooks 機能**：テスト実行、lint、フォーマッタ、ログ出力などの開発フロー自動化に利用してよい。
-- **全 Git WorkTree 機能**：機能ブランチ/PR 単位での作業ディレクトリ分離に利用してよい。
-- **全 MCP 機能**：GitHub API、Issue/PR 情報、外部ドキュメント・監視など必要な範囲で利用してよい。
-- **全 Agent Teams 機能**：複数の Claude Code インスタンスをチームとして協調動作させてよい（後述のポリシーに従うこと）。
-- **標準機能**：ファイル編集、検索、テスト実行、シェルコマンド実行など通常の開発作業を行ってよい。
-
-## 【Agent Teams（オーケストレーション）ポリシー】
-
-### 有効化設定
-
-Agent Teams は以下のいずれかの方法で有効化されている前提とする：
-
-```bash
-# 方法1: 環境変数で設定
-export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-
-# 方法2: settings.json で設定（推奨：プロジェクト単位での共有が可能）
-# .claude/settings.json に以下を追加
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
-}
-```
-
-### SubAgent と Agent Teams の使い分け
-
-| 観点 | SubAgent | Agent Teams |
-|------|----------|-------------|
-| 実行モデル | 単一セッション内の子プロセス | 独立した複数の Claude Code インスタンス |
-| コミュニケーション | 親エージェントへの報告のみ | チームメイト間で相互メッセージ可能 |
-| コンテキスト | 親のコンテキストを共有 | 各自が独立したコンテキストウィンドウを持つ |
-| 適用場面 | 短時間で完結する集中タスク | 並列探索・相互レビュー・クロスレイヤー作業 |
-| コスト | 低（単一セッション内） | 高（複数インスタンス分のトークン消費） |
-
-### Agent Teams を使うべき場面
-
-以下のタスクでは Agent Teams の利用を積極的に検討すること：
-
-1. **リサーチ・レビュー系**：複数の観点（セキュリティ、パフォーマンス、アーキテクチャ）から同時にコードレビューを行う場合
-2. **新規モジュール・機能開発**：フロントエンド・バックエンド・テストなど独立したレイヤーを並列で開発する場合
-3. **デバッグ・原因調査**：複数の仮説を並列で検証し、結果を突き合わせて原因を特定する場合
-4. **クロスレイヤー協調**：API設計・DB設計・UI設計など、相互に影響するがそれぞれ独立して作業できる変更
-
-### Agent Teams を使うべきでない場面
-
-以下の場合は SubAgent または単一セッションを優先すること：
-
-- 単純な定型タスク（lint修正、フォーマット適用など）
-- 順序依存の強い逐次作業
-- トークンコストを抑えたいルーチン作業
-
-### Agent Teams 運用ルール
-
-1. **チーム編成の提案**：Agent Teams を使う場合、まずチーム構成（役割・人数・タスク分担）を提案し、私の承認を得てから spawn すること。
-2. **リード（自分自身）の責務**：
-   - タスクの分割と割り当て
-   - チームメイトの進捗モニタリング
-   - 結果の統合・コンフリクト解決
-   - 作業完了後のチーム shutdown とクリーンアップ
-3. **チームメイトの独立性**：各チームメイトは独立した WorkTree/ブランチで作業すること。同一ファイルへの同時編集を避ける。
-4. **コミュニケーション方針**：
-   - チームメイト間のメッセージは、発見事項・ブロッカー・完了報告に限定する
-   - 設計判断が必要な場合はリード（メインエージェント）に escalate する
-5. **クリーンアップ義務**：作業完了時は必ずリードがチームメイトの shutdown を行い、cleanup を実行すること。チームメイト側から cleanup を実行してはならない。
-6. **Git 操作との統合**：Agent Teams の各メンバーも【Git / GitHub 操作ポリシー】に従うこと。特に `git commit` / `git push` は確認を求めてから行う。
-
-### Agent Teams 利用例
+ローカル開発での変更が
 
 ```
-# PR レビューを複数観点で同時実施
-「PR #142 をレビューするために Agent Teams を作成してください。
-  - セキュリティ担当：脆弱性・入力バリデーションの観点
-  - パフォーマンス担当：N+1クエリ・メモリリーク・アルゴリズム効率の観点
-  - テストカバレッジ担当：テスト網羅性・エッジケースの観点
-各担当はそれぞれの観点でレビューし、発見事項をリードに報告してください。」
-
-# フルスタック機能開発
-「ユーザー認証機能を Agent Teams で並列開発してください。
-  - バックエンド担当：API設計・認証ロジック実装（feature/auth-backend ブランチ）
-  - フロントエンド担当：ログインUI・トークン管理（feature/auth-frontend ブランチ）
-  - テスト担当：E2Eテスト・統合テスト設計（feature/auth-tests ブランチ）
-各担当は独立した WorkTree で作業し、API仕様はリードが調整してください。」
+Local Development
+→ Pull Request
+→ GitHub Actions CI
+→ Merge
 ```
 
-## 【ブラウザ自動化ツール使い分けガイド】
+の流れと矛盾なく連携すること。
 
-このプロジェクトではブラウザ自動化に **ChromeDevTools MCP** と **Playwright MCP** の2つが利用可能です。
-以下のガイドラインに従って適切なツールを選択してください。
+以下を最大限活用してください：
 
-### ChromeDevTools MCP を使用すべき場合
+* SubAgent
+* Hooks
+* Git WorkTree
+* MCP
+* Agent Teams
+* ClaudeCode 標準機能
 
-**状況**：既存のブラウザインスタンスに接続してデバッグ・検証を行う場合
+ただし Git / GitHub 操作は必ずルールに従うこと。
 
-**特徴**：
-- Windows側で起動済みのEdge/Chromeブラウザに接続（SSHポートフォワーディング経由）
-- リアルタイムのDevTools Protocolアクセス
-- 既存のユーザーセッション・Cookie・ログイン状態を利用可能
-- 手動操作との併用が容易（開発者が手動で操作したブラウザをそのままデバッグ）
+---
 
-**適用例**：
-- ログイン済みのWebアプリをデバッグ（セッション情報を再現する必要がない）
-- ブラウザコンソールのエラーログをリアルタイム監視
-- ネットワークトラフィック（XHR/Fetch）の詳細解析
-- DOM要素の動的変更を追跡・検証
-- パフォーマンス計測（Navigation Timing、Resource Timing等）
-- 手動操作とスクリプト操作を交互に実行する検証作業
+# 【前提環境】
 
-**接続確認方法**：
-\`\`\`bash
-# 環境変数 MCP_CHROME_DEBUG_PORT（または CLAUDE_CHROME_DEBUG_PORT）が設定されていることを確認
-echo \$MCP_CHROME_DEBUG_PORT
+* GitHub `<org>/<repo>` と同期
+* CI定義 `.github/workflows`
+* CLAUDE.md が統治ルール
+* WorkTree = PR単位
+* Agent Teams 有効
 
-# DevTools接続テスト
-curl -s http://127.0.0.1:\${MCP_CHROME_DEBUG_PORT}/json/version | jq '.'
+```
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+```
 
-# 利用可能なタブ一覧
-curl -s http://127.0.0.1:\${MCP_CHROME_DEBUG_PORT}/json/list | jq '.'
-\`\`\`
+---
 
-**利用可能なMCPツール**：
-- \`mcp__chrome-devtools__navigate_page\`: ページ遷移
-- \`mcp__chrome-devtools__click\`: 要素クリック
-- \`mcp__chrome-devtools__fill\`: フォーム入力
-- \`mcp__chrome-devtools__evaluate_script\`: JavaScriptコード実行
-- \`mcp__chrome-devtools__take_screenshot\`: スクリーンショット取得
-- \`mcp__chrome-devtools__get_console_message\`: コンソールログ取得
-- \`mcp__chrome-devtools__list_network_requests\`: ネットワークリクエスト一覧
-- （その他、\`mcp__chrome-devtools__*\` で利用可能なツールを検索）
+# 【利用可能 Claude Code 機能】
 
-### Playwright MCP を使用すべき場合
+利用可能：
 
-**状況**：自動テスト・スクレイピング・クリーンな環境での検証を行う場合
+* SubAgent
+* Hooks
+* Git WorkTree
+* MCP
+* Agent Teams
+* 標準機能
 
-**特徴**：
-- ヘッドレスブラウザを新規起動（Linux側で完結、Xサーバ不要）
-- 完全に独立した環境（クリーンなプロファイル、Cookie無し）
-- クロスブラウザ対応（Chromium/Firefox/WebKit）
-- 自動待機・リトライ・タイムアウト処理が組み込み済み
-- マルチタブ・マルチコンテキスト対応
+---
 
-**適用例**：
-- E2Eテストの自動実行（CI/CDパイプライン組み込み）
-- スクレイピング・データ収集（ログイン不要の公開ページ）
-- 複数ブラウザでの互換性テスト
-- 並列実行が必要な大規模テスト
-- ログイン認証を含む自動テストフロー（認証情報をコードで管理）
+# Agent Teams オーケストレーション
 
-**接続確認方法**：
-\`\`\`bash
-# Playwrightインストール確認（通常はMCPサーバーが自動管理）
-# 特別な環境変数設定は不要（MCPサーバーが自動起動）
-\`\`\`
+（※ここはユーザー提示の内容をそのまま保持）
 
-**利用可能なMCPツール**：
-- \`mcp__plugin_playwright_playwright__browser_navigate\`: ページ遷移
-- \`mcp__plugin_playwright_playwright__browser_click\`: 要素クリック
-- \`mcp__plugin_playwright_playwright__browser_fill_form\`: フォーム入力
-- \`mcp__plugin_playwright_playwright__browser_run_code\`: JavaScriptコード実行
-- \`mcp__plugin_playwright_playwright__browser_take_screenshot\`: スクリーンショット取得
-- \`mcp__plugin_playwright_playwright__browser_console_messages\`: コンソールログ取得
-- \`mcp__plugin_playwright_playwright__browser_network_requests\`: ネットワークリクエスト一覧
-- （その他、\`mcp__plugin_playwright_playwright__*\` で利用可能なツールを検索）
+SubAgent / Agent Teams の使い分け
+Spawnルール
+Cleanupルール
+Git統合ルール
 
-### 使い分けの判断フロー
+すべてそのまま有効。
 
-\`\`\`
-既存ブラウザの状態（ログイン・Cookie等）を利用したい？
-├─ YES → ChromeDevTools MCP
-│         （Windows側ブラウザに接続、環境変数 MCP_CHROME_DEBUG_PORT 使用）
-│
-└─ NO  → 以下をさらに判断
-          │
-          ├─ 自動テスト・CI/CD統合？ → Playwright MCP
-          ├─ スクレイピング？ → Playwright MCP
-          ├─ クロスブラウザ検証？ → Playwright MCP
-          └─ 手動操作との併用が必要？ → ChromeDevTools MCP
-\`\`\`
+---
 
-### 注意事項
+# ブラウザ自動化ツール使い分け
 
-1. **Xサーバ不要（重要）**：LinuxホストにXサーバがインストールされていなくても、両ツールとも動作します
-   - **ChromeDevTools MCP**: Windows側のブラウザに接続するため、Linux側にXサーバ不要（SSHポートフォワーディング経由）
-   - **Playwright MCP**: Linux側でヘッドレスブラウザを起動するため、Xサーバ不要
-   - ⚠️ **選択基準はXサーバの有無ではありません**。既存ブラウザ（ログイン状態等）を使うか、クリーンな環境かで判断してください
-2. **ポート範囲**：ChromeDevTools MCPは9222～9229の範囲で動作（config.jsonで設定）
-3. **並行利用**：両ツールは同時に使用可能（異なるユースケースで併用可）
-4. **ツール検索**：利用可能なツールを確認するには \`ToolSearch\` を使用してキーワード検索（例：\`ToolSearch "chrome-devtools screenshot"\`）
-5. **ChromeDevTools 優先原則**：ユーザーがブラウザ操作を依頼した場合、**既存のWindows側ブラウザ（ChromeDevTools MCP）を優先使用**してください。Playwrightは自動テスト・スクレイピング・クリーンな環境が必要な場合のみ使用
+ChromeDevTools MCP
+Playwright MCP
 
-### 推奨ワークフロー
+（※提示されたガイドラインをそのまま採用）
 
-1. **開発・デバッグフェーズ**：ChromeDevTools MCPで手動操作と併用しながら検証
-2. **テスト自動化フェーズ**：Playwrightで自動テストスクリプト作成
-3. **CI/CD統合フェーズ**：PlaywrightテストをGitHub Actionsに組み込み
+追加された **安全柵（MCP運用ルール）**も有効。
 
-## 【Git / GitHub 操作ポリシー】
+---
 
-### ローカルで行ってよい自動操作
+# Git / GitHub 操作ポリシー
 
-- 既存ブランチからの Git WorkTree 作成
-- 作業用ブランチの作成・切替
-- `git status` / `git diff` の取得
-- テスト・ビルド用の一時ファイル作成・削除
+自動操作可：
 
-### 必ず確認を求めてから行う操作
+* git status
+* git diff
+* WorkTree作成
 
-- `git add` / `git commit` / `git push` など履歴に影響する操作
-- GitHub 上での Pull Request 作成・更新
-- GitHub 上の Issue・ラベル・コメントの作成/更新
+要確認：
 
-### GitHub Actions との整合
+* commit
+* push
+* PR作成
+* merge
 
-- CI で使用しているテストコマンド・ビルドコマンド・Lint 設定は、
-  .github/workflows および CLAUDE.md を参照し、それと同一のコマンドをローカルでも優先的に実行すること。
-- CI で禁止されている操作（例：main 直 push、特定ブランチへの force push など）は、
-  ローカルからも提案せず、代替手順（PR 経由など）を提案すること。
+CI整合：
 
-## 【タスクの進め方】
+```
+.github/workflows
+CLAUDE.md
+```
 
-1. まずこのリポジトリ内の CLAUDE.md と .github/workflows 配下を確認し、
-   プロジェクト固有のルール・テスト手順・ブランチ運用方針を要約して報告してください。
-2. その上で、私が指示するタスク（例：機能追加、バグ修正、レビューなど）を
-   SubAgent / Hooks / WorkTree / Agent Teams を活用して並列実行しつつ進めてください。
-3. 各ステップで、GitHub Actions 上でどのように動くか（どのワークフローが動き、
-   どのコマンドが実行されるか）も合わせて説明してください。
-4. タスクの規模・性質に応じて、SubAgent（軽量・単一セッション内）と
-   Agent Teams（重量・マルチインスタンス）を適切に使い分けてください。
-   判断に迷う場合は私に確認してください。
+を常に参照。
+
+---
+
+# タスクの進め方
+
+（※提示された手順そのまま）
+
+---
+
+# 🚀 ClaudeCode 統合運用プロンプト vNext
+
+## (2.1.50 + MCPフル活用 + 自己修復ループ v4)
+
+ここからが **今回統合した部分**です。
+
+---
+
+# 基本方針
+
+ClaudeCodeは以下を実現する：
+
+* 設計の一貫性
+* 記憶の継続性
+* 並列開発効率
+* 自動レビュー
+* CI学習型自己修復
+
+---
+
+# MCP優先順位
+
+仕様確認
+
+```
+memory-keeper
+→ memory
+→ claude-mem
+→ context7
+→ brave-search
+```
+
+進行確認
+
+```
+memory
+→ github
+→ claude-mem
+→ context7
+```
+
+横断確認
+
+```
+context7
+→ memory
+→ claude-mem
+```
+
+コード探索
+
+```
+codex
+→ ローカル検索
+→ github
+```
+
+---
+
+# 自動ブラウザ操作安全柵
+
+禁止：
+
+* 本番操作
+* 資格情報保存
+* セッション永続化
+
+許可：
+
+* staging
+* local
+
+---
+
+# Memory復元プロトコル
+
+起動時必須：
+
+memory
+memory-keeper
+claude-mem
+context7
+
+---
+
+# 記録判定ルール
+
+```
+設計原則 → memory-keeper
+進行状況 → memory
+理由 → claude-mem
+横断情報 → context7
+```
+
+---
+
+# Agent Teams + Worktree衝突回避
+
+Agent起動時必須：
+
+```
+WorkTree名
+編集範囲
+非編集範囲
+ブランチ名
+```
+
+設定：
+
+```
+isolation: worktree
+```
+
+---
+
+# 🔁 CI自己修復ループ v4
+
+CI失敗時
+
+1. github MCP ログ取得
+2. エラー分類
+3. 原因分析
+4. 最小差分修正
+5. 再実行
+
+---
+
+# 学習保存
+
+memory
+
+* 修正履歴
+
+claude-mem
+
+* 原因
+* 教訓
+
+memory-keeper
+
+* 再発ルール
+
+---
+
+# 修復停止条件
+
+* 試行上限
+* 同一差分失敗
+* 設計問題
+* セキュリティ違反
+
+---
+
+# 最終処理
+
+必ず提示：
+
+* 実施内容
+* 残課題
+* MCP更新
+* 学習内容
+
+---
+
+# 🏛 CLAUDE.md
+
+## Claude Code Global Constitution
+
+### Agent Teams First Edition（tmux非使用・完全統合版）
+
+---
+
+# 0️⃣ 実行モード
+
+本プロジェクトでは：
+
+> ❌ tmuxは使用しない
+> ✅ 常に単一セッション統治モード
+
+セッション分離は tmux ではなく：
+
+* Agent Teams
+* Git WorkTree
+* ブランチ戦略
+
+で実現する。
+
+---
+
+# 1️⃣ 本ファイルの位置づけ
+
+本 CLAUDE.md は本リポジトリの
+
+> 🏛 最上位統治ルール（準憲法）
+
+である。
+
+以下すべては本ファイルに従う：
+
+* Agent Teams
+* SubAgent
+* Hooks
+* Git WorkTree
+* MCP
+* GitHub Actions
+* 標準機能
+
+---
+
+# 2️⃣ 起動時自動実行（必須）
+
+Claudeは開始時に必ず以下を実施：
+
+## 🧠 2.1 リポジトリ統治確認
+
+1. CLAUDE.md 読込
+2. `.github/workflows/` 読込
+3. 現在ブランチ確認
+4. WorkTree一覧確認
+5. CIコマンド抽出
+6. CI制約要約
+
+---
+
+## 📊 2.2 状況レポート提示（必須）
+
+必ず提示：
+
+* 現在フェーズ
+* 進捗率
+* CI状態
+* 技術的負債
+* 並列状況
+* 統治違反の有無
+* Agent Teams稼働状況
+
+---
+
+# 3️⃣ 実行モデル（最重要）
+
+## 🧭 基本原則
+
+> 小タスク → SubAgent
+> 中〜大規模 → Agent Teams
+
+---
+
+## 3.1 SubAgentの役割
+
+用途：
+
+* Lint修正
+* 単一ファイル改善
+* 単一ロジック修正
+* 軽量レビュー
+
+特徴：
+
+* 同一コンテキスト
+* WorkTree分離不要
+* 低コスト
+
+---
+
+## 3.2 Agent Teamsの役割（積極利用）
+
+以下の場合は原則Agent Teams：
+
+* 複数レイヤー変更
+* API＋UI同時開発
+* テスト並列設計
+* 多角的レビュー
+* 仮説分岐デバッグ
+* セキュリティ＋性能＋構造レビュー
+
+---
+
+# 4️⃣ Agent Teams 統治規則（厳守）
+
+## 4.1 Spawn前必須提示
+
+* チーム構成
+* 各役割
+* WorkTree名
+* ブランチ名
+* 影響範囲
+* 予想トークンコスト
+
+承認後にspawn。
+
+---
+
+## 4.2 絶対原則
+
+* 1 Agent = 1 WorkTree
+* 同一ファイル同時編集禁止
+* main直編集禁止
+* 各AgentもGit統制に従う
+* shutdownはリードのみ実行
+
+---
+
+## 4.3 標準編成テンプレ
+
+### 🔹 機能開発
+
+* 🧑 Backend
+* 🎨 Frontend
+* 🧪 Test
+* 🔐 Security（任意）
+
+### 🔹 レビュー
+
+* 🔐 Security
+* ⚡ Performance
+* 🧪 Coverage
+* 🏛 Architecture
+
+---
+
+# 5️⃣ Git / GitHub 統治（CI最上位）
+
+CIは準憲法より上位。
+
+---
+
+## 5.1 自動許可
+
+* git status
+* git diff
+* WorkTree作成
+
+---
+
+## 5.2 必ず確認
+
+* git add
+* git commit
+* git push
+* PR作成
+* merge
+
+---
+
+## 5.3 CI整合原則
+
+* ローカルはCIと同一コマンド使用
+* CI違反設計は提案しない
+* main直push提案禁止
+
+---
+
+# 6️⃣ ChromeDevTools / Playwright 運用規則
+
+## 6.1 ChromeDevTools優先条件
+
+* 既存ログイン状態利用
+* 手動操作併用
+* 実ブラウザ検証
+* デバッグフェーズ
+
+---
+
+## 6.2 Playwright優先条件
+
+* CI統合
+* E2E自動化
+* クリーン環境
+* クロスブラウザ検証
+
+---
+
+## 6.3 選択判断原則
+
+> 「既存セッションを使うか？」で判断する。
+
+---
+
+# 7️⃣ 標準レビュー〜修復フロー
+
+1. Agent Teamsレビュー
+2. 問題提示
+3. 修復オプション複数提示
+4. 人間選択
+5. 選択案のみ実行
+6. 再レビュー
+
+---
+
+## 修復提示フォーマット（必須）
+
+* オプション名
+* 内容概要
+* 影響範囲（小/中/大）
+* リスク（低/中/高）
+* CI影響
+
+---
+
+# 8️⃣ Hooks方針
+
+推奨：
+
+* pre-edit: lint
+* pre-commit: test
+* post-commit: 差分要約
+* on-startup: 環境確認
+
+Agent Teams利用時も各WorkTreeでHooks有効。
+
+---
+
+# 9️⃣ memory保存原則
+
+保存可：
+
+* 最終設計決定
+* CI重大変更
+* 統治原則
+* ブランチ戦略
+
+保存禁止：
+
+* 仮説段階
+* 実験ログ
+* 一時思考
+
+---
+
+# 🔟 禁止事項
+
+* 独断仕様変更
+* 無断Agent拡張
+* CI違反設計
+* force push提案
+* main直変更
+
+---
+
+# 1️⃣1️⃣ 最終目的
+
+✔ CI成功率最大化
+✔ 並列効率最大化
+✔ 衝突ゼロ
+✔ GitHub整合100%
+✔ Agent Teams主軸開発
+✔ tmux不要運用
+✔ 監査耐性強化
+
+---
+
+# 🔚 結語
+
+本プロジェクトは
+
+> 🧠 単一セッション統治
+> 🤖 Agent Teams主軸
+> 🌲 WorkTree分離
+> 🧪 CI最優先
+
+のオーケストレーション型開発体制である。
+
+変更は人間の明示判断によってのみ許可される。
 INITPROMPTEOF
 )
 
-trap 'echo "🛑 Ctrl+C で終了"; exit 0' INT
 
-echo "🔍 DevTools 応答確認..."
-echo "PORT=${PORT}"
-MAX_RETRY=10
-for i in $(seq 1 $MAX_RETRY); do
-  if curl -sf --connect-timeout 2 http://127.0.0.1:${PORT}/json/version >/dev/null 2>&1; then
-    echo "✅ DevTools 接続成功!"
-    break
-  fi
-  if [ "$i" -eq "$MAX_RETRY" ]; then
-    echo "❌ DevTools 応答なし (port=${PORT})"
-    exit 1
-  fi
-  echo "   リトライ中... ($i/$MAX_RETRY)"
-  sleep 2
-done
 
-# 環境変数を設定
-export CLAUDE_CHROME_DEBUG_PORT=${PORT}
-export MCP_CHROME_DEBUG_PORT=${PORT}
-
-# Agent Teams オーケストレーション有効化
-export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-
-# on-startup hook 実行（環境変数設定後）
-if [ -f ".claude/hooks/on-startup.sh" ]; then
-    bash .claude/hooks/on-startup.sh
-fi
-
-# DevTools詳細接続テスト関数
-test_devtools_connection() {
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🔍 DevTools 詳細接続テスト"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-
-    # 1. バージョン情報
-    echo "📋 1. バージョン情報:"
-    if command -v jq &> /dev/null; then
-        curl -s http://127.0.0.1:${PORT}/json/version | jq '.' || echo "❌ バージョン取得失敗"
-    else
-        curl -s http://127.0.0.1:${PORT}/json/version || echo "❌ バージョン取得失敗"
-    fi
-    echo ""
-
-    # 2. タブ数確認
-    echo "📋 2. 開いているタブ数:"
-    if command -v jq &> /dev/null; then
-        TAB_COUNT=$(curl -s http://127.0.0.1:${PORT}/json/list | jq 'length')
-        echo "   タブ数: ${TAB_COUNT}"
-    else
-        echo "   (jqがインストールされていないため詳細表示不可)"
-        curl -s http://127.0.0.1:${PORT}/json/list | head -n 3
-    fi
-    echo ""
-
-    # 3. WebSocketエンドポイント確認
-    echo "📋 3. WebSocket接続エンドポイント:"
-    if command -v jq &> /dev/null; then
-        WS_URL=$(curl -s http://127.0.0.1:${PORT}/json/list | jq -r '.[0].webSocketDebuggerUrl // "N/A"')
-        echo "   ${WS_URL}"
-    else
-        echo "   (jqがインストールされていないため表示不可)"
-    fi
-    echo ""
-
-    # 4. Protocol version確認
-    echo "📋 4. DevTools Protocol Version:"
-    if command -v jq &> /dev/null; then
-        PROTO_VER=$(curl -s http://127.0.0.1:${PORT}/json/version | jq -r '."Protocol-Version" // "N/A"')
-        echo "   ${PROTO_VER}"
-    else
-        echo "   (jqがインストールされていないため表示不可)"
-    fi
-    echo ""
-
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "✅ DevTools接続テスト完了"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-}
-
-# 詳細テスト実行
-test_devtools_connection
-
-echo ""
-echo "🚀 Claude 起動 (port=${PORT})"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "📝 初期プロンプトを自動入力します..."
-echo ""
-
+# --- Claude Code 起動ループ ---
+echo "🤖 Claude Code を起動します..."
 while true; do
-  # 初期プロンプトをパイプで自動入力
-  echo "$INIT_PROMPT" | claude --dangerously-skip-permissions
-  EXIT_CODE=$?
-
-  [ "$EXIT_CODE" -eq 0 ] && break
-
-  echo ""
-  echo "🔄 Claude 再起動 (${RESTART_DELAY}秒後)..."
-  sleep $RESTART_DELAY
+    if [ -n "$INIT_PROMPT" ]; then
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "📋 初期プロンプト指示内容:"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "$INIT_PROMPT"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        # プロンプト付き対話モード: /dev/tty で TTY を確保しつつ INIT_PROMPT を初期メッセージとして送信
+        claude --dangerously-skip-permissions "$INIT_PROMPT" </dev/tty >/dev/tty 2>&1 || true
+    else
+        # 対話モード: exec tee によるstdoutリダイレクト迂回のため /dev/tty を使用
+        claude --dangerously-skip-permissions </dev/tty >/dev/tty 2>&1 || true
+    fi
+    echo ""
+    echo "🔄 Claude Code が終了しました。再起動モードを選択してください:"
+    echo "  [P] プロンプト指示付きで再起動 (デフォルト)"
+    echo "  [I] 対話モードで再起動 (プロンプト指示なし)"
+    echo "  [N] 終了"
+    read -r RESTART_ANSWER
+    case "$RESTART_ANSWER" in
+        [Nn])
+            echo "👋 終了します"
+            break
+            ;;
+        [Ii])
+            INIT_PROMPT=""
+            ;;
+        *)
+            ;;
+    esac
 done
-
-echo "👋 終了しました"
