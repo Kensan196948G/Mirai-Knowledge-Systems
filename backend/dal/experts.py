@@ -7,7 +7,6 @@ import json as _json
 import logging
 from typing import Any, Dict, List, Optional
 
-from app_helpers import CACHE_TTL_DEFAULT, CACHE_TTL_LONG, cache_get, cache_set
 from database import get_session_factory
 from models import Consultation, Expert, ExpertRating
 from sqlalchemy import func
@@ -58,6 +57,8 @@ class ExpertsMixin:
                 _json.dumps(filters or {}, sort_keys=True).encode()
             ).hexdigest()[:8]
             cache_key = f"experts:list:{filter_hash}"
+            # 循環インポート回避のため遅延インポート
+            from app_helpers import cache_get, cache_set  # noqa: PLC0415
             cached = cache_get(cache_key)
             if cached is not None:
                 return cached
@@ -80,7 +81,7 @@ class ExpertsMixin:
                         if e.get("is_available") == filters["is_available"]
                     ]
 
-            cache_set(cache_key, data, ttl=CACHE_TTL_LONG)
+            cache_set(cache_key, data, ttl=3600)  # CACHE_TTL_LONG: 静的データ用
             return data
 
     def get_expert_by_id(self, expert_id: int) -> Optional[Dict]:
@@ -365,6 +366,8 @@ class ExpertsMixin:
         else:
             # JSONベースの実装: 計算結果をキャッシュして繰り返し呼び出しを回避
             cache_key = f"experts:rating:{expert_id}"
+            # 循環インポート回避のため遅延インポート
+            from app_helpers import cache_get, cache_set  # noqa: PLC0415
             cached = cache_get(cache_key)
             if cached is not None:
                 return cached
@@ -408,7 +411,7 @@ class ExpertsMixin:
             # 0-5の範囲にクリッピング
             final_rating = max(0.0, min(5.0, final_rating))
             result = round(final_rating, 1)
-            cache_set(cache_key, result, ttl=CACHE_TTL_DEFAULT)
+            cache_set(cache_key, result, ttl=300)  # CACHE_TTL_DEFAULT: 計算結果用
             return result
 
     @staticmethod
