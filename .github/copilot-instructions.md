@@ -4,7 +4,7 @@
 
 **Name**: Mirai Knowledge Systems
 **Domain**: Construction/Civil Engineering Industry Knowledge Management
-**Version**: 1.4.0
+**Version**: 1.6.0
 
 ## Tech Stack
 
