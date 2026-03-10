@@ -6,7 +6,7 @@ app_v2.py から移行、共有ヘルパーは app_helpers.py から取得。
 """
 
 import os
-from datetime import timedelta
+from datetime import timedelta, timezone, datetime
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import (
@@ -277,7 +277,7 @@ def login_mfa():
 
             if totp_mgr.verify_backup_code(backup_data["code_hash"], backup_code):
                 backup_codes_data[idx]["used"] = True
-                backup_codes_data[idx]["used_at"] = datetime.utcnow().isoformat()
+                backup_codes_data[idx]["used_at"] = datetime.now(timezone.utc).isoformat()
 
                 if is_postgres:
                     user_obj.mfa_backup_codes = backup_codes_data
@@ -659,7 +659,7 @@ def verify_mfa_login():
 
             if totp_mgr.verify_backup_code(backup_data["code_hash"], backup_code):
                 backup_codes_data[idx]["used"] = True
-                backup_codes_data[idx]["used_at"] = datetime.utcnow().isoformat()
+                backup_codes_data[idx]["used_at"] = datetime.now(timezone.utc).isoformat()
                 user.mfa_backup_codes = backup_codes_data
                 dal.commit()
                 verified = True

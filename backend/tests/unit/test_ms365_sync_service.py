@@ -4,7 +4,7 @@ MS365同期サービスのユニットテスト
 
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock
 
 import pytest
@@ -308,7 +308,7 @@ class TestMS365SchedulerService:
             """同期ジョブを実行"""
             execution = {
                 "config_id": config_id,
-                "started_at": datetime.utcnow().isoformat(),
+                "started_at": datetime.now(timezone.utc).isoformat(),
                 "status": "running",
             }
             job_executions.append(execution)
@@ -318,7 +318,7 @@ class TestMS365SchedulerService:
 
             # 完了を記録
             execution["status"] = "completed"
-            execution["completed_at"] = datetime.utcnow().isoformat()
+            execution["completed_at"] = datetime.now(timezone.utc).isoformat()
 
         # ジョブ実行
         execute_sync_job(1)

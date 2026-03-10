@@ -7,7 +7,7 @@ SharePoint/OneDriveからのファイル同期機能を提供
 import hashlib
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from data_access import DataAccessLayer
@@ -83,7 +83,7 @@ class MS365SyncService:
             config_id, triggered_by, user_id, status="running"
         )
 
-        sync_started = datetime.utcnow()
+        sync_started = datetime.now(timezone.utc)
         stats = {
             "files_processed": 0,
             "files_created": 0,
@@ -136,7 +136,7 @@ class MS365SyncService:
                     )
 
             # 同期完了
-            sync_completed = datetime.utcnow()
+            sync_completed = datetime.now(timezone.utc)
             execution_time = int((sync_completed - sync_started).total_seconds())
 
             # 同期履歴更新
@@ -185,7 +185,7 @@ class MS365SyncService:
         except Exception as e:
             # 同期失敗
             logger.error(f"[Sync {history_id}] 同期失敗: {e}", exc_info=True)
-            sync_completed = datetime.utcnow()
+            sync_completed = datetime.now(timezone.utc)
             execution_time = int((sync_completed - sync_started).total_seconds())
 
             self._update_sync_history(
@@ -476,8 +476,8 @@ class MS365SyncService:
         # JSONモードでの実装（PostgreSQLモードは後で実装）
         knowledge_data = {
             **metadata,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # data_access.pyのcreate_knowledgeメソッドを使用
@@ -494,7 +494,7 @@ class MS365SyncService:
         """
         update_data = {
             **metadata,
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         self.dal.update_knowledge(knowledge_id, update_data)
@@ -521,7 +521,7 @@ class MS365SyncService:
         """
         history_data = {
             "config_id": config_id,
-            "sync_started_at": datetime.utcnow().isoformat(),
+            "sync_started_at": datetime.now(timezone.utc).isoformat(),
             "status": status,
             "triggered_by": triggered_by,
             "triggered_by_user_id": user_id,
@@ -574,7 +574,7 @@ class MS365SyncService:
             "sharepoint_size_bytes": file_info.get("size"),
             "knowledge_id": knowledge_id,
             "sync_status": "synced",
-            "last_synced_at": datetime.utcnow().isoformat(),
+            "last_synced_at": datetime.now(timezone.utc).isoformat(),
             "checksum": checksum,
             "file_metadata": file_info,  # SharePoint メタデータ全体を保存
         }
@@ -610,15 +610,15 @@ class MS365SyncService:
             from apscheduler.triggers.cron import CronTrigger
 
             trigger = CronTrigger.from_crontab(schedule)
-            next_fire = trigger.get_next_fire_time(None, datetime.utcnow())
-            next_sync = next_fire if next_fire else datetime.utcnow() + timedelta(hours=24)
+            next_fire = trigger.get_next_fire_time(None, datetime.now(timezone.utc))
+            next_sync = next_fire if next_fire else datetime.now(timezone.utc) + timedelta(hours=24)
         except Exception:
-            next_sync = datetime.utcnow() + timedelta(hours=24)
+            next_sync = datetime.now(timezone.utc) + timedelta(hours=24)
 
         self.dal.update_ms365_sync_config(
             config_id,
             {
-                "last_sync_at": datetime.utcnow().isoformat(),
+                "last_sync_at": datetime.now(timezone.utc).isoformat(),
                 "next_sync_at": next_sync.isoformat(),
             },
         )

@@ -21,7 +21,7 @@ Phase I-4: regulations/projects/experts/notifications ルートを移行
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -128,7 +128,7 @@ def approve_approval(approval_id):
 
     approval["status"] = "approved"
     approval["approved_by"] = current_user_id
-    approval["approved_at"] = datetime.utcnow().isoformat()
+    approval["approved_at"] = datetime.now(timezone.utc).isoformat()
 
     save_data("approvals.json", approvals)
 
@@ -156,7 +156,7 @@ def reject_approval(approval_id):
 
     approval["status"] = "rejected"
     approval["rejected_by"] = current_user_id
-    approval["rejected_at"] = datetime.utcnow().isoformat()
+    approval["rejected_at"] = datetime.now(timezone.utc).isoformat()
     approval["rejection_reason"] = reason
 
     save_data("approvals.json", approvals)

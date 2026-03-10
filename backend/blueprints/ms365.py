@@ -32,7 +32,7 @@ Phase H-4: MS365 integration APIルートを /api/v1/integrations/microsoft365/ 
 
 import logging
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, Response, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -137,8 +137,8 @@ def ms365_sync_configs_create():
             "file_extensions": data.get("file_extensions", ["pdf", "docx", "xlsx"]),
             "is_enabled": data.get("is_enabled", True),
             "metadata_mapping": data.get("metadata_mapping", {}),
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         dal = get_dal()
@@ -201,7 +201,7 @@ def ms365_sync_configs_update(config_id):
                 "error": {"code": "NOT_FOUND", "message": f"Sync config {config_id} not found"},
             }), 404
 
-        update_data = {"updated_at": datetime.utcnow().isoformat()}
+        update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
         for field in ["name", "folder_path", "sync_schedule", "sync_strategy",
                       "file_extensions", "is_enabled", "description"]:
             if field in data:

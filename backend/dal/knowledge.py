@@ -4,7 +4,7 @@ KnowledgeMixin - ナレッジドメインDAL
 
 import hashlib
 import json as _json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from database import get_session_factory
@@ -348,7 +348,7 @@ class KnowledgeMixin:
                     if hasattr(knowledge, key) and key not in ["id", "created_at"]:
                         setattr(knowledge, key, value)
 
-                knowledge.updated_at = datetime.utcnow()
+                knowledge.updated_at = datetime.now(timezone.utc)
                 db.commit()
                 db.refresh(knowledge)
                 return self._knowledge_to_dict(knowledge)

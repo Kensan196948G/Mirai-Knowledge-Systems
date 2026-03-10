@@ -3,7 +3,7 @@ MS365Mixin - Microsoft 365同期ドメインDAL
 MS365SyncConfig / MS365SyncHistory / MS365FileMapping
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from database import get_session_factory
@@ -73,7 +73,7 @@ class MS365Mixin:
             new_config = {
                 "id": new_id,
                 **config_data,
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             configs.append(new_config)
             self._save_json("ms365_sync_configs.json", configs)
@@ -108,7 +108,7 @@ class MS365Mixin:
             for config in configs:
                 if config["id"] == config_id:
                     config.update(update_data)
-                    config["updated_at"] = datetime.utcnow().isoformat()
+                    config["updated_at"] = datetime.now(timezone.utc).isoformat()
                     self._save_json("ms365_sync_configs.json", configs)
                     return config
             return None
@@ -167,7 +167,7 @@ class MS365Mixin:
             new_history = {
                 "id": new_id,
                 **history_data,
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             histories.append(new_history)
             self._save_json("ms365_sync_histories.json", histories)
@@ -351,7 +351,7 @@ class MS365Mixin:
             new_mapping = {
                 "id": new_id,
                 **mapping_data,
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             mappings.append(new_mapping)
             self._save_json("ms365_file_mappings.json", mappings)
@@ -386,7 +386,7 @@ class MS365Mixin:
             for mapping in mappings:
                 if mapping["id"] == mapping_id:
                     mapping.update(update_data)
-                    mapping["updated_at"] = datetime.utcnow().isoformat()
+                    mapping["updated_at"] = datetime.now(timezone.utc).isoformat()
                     self._save_json("ms365_file_mappings.json", mappings)
                     return mapping
             return None
