@@ -1,5 +1,12 @@
 [run]
+source = blueprints,dal,schemas,app_helpers,password_policy,csrf_protection
+
+[report]
+# MS365外部サービス依存コードは実環境なしにテスト不可なため除外
 omit =
+    dal/ms365.py
+    blueprints/ms365.py
+    blueprints/ms365_integration.py
     scripts/*
     migrations/*
     */__pycache__/*
@@ -7,11 +14,10 @@ omit =
     setup.py
     conftest.py
 
-[report]
+# PostgreSQL分岐はユニットテストではJSON路で代替。
+# 「_use_postgresql()がTrueの場合」分岐は統合テストで別途カバー。
 exclude_lines =
     pragma: no cover
+    if self\._use_postgresql\(\):
     def __repr__
-    if self.debug:
-    if __name__ == .__main__.:
     raise NotImplementedError
-    pass
