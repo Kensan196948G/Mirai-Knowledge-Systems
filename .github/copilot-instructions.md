@@ -112,3 +112,17 @@ cd backend && npm run test:unit:coverage
 # E2E tests
 cd backend && npm run test:e2e
 ```
+
+## CI Repair History
+
+### 2026-03-10: Phase H-1 Blueprint Migration
+- PR #3211 merge conflicts resolved (5 files)
+- Strategy: prefer origin/main (more advanced)
+- Fixed: E731 lambda→def in test_dal_postgresql_coverage.py (50 errors)
+
+### 2026-03-10: Phase H-2 DAL Coverage
+- dal/knowledge.py: 41% → 81%
+- dal/ms365.py: 20% → 81%  
+- dal/operations.py: 40% → 96%
+- dal/notifications.py: 43% → 92%
+- PR #3225 created/merged
