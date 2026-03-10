@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: チェックアウト
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -379,7 +379,7 @@ jobs:
 
       - name: Artifactに結果をアップロード
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: error-fix-results-${{ github.run_number }}
           path: |

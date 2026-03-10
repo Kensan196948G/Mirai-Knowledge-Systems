@@ -20,7 +20,7 @@ Phase H-1: app_v2.py knowledge エンドポイント完全移行
 import logging
 from datetime import datetime, timedelta
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from app_helpers import (
@@ -45,6 +45,31 @@ from schemas import KnowledgeCreateSchema
 logger = logging.getLogger(__name__)
 
 knowledge_bp = Blueprint("knowledge", __name__, url_prefix="/api/v1")
+
+
+_KNOWLEDGE_LIST_REDIS_KEY = "knowledge_list:all"
+_KNOWLEDGE_LIST_REDIS_TTL = 300  # 5分
+
+
+def _get_knowledge_list() -> list:
+    """
+    ナレッジリストを2段キャッシュで取得（N+1回避）
+
+    L1: Flask g オブジェクト（リクエストスコープ）
+    L2: Redis キャッシュ（TTL=5分、knowledge_list:* パターンで自動無効化）
+
+    同一リクエスト内で複数回呼ばれても I/O は最大1回のみ実行される。
+    """
+    if not hasattr(g, "_knowledge_list_cache"):
+        # L2: Redis キャッシュを確認
+        cached = cache_get(_KNOWLEDGE_LIST_REDIS_KEY)
+        if cached is not None:
+            g._knowledge_list_cache = cached
+        else:
+            data = load_data("knowledge.json") or []
+            cache_set(_KNOWLEDGE_LIST_REDIS_KEY, data, ttl=_KNOWLEDGE_LIST_REDIS_TTL)
+            g._knowledge_list_cache = data
+    return g._knowledge_list_cache
 
 
 # ============================================================
@@ -86,6 +111,8 @@ def get_knowledge():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 50, type=int)
         highlight_key = request.args.get("highlight", "false")
+        sort = request.args.get("sort", "created_at")
+        order = request.args.get("order", "desc")
 
         # キャッシュキー生成
         cache_key = get_cache_key(
@@ -96,6 +123,8 @@ def get_knowledge():
             highlight_key,
             page,
             per_page,
+            sort,
+            order,
         )
 
         # キャッシュチェック
@@ -144,6 +173,15 @@ def get_knowledge():
                 k for k in filtered
                 if any(tag in k.get("tags", []) for tag in tag_list)
             ]
+
+        # ソート（search以外の場合）
+        if not search and sort in ("created_at", "updated_at", "views", "rating"):
+            reverse = order == "desc"
+            filtered = sorted(
+                filtered,
+                key=lambda x: x.get(sort, ""),
+                reverse=reverse,
+            )
 
         # ページネーション
         total_items = len(filtered)
@@ -204,7 +242,7 @@ def get_popular_knowledge():
         return jsonify(response_data)
     except Exception as e:
         logger.error("get_popular_knowledge: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": []})
+        raise
 
 
 @knowledge_bp.route("/knowledge/recent", methods=["GET"])
@@ -263,7 +301,7 @@ def get_recent_knowledge():
         return jsonify(response_data)
     except Exception as e:
         logger.error("get_recent_knowledge: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": []})
+        raise
 
 
 @knowledge_bp.route("/knowledge/favorites", methods=["GET"])
@@ -290,7 +328,7 @@ def get_favorite_knowledge():
         return jsonify({"success": True, "data": result})
     except Exception as e:
         logger.error("get_favorite_knowledge: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": []})
+        raise
 
 
 @knowledge_bp.route("/knowledge/tags", methods=["GET"])
@@ -334,7 +372,7 @@ def get_knowledge_tags():
         return jsonify(response_data)
     except Exception as e:
         logger.error("get_knowledge_tags: %s: %s", type(e).__name__, e)
-        return jsonify({"success": True, "data": []})
+        raise
 
 
 @knowledge_bp.route("/knowledge/<int:knowledge_id>", methods=["GET"])
@@ -402,7 +440,7 @@ def get_related_knowledge(knowledge_id):
         logger.info("Cache hit: knowledge_related - %s", cache_key)
         return jsonify(cached_result)
 
-    knowledge_list = load_data("knowledge.json")
+    knowledge_list = _get_knowledge_list()
     target_knowledge = next(
         (k for k in knowledge_list if k["id"] == knowledge_id), None
     )
@@ -621,6 +659,65 @@ def remove_favorite(knowledge_id):
 # ============================================================
 
 
+@knowledge_bp.route("/knowledge/search", methods=["GET"])
+@jwt_required()
+def search_knowledge():
+    """
+    ナレッジ全文検索
+
+    Query Parameters:
+        query (required): 検索キーワード
+        page: ページ番号（デフォルト: 1）
+        per_page: 1ページあたりの件数（デフォルト: 20）
+    """
+    current_user_id = get_jwt_identity()
+    query = request.args.get("query", "").strip()
+
+    if not query:
+        return jsonify({
+            "success": False,
+            "error": {"code": "MISSING_QUERY", "message": "query parameter is required"},
+        }), 400
+
+    page = max(1, int(request.args.get("page", 1)))
+    per_page = min(100, max(1, int(request.args.get("per_page", 20))))
+
+    # キャッシュキー
+    cache_key = get_cache_key("knowledge_search", query, page, per_page)
+    cached = cache_get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    knowledge_list = load_data("knowledge.json") or []
+    q_lower = query.lower()
+
+    # title / summary / content の全文検索
+    matched = [
+        k for k in knowledge_list
+        if q_lower in (k.get("title", "") + k.get("summary", "") + k.get("content", "")).lower()
+    ]
+
+    total = len(matched)
+    start = (page - 1) * per_page
+    results = matched[start:start + per_page]
+
+    log_access(current_user_id, "knowledge.search", "knowledge", query)
+
+    response_data = {
+        "success": True,
+        "data": {
+            "results": results,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "pages": (total + per_page - 1) // per_page if per_page else 1,
+            "query": query,
+        },
+    }
+    cache_set(cache_key, response_data, ttl=60)
+    return jsonify(response_data)
+
+
 @knowledge_bp.route("/search/unified", methods=["GET"])
 @jwt_required()
 def unified_search():
@@ -646,14 +743,16 @@ def unified_search():
     page_size = int(request.args.get("page_size", 10))
     page = int(request.args.get("page", 1))
 
-    if not query:
+    if not query or not query.strip():
         return jsonify({
             "success": False,
             "error": {
                 "code": "MISSING_QUERY",
-                "message": 'Query parameter "q" is required',
+                "message": 'Query parameter "q" is required and must not be blank',
             },
         }), 400
+
+    log_access(current_user_id, "search.unified", "search", query.strip())
 
     # キャッシュキー生成（クエリ正規化でヒット率向上）
     normalized_query = " ".join(query.strip().lower().split())

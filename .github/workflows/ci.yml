@@ -33,7 +33,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -58,7 +58,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -69,9 +69,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-cov pytest-flask pytest-xdist
-          if [ -f backend/requirements.txt ]; then
-            pip install -r backend/requirements.txt 2>/dev/null || true
+          # requirements-test.txt が requirements.txt を -r で含む
+          # テスト用パッケージを production deps と分離することで pip resolver 競合を回避
+          if [ -f backend/requirements-test.txt ]; then
+            pip install -r backend/requirements-test.txt
+          elif [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt
+            pip install pytest pytest-cov pytest-flask pytest-xdist
           fi
 
       - name: Run pytest
@@ -80,16 +84,17 @@ jobs:
           pytest tests/ -v --tb=short --maxfail=10 \
             --ignore=tests/e2e \
             --ignore=tests/load \
-            --cov=app_v2 --cov=schemas --cov=data_access --cov=models \
-            --cov=password_policy --cov=csrf_protection --cov=recommendation_engine \
-            --cov=auth --cov=services --cov=integrations --cov=scripts \
+            --cov=app_v2 --cov=app_helpers \
+            --cov=schemas --cov=models \
+            --cov=recommendation_engine \
+            --cov=auth --cov=blueprints --cov=dal \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
             --cov-fail-under=60
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: backend/coverage.xml
@@ -106,7 +111,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
@@ -133,7 +138,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -174,7 +179,7 @@ jobs:
 
       - name: Upload security report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: security-reports
           path: bandit-report.json
@@ -191,7 +196,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
@@ -241,7 +246,7 @@ jobs:
 
       - name: Upload E2E results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results
           path: |

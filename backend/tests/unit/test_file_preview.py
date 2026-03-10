@@ -32,7 +32,7 @@ def client(app):
 @pytest.fixture
 def mock_graph_client():
     """Microsoft Graph Clientのモック"""
-    with patch("backend.integrations.microsoft_graph.MicrosoftGraphClient") as mock:
+    with patch("integrations.microsoft_graph.MicrosoftGraphClient") as mock:
         client_instance = mock.return_value
         client_instance.is_configured.return_value = True
         yield client_instance
@@ -41,7 +41,7 @@ def mock_graph_client():
 @pytest.fixture
 def mock_get_graph_client(mock_graph_client):
     """get_ms_graph_client() 関数のモック"""
-    with patch("backend.app_v2.get_ms_graph_client") as mock_func:
+    with patch("app_v2.get_ms_graph_client") as mock_func:
         mock_func.return_value = mock_graph_client
         yield mock_func
 
@@ -49,8 +49,8 @@ def mock_get_graph_client(mock_graph_client):
 @pytest.fixture
 def mock_logging():
     """監査ログ関数のモック"""
-    with patch("backend.app_v2.log_change") as mock_change, patch(
-        "backend.app_v2.log_access"
+    with patch("app_v2.log_change") as mock_change, patch(
+        "app_v2.log_access"
     ) as mock_access:
         yield {"change": mock_change, "access": mock_access}
 
@@ -223,8 +223,8 @@ class TestMS365FilePreview:
             # Assert
             assert result == expected_mime
 
-    @patch("backend.app_v2.get_ms_graph_client")
-    @patch("backend.app_v2.log_access")
+    @patch("app_v2.get_ms_graph_client")
+    @patch("app_v2.log_access")
     def test_preview_endpoint_success(
         self, mock_log_access, mock_get_client, app, client, mock_graph_client
     ):
@@ -247,8 +247,8 @@ class TestMS365FilePreview:
         }
 
         # Mock JWT authentication
-        with patch("backend.app_v2.jwt_required", lambda fn: fn):
-            with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
+        with patch("app_v2.jwt_required", lambda fn: fn):
+            with patch("app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Import the route handler
 
@@ -263,7 +263,7 @@ class TestMS365FilePreview:
             or response.status_code in [200, 404, 500]
         )
 
-    @patch("backend.app_v2.get_ms_graph_client")
+    @patch("app_v2.get_ms_graph_client")
     def test_preview_endpoint_missing_drive_id(
         self, mock_get_client, app, client, mock_graph_client
     ):
@@ -275,8 +275,8 @@ class TestMS365FilePreview:
         file_id = "test-file-456"
 
         # Mock JWT authentication
-        with patch("backend.app_v2.jwt_required", lambda fn: fn):
-            with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
+        with patch("app_v2.jwt_required", lambda fn: fn):
+            with patch("app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Act
                     response = client.get(f"/api/ms365/files/preview?file_id={file_id}")
@@ -284,8 +284,8 @@ class TestMS365FilePreview:
         # Assert (実装依存のためステータスコードのみ検証)
         assert response.status_code in [400, 404, 500]
 
-    @patch("backend.app_v2.get_ms_graph_client")
-    @patch("backend.app_v2.log_access")
+    @patch("app_v2.get_ms_graph_client")
+    @patch("app_v2.log_access")
     def test_download_endpoint_success(
         self, mock_log_access, mock_get_client, app, client, mock_graph_client
     ):
@@ -307,8 +307,8 @@ class TestMS365FilePreview:
         }
 
         # Mock JWT authentication
-        with patch("backend.app_v2.jwt_required", lambda fn: fn):
-            with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
+        with patch("app_v2.jwt_required", lambda fn: fn):
+            with patch("app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Act
                     response = client.get(
@@ -322,8 +322,8 @@ class TestMS365FilePreview:
             500,
         ]
 
-    @patch("backend.app_v2.get_ms_graph_client")
-    @patch("backend.app_v2.log_access")
+    @patch("app_v2.get_ms_graph_client")
+    @patch("app_v2.log_access")
     def test_thumbnail_endpoint_success(
         self, mock_log_access, mock_get_client, app, client, mock_graph_client
     ):
@@ -345,8 +345,8 @@ class TestMS365FilePreview:
         }
 
         # Mock JWT authentication
-        with patch("backend.app_v2.jwt_required", lambda fn: fn):
-            with patch("backend.app_v2.get_jwt_identity", return_value="test-user"):
+        with patch("app_v2.jwt_required", lambda fn: fn):
+            with patch("app_v2.get_jwt_identity", return_value="test-user"):
                 with app.test_request_context():
                     # Act
                     response = client.get(

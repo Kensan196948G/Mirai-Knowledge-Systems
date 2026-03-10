@@ -16,6 +16,7 @@ BACKEND_DIR = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(BACKEND_DIR))
 
 import app_v2
+import app_helpers
 
 
 def _write_json(path, data):
@@ -113,36 +114,36 @@ class TestCacheDisabled:
 
     def test_cache_get_returns_none_when_disabled(self):
         """Redis無効時にcache_getはNoneを返す"""
-        original = app_v2.CACHE_ENABLED
+        original = app_helpers.CACHE_ENABLED
         try:
-            app_v2.CACHE_ENABLED = False
+            app_helpers.CACHE_ENABLED = False
             result = app_v2.cache_get("any_key")
             assert result is None
         finally:
-            app_v2.CACHE_ENABLED = original
+            app_helpers.CACHE_ENABLED = original
 
     def test_cache_set_noop_when_disabled(self):
         """Redis無効時にcache_setはエラーなしで何もしない"""
-        original = app_v2.CACHE_ENABLED
+        original = app_helpers.CACHE_ENABLED
         try:
-            app_v2.CACHE_ENABLED = False
+            app_helpers.CACHE_ENABLED = False
             # エラーが発生しないことを確認
             app_v2.cache_set("key", {"data": "test"})
         finally:
-            app_v2.CACHE_ENABLED = original
+            app_helpers.CACHE_ENABLED = original
 
     def test_cache_get_returns_none_when_no_client(self):
         """redis_clientがNoneのときNoneを返す"""
-        original_client = app_v2.redis_client
-        original_enabled = app_v2.CACHE_ENABLED
+        original_client = app_helpers.redis_client
+        original_enabled = app_helpers.CACHE_ENABLED
         try:
-            app_v2.redis_client = None
-            app_v2.CACHE_ENABLED = True
+            app_helpers.redis_client = None
+            app_helpers.CACHE_ENABLED = True
             result = app_v2.cache_get("key")
             assert result is None
         finally:
-            app_v2.redis_client = original_client
-            app_v2.CACHE_ENABLED = original_enabled
+            app_helpers.redis_client = original_client
+            app_helpers.CACHE_ENABLED = original_enabled
 
 
 # ============================================================
@@ -167,51 +168,51 @@ class TestCacheWithMockRedis:
         mock_redis.setex = mock_setex
         mock_redis.get = mock_get
 
-        original_client = app_v2.redis_client
-        original_enabled = app_v2.CACHE_ENABLED
+        original_client = app_helpers.redis_client
+        original_enabled = app_helpers.CACHE_ENABLED
         try:
-            app_v2.redis_client = mock_redis
-            app_v2.CACHE_ENABLED = True
+            app_helpers.redis_client = mock_redis
+            app_helpers.CACHE_ENABLED = True
 
             test_data = {"success": True, "data": {"count": 42}}
             app_v2.cache_set("test_key", test_data, ttl=300)
             result = app_v2.cache_get("test_key")
             assert result == test_data
         finally:
-            app_v2.redis_client = original_client
-            app_v2.CACHE_ENABLED = original_enabled
+            app_helpers.redis_client = original_client
+            app_helpers.CACHE_ENABLED = original_enabled
 
     def test_cache_get_handles_exception(self):
         """cache_getがRedis例外をNoneに変換"""
         mock_redis = MagicMock()
         mock_redis.get.side_effect = Exception("Connection lost")
 
-        original_client = app_v2.redis_client
-        original_enabled = app_v2.CACHE_ENABLED
+        original_client = app_helpers.redis_client
+        original_enabled = app_helpers.CACHE_ENABLED
         try:
-            app_v2.redis_client = mock_redis
-            app_v2.CACHE_ENABLED = True
+            app_helpers.redis_client = mock_redis
+            app_helpers.CACHE_ENABLED = True
             result = app_v2.cache_get("key")
             assert result is None
         finally:
-            app_v2.redis_client = original_client
-            app_v2.CACHE_ENABLED = original_enabled
+            app_helpers.redis_client = original_client
+            app_helpers.CACHE_ENABLED = original_enabled
 
     def test_cache_get_returns_none_for_missing_key(self):
         """存在しないキーはNoneを返す"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = None
 
-        original_client = app_v2.redis_client
-        original_enabled = app_v2.CACHE_ENABLED
+        original_client = app_helpers.redis_client
+        original_enabled = app_helpers.CACHE_ENABLED
         try:
-            app_v2.redis_client = mock_redis
-            app_v2.CACHE_ENABLED = True
+            app_helpers.redis_client = mock_redis
+            app_helpers.CACHE_ENABLED = True
             result = app_v2.cache_get("nonexistent")
             assert result is None
         finally:
-            app_v2.redis_client = original_client
-            app_v2.CACHE_ENABLED = original_enabled
+            app_helpers.redis_client = original_client
+            app_helpers.CACHE_ENABLED = original_enabled
 
 
 # ============================================================
@@ -250,11 +251,11 @@ class TestDashboardStatsCache:
         mock_redis.setex = mock_setex
         mock_redis.get = mock_get
 
-        original_client = app_v2.redis_client
-        original_enabled = app_v2.CACHE_ENABLED
+        original_client = app_helpers.redis_client
+        original_enabled = app_helpers.CACHE_ENABLED
         try:
-            app_v2.redis_client = mock_redis
-            app_v2.CACHE_ENABLED = True
+            app_helpers.redis_client = mock_redis
+            app_helpers.CACHE_ENABLED = True
 
             token = _get_token(client)
             headers = {"Authorization": f"Bearer {token}"}
@@ -275,5 +276,5 @@ class TestDashboardStatsCache:
             data2 = resp2.get_json()
             assert data1["data"]["counts"] == data2["data"]["counts"]
         finally:
-            app_v2.redis_client = original_client
-            app_v2.CACHE_ENABLED = original_enabled
+            app_helpers.redis_client = original_client
+            app_helpers.CACHE_ENABLED = original_enabled

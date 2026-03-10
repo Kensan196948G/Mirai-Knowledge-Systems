@@ -518,11 +518,8 @@ def log_access(
     old_value=None,
     new_value=None,
 ):
-    """詳細な監査ログを記録（本番のみ同期書き込み）"""
+    """詳細な監査ログを記録（全環境で書き込み）"""
     try:
-        if not IS_PRODUCTION:
-            return
-
         session_id = None
         try:
             jwt_data = get_jwt()
@@ -538,6 +535,8 @@ def log_access(
                 safe_resource_id = resource_id
             elif isinstance(resource_id, str) and resource_id.isdigit():
                 safe_resource_id = int(resource_id)
+            elif isinstance(resource_id, str):
+                safe_resource_id = resource_id  # 検索クエリ等の非数値文字列を許容
 
         log_entry = {
             "user_id": user_id,

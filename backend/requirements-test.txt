@@ -1,0 +1,18 @@
+# Test dependencies (separate from production requirements to avoid pip resolver conflicts)
+-r requirements.txt
+
+# Testing Framework
+pytest==9.0.2
+pytest-cov==4.1.0
+pytest-flask==1.3.0
+pytest-xdist==3.5.0
+pytest-playwright==0.7.2
+
+# Test Data Generation
+faker==20.1.0
+
+# Load Testing
+locust==2.20.0
+
+# Browser Testing
+playwright==1.49.1  # Ubuntu 24.04対応の最新安定版
