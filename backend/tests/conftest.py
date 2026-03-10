@@ -1,4 +1,5 @@
 import json
+import os
 import pathlib
 import sys
 
@@ -6,6 +7,13 @@ import pytest
 
 BACKEND_DIR = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
+
+# app_v2 はモジュールレベルで MKS_JWT_SECRET_KEY を検証するため、
+# import 前にテスト用デフォルト値を注入する（実環境変数は上書きしない）
+os.environ.setdefault(
+    "MKS_JWT_SECRET_KEY",
+    "test-only-secret-key-for-pytest-minimum-32-chars",
+)
 
 import app_v2
 
