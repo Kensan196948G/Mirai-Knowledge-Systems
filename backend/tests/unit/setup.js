@@ -29,23 +29,10 @@ const sessionStorageMock = {
 global.sessionStorage = sessionStorageMock;
 
 // Window.locationのモック
-// jsdom では window.location への直接代入と Object.defineProperty 再定義が
-// バージョンによって異なる制約を持つため、delete + getter/setter パターンを使用
-delete window.location;
-let _locationHref = '';
-window.location = {
-  get href() { return _locationHref; },
-  set href(url) { _locationHref = url; },
-  pathname: '/',
-  search: '',
-  hash: '',
-  hostname: 'localhost',
-  host: 'localhost:5200',
-  protocol: 'http:',
-  reload: jest.fn(),
-  assign: jest.fn((url) => { _locationHref = url; }),
-  replace: jest.fn((url) => { _locationHref = url; }),
-};
+// jsdom 26では window.location は non-configurable accessor。
+// カスタムJest環境 (jest-location-env.js) が _locationObjectSetterNavigate を
+// パッチして href への代入が正常に動作するようにしている。
+// ここでは実際の設定は不要 - カスタム環境が処理する。
 
 // Console警告を抑制（必要に応じて）
 global.console = {
