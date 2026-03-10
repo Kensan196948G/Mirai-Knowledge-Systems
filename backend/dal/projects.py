@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from database import get_session_factory
 from models import Project, ProjectTask
 from sqlalchemy import case, func
+from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class ProjectsMixin:
                 return []
             db = factory()
             try:
-                query = db.query(Project)
+                query = db.query(Project).options(selectinload(Project.manager))
 
                 # フィルタリング
                 if filters:
@@ -72,7 +73,12 @@ class ProjectsMixin:
                 return None
             db = factory()
             try:
-                project = db.query(Project).filter(Project.id == project_id).first()
+                project = (
+                    db.query(Project)
+                    .options(selectinload(Project.manager))
+                    .filter(Project.id == project_id)
+                    .first()
+                )
                 return self._project_to_dict(project)
             finally:
                 db.close()
