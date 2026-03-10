@@ -378,7 +378,7 @@ def ms365_sync_configs_history(config_id):
         page = int(request.args.get("page", 1))
         per_page = int(request.args.get("per_page", 20))
 
-        history = dal.get_ms365_sync_history_by_config(config_id)
+        history = dal.get_ms365_sync_histories_by_config(config_id)
         total = len(history)
         start = (page - 1) * per_page
         paginated = history[start:start + per_page]
