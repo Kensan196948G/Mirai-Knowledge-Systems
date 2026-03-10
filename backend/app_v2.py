@@ -445,6 +445,7 @@ from blueprints.recommendations import recommendations_bp  # Phase H-4: 推薦AP
 from blueprints.admin import admin_bp            # Phase H-4: 監査ログ・ヘルスチェック移行
 from blueprints.utils.health_bp import health_bp  # Phase I-4: metrics/docs/static移行
 from blueprints.consultations import consultations_bp  # Phase J-2: 専門家相談移行
+from blueprints.metrics import metrics_bp  # Phase K-4: Prometheus/summary移行
 
 # Blueprint を Flask app に登録
 app.register_blueprint(auth_bp)
@@ -457,8 +458,9 @@ app.register_blueprint(recommendations_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(consultations_bp)
+app.register_blueprint(metrics_bp)
 
-logger.info("[INIT] Blueprints registered: auth_bp, knowledge_bp, dashboard_bp, ms365_bp, ms365_integration_bp, operations_bp, recommendations_bp, admin_bp, health_bp, consultations_bp")
+logger.info("[INIT] Blueprints registered: auth_bp, knowledge_bp, dashboard_bp, ms365_bp, ms365_integration_bp, operations_bp, recommendations_bp, admin_bp, health_bp, consultations_bp, metrics_bp")
 
 # ============================================================
 # Phase H-1: 共有ヘルパーを app_helpers からインポート
@@ -968,85 +970,7 @@ def update_system_metrics():
         logger.error("Failed to update system metrics: %s", e)
 
 
-@app.route("/metrics", methods=["GET"])
-def metrics():
-    """
-    Prometheusメトリクスエンドポイント
-
-    このエンドポイントはPrometheusサーバーがスクレイピングするため、
-    認証不要でアクセス可能にする。
-    """
-    try:
-        # システムメトリクスを更新
-        update_system_metrics()
-
-        # Prometheus形式でメトリクスを出力
-        return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
-    except Exception as e:
-        logger.error("Metrics endpoint error: %s", e)
-        return jsonify({"error": "Failed to generate metrics"}), 500
-
-
-@app.route("/api/metrics/summary", methods=["GET"])
-@jwt_required()
-def metrics_summary():
-    """
-    メトリクスサマリーAPI（管理者用）
-    人間が読みやすい形式でメトリクスを返す
-    """
-    try:
-        get_jwt_identity()
-
-        # CPU使用率
-        cpu_percent = psutil.cpu_percent(interval=0.1)
-
-        # メモリ使用率
-        memory = psutil.virtual_memory()
-
-        # ディスク使用率
-        disk = psutil.disk_usage("/")
-
-        # ナレッジ総数
-        knowledges = load_data("knowledge.json")
-
-        summary = {
-            "system": {
-                "cpu_usage_percent": cpu_percent,
-                "memory_usage_percent": memory.percent,
-                "memory_total_gb": memory.total / (1024**3),
-                "memory_available_gb": memory.available / (1024**3),
-                "disk_usage_percent": disk.percent,
-                "disk_total_gb": disk.total / (1024**3),
-                "disk_free_gb": disk.free / (1024**3),
-            },
-            "application": {
-                "knowledge_total": len(knowledges),
-                "active_sessions": len(metrics_storage.get("active_sessions", set())),
-                "uptime_seconds": time.time()
-                - metrics_storage.get("start_time", time.time()),
-            },
-            "requests": {
-                "total": sum(metrics_storage["http_requests_total"].values()),
-                "by_status": dict(
-                    Counter(
-                        key.split("_")[-1]
-                        for key in metrics_storage["http_requests_total"].keys()
-                    )
-                ),
-            },
-            "errors": {
-                "total": sum(metrics_storage["errors"].values()),
-                "by_code": dict(metrics_storage["errors"]),
-            },
-        }
-
-        return jsonify(summary), 200
-
-    except Exception as e:
-        logger.error("Metrics summary error: %s", e)
-        return jsonify({"error": "Failed to generate metrics summary"}), 500
-
-
+# Prometheus /metrics + /api/metrics/summary: blueprints/metrics.py に移行済み（Phase K-4）
 
 # 監査ログ・ヘルスチェックAPI: blueprints/admin.py に移行済み（Phase H-4）
 
