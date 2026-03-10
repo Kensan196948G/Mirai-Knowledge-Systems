@@ -38,17 +38,23 @@ backlog = 2048
 # ワーカープロセス設定
 # ==============================================================================
 
-# ワーカープロセス数（推奨: CPU コア数 * 2 + 1）
-workers = multiprocessing.cpu_count() * 2 + 1
+# ワーカープロセス数
+# 社内業務システムのため cpu//2+1 を上限4に制限（メモリ効率重視）
+# 高トラフィック環境では環境変数 MKS_WORKERS で上書き可能
+_default_workers = min(multiprocessing.cpu_count() // 2 + 1, 4)
+workers = int(os.getenv("MKS_WORKERS", _default_workers))
 
 # ワーカークラス（同期/非同期）
 # - sync: 同期（デフォルト、安定）
-# - gevent: 非同期（高スループット、geventライブラリ必要） ← Socket.IO用に変更
+# - gevent: 非同期（高スループット、Socket.IO対応）← Socket.IO用に維持
 # - eventlet: 非同期（高スループット、eventletライブラリ必要）
 worker_class = "gevent"
 
+# gevent 同時接続数（デフォルト1000は過剰、社内用途は100で十分）
+worker_connections = int(os.getenv("MKS_WORKER_CONNECTIONS", 100))
+
 # ワーカーの最大リクエスト処理数（メモリリーク対策）
-# この数を処理したらワーカーを再起動
+# この数を処理したらワーカーを自動再起動
 max_requests = 1000
 max_requests_jitter = 50  # ランダムに±50で再起動（同時再起動を防ぐ）
 
