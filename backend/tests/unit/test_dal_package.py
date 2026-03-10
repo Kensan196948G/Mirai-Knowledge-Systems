@@ -30,7 +30,7 @@ def test_dal_instance_creation():
 
     dal = DataAccessLayer(use_postgresql=False)
     assert dal is not None
-    assert dal.use_postgresql == False
+    assert not dal.use_postgresql
 
 
 def test_dal_has_knowledge_methods():
@@ -69,7 +69,7 @@ def test_dal_use_postgresql_false_does_not_use_db():
     from dal import DataAccessLayer
 
     dal = DataAccessLayer(use_postgresql=False)
-    assert dal._use_postgresql() == False
+    assert not dal._use_postgresql()
 
 
 def test_dal_knowledge_get_list_returns_list(tmp_path):

@@ -29,14 +29,10 @@ const sessionStorageMock = {
 global.sessionStorage = sessionStorageMock;
 
 // Window.locationのモック
-delete window.location;
-window.location = {
-  href: '',
-  pathname: '',
-  search: '',
-  hash: '',
-  reload: jest.fn()
-};
+// jsdom 26では window.location は non-configurable accessor。
+// カスタムJest環境 (jest-location-env.js) が _locationObjectSetterNavigate を
+// パッチして href への代入が正常に動作するようにしている。
+// ここでは実際の設定は不要 - カスタム環境が処理する。
 
 // Console警告を抑制（必要に応じて）
 global.console = {

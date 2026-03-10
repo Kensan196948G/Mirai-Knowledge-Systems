@@ -1,0 +1,17 @@
+[run]
+omit =
+    scripts/*
+    migrations/*
+    */__pycache__/*
+    */test_*.py
+    setup.py
+    conftest.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if __name__ == .__main__.:
+    raise NotImplementedError
+    pass
