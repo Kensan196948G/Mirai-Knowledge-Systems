@@ -2,17 +2,19 @@
 DALパッケージ - DataAccessLayerを統合して提供
 
 backend/dal/ パッケージ構成:
-  base.py          - BaseDAL（インフラ: JSON/PostgreSQL切り替え）
-  knowledge.py     - KnowledgeMixin（ナレッジCRUD）
-  notifications.py - NotificationMixin（通知CRUD）
-  operations.py    - OperationsMixin（SOP/Incidents/Approvals/Regulations）
-  projects.py      - ProjectsMixin（プロジェクト・進捗）
-  experts.py       - ExpertsMixin（専門家・統計）
-  logs.py          - LogsMixin（アクセスログ）
-  ms365.py         - MS365Mixin（MS365同期DAL）
+  base.py             - BaseDAL（インフラ: JSON/PostgreSQL切り替え）
+  knowledge.py        - KnowledgeMixin（ナレッジCRUD）
+  notifications.py    - NotificationMixin（通知CRUD）
+  operations.py       - OperationsMixin（SOP/Incidents/Approvals/Regulations）
+  projects.py         - ProjectsMixin（プロジェクト・進捗）
+  experts.py          - ExpertsMixin（専門家・統計）
+  logs.py             - LogsMixin（アクセスログ）
+  ms365.py            - MS365Mixin（MS365同期DAL）
+  consultations.py    - ConsultationsMixin（専門家相談CRUD）
 """
 
 from .base import BaseDAL
+from .consultations import ConsultationsMixin
 from .experts import ExpertsMixin
 from .knowledge import KnowledgeMixin
 from .logs import LogsMixin
@@ -30,6 +32,7 @@ class DataAccessLayer(
     ExpertsMixin,
     LogsMixin,
     MS365Mixin,
+    ConsultationsMixin,
     BaseDAL,
 ):
     """データアクセス抽象化レイヤー（統合クラス）

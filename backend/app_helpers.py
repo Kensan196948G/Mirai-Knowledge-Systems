@@ -357,6 +357,11 @@ def get_user_permissions(user: dict) -> list:
             "knowledge.read", "knowledge.create", "sop.read",
             "incident.read", "notification.read",
         ],
+        "expert": [
+            "knowledge.read", "knowledge.create",
+            "consultation.read", "consultation.create", "consultation.update",
+            "consultation.answer", "notification.read",
+        ],
     }
 
     roles = user.get("roles", [])
