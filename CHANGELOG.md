@@ -1,5 +1,39 @@
 # CHANGELOG
 
+## [1.7.0] - 2026-03-10
+
+### Added
+- **Phase H-1**: Flask Blueprint完全移行完了（app_v2.py 7,155行→1,572行、78%削減）
+  - `backend/blueprints/` 全7モジュール稼働（auth/knowledge/dashboard/ms365/operations/admin/recommendations）
+  - `backend/app_helpers.py` 共有ヘルパー統合
+- **Phase H-2**: DALテストカバレッジ大幅向上
+  - `tests/unit/test_dal_knowledge_coverage.py`（新規）
+  - `tests/unit/test_dal_ms365_coverage.py`（新規）
+  - `tests/unit/test_dal_operations_coverage.py`（新規）
+  - 新規テスト +196件、全体カバレッジ 66% → 75%
+- **Phase I 基盤**: パフォーマンス最適化ロードマップ策定
+  - `app_helpers.py`: CACHE_TTL機能別定数追加（SHORT/DEFAULT/LONG/VERY_LONG）
+  - `docs/PHASE_I_PERFORMANCE_ROADMAP.md`: 82→150+ req/sec 目標設定
+- **MS365ファイルプレビューPWA統合**（Phase 3）
+  - Service Worker キャッシュ戦略実装（networkFirstMS365Preview）
+  - `webui/styles.css`: プレビューUIスタイル追加
+
+### Changed
+- `backend/requirements.txt`: psutil 5.9.6→7.2.2、test依存分離
+- `backend/tests/conftest.py`: app_helpers キャッシュ統合（Phase H-2対応）
+- `.github/workflows/pr-quality-gate.yml`: Backend Tests タイムアウト30分化・並列実行（-n auto）
+- `.github/copilot-instructions.md`: Version 1.4.0→1.6.0更新、CI修復履歴追加
+
+### Fixed
+- E731: `test_dal_postgresql_coverage.py` lambda→def 変換（50件）
+- ruff: All checks passed（全体クリーン状態）
+
+### Security
+- bcrypt 4.1.2→5.0.0（Dependabot PR#3219）
+- alembic 1.13.1→1.18.4（Dependabot PR#3218）
+- prometheus-client 0.19.0→0.24.1（Dependabot PR#3215）
+- faker 20.1.0→40.8.0（Dependabot PR#3217）
+
 ## [1.6.0] - 2026-03-03
 
 ### Added
