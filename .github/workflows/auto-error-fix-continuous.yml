@@ -58,8 +58,11 @@ jobs:
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
-          # Playwrightブラウザインストール
-          playwright install --with-deps
+          if [ -f requirements-test.txt ]; then
+            pip install -r requirements-test.txt
+          fi
+          # Playwrightブラウザインストール（python -m で確実にPATH解決）
+          python -m playwright install --with-deps chromium
 
       - name: PostgreSQL起動（Docker）
         run: |
