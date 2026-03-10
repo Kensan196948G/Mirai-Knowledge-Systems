@@ -2,9 +2,12 @@
 KnowledgeMixin - ナレッジドメインDAL
 """
 
+import hashlib
+import json as _json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from app_helpers import CACHE_TTL_LONG, cache_get, cache_set
 from database import get_session_factory
 from models import Knowledge
 
@@ -55,6 +58,16 @@ class KnowledgeMixin:
             finally:
                 db.close()
         else:
+            # キャッシュキー（フィルタ内容を含む）
+            filter_hash = hashlib.md5(
+                _json.dumps(filters or {}, sort_keys=True).encode()
+            ).hexdigest()[:8]
+            cache_key = f"knowledge:list:{filter_hash}"
+            cached = cache_get(cache_key)
+            if cached is not None:
+                return cached
+
+            # 一括ロードしてメモリ内フィルタリング（load_data重複呼び出し排除）
             data = self._load_json("knowledge.json")
 
             # フィルタリング
@@ -71,6 +84,7 @@ class KnowledgeMixin:
                         or search_term in k.get("content", "").lower()
                     ]
 
+            cache_set(cache_key, data, ttl=CACHE_TTL_LONG)
             return data
 
     def get_knowledge_by_id(self, knowledge_id: int) -> Optional[Dict]:

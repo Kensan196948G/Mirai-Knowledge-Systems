@@ -2,9 +2,12 @@
 ExpertsMixin - 専門家ドメインDAL
 """
 
+import hashlib
+import json as _json
 import logging
 from typing import Any, Dict, List, Optional
 
+from app_helpers import CACHE_TTL_DEFAULT, CACHE_TTL_LONG, cache_get, cache_set
 from database import get_session_factory
 from models import Consultation, Expert, ExpertRating
 from sqlalchemy import func
@@ -51,6 +54,15 @@ class ExpertsMixin:
                 db.close()
         else:
             # 専門家はJSONベースのみ
+            filter_hash = hashlib.md5(
+                _json.dumps(filters or {}, sort_keys=True).encode()
+            ).hexdigest()[:8]
+            cache_key = f"experts:list:{filter_hash}"
+            cached = cache_get(cache_key)
+            if cached is not None:
+                return cached
+
+            # 一括ロードしてメモリ内フィルタリング
             data = self._load_json("experts.json")
 
             # フィルタリング
@@ -68,6 +80,7 @@ class ExpertsMixin:
                         if e.get("is_available") == filters["is_available"]
                     ]
 
+            cache_set(cache_key, data, ttl=CACHE_TTL_LONG)
             return data
 
     def get_expert_by_id(self, expert_id: int) -> Optional[Dict]:
@@ -350,7 +363,13 @@ class ExpertsMixin:
             finally:
                 db.close()
         else:
-            # JSONベースの実装
+            # JSONベースの実装: 計算結果をキャッシュして繰り返し呼び出しを回避
+            cache_key = f"experts:rating:{expert_id}"
+            cached = cache_get(cache_key)
+            if cached is not None:
+                return cached
+
+            # 両ファイルを一括ロード
             experts = self._load_json("experts.json")
             ratings = self._load_json("expert_ratings.json")
 
@@ -388,8 +407,9 @@ class ExpertsMixin:
 
             # 0-5の範囲にクリッピング
             final_rating = max(0.0, min(5.0, final_rating))
-
-            return round(final_rating, 1)
+            result = round(final_rating, 1)
+            cache_set(cache_key, result, ttl=CACHE_TTL_DEFAULT)
+            return result
 
     @staticmethod
     def _expert_to_dict(expert) -> Dict:
