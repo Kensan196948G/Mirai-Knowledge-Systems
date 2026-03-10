@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>管理画面 - 建設土木ナレッジシステム</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
+  <script src="/env-indicator.js"></script>
   <link rel="stylesheet" href="styles.css" />
   <style>
     .admin-container {
@@ -403,14 +404,18 @@
     const API_BASE = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5000'}/api/v1`;
     let selectedTags = [];
 
-    // 本番環境判定
+    // 本番環境判定（env-indicator.js と同じ優先順位: config.js > URLパラメータ > localStorage > ポート番号 > ホスト名）
     const IS_PRODUCTION = (() => {
+      if (typeof window.IS_PRODUCTION !== 'undefined') return window.IS_PRODUCTION;
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('env') === 'production') return true;
       if (urlParams.get('env') === 'development') return false;
       const envSetting = localStorage.getItem('MKS_ENV');
       if (envSetting === 'production') return true;
       if (envSetting === 'development') return false;
+      const port = parseInt(window.location.port || '0', 10);
+      if (port === 9100 || port === 9443) return true;
+      if (port === 5200 || port === 5243) return false;
       const hostname = window.location.hostname;
       return hostname !== 'localhost' && hostname !== '127.0.0.1';
     })();
