@@ -63,7 +63,7 @@ class KnowledgeMixin:
             ).hexdigest()[:8]
             cache_key = f"knowledge:list:{filter_hash}"
             # 循環インポート回避のため遅延インポート
-            from app_helpers import CACHE_TTL_LONG, cache_get, cache_set  # noqa: PLC0415
+            from app_helpers import cache_get, cache_set  # noqa: PLC0415
             cached = cache_get(cache_key)
             if cached is not None:
                 return cached
@@ -85,7 +85,7 @@ class KnowledgeMixin:
                         or search_term in k.get("content", "").lower()
                     ]
 
-            cache_set(cache_key, data, ttl=CACHE_TTL_LONG)
+            cache_set(cache_key, data, ttl=3600)  # CACHE_TTL_LONG: 静的データ用
             return data
 
     def get_knowledge_by_id(self, knowledge_id: int) -> Optional[Dict]:
