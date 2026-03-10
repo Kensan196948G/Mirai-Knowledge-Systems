@@ -114,3 +114,4 @@ backend/tests/reports/
 nul
 *.tmp
 *~
+backend/data/*.json
