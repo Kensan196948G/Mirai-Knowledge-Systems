@@ -3,33 +3,28 @@
 JSONベース + JWT認証 + RBAC
 """
 
-import hashlib
-import json
 import logging
 import os
-import threading
 import time
 import uuid  # Phase G-15: Correlation ID生成用
-from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from collections import defaultdict
+from datetime import timedelta
 from functools import wraps
 
-import bcrypt
+import bcrypt  # noqa: F401 — テストが app_v2.bcrypt を参照
 import psutil
 from dotenv import load_dotenv
-from flask import Flask, Response, g, jsonify, request, send_from_directory
+from flask import Flask, g, jsonify, request
 from flask_cors import CORS
-from flask_jwt_extended import (JWTManager, create_access_token,
-                                create_refresh_token, get_jwt,
-                                get_jwt_identity, jwt_required)
+from flask_jwt_extended import (JWTManager, create_access_token,  # noqa: F401 — テスト再エクスポート
+                                get_jwt, get_jwt_identity, jwt_required)  # noqa: F401
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_socketio import SocketIO, emit, join_room, leave_room
-from marshmallow import ValidationError
-from schemas import (ConsultationAnswerSchema, ConsultationCreateSchema,
-                     KnowledgeCreateSchema, LoginSchema, MS365ImportSchema,
-                     MS365SyncSchema)
-from werkzeug.exceptions import BadRequest, UnsupportedMediaType
+from flask_socketio import SocketIO
+from werkzeug.exceptions import UnsupportedMediaType
+
+from error_handlers import error_response, register_error_handlers  # noqa: F401
+from socketio_handlers import register_socketio_handlers
 
 # ロガー設定
 logger = logging.getLogger(__name__)
@@ -38,19 +33,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# _file_lock: app_helpers モジュールで管理（Phase H-1）
-import smtplib
-import ssl
-import tempfile
-from email.message import EmailMessage
-
-from auth.totp_manager import TOTPManager
-from data_access import DataAccessLayer
 from json_logger import setup_json_logging  # Phase G-15: Structured Logging
-from prometheus_client import CONTENT_TYPE_LATEST
 from prometheus_client import Counter as PrometheusCounter
-from prometheus_client import Gauge, Histogram, generate_latest
-from recommendation_engine import RecommendationEngine
+from prometheus_client import Gauge, Histogram
 
 from config import get_config
 
@@ -320,6 +305,7 @@ logger.info("[INIT] CORS configured for %d origins", len(allowed_origins))
 
 # SocketIO設定（リアルタイム更新用）
 socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode="threading")
+register_socketio_handlers(socketio)  # Phase L-1: ハンドラー登録
 CORS(
     app,
     resources={
@@ -365,6 +351,7 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 logger.info("[INIT] JWT Secret Key configured (length=%d)", len(app.config["JWT_SECRET_KEY"]))
 jwt = JWTManager(app)
+register_error_handlers(app, jwt)  # Phase L-1: エラーハンドラー登録
 
 # Phase G-15: Structured Logging統合
 setup_json_logging(app)
@@ -609,24 +596,32 @@ if os.environ.get("TESTING") != "true":
         ["config_id", "error_type"],
     )
 else:
-    # テスト環境用のダミーメトリクス
-    REQUEST_COUNT = None
-    REQUEST_DURATION = None
-    ERROR_COUNT = None
-    API_CALLS = None
-    DB_CONNECTIONS = None
-    DB_QUERY_DURATION = None
-    ACTIVE_USERS = None
-    KNOWLEDGE_TOTAL = None
-    SYSTEM_CPU_USAGE = None
-    SYSTEM_MEMORY_USAGE = None
-    SYSTEM_DISK_USAGE = None
-    AUTH_ATTEMPTS = None
-    RATE_LIMIT_HITS = None
-    MS365_SYNC_EXECUTIONS = None
-    MS365_SYNC_DURATION = None
-    MS365_FILES_PROCESSED = None
-    MS365_SYNC_ERRORS = None
+    # テスト環境用のNoOpメトリクス（NoneではなくNoOpオブジェクトを使用）
+    class _NoOpMetric:
+        """テスト環境用のNoOpメトリクスクラス"""
+        def inc(self, *args, **kwargs): pass
+        def set(self, *args, **kwargs): pass
+        def observe(self, *args, **kwargs): pass
+        def labels(self, **kwargs): return self
+
+    _noop = _NoOpMetric()
+    REQUEST_COUNT = _noop
+    REQUEST_DURATION = _noop
+    ERROR_COUNT = _noop
+    API_CALLS = _noop
+    DB_CONNECTIONS = _noop
+    DB_QUERY_DURATION = _noop
+    ACTIVE_USERS = _noop
+    KNOWLEDGE_TOTAL = _noop
+    SYSTEM_CPU_USAGE = _noop
+    SYSTEM_MEMORY_USAGE = _noop
+    SYSTEM_DISK_USAGE = _noop
+    AUTH_ATTEMPTS = _noop
+    RATE_LIMIT_HITS = _noop
+    MS365_SYNC_EXECUTIONS = _noop
+    MS365_SYNC_DURATION = _noop
+    MS365_FILES_PROCESSED = _noop
+    MS365_SYNC_ERRORS = _noop
 
 
 # データストレージディレクトリ
@@ -809,137 +804,8 @@ def check_if_token_revoked(jwt_header, jwt_payload):
     return jti in _ah_token_blacklist
 
 
-
-# Microsoft 365 連携 API: blueprints/ms365.py に移行済み（Phase H-4）
-
-# ナレッジAPIルート: blueprints/knowledge.py に移行済み（Phase H-1）
-# 法令・プロジェクト・専門家 APIルート: blueprints/operations.py に移行済み（Phase I-4）
-
-
-# 通知APIルート: blueprints/operations.py に移行済み（Phase I-4）
-# _env_bool / create_notification等: app_helpers で管理（Phase H-1）
-
-# 推薦API: blueprints/recommendations.py に移行済み（Phase H-4）
-
-# カスタムメトリクス・Swagger・静的ファイルルート: blueprints/utils/health_bp.py に移行済み（Phase I-4）
-
-
 # ============================================================
-# 標準エラーレスポンス関数
-# ============================================================
-
-
-def error_response(message, code="ERROR", status_code=400, details=None):
-    """
-    標準化されたエラーレスポンスを返す
-
-    Args:
-        message: エラーメッセージ
-        code: エラーコード（例: 'NOT_FOUND', 'VALIDATION_ERROR'）
-        status_code: HTTPステータスコード
-        details: 追加のエラー詳細情報
-
-    Returns:
-        tuple: (JSONレスポンス, HTTPステータスコード)
-    """
-    response = {"success": False, "error": {"code": code, "message": message}}
-
-    if details:
-        response["error"]["details"] = details
-
-    logger.error("%s: %s (status=%d)", code, message, status_code)
-
-    return jsonify(response), status_code
-
-
-# ============================================================
-# エラーハンドラー
-# ============================================================
-
-
-@app.errorhandler(Exception)
-def handle_unexpected_error(e):
-    """全ての未処理例外をキャッチ"""
-    import traceback
-
-    logger.error("Unexpected error: %s: %s", type(e).__name__, e)
-    logger.error("Unexpected error traceback:\n%s", traceback.format_exc())
-    return error_response("Internal server error", "INTERNAL_ERROR", 500)
-
-
-@app.errorhandler(404)
-def not_found(error):
-    return error_response("Resource not found", "NOT_FOUND", 404)
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    return error_response("Internal server error", "INTERNAL_ERROR", 500)
-
-
-@app.errorhandler(429)
-def ratelimit_handler(error):
-    """レート制限エラーハンドラ"""
-    retry_after = (
-        str(error.description) if hasattr(error, "description") else "60 seconds"
-    )
-    return error_response(
-        "リクエストが多すぎます。しばらく待ってから再試行してください。",
-        "RATE_LIMIT_EXCEEDED",
-        429,
-        {"retry_after": retry_after},
-    )
-
-
-@app.errorhandler(405)
-def method_not_allowed(error):
-    """405 Method Not Allowedエラーハンドラ"""
-    return error_response(
-        "The method is not allowed for the requested URL", "METHOD_NOT_ALLOWED", 405
-    )
-
-
-@app.errorhandler(415)
-def unsupported_media_type(error):
-    """415 Unsupported Media Typeエラーハンドラ"""
-    return error_response(
-        "Unsupported Media Type. Content-Type must be application/json",
-        "UNSUPPORTED_MEDIA_TYPE",
-        415,
-    )
-
-
-@app.errorhandler(UnsupportedMediaType)
-def unsupported_media_type_exception(error):
-    """UnsupportedMediaType例外ハンドラ"""
-    return error_response(
-        "Unsupported Media Type. Content-Type must be application/json",
-        "UNSUPPORTED_MEDIA_TYPE",
-        415,
-    )
-
-
-@jwt.expired_token_loader
-def expired_token_callback(jwt_header, jwt_payload):
-    return error_response("Token has expired", "TOKEN_EXPIRED", 401)
-
-
-@jwt.invalid_token_loader
-def invalid_token_callback(error):
-    return error_response("Invalid token", "INVALID_TOKEN", 401)
-
-
-@jwt.unauthorized_loader
-def missing_token_callback(error):
-    return error_response("Authorization token is missing", "MISSING_TOKEN", 401)
-
-
-# ============================================================
-# アプリケーション起動
-# ============================================================
-
-# ============================================================
-# Prometheusメトリクスエンドポイント
+# システムメトリクス・ユーティリティ
 # ============================================================
 
 
@@ -1049,14 +915,6 @@ def init_demo_users():
         logger.info("デモユーザーを作成しました: admin, yamada, partner")
 
 
-# ============================================================
-# 専門家相談API（Consultation Endpoints）
-# Phase J-2: blueprints/consultations.py に移行済み
-# ============================================================
-
-
-
-
 # HTTPS強制リダイレクトミドルウェアを適用（本番環境用）
 # 環境変数 MKS_FORCE_HTTPS=true で有効化
 if os.environ.get("MKS_FORCE_HTTPS", "false").lower() in ("true", "1", "yes"):
@@ -1113,85 +971,6 @@ if __name__ == "__main__":
     )
 
 
-# ============================================================
-# SocketIOイベントハンドラー（リアルタイム更新）
-# ============================================================
+# SocketIOイベントハンドラー: socketio_handlers.py に移行済み（Phase L-1）
 
 
-@socketio.on("connect")
-def handle_connect():
-    """クライアント接続時の処理"""
-    logger.debug("[SOCKET] Client connected")
-    emit("connected", {"status": "success"})
-
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    """クライアント切断時の処理"""
-    logger.debug("[SOCKET] Client disconnected")
-
-
-@socketio.on("join_project")
-def handle_join_project(data):
-    """プロジェクトルーム参加"""
-    project_id = data.get("project_id")
-    if project_id:
-        join_room(f"project_{project_id}")
-        logger.debug("[SOCKET] User joined project room: %s", project_id)
-        emit("joined_project", {"project_id": project_id})
-
-
-@socketio.on("leave_project")
-def handle_leave_project(data):
-    """プロジェクトルーム退出"""
-    project_id = data.get("project_id")
-    if project_id:
-        leave_room(f"project_{project_id}")
-        logger.debug("[SOCKET] User left project room: %s", project_id)
-
-
-@socketio.on("join_dashboard")
-def handle_join_dashboard():
-    """ダッシュボードルーム参加"""
-    join_room("dashboard")
-    logger.debug("[SOCKET] User joined dashboard room")
-    emit("joined_dashboard", {"status": "success"})
-
-
-@socketio.on("leave_dashboard")
-def handle_leave_dashboard():
-    """ダッシュボードルーム退出"""
-    leave_room("dashboard")
-    logger.debug("[SOCKET] User left dashboard room")
-
-
-# リアルタイム更新用の関数
-def emit_project_progress_update(project_id, progress_data):
-    """プロジェクト進捗更新をリアルタイム通知"""
-    socketio.emit(
-        "project_progress_update",
-        {
-            "project_id": project_id,
-            "progress": progress_data,
-            "timestamp": datetime.now().isoformat(),
-        },
-        to=f"project_{project_id}",
-    )
-
-
-def emit_dashboard_stats_update(stats_data):
-    """ダッシュボード統計更新をリアルタイム通知"""
-    socketio.emit(
-        "dashboard_stats_update",
-        {"stats": stats_data, "timestamp": datetime.now().isoformat()},
-        to="dashboard",
-    )
-
-
-def emit_expert_stats_update(expert_stats):
-    """専門家統計更新をリアルタイム通知"""
-    socketio.emit(
-        "expert_stats_update",
-        {"expert_stats": expert_stats, "timestamp": datetime.now().isoformat()},
-        to="dashboard",
-    )

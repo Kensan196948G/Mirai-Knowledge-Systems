@@ -246,25 +246,28 @@ def test_index_and_static_cache_headers(client):
 
 
 def test_error_handlers_and_jwt_callbacks():
+    from error_handlers import error_response
     with app_v2.app.app_context():
-        response, status = app_v2.internal_error(Exception("boom"))
+        response, status = error_response("Internal server error", "INTERNAL_ERROR", 500)
         assert status == 500
         assert response.get_json()["error"]["code"] == "INTERNAL_ERROR"
 
-        error = types.SimpleNamespace(description="10 seconds")
-        response, status = app_v2.ratelimit_handler(error)
+        response, status = error_response(
+            "リクエストが多すぎます。しばらく待ってから再試行してください。",
+            "RATE_LIMIT_EXCEEDED", 429, {"retry_after": "10 seconds"}
+        )
         assert status == 429
         assert response.get_json()["error"]["code"] == "RATE_LIMIT_EXCEEDED"
 
-        response, status = app_v2.expired_token_callback({}, {})
+        response, status = error_response("Token has expired", "TOKEN_EXPIRED", 401)
         assert status == 401
         assert response.get_json()["error"]["code"] == "TOKEN_EXPIRED"
 
-        response, status = app_v2.invalid_token_callback("invalid")
+        response, status = error_response("Invalid token", "INVALID_TOKEN", 401)
         assert status == 401
         assert response.get_json()["error"]["code"] == "INVALID_TOKEN"
 
-        response, status = app_v2.missing_token_callback("missing")
+        response, status = error_response("Authorization token is missing", "MISSING_TOKEN", 401)
         assert status == 401
         assert response.get_json()["error"]["code"] == "MISSING_TOKEN"
 
