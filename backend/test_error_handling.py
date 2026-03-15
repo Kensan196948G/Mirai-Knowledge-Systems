@@ -125,7 +125,7 @@ def test_error_response_format():
     """エラーレスポンス形式のテスト"""
     print("\n[TEST 7] Error response format")
 
-    from app_v2 import error_response
+    from error_handlers import error_response
 
     # 基本的なエラーレスポンス
     response, status_code = error_response("Test error", "TEST_ERROR", 400)
