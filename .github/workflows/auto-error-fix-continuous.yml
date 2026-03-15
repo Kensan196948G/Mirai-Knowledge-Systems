@@ -21,7 +21,7 @@ on:
 env:
   PYTHON_VERSION: '3.12'
   NODE_VERSION: '20'
-  MAX_LOOPS: 15
+  MAX_LOOPS: 3
   MKS_ENV: test
   MKS_SECRET_KEY: test-secret-key-for-ci
   MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
@@ -29,7 +29,7 @@ env:
 
 jobs:
   auto-error-detection-and-fix:
-    name: エラー自動検知・修復（15回ループ）
+    name: エラー自動検知・修復（最大3回ループ・連続成功で早期終了）
     runs-on: ubuntu-latest
 
     permissions:
@@ -132,6 +132,7 @@ jobs:
           MAX_LOOPS=${{ github.event.inputs.max_loops || env.MAX_LOOPS }}
           ERROR_COUNT=0
           FIX_COUNT=0
+          CONSECUTIVE_SUCCESS=0
 
           # 結果ファイル
           RESULT_FILE="${GITHUB_WORKSPACE}/error_fix_results.txt"
@@ -142,6 +143,7 @@ jobs:
 
           while [ $LOOP_COUNT -lt $MAX_LOOPS ]; do
             LOOP_COUNT=$((LOOP_COUNT + 1))
+            LOOP_ERRORS=0
             echo "----------------------------------------"
             echo "ループ ${LOOP_COUNT}/${MAX_LOOPS}"
             echo "----------------------------------------"
@@ -155,6 +157,7 @@ jobs:
             else
               echo "✗ ヘルスチェックでエラー検出"
               ERROR_COUNT=$((ERROR_COUNT + 1))
+              LOOP_ERRORS=$((LOOP_ERRORS + 1))
               cat health_check.log >> "$RESULT_FILE"
             fi
 
@@ -166,6 +169,7 @@ jobs:
             else
               echo "✗ テスト失敗を検出"
               ERROR_COUNT=$((ERROR_COUNT + 1))
+              LOOP_ERRORS=$((LOOP_ERRORS + 1))
               echo "### テスト結果: 失敗" >> "$RESULT_FILE"
               grep -A 3 "FAILED" test_results.log >> "$RESULT_FILE" || true
 
@@ -187,6 +191,7 @@ jobs:
               if [ -n "$ERROR_LINES" ]; then
                 echo "✗ ログにエラーを検出"
                 ERROR_COUNT=$((ERROR_COUNT + 1))
+                LOOP_ERRORS=$((LOOP_ERRORS + 1))
                 echo "### ログエラー:" >> "$RESULT_FILE"
                 echo "$ERROR_LINES" >> "$RESULT_FILE"
               else
@@ -197,6 +202,20 @@ jobs:
             echo ""
             echo "ループ ${LOOP_COUNT} 完了 - エラー: ${ERROR_COUNT}, 修復: ${FIX_COUNT}"
             echo "" >> "$RESULT_FILE"
+
+            # 連続成功カウント（このループでエラーなしならインクリメント、あればリセット）
+            if [ $LOOP_ERRORS -eq 0 ]; then
+              CONSECUTIVE_SUCCESS=$((CONSECUTIVE_SUCCESS + 1))
+            else
+              CONSECUTIVE_SUCCESS=0
+            fi
+
+            # 連続2回成功で早期終了（安定状態と判断）
+            if [ $CONSECUTIVE_SUCCESS -ge 2 ]; then
+              echo "✅ 連続 ${CONSECUTIVE_SUCCESS} 回成功 — 安定状態のため早期終了"
+              echo "### 早期終了: 連続 ${CONSECUTIVE_SUCCESS} 回成功" >> "$RESULT_FILE"
+              break
+            fi
 
             # 最後のループでなければ5秒待機
             if [ $LOOP_COUNT -lt $MAX_LOOPS ]; then
