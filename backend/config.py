@@ -26,11 +26,16 @@ class Config:
     # SQLAlchemy設定
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_POOL_SIZE = int(os.environ.get("MKS_DB_POOL_SIZE", "10"))
-    SQLALCHEMY_MAX_OVERFLOW = int(os.environ.get("MKS_DB_MAX_OVERFLOW", "20"))
+    # Phase I-4: DB接続プール最適化（82→150+ req/sec 目標）
+    # pool_size: 10→20（常時接続数増加でオーバーフロー発生頻度を削減）
+    # max_overflow: 20→10（pool_size増大に合わせてオーバーフロー枠を最適化）
+    # pool_timeout: 30s（変更なし）
+    # pool_recycle: 3600→1800（接続の鮮度管理を強化）
+    SQLALCHEMY_POOL_SIZE = int(os.environ.get("MKS_DB_POOL_SIZE", "20"))
+    SQLALCHEMY_MAX_OVERFLOW = int(os.environ.get("MKS_DB_MAX_OVERFLOW", "10"))
     SQLALCHEMY_POOL_TIMEOUT = int(os.environ.get("MKS_DB_POOL_TIMEOUT", "30"))
-    SQLALCHEMY_POOL_RECYCLE = int(os.environ.get("MKS_DB_POOL_RECYCLE", "3600"))
-    SQLALCHEMY_POOL_PRE_PING = True  # 接続の健全性チェック
+    SQLALCHEMY_POOL_RECYCLE = int(os.environ.get("MKS_DB_POOL_RECYCLE", "1800"))
+    SQLALCHEMY_POOL_PRE_PING = True  # 接続の健全性チェック（Phase I-4: 維持）
     SQLALCHEMY_ECHO = os.environ.get("MKS_DB_ECHO", "false").lower() in (
         "true",
         "1",

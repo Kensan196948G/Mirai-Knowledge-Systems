@@ -65,36 +65,9 @@ logger.info(
     os.getenv("MKS_ENV", "NOT_SET"),
 )
 
-# Redisキャッシュ設定
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-CACHE_TTL = int(os.getenv("CACHE_TTL", 300))  # 5分
-
-try:
-    import redis
-except ImportError:
-    redis = None
-
-if redis is None:
-    redis_client = None
-    CACHE_ENABLED = False
-else:
-    try:
-        redis_client = redis.from_url(REDIS_URL)
-        redis_client.ping()  # 接続テスト
-        CACHE_ENABLED = True
-    except redis.ConnectionError:
-        redis_client = None
-        CACHE_ENABLED = False
-
-
-# get_cache_key / cache_get / cache_set: app_helpers で管理（Phase H-2）
-
-
+# Redis/Cache: app_helpers で管理（Phase H-2）
 # CacheInvalidator: app_helpers で管理（Phase H-1）
-
-
 # recommendation_engine: app_helpers で管理（Phase H-1）
-
 # get_dal: app_helpers で管理（PYTEST_CURRENT_TEST 対応、Phase H-1）
 
 
@@ -434,7 +407,13 @@ from blueprints.utils.health_bp import health_bp  # Phase I-4: metrics/docs/stat
 from blueprints.consultations import consultations_bp  # Phase J-2: 専門家相談移行
 from blueprints.metrics import metrics_bp  # Phase K-4: Prometheus/summary移行
 
-# Blueprint を Flask app に登録
+# ============================================================
+# Phase I-3: Blueprint登録順序最適化（高頻度→低頻度順）
+# auth_bp, knowledge_bp: 最高頻度（全リクエストの70%+）
+# dashboard_bp, operations_bp: 高頻度
+# ms365_bp, recommendations_bp: 中頻度
+# admin_bp, health_bp, consultations_bp, metrics_bp: 低頻度
+# ============================================================
 app.register_blueprint(auth_bp)
 app.register_blueprint(knowledge_bp)
 app.register_blueprint(dashboard_bp)
@@ -624,12 +603,7 @@ else:
     MS365_SYNC_ERRORS = _noop
 
 
-# データストレージディレクトリ
-def get_data_dir():
-    """データ保存先ディレクトリを取得"""
-    data_dir = app.config.get("DATA_DIR", DEFAULT_DATA_DIR)
-    os.makedirs(data_dir, exist_ok=True)
-    return data_dir
+# get_data_dir: app_helpers で管理（Phase H-1）
 
 
 # セキュリティヘッダー
