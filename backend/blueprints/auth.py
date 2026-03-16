@@ -33,6 +33,7 @@ from blueprints.utils.rate_limit import get_limiter
 from schemas import LoginSchema
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
+auth_bp.strict_slashes = False
 
 
 # ================================================================

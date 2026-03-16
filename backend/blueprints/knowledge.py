@@ -45,6 +45,7 @@ from schemas import KnowledgeCreateSchema
 logger = logging.getLogger(__name__)
 
 knowledge_bp = Blueprint("knowledge", __name__, url_prefix="/api/v1")
+knowledge_bp.strict_slashes = False
 
 
 _KNOWLEDGE_LIST_REDIS_KEY = "knowledge_list:all"
