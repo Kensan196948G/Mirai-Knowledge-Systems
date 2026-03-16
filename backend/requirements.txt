@@ -31,7 +31,7 @@ python-dotenv==1.0.0
 # Monitoring & Metrics
 psutil==7.2.2
 prometheus-client==0.24.1
-redis==4.5.5
+redis==7.3.0
 
 # Microsoft Graph API (Optional)
 azure-identity>=1.15.0
