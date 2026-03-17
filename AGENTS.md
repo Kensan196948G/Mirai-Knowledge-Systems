@@ -54,8 +54,9 @@
 | Phase I-5 + L 完了 | **87.76%** | **1681** | 2026-03-17 |
 | Phase Prometheus 完了 | **87.26%** | **1708** | 2026-03-17 |
 | Coverage強化 + v1.9.0 | **87%+** | **1900+** | 2026-03-17 |
+| Cache-hit Coverage + CI並列 | **89.52%** | **1928** | 2026-03-17 |
 
-**目標**: 60% ✅（要件達成）、現在 87%+ ✅
+**目標**: 60% ✅（要件達成）、現在 89.52% ✅
 
 ---
 
@@ -87,6 +88,14 @@
 - `vite.config.js`: vendor-viteサブチャンク追加、ES2015ターゲット、CSS分割有効化
 - `webui/sw.js`: Service Worker バージョンを日付ベースに更新（`v2026-03-17`）
 - `webui/src/utils/debounce.js`: `debounce()` / `batchDebounce()` ユーティリティ追加
+
+### Cache-hit Coverage + CI並列化（PR #3259）
+- `test_operations_cache_coverage.py`: 8テスト（cache_hit 5パス + exception 2パス）
+- `test_dashboard_cache_coverage.py`: 4テスト（cache_hit 3パス + exception 1パス）
+- `test_dal_cache_coverage.py`: 5テスト（experts + knowledge cache_hit）
+- `test_metrics_defs_coverage.py`: skipif修正（TESTING未設定時の18 failure解消）
+- `ci.yml`: `-n auto --dist=loadfile` 追加（pytest-xdist並列実行）
+- 結果: **89.52%**, 1,898 passed, 30 skipped, 0 failed
 
 ### Coverage強化 + v1.9.0 Release（PR #3257）
 - `test_auth_endpoints_v2.py`: 23テスト、auth.py 90%→**95%**
