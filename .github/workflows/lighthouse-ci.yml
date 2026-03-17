@@ -1,0 +1,81 @@
+name: 🔦 Lighthouse CI — フロントエンドパフォーマンス計測
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'webui/**'
+      - 'vite.config.js'
+  push:
+    branches: [main]
+    paths:
+      - 'webui/**'
+      - 'vite.config.js'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: '計測対象URL（デフォルト: localhost build）'
+        required: false
+        default: ''
+
+concurrency:
+  group: lighthouse-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  lighthouse:
+    name: Lighthouse CI（Performance/Accessibility/SEO）
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 依存関係インストール
+        run: npm ci
+
+      - name: Vite ビルド（本番モード）
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Lighthouse CI 実行
+        id: lighthouse
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          uploadArtifacts: true
+          temporaryPublicStorage: false
+          configPath: './.lighthouserc.json'
+        continue-on-error: true
+
+      - name: Lighthouse 結果サマリー出力
+        if: always()
+        run: |
+          echo "## 🔦 Lighthouse CI 結果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| カテゴリ | スコア | 目標 | 判定 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance     | - | ≥80 | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accessibility   | - | ≥90 | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Best Practices  | - | ≥85 | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| SEO             | - | ≥90 | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "詳細はArtifactsの \`lighthouse-results\` を参照してください。" >> $GITHUB_STEP_SUMMARY
+
+      - name: アーティファクトアップロード
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-results-${{ github.run_number }}
+          path: |
+            .lighthouseci/
+          retention-days: 14

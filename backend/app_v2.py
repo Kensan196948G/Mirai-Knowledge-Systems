@@ -34,8 +34,6 @@ logging.basicConfig(
 )
 
 from json_logger import setup_json_logging  # Phase G-15: Structured Logging
-from prometheus_client import Counter as PrometheusCounter
-from prometheus_client import Gauge, Histogram
 
 from config import get_config
 
@@ -472,136 +470,27 @@ from app_helpers import (
 
 
 # ============================================================
-# Prometheusメトリクス定義
+# Prometheusメトリクス定義（Phase Prometheus: metrics_defs.py に移管）
 # ============================================================
-
-# Prometheusレジストリをクリア（重複登録エラー回避）
-from prometheus_client import REGISTRY
-
-try:
-    collectors = list(REGISTRY._collector_to_names.keys())
-    for collector in collectors:
-        try:
-            REGISTRY.unregister(collector)
-        except Exception:
-            pass
-except Exception:
-    pass
-
-# テスト環境ではメトリクスを定義しない（重複回避）
-if os.environ.get("TESTING") != "true":
-    # リクエストカウンター
-    REQUEST_COUNT = PrometheusCounter(
-        "mks_http_requests_total",
-        "Total HTTP requests",
-        ["method", "endpoint", "status"],
-    )
-
-    # レスポンスタイム
-    REQUEST_DURATION = Histogram(
-        "mks_http_request_duration_seconds",
-        "HTTP request latency",
-        ["method", "endpoint"],
-    )
-
-    # エラーカウンター
-    ERROR_COUNT = PrometheusCounter(
-        "mks_errors_total", "Total errors", ["type", "endpoint"]
-    )
-
-    # API呼び出しカウンター
-    API_CALLS = PrometheusCounter(
-        "mks_api_calls_total", "Total API calls", ["endpoint", "method"]
-    )
-
-    # データベース接続数
-    DB_CONNECTIONS = Gauge("mks_database_connections", "Number of database connections")
-
-    # データベースクエリ時間
-    DB_QUERY_DURATION = Histogram(
-        "mks_database_query_duration_seconds", "Database query duration", ["operation"]
-    )
-
-    # アクティブユーザー数
-    ACTIVE_USERS = Gauge("mks_active_users", "Number of active users")
-
-    # ナレッジ総数
-    KNOWLEDGE_TOTAL = Gauge("mks_knowledge_total", "Total number of knowledge entries")
-
-    # システムメトリクス
-    SYSTEM_CPU_USAGE = Gauge(
-        "mks_system_cpu_usage_percent", "System CPU usage percentage"
-    )
-
-    SYSTEM_MEMORY_USAGE = Gauge(
-        "mks_system_memory_usage_percent", "System memory usage percentage"
-    )
-
-    SYSTEM_DISK_USAGE = Gauge(
-        "mks_system_disk_usage_percent", "System disk usage percentage"
-    )
-
-    # 認証メトリクス
-    AUTH_ATTEMPTS = PrometheusCounter(
-        "mks_auth_attempts_total", "Total authentication attempts", ["status"]
-    )
-
-    # レート制限メトリクス
-    RATE_LIMIT_HITS = PrometheusCounter(
-        "mks_rate_limit_hits_total", "Total rate limit hits", ["endpoint"]
-    )
-
-    # MS365同期メトリクス
-    MS365_SYNC_EXECUTIONS = PrometheusCounter(
-        "mks_ms365_sync_executions_total",
-        "Total MS365 sync executions",
-        ["config_id", "status"],
-    )
-
-    MS365_SYNC_DURATION = Histogram(
-        "mks_ms365_sync_duration_seconds",
-        "MS365 sync execution duration in seconds",
-        ["config_id"],
-    )
-
-    MS365_FILES_PROCESSED = PrometheusCounter(
-        "mks_ms365_files_processed_total",
-        "Total files processed from MS365",
-        ["config_id", "result"],  # result: created/updated/skipped/failed
-    )
-
-    MS365_SYNC_ERRORS = PrometheusCounter(
-        "mks_ms365_sync_errors_total",
-        "Total MS365 sync errors",
-        ["config_id", "error_type"],
-    )
-else:
-    # テスト環境用のNoOpメトリクス（NoneではなくNoOpオブジェクトを使用）
-    class _NoOpMetric:
-        """テスト環境用のNoOpメトリクスクラス"""
-        def inc(self, *args, **kwargs): pass
-        def set(self, *args, **kwargs): pass
-        def observe(self, *args, **kwargs): pass
-        def labels(self, **kwargs): return self
-
-    _noop = _NoOpMetric()
-    REQUEST_COUNT = _noop
-    REQUEST_DURATION = _noop
-    ERROR_COUNT = _noop
-    API_CALLS = _noop
-    DB_CONNECTIONS = _noop
-    DB_QUERY_DURATION = _noop
-    ACTIVE_USERS = _noop
-    KNOWLEDGE_TOTAL = _noop
-    SYSTEM_CPU_USAGE = _noop
-    SYSTEM_MEMORY_USAGE = _noop
-    SYSTEM_DISK_USAGE = _noop
-    AUTH_ATTEMPTS = _noop
-    RATE_LIMIT_HITS = _noop
-    MS365_SYNC_EXECUTIONS = _noop
-    MS365_SYNC_DURATION = _noop
-    MS365_FILES_PROCESSED = _noop
-    MS365_SYNC_ERRORS = _noop
+from blueprints.metrics_defs import (  # noqa: E402
+    ACTIVE_USERS,
+    API_CALLS,
+    AUTH_ATTEMPTS,
+    DB_CONNECTIONS,
+    DB_QUERY_DURATION,
+    ERROR_COUNT,
+    KNOWLEDGE_TOTAL,
+    MS365_FILES_PROCESSED,
+    MS365_SYNC_DURATION,
+    MS365_SYNC_ERRORS,
+    MS365_SYNC_EXECUTIONS,
+    RATE_LIMIT_HITS,
+    REQUEST_COUNT,
+    REQUEST_DURATION,
+    SYSTEM_CPU_USAGE,
+    SYSTEM_DISK_USAGE,
+    SYSTEM_MEMORY_USAGE,
+)
 
 
 # get_data_dir: app_helpers で管理（Phase H-1）
