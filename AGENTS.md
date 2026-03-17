@@ -53,8 +53,9 @@
 | Phase I-2 完了 | **81.11%** | **1151** | 2026-03-16 |
 | Phase I-5 + L 完了 | **87.76%** | **1681** | 2026-03-17 |
 | Phase Prometheus 完了 | **87.26%** | **1708** | 2026-03-17 |
+| Coverage強化 + v1.9.0 | **87%+** | **1900+** | 2026-03-17 |
 
-**目標**: 60% ✅（要件達成）、現在 87.26% ✅
+**目標**: 60% ✅（要件達成）、現在 87%+ ✅
 
 ---
 
@@ -86,6 +87,14 @@
 - `vite.config.js`: vendor-viteサブチャンク追加、ES2015ターゲット、CSS分割有効化
 - `webui/sw.js`: Service Worker バージョンを日付ベースに更新（`v2026-03-17`）
 - `webui/src/utils/debounce.js`: `debounce()` / `batchDebounce()` ユーティリティ追加
+
+### Coverage強化 + v1.9.0 Release（PR #3257）
+- `test_auth_endpoints_v2.py`: 23テスト、auth.py 90%→**95%**
+- `test_knowledge_endpoints_v2.py`: 44テスト、knowledge.py 60%→**89%**
+- `test_metrics_defs_coverage.py`: 65テスト、metrics_defs.py 58%→**95%**
+- `test_app_helpers_utils_coverage.py`: 60テスト（search/highlight/permissions/password）
+- GitHub Release v1.9.0 作成（タグ: v1.9.0）
+- 関連PR: #3251, #3253, #3255, #3257
 
 ### Phase Prometheus: メトリクス定義モジュール分離（PR #3255）
 - `blueprints/metrics_defs.py` 新規作成（14メトリクス定義 + _NoOpMetric）
