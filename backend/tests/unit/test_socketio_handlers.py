@@ -23,8 +23,23 @@ def sio_app():
     """SocketIO ハンドラーを登録した最小限の Flask アプリ"""
     app = Flask(__name__)
     app.config["TESTING"] = True
-    sio = SocketIO(app)
+    sio = SocketIO(app, async_mode="threading")
     register_socketio_handlers(sio)
+
+    # python-socketio 5.16.0 互換性対応:
+    # Manager.emit()（コールバックなし）は _send_eio_packet() を使用するが、
+    # Flask-SocketIO テストクライアントは _send_packet() のみモックする。
+    # _send_eio_packet → _send_packet へリダイレクトすることで
+    # テストクライアントのキューにイベントが届くようにする。
+    from socketio import packet as sio_packet
+
+    def _redirect_eio_packet(eio_sid, eio_pkt):
+        if isinstance(eio_pkt.data, str):
+            decoded = sio_packet.Packet(encoded_packet=eio_pkt.data)
+            sio.server._send_packet(eio_sid, decoded)
+
+    sio.server._send_eio_packet = _redirect_eio_packet
+
     return app, sio
 
 
