@@ -399,7 +399,8 @@ init_limiter(limiter)
 from blueprints.auth import auth_bp              # Phase H-1: 12エンドポイント移行済み
 from blueprints.knowledge import knowledge_bp    # Phase H-1: 12エンドポイント移行済み
 from blueprints.dashboard import dashboard_bp    # Phase H-2: SOP/Dashboard移行
-from blueprints.ms365 import ms365_bp, ms365_integration_bp, get_ms_graph_client  # Phase H-3/H-4: MS365移行
+from blueprints.ms365 import ms365_bp                                               # Phase H-3: MS365同期設定
+from blueprints.ms365_integration import ms365_integration_bp, get_ms_graph_client  # Phase H-4/Step5: MS365統合API
 from blueprints.operations import operations_bp  # Phase H-3: Incidents/Approvals移行 + Phase I-4: regulations/projects/experts/notifications
 from blueprints.recommendations import recommendations_bp  # Phase H-4: 推薦API移行
 from blueprints.admin import admin_bp            # Phase H-4: 監査ログ・ヘルスチェック移行

@@ -7,9 +7,9 @@
 ## 📋 プロジェクト概要
 
 - **プロジェクト名**: Mirai Knowledge Systems
-- **バージョン**: v1.8.0
-- **フレームワーク**: Flask 3.1.2 + PostgreSQL + Vanilla JS
-- **現在のフェーズ**: Phase I-2 完了（テストカバレッジ80%+達成）
+- **バージョン**: v1.8.1
+- **フレームワーク**: Flask 3.1.3 + PostgreSQL + Vanilla JS
+- **現在のフェーズ**: Phase G-3-4 / I-3 / I-4 / Phase L 完了（2026-03-17）
 
 ---
 
@@ -53,6 +53,32 @@
 | Phase I-2 完了 | **81.11%** | **1151** | 2026-03-16 |
 
 **目標**: 60% ✅（要件達成）、現在 81.11% ✅
+
+---
+
+## 🔧 2026-03-17 実装記録
+
+### Dependabot PR 全7件マージ
+- jest 30.3.0, chardet 7.1.0, jest-environment-jsdom 30.3.0, **flask 3.1.3**（セキュリティ）
+- python-docx 1.2.0, qrcode 8.2, redis 7.3.0
+
+### Phase G-3-4: Blueprint最終クリーンアップ
+- `app_v2.py`: 重複Redis/Cache設定除去（app_helpers.pyに一元化）
+- `app_v2.py`: 重複`get_data_dir()`関数定義除去
+- `blueprints/auth.py`, `knowledge.py`: `strict_slashes=False`（Flask 3.1.x互換方式に修正）
+
+### Phase I-3: Blueprint ルーティング最適化
+- auth_bp / knowledge_bp に `strict_slashes=False` 設定（末尾スラッシュ柔軟対応）
+- Blueprint登録順コメント整備（高頻度→低頻度）
+
+### Phase I-4: DB接続プール最適化
+- `config.py`: SQLALCHEMY_POOL_SIZE 10→**20**
+- `config.py`: SQLALCHEMY_MAX_OVERFLOW 20→**10**
+- `config.py`: SQLALCHEMY_POOL_RECYCLE 3600→**1800**
+
+### Phase L: テストカバレッジ強化（Issue #3233）
+- `test_error_handlers.py`: 9→38テスト、coverage 78%→**100%**
+- `test_socketio_handlers.py`: 5→24テスト、coverage 58%→**100%**
 
 ---
 

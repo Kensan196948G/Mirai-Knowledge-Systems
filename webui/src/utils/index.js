@@ -31,3 +31,6 @@ export * from './validation.js';
 
 // ファイルユーティリティ
 export * from './file-utils.js';
+
+// デバウンスユーティリティ（Phase I-5）
+export * from './debounce.js';
