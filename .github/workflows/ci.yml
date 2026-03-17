@@ -82,6 +82,7 @@ jobs:
         working-directory: backend
         run: |
           pytest tests/ -v --tb=short --maxfail=10 \
+            -n auto --dist=loadfile \
             --ignore=tests/e2e \
             --ignore=tests/load \
             --cov=app_v2 --cov=app_helpers \
