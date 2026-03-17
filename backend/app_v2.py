@@ -181,97 +181,11 @@ app = Flask(__name__, static_folder=_static_folder)
 AppConfig = get_config()
 
 
-def get_local_ip_addresses():
-    """ローカルネットワークのIPアドレスを自動検出"""
-    import socket
-
-    ips = set()
-
-    # 標準的なlocalhostアドレス
-    ips.add("127.0.0.1")
-    ips.add("localhost")
-
-    try:
-        # ホスト名からIPを取得
-        hostname = socket.gethostname()
-        try:
-            local_ip = socket.gethostbyname(hostname)
-            ips.add(local_ip)
-        except socket.gaierror:
-            pass
-
-        # 全ネットワークインターフェースのIPを取得
-        try:
-            for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
-                ips.add(info[4][0])
-        except socket.gaierror:
-            pass
-
-        # UDPソケットを使用した外部接続経由でのIP検出
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.settimeout(0.1)
-            # Google DNS に接続を試みることでローカルIPを取得
-            s.connect(("8.8.8.8", 80))
-            local_ip = s.getsockname()[0]
-            ips.add(local_ip)
-            s.close()
-        except Exception as e:
-            logger.debug(
-                "Failed to determine local IP via 8.8.8.8 connection: %s", str(e)
-            )
-
-        # 一般的なプライベートIPレンジのプレフィックス
-        # 192.168.x.x, 10.x.x.x, 172.16-31.x.x
-        for ip in list(ips):
-            if (
-                ip.startswith("192.168.")
-                or ip.startswith("10.")
-                or ip.startswith("172.")
-            ):
-                pass  # 既に追加済み
-
-    except Exception as e:
-        logger.warning("Failed to detect local IPs: %s", e)
-
-    return list(ips)
-
-
-def build_cors_origins():
-    """CORS許可オリジンリストを構築（動的IP対応）"""
-    # 基本設定から取得
-    base_origins = getattr(AppConfig, "CORS_ORIGINS", ["http://localhost:5200"])
-    if isinstance(base_origins, str):
-        base_origins = [base_origins]
-
-    origins = set(base_origins)
-
-    # 開発環境では動的IPを追加
-    if os.environ.get("MKS_ENV", "development").lower() == "development":
-        # ポート番号を取得（デフォルト5200）
-        port = os.environ.get("MKS_HTTP_PORT", "5200")
-        https_port = os.environ.get("MKS_HTTPS_PORT", "5243")
-
-        for ip in get_local_ip_addresses():
-            origins.add(f"http://{ip}:{port}")
-            origins.add(f"https://{ip}:{https_port}")
-            # ポートなしも追加（プロキシ経由用）
-            origins.add(f"http://{ip}")
-            origins.add(f"https://{ip}")
-
-    # 本番環境では設定されたオリジンのみ
-    else:
-        port = os.environ.get("MKS_HTTP_PORT", "9100")
-        https_port = os.environ.get("MKS_HTTPS_PORT", "9443")
-        for ip in get_local_ip_addresses():
-            origins.add(f"http://{ip}:{port}")
-            origins.add(f"https://{ip}:{https_port}")
-
-    return list(origins)
+from blueprints.utils.cors_config import build_cors_origins  # Phase M-1: 抽出
 
 
 # CORS設定（動的IP対応）
-allowed_origins = build_cors_origins()
+allowed_origins = build_cors_origins(AppConfig)
 logger.info("[INIT] CORS configured for %d origins", len(allowed_origins))
 
 # SocketIO設定（リアルタイム更新用）
@@ -496,80 +410,20 @@ from blueprints.metrics_defs import (  # noqa: E402
 # get_data_dir: app_helpers で管理（Phase H-1）
 
 
-# セキュリティヘッダー
+# セキュリティヘッダー（Phase M-1: security_headers.py に抽出）
+from blueprints.utils.security_headers import apply_security_headers
+
+
 @app.after_request
 def add_security_headers(response):
     """セキュリティヘッダーを追加（本番/開発環境で設定を切り替え）"""
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
-    response.headers.setdefault("X-XSS-Protection", "1; mode=block")
-    response.headers.setdefault(
-        "Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()"
+    return apply_security_headers(
+        response,
+        is_production=IS_PRODUCTION,
+        hsts_enabled=HSTS_ENABLED,
+        hsts_max_age=HSTS_MAX_AGE,
+        hsts_include_subdomains=HSTS_INCLUDE_SUBDOMAINS,
     )
-
-    # 本番環境: 強化されたセキュリティ設定
-    if IS_PRODUCTION:
-        response.headers.setdefault(
-            "Referrer-Policy", "strict-origin-when-cross-origin"
-        )
-
-        # HSTS (HTTP Strict Transport Security)
-        if HSTS_ENABLED:
-            hsts_value = f"max-age={HSTS_MAX_AGE}"
-            if HSTS_INCLUDE_SUBDOMAINS:
-                hsts_value += "; includeSubDomains"
-            response.headers.setdefault("Strict-Transport-Security", hsts_value)
-
-        # Content Security Policy（本番用: login.htmlのために'unsafe-inline'を許可）
-        csp_policy = "; ".join(
-            [
-                "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",  # Chart.js + Socket.IO (jsDelivr経由)
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",  # Google Fonts + インラインスタイル許可
-                "img-src 'self' data: https:",
-                "font-src 'self' data: https://fonts.gstatic.com",  # Google Fonts許可
-                "connect-src 'self' ws: wss:",  # WebSocket接続許可
-                "worker-src 'self'",  # Phase D-5: Service Worker (PWA)
-                "manifest-src 'self'",  # Phase D-5: PWA Manifest
-                "object-src 'none'",  # プラグイン無効化
-                "frame-ancestors 'none'",
-                "base-uri 'self'",
-                "form-action 'self'",
-                "upgrade-insecure-requests",  # HTTPリクエストを自動的にHTTPSに変換
-            ]
-        )
-
-        # APIレスポンスはキャッシュしない
-        if request.path.startswith("/api/"):
-            response.headers.setdefault(
-                "Cache-Control", "no-store, no-cache, must-revalidate"
-            )
-            response.headers.setdefault("Pragma", "no-cache")
-    else:
-        # 開発環境: 緩和されたセキュリティ設定
-        response.headers.setdefault("Referrer-Policy", "no-referrer")
-
-        # Content Security Policy（開発用: unsafe-inline許可）
-        csp_policy = "; ".join(
-            [
-                "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",  # Chart.js + Socket.IO (jsDelivr経由)
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",  # インラインスタイル許可 + Google Fonts
-                "img-src 'self' data: https:",
-                "font-src 'self' data: https://fonts.gstatic.com",  # Google Fonts許可
-                "connect-src 'self' ws: wss:",  # WebSocket接続許可
-                "worker-src 'self'",  # Phase D-5: Service Worker (PWA)
-                "manifest-src 'self'",  # Phase D-5: PWA Manifest
-                "object-src 'none'",  # プラグイン無効化
-                "frame-ancestors 'none'",
-                "base-uri 'self'",
-                "form-action 'self'",
-            ]
-        )
-
-    response.headers.setdefault("Content-Security-Policy", csp_policy)
-
-    return response
 
 
 # ============================================================
@@ -704,39 +558,8 @@ def update_system_metrics():
 
 # 監査ログ・ヘルスチェックAPI: blueprints/admin.py に移行済み（Phase H-4）
 
-# ============================================================
-# デコレータ: メトリクス記録
-# ============================================================
-
-
-def track_db_query(operation):
-    """
-    データベースクエリのメトリクスを記録するデコレータ
-
-    使用例:
-        @track_db_query('select')
-        def load_knowledges():
-            ...
-    """
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start_time = time.time()
-            try:
-                result = func(*args, **kwargs)
-                duration = time.time() - start_time
-                DB_QUERY_DURATION.labels(operation=operation).observe(duration)
-                return result
-            except Exception:
-                duration = time.time() - start_time
-                DB_QUERY_DURATION.labels(operation=operation).observe(duration)
-                ERROR_COUNT.labels(type="db_error", endpoint=operation).inc()
-                raise
-
-        return wrapper
-
-    return decorator
+# デコレータ: メトリクス記録（Phase M-1: metrics_decorators.py に抽出）
+from blueprints.utils.metrics_decorators import track_db_query  # noqa: F401, E402
 
 
 def init_demo_users():

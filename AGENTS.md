@@ -90,6 +90,14 @@
 - `webui/sw.js`: Service Worker バージョンを日付ベースに更新（`v2026-03-17`）
 - `webui/src/utils/debounce.js`: `debounce()` / `batchDebounce()` ユーティリティ追加
 
+### Phase M-1: app_v2.py モジュール抽出 + N+1最適化
+- `app_v2.py`: 840行→**663行**（21%削減）
+- `blueprints/utils/cors_config.py` 新規: get_local_ip_addresses + build_cors_origins（85行）
+- `blueprints/utils/security_headers.py` 新規: apply_security_headers（73行）
+- `blueprints/utils/metrics_decorators.py` 新規: track_db_query（29行）
+- `dal/experts.py`: JSON mode O(N×M×P) → O(N+M+P) lookup dict最適化
+- `test_utils_extracted_coverage.py`: 19テスト（抽出モジュール全カバー）
+
 ### Phase Coverage-90%+: カバレッジ94%達成
 - `test_app_helpers_coverage_v3.py`: 51テスト（CacheInvalidator 20, _flush_access_logs 5, load_data PostgreSQL 8, load_data error 4, save_data error 8, 追加 6）
 - `test_admin_coverage_v2.py`: 12テスト（admin.py exception/degraded/500パス全カバー）
