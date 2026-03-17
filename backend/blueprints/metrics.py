@@ -29,7 +29,6 @@ def metrics():
     prometheus_client の generate_latest() で出力する。
     """
     try:
-        # metrics_storage は app_v2 モジュールレベルに存在するため遅延インポート
         import app_v2 as _app_v2
 
         _app_v2.update_system_metrics()
@@ -50,7 +49,6 @@ def metrics_summary():
     try:
         get_jwt_identity()
 
-        # metrics_storage は app_v2 モジュールレベルに存在するため遅延インポート
         import app_v2 as _app_v2
         from app_helpers import load_data
 

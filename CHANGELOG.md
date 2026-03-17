@@ -1,5 +1,55 @@
 # CHANGELOG
 
+## [1.9.0] - 2026-03-17
+
+### Added
+- **Phase Prometheus**: `blueprints/metrics_defs.py` 新規作成（app_v2.py から ~130行のPrometheusメトリクス定義を分離）
+  - `REQUEST_COUNT`, `REQUEST_DURATION`, `ERROR_COUNT`, `API_CALLS` 等14メトリクスを共有モジュール化
+  - テスト環境用 `_NoOpMetric` クラスを同モジュールに統合
+- **Lighthouse CI**: `.github/workflows/lighthouse-ci.yml` 新規追加
+  - フロントエンド変更時に自動でパフォーマンス/アクセシビリティ/SEO 計測
+  - `.lighthouserc.json` 閾値設定（Performance≥80, Accessibility≥90, SEO≥90）
+- **Phase I-5 フロントエンド最適化**:
+  - `vite.config.js`: vendor-vite サブチャンク分割、ES2015ターゲット、CSS分割有効化
+  - `webui/sw.js`: Service Worker バージョンを `v2026-03-17`（日付ベース）に更新
+  - `webui/src/utils/debounce.js`: `debounce()` / `batchDebounce()` ユーティリティ追加
+- **Phase I-4 DB接続プール最適化**:
+  - `config.py`: pool_size 10→20、max_overflow 20→10、recycle 3600→1800、pre_ping 有効
+- **Phase I-3 Blueprint ルーティング最適化**:
+  - `auth_bp` / `knowledge_bp`: `strict_slashes = False`（Flask 3.1.x 互換修正）
+- **Phase G-3-4 Blueprint実移行**:
+  - `blueprints/ms365_integration.py` 新規作成（672行）: ms365_integration_bp 分離
+  - `blueprints/ms365.py`: 1143行→484行（ms365_bp のみに縮小）
+- **Phase L テストカバレッジ強化**:
+  - `test_error_handlers.py`: 9→38テスト、coverage 100%
+  - `test_socketio_handlers.py`: 5→24テスト、coverage 100%
+  - `test_dal_base_coverage.py`: 新規作成 27テスト、dal/base.py 100% 達成
+  - `test_dal_notifications_operations_coverage.py`: 58テスト追加
+  - notifications 100%、operations 100%、projects 100%
+- **ベンチマーク基盤**: `backend/scripts/benchmark.py` 新規作成（JWT認証対応HTTPベンチマーク）
+- **CI最適化** (Issue #3235):
+  - `auto-error-fix-continuous.yml`: Playwright/Docker削除、unit testsのみ実行、concurrency設定
+
+### Changed
+- `app_v2.py`: Prometheusメトリクス定義を `blueprints/metrics_defs.py` からimportに変更
+- テストカバレッジ: **81.11%** → **87.76%** （テスト数: 1,151 → 1,681 +530件）
+- CI実行時間最適化（Playwright依存削除による高速化）
+
+### Fixed
+- Flask 3.1.x 非互換: `Blueprint(strict_slashes=False)` → `bp.strict_slashes = False`
+- `app_v2.py`: 重複 `get_data_dir()` 関数定義除去
+- `app_v2.py`: 重複 Redis/Cache 設定ブロック除去
+- `dal/knowledge.py`: 循環インポートを遅延インポートに修正
+
+### Security
+- `flask` 3.0.0→**3.1.3**（Dependabot PR #3242 — セキュリティ修正含む）
+- `jest` 29.7.0→**30.3.0**（Dependabot）
+- `jest-environment-jsdom` 29.7.0→**30.3.0**（Dependabot）
+- `python-docx` 1.1.0→**1.2.0**（Dependabot）
+- `qrcode` 7.4.2→**8.2**（Dependabot）
+- `redis` 4.5.5→**7.3.0**（Dependabot）
+- `chardet` 5.2.0→**7.1.0**（Dependabot）
+
 ## [1.8.0] - 2026-03-10
 
 ### Added
