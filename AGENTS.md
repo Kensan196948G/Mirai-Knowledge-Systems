@@ -1,13 +1,13 @@
 # AGENTS.md — Mirai Knowledge Systems 設計決定・修復履歴
 
-最終更新: 2026-03-17
+最終更新: 2026-03-17（PR #3255）
 
 ---
 
 ## 📋 プロジェクト概要
 
 - **プロジェクト名**: Mirai Knowledge Systems
-- **バージョン**: v1.8.1
+- **バージョン**: v1.9.0
 - **フレームワーク**: Flask 3.1.3 + PostgreSQL + Vanilla JS
 - **現在のフェーズ**: Phase G-3-4 / I-3 / I-4 / Phase L 完了（2026-03-17）
 
@@ -51,8 +51,10 @@
 | Phase K 完了 | 76% → 78% | 900+ | 2026-03-10 |
 | Phase K-2 完了 | 77.28% | 849 | 2026-03-10 |
 | Phase I-2 完了 | **81.11%** | **1151** | 2026-03-16 |
+| Phase I-5 + L 完了 | **87.76%** | **1681** | 2026-03-17 |
+| Phase Prometheus 完了 | **87.26%** | **1708** | 2026-03-17 |
 
-**目標**: 60% ✅（要件達成）、現在 81.11% ✅
+**目標**: 60% ✅（要件達成）、現在 87.26% ✅
 
 ---
 
@@ -79,6 +81,18 @@
 ### Phase L: テストカバレッジ強化（Issue #3233）
 - `test_error_handlers.py`: 9→38テスト、coverage 78%→**100%**
 - `test_socketio_handlers.py`: 5→24テスト、coverage 58%→**100%**
+
+### Phase I-5: フロントエンド最適化（PR #3253）
+- `vite.config.js`: vendor-viteサブチャンク追加、ES2015ターゲット、CSS分割有効化
+- `webui/sw.js`: Service Worker バージョンを日付ベースに更新（`v2026-03-17`）
+- `webui/src/utils/debounce.js`: `debounce()` / `batchDebounce()` ユーティリティ追加
+
+### Phase Prometheus: メトリクス定義モジュール分離（PR #3255）
+- `blueprints/metrics_defs.py` 新規作成（14メトリクス定義 + _NoOpMetric）
+- `app_v2.py`: ~130行のPrometheus定義をimportに変更（循環import解消）
+- `test_dal_base_coverage.py`: 27テスト追加、dal/base.py **100%** 達成
+- `.github/workflows/lighthouse-ci.yml`: Lighthouse CI 自動化追加
+- `CHANGELOG.md`: v1.9.0 エントリ追加
 
 ---
 
