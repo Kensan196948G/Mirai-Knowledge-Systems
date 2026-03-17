@@ -270,22 +270,25 @@ class ExpertsMixin:
                     "is_available": expert.get("is_available", True),
                 }
             else:
+                # Phase M-1: O(N*M*P) → O(N+M+P) lookup dict 最適化
+                from collections import defaultdict
+                rating_map = defaultdict(list)
+                for r in ratings:
+                    rating_map[r.get("expert_id")].append(r)
+                consultation_map = defaultdict(list)
+                for c in consultations:
+                    consultation_map[c.get("expert_id")].append(c)
+
                 stats = []
                 for expert in experts:
-                    expert_ratings = [
-                        r for r in ratings if r.get("expert_id") == expert["id"]
-                    ]
+                    expert_ratings = rating_map[expert["id"]]
                     avg_rating = (
                         sum(r.get("rating", 0) for r in expert_ratings)
                         / len(expert_ratings)
                         if expert_ratings
                         else 0
                     )
-                    expert_consultations = [
-                        c
-                        for c in consultations
-                        if c.get("expert_id") == expert.get("user_id")
-                    ]
+                    expert_consultations = consultation_map[expert.get("user_id")]
 
                     stats.append(
                         {
