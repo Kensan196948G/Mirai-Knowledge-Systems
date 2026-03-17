@@ -55,8 +55,9 @@
 | Phase Prometheus 完了 | **87.26%** | **1708** | 2026-03-17 |
 | Coverage強化 + v1.9.0 | **87%+** | **1900+** | 2026-03-17 |
 | Cache-hit Coverage + CI並列 | **89.52%** | **1928** | 2026-03-17 |
+| Phase Coverage-90%+ 完了 | **94.41%** | **1975** | 2026-03-17 |
 
-**目標**: 60% ✅（要件達成）、現在 89.52% ✅
+**目標**: 60% ✅（要件達成）、現在 94.41% ✅
 
 ---
 
@@ -88,6 +89,15 @@
 - `vite.config.js`: vendor-viteサブチャンク追加、ES2015ターゲット、CSS分割有効化
 - `webui/sw.js`: Service Worker バージョンを日付ベースに更新（`v2026-03-17`）
 - `webui/src/utils/debounce.js`: `debounce()` / `batchDebounce()` ユーティリティ追加
+
+### Phase Coverage-90%+: カバレッジ94%達成
+- `test_app_helpers_coverage_v3.py`: 51テスト（CacheInvalidator 20, _flush_access_logs 5, load_data PostgreSQL 8, load_data error 4, save_data error 8, 追加 6）
+- `test_admin_coverage_v2.py`: 12テスト（admin.py exception/degraded/500パス全カバー）
+- `test_health_bp_coverage_v2.py`: 14テスト（get_metrics無効timestamp, 画像/フォント/HTMLキャッシュ）
+- app_helpers.py: 71%→**85%+**（CacheInvalidator, _flush_access_logs, load_data PostgreSQL, save_data error paths）
+- admin.py: 85%→**95%+**（exception paths, degraded health, db_health error）
+- health_bp.py: 96%→**100%**（画像/フォント/HTMLキャッシュ、無効timestamp）
+- 結果: **94.41%**, 1,975 passed, 30 skipped, 0 failed
 
 ### Cache-hit Coverage + CI並列化（PR #3259）
 - `test_operations_cache_coverage.py`: 8テスト（cache_hit 5パス + exception 2パス）
