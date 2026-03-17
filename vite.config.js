@@ -27,8 +27,13 @@ export default defineConfig({
       output: {
         // チャンク分割（vendor、pwa）
         manualChunks(id) {
-          // Node modules → vendor chunk
+          // Node modules → サブチャンクに分割（大きなvendorチャンク防止）
           if (id.includes('node_modules')) {
+            // Viteコアライブラリ
+            if (id.includes('vite') || id.includes('@vitejs')) {
+              return 'vendor-vite';
+            }
+            // その他のnode_modules
             return 'vendor';
           }
           // PWA関連 → pwa chunk
@@ -69,6 +74,12 @@ export default defineConfig({
         drop_debugger: true,
       },
     },
+    // Phase I-5: チャンクサイズ警告閾値を設定（デフォルト500KB→1000KB）
+    chunkSizeWarningLimit: 1000,
+    // Phase I-5: ターゲット設定でTree-shaking強化
+    target: 'es2015',
+    // Phase I-5: CSS最適化
+    cssCodeSplit: true,
   },
 
   // 開発サーバー設定

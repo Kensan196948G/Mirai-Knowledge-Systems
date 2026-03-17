@@ -434,9 +434,9 @@ class TestMs365IntegrationStatus:
     """GET /api/v1/integrations/microsoft365/status"""
 
     def test_status_not_configured(self, ms365_client, ms365_headers, monkeypatch):
-        import blueprints.ms365 as bp
+        import blueprints.ms365_integration as bp_integration
 
-        monkeypatch.setattr(bp, "get_ms_graph_client", lambda: None)
+        monkeypatch.setattr(bp_integration, "get_ms_graph_client", lambda: None)
         resp = ms365_client.get(
             "/api/v1/integrations/microsoft365/status", headers=ms365_headers
         )
@@ -446,7 +446,7 @@ class TestMs365IntegrationStatus:
         assert data["data"]["configured"] is False
 
     def test_status_configured_connected(self, ms365_client, ms365_headers, monkeypatch):
-        import blueprints.ms365 as bp
+        import blueprints.ms365_integration as bp_integration
 
         class MockGraph:
             def test_connection(self):
@@ -455,7 +455,7 @@ class TestMs365IntegrationStatus:
             def is_configured(self):
                 return True
 
-        monkeypatch.setattr(bp, "get_ms_graph_client", lambda: MockGraph())
+        monkeypatch.setattr(bp_integration, "get_ms_graph_client", lambda: MockGraph())
         resp = ms365_client.get(
             "/api/v1/integrations/microsoft365/status", headers=ms365_headers
         )
@@ -464,7 +464,7 @@ class TestMs365IntegrationStatus:
         assert data["data"]["connected"] is True
 
     def test_status_configured_connection_error(self, ms365_client, ms365_headers, monkeypatch):
-        import blueprints.ms365 as bp
+        import blueprints.ms365_integration as bp_integration
 
         class MockGraph:
             def test_connection(self):
@@ -473,7 +473,7 @@ class TestMs365IntegrationStatus:
             def is_configured(self):
                 return True
 
-        monkeypatch.setattr(bp, "get_ms_graph_client", lambda: MockGraph())
+        monkeypatch.setattr(bp_integration, "get_ms_graph_client", lambda: MockGraph())
         resp = ms365_client.get(
             "/api/v1/integrations/microsoft365/status", headers=ms365_headers
         )
@@ -490,16 +490,16 @@ class TestMs365Sites:
     """GET /api/v1/integrations/microsoft365/sites"""
 
     def test_sites_not_configured(self, ms365_client, ms365_headers, monkeypatch):
-        import blueprints.ms365 as bp
+        import blueprints.ms365_integration as bp_integration
 
-        monkeypatch.setattr(bp, "get_ms_graph_client", lambda: None)
+        monkeypatch.setattr(bp_integration, "get_ms_graph_client", lambda: None)
         resp = ms365_client.get(
             "/api/v1/integrations/microsoft365/sites", headers=ms365_headers
         )
         assert resp.status_code in (400, 503)
 
     def test_sites_with_mock_client(self, ms365_client, ms365_headers, monkeypatch):
-        import blueprints.ms365 as bp
+        import blueprints.ms365_integration as bp_integration
 
         class MockGraph:
             def is_configured(self):
@@ -508,7 +508,7 @@ class TestMs365Sites:
             def get_sharepoint_sites(self, search_query=""):
                 return [{"id": "site-1", "name": "サイト1"}]
 
-        monkeypatch.setattr(bp, "get_ms_graph_client", lambda: MockGraph())
+        monkeypatch.setattr(bp_integration, "get_ms_graph_client", lambda: MockGraph())
         resp = ms365_client.get(
             "/api/v1/integrations/microsoft365/sites", headers=ms365_headers
         )

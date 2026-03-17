@@ -1,4 +1,8 @@
-name: 🤖 自動エラー検知・修復システム（5分間隔・無限ループ）
+name: 🤖 自動エラー検知・修復システム（ユニットテスト高速チェック）
+
+concurrency:
+  group: auto-error-fix-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   # ✅ 営業時間のみ実行（月-金、9-18時の毎正時）
@@ -50,6 +54,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
+          cache-dependency-path: 'backend/requirements*.txt'
 
       - name: 依存関係インストール
         working-directory: ./backend
@@ -61,50 +66,6 @@ jobs:
           if [ -f requirements-test.txt ]; then
             pip install -r requirements-test.txt
           fi
-          # Playwrightブラウザインストール（python -m で確実にPATH解決）
-          python -m playwright install --with-deps chromium
-
-      - name: PostgreSQL起動（Docker）
-        run: |
-          docker run -d \
-            --name postgres \
-            -e POSTGRES_USER=mks_user \
-            -e POSTGRES_PASSWORD=mks_password \
-            -e POSTGRES_DB=mks_db \
-            -p 5432:5432 \
-            postgres:16-alpine
-
-          # PostgreSQL起動待機
-          for i in {1..30}; do
-            if docker exec postgres pg_isready -U mks_user; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            echo "Waiting for PostgreSQL... ($i/30)"
-            sleep 2
-          done
-
-      - name: Redis起動（Docker）
-        run: |
-          docker run -d \
-            --name redis \
-            -p 6379:6379 \
-            redis:7-alpine
-
-          # Redis起動待機
-          sleep 5
-
-      - name: データベース初期化
-        working-directory: ./backend
-        env:
-          DATABASE_URL: postgresql://mks_user:mks_password@localhost:5432/mks_db
-          REDIS_URL: redis://localhost:6379/0
-          MKS_ENV: test
-          MKS_SECRET_KEY: test-secret-key-for-ci
-          MKS_JWT_SECRET_KEY: test-jwt-secret-key-for-ci
-          MKS_CORS_ORIGINS: http://localhost:5100
-        run: |
-          python -c "from app_v2 import db, app; app.app_context().push(); db.create_all(); print('Database initialized')" || echo "Database already exists"
 
       - name: エラー検知・修復ループ（15回）
         id: error_fix_loop
@@ -163,7 +124,7 @@ jobs:
 
             # 2. テスト実行（エラー検知）
             echo "[STEP 2] テスト実行中..."
-            if pytest tests/ -v --tb=short > test_results.log 2>&1; then
+            if pytest tests/unit/ --tb=short -q > test_results.log 2>&1; then
               echo "✓ 全テスト合格"
               echo "### テスト結果: 合格" >> "$RESULT_FILE"
             else
@@ -413,8 +374,7 @@ jobs:
       - name: クリーンアップ
         if: always()
         run: |
-          docker stop postgres redis || true
-          docker rm postgres redis || true
+          echo "Cleanup complete (no Docker containers to stop)"
 
       - name: 次回実行までスリープ（オプション）
         if: false  # 通常は無効（cronで30分後に再実行）

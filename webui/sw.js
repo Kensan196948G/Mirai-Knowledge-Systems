@@ -38,7 +38,7 @@ const logger = (self.MKS_CONFIG && self.MKS_CONFIG.logger) || {
 };
 
 // Service Worker Version
-const SW_VERSION = 'v1.4.0';
+const SW_VERSION = 'v2026-03-17';
 const CACHE_PREFIX = 'mks-';
 
 // Cache Names
