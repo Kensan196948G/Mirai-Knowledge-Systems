@@ -122,6 +122,7 @@ def test_send_teams_notification_skip(monkeypatch):
 
 def test_send_teams_notification_success(monkeypatch):
     import app_helpers
+    import services.notification_service as ns
 
     class DummyResponse:
         status_code = 200
@@ -133,6 +134,7 @@ def test_send_teams_notification_success(monkeypatch):
     monkeypatch.setenv("MKS_TEAMS_WEBHOOK_URL", "https://example.invalid")
     monkeypatch.setenv("MKS_NOTIFICATION_RETRY_COUNT", "1")
     monkeypatch.setattr(app_helpers, "_requests_lib", MockRequests())
+    monkeypatch.setattr(ns, "_requests_lib", MockRequests())
 
     result = app_v2._send_teams_notification(
         {"title": "Test", "message": "Hello", "type": "approval_required"}
