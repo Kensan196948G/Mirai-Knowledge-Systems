@@ -8,7 +8,7 @@ Werkzeug==3.1.6  # Updated: CVE-2024-34069 + CVE-2025-66221 + CVE-2026-21860 (al
 gunicorn==25.1.0
 
 # Database
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.11
 SQLAlchemy==2.0.46
 alembic==1.18.4
 
