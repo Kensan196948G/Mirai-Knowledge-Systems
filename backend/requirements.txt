@@ -9,7 +9,7 @@ gunicorn==25.1.0
 
 # Database
 psycopg2-binary==2.9.9
-SQLAlchemy==2.0.46
+SQLAlchemy==2.0.48
 alembic==1.18.4
 
 # Authentication & Security
